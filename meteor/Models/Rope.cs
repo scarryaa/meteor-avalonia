@@ -247,7 +247,10 @@ public class Rope
     public string GetLineText(int i)
     {
         if (i < 0 || i >= GetLineCount())
-            throw new ArgumentOutOfRangeException(nameof(i), "Line index is out of range");
+            throw new ArgumentOutOfRangeException(nameof(i), $"Line index is out of range {i}");
+
+        if (root == null)
+            return string.Empty;
 
         var sb = new StringBuilder();
         GetLineText(root, ref i, sb);

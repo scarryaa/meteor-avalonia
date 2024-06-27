@@ -72,13 +72,13 @@ public partial class TextEditor : UserControl
     {
         if (DataContext is ScrollableTextEditorViewModel scrollableViewModel)
         {
-            if (lineIndex < 0 || lineIndex >= GetLineCount())
-                throw new ArgumentOutOfRangeException(nameof(lineIndex), "Line index is out of range");
+            if (lineIndex < 0 || lineIndex >= scrollableViewModel.TextEditorViewModel.Rope.GetLineCount())
+                return string.Empty; // Return empty string if line index is out of range
 
             return scrollableViewModel.TextEditorViewModel.Rope.GetLineText(lineIndex);
         }
 
-        return "";
+        return string.Empty;
     }
 
     private void ViewModel_PropertyChanged(object sender, PropertyChangedEventArgs e)
@@ -296,7 +296,8 @@ public partial class TextEditor : UserControl
 
         context.FillRectangle(Brushes.LightGray, new Rect(Bounds.Size));
 
-        if (GetLineCount() == 0) return;
+        var lineCount = GetLineCount();
+        if (lineCount == 0) return; // Exit if there are no lines
 
         var viewableAreaWidth = scrollableViewModel.Viewport.Width;
         var viewableAreaHeight = scrollableViewModel.Viewport.Height;
@@ -304,7 +305,7 @@ public partial class TextEditor : UserControl
         var firstVisibleLine = Math.Max(0, (int)(scrollableViewModel.VerticalOffset / LineHeight));
         var lastVisibleLine = Math.Min(
             firstVisibleLine + (int)(viewableAreaHeight / LineHeight) + 5,
-            GetLineCount());
+            lineCount);
 
         var yOffset = firstVisibleLine * LineHeight;
 
