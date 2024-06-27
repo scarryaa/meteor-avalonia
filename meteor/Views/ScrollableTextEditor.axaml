@@ -12,6 +12,7 @@
 
     <UserControl.Resources>
         <converters:LineCountToHeightConverter x:Key="LineCountToHeightConverter" />
+        <converters:LongestLineOrWindowWidthConverter x:Key="LongestLineOrWindowWidthConverter" />
     </UserControl.Resources>
 
     <ScrollViewer x:Name="EditorScrollViewer"
@@ -19,8 +20,13 @@
                   HorizontalScrollBarVisibility="Auto"
                   ScrollChanged="EditorScrollViewer_ScrollChanged"
                   SizeChanged="EditorScrollViewer_SizeChanged">
-        <views:TextEditor x:Name="TextEditor"
-                          Width="{Binding TextEditorViewModel.WindowWidth}">
+        <views:TextEditor x:Name="TextEditor">
+            <views:TextEditor.Width>
+                <MultiBinding Converter="{StaticResource LongestLineOrWindowWidthConverter}">
+                    <Binding Path="LongestLineWidth" />
+                    <Binding Path="TextEditorViewModel.WindowWidth" />
+                </MultiBinding>
+            </views:TextEditor.Width>
             <views:TextEditor.Height>
                 <MultiBinding Converter="{StaticResource LineCountToHeightConverter}">
                     <Binding Path="TextEditorViewModel.LineCount" />

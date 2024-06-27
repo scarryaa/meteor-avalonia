@@ -22,6 +22,7 @@ public partial class TextEditor : UserControl
     private readonly Dictionary<int, int> _lineLengths = new();
     private int _longestLineIndex = -1;
     private int _longestLineLength;
+    private ScrollableTextEditorViewModel _scrollableViewModel;
 
     public TextEditor()
     {
@@ -29,7 +30,7 @@ public partial class TextEditor : UserControl
 
         DataContextChanged += OnDataContextChanged;
 
-        // Measure text
+        // Measure text to calculate CharWidth
         var referenceText = new FormattedText("0", CultureInfo.CurrentCulture, FlowDirection.LeftToRight,
             new Typeface(_fontFamily), 14, Brushes.Black);
         CharWidth = referenceText.Width;
@@ -41,16 +42,18 @@ public partial class TextEditor : UserControl
     {
         if (DataContext is ScrollableTextEditorViewModel scrollableViewModel)
         {
+            _scrollableViewModel = scrollableViewModel;
             var viewModel = scrollableViewModel.TextEditorViewModel;
             viewModel.PropertyChanged += ViewModel_PropertyChanged;
+            UpdateLineCache();
         }
     }
 
     private void UpdateLineCache()
     {
-        if (DataContext is ScrollableTextEditorViewModel scrollableViewModel)
+        if (_scrollableViewModel != null)
         {
-            var viewModel = scrollableViewModel.TextEditorViewModel;
+            var viewModel = _scrollableViewModel.TextEditorViewModel;
             _lineStarts.Clear();
             _lineLengths.Clear();
             _lineStarts.Add(0);
@@ -60,8 +63,13 @@ public partial class TextEditor : UserControl
             {
                 var nextNewline = viewModel.Rope.IndexOf('\n', lineStart);
                 if (nextNewline == -1)
+                {
+                    _lineLengths[_lineStarts.Count - 1] = viewModel.Rope.Length - lineStart;
                     break;
+                }
+
                 _lineStarts.Add(nextNewline + 1);
+                _lineLengths[_lineStarts.Count - 2] = nextNewline - lineStart;
                 lineStart = nextNewline + 1;
             }
 
@@ -81,6 +89,9 @@ public partial class TextEditor : UserControl
                     _longestLineIndex = i;
                 }
             }
+
+            // Update the longest line width property in the ScrollableTextEditorViewModel
+            _scrollableViewModel.LongestLineWidth = _longestLineLength * CharWidth;
         }
     }
 
@@ -99,14 +110,24 @@ public partial class TextEditor : UserControl
         return _longestLineIndex != -1 ? GetLineText(_longestLineIndex) : string.Empty;
     }
 
+    private void PrintLongestLine()
+    {
+        if (_scrollableViewModel != null)
+        {
+            var viewModel = _scrollableViewModel.TextEditorViewModel;
+            var longestLine = GetLongestLine(viewModel);
+        }
+    }
+
     public string GetLineText(int lineIndex)
     {
-        if (DataContext is ScrollableTextEditorViewModel scrollableViewModel)
+        if (_scrollableViewModel != null)
         {
-            if (lineIndex < 0 || lineIndex >= scrollableViewModel.TextEditorViewModel.Rope.GetLineCount())
+            var viewModel = _scrollableViewModel.TextEditorViewModel;
+            if (lineIndex < 0 || lineIndex >= viewModel.Rope.GetLineCount())
                 return string.Empty; // Return empty string if line index is out of range
 
-            return scrollableViewModel.TextEditorViewModel.Rope.GetLineText(lineIndex);
+            return viewModel.Rope.GetLineText(lineIndex);
         }
 
         return string.Empty;
@@ -125,9 +146,9 @@ public partial class TextEditor : UserControl
     {
         base.OnTextInput(e);
 
-        if (DataContext is ScrollableTextEditorViewModel scrollableViewModel)
+        if (_scrollableViewModel != null)
         {
-            var viewModel = scrollableViewModel.TextEditorViewModel;
+            var viewModel = _scrollableViewModel.TextEditorViewModel;
             if (!string.IsNullOrEmpty(e.Text))
             {
                 var lineIndex = GetLineIndex(viewModel, viewModel.CursorPosition);
@@ -147,6 +168,7 @@ public partial class TextEditor : UserControl
             {
                 _longestLineLength = _lineLengths[lineIndex];
                 _longestLineIndex = lineIndex;
+                _scrollableViewModel.LongestLineWidth = _longestLineLength * CharWidth;
             }
         }
         else
@@ -172,6 +194,8 @@ public partial class TextEditor : UserControl
                         _longestLineLength = kvp.Value;
                         _longestLineIndex = kvp.Key;
                     }
+
+                _scrollableViewModel.LongestLineWidth = _longestLineLength * CharWidth;
             }
         }
         else
@@ -184,11 +208,14 @@ public partial class TextEditor : UserControl
     {
         base.OnKeyDown(e);
 
-        if (DataContext is ScrollableTextEditorViewModel scrollableViewModel)
+        if (_scrollableViewModel != null)
         {
-            var viewModel = scrollableViewModel.TextEditorViewModel;
+            var viewModel = _scrollableViewModel.TextEditorViewModel;
             HandleKeyDown(e, viewModel);
             InvalidateVisual();
+
+            // Add key binding for printing the longest line
+            if (e.Key == Key.L && (e.KeyModifiers & KeyModifiers.Control) != 0) PrintLongestLine();
         }
     }
 
@@ -311,7 +338,6 @@ public partial class TextEditor : UserControl
         }
 
         viewModel.InsertText("\n");
-        Console.WriteLine(viewModel.LineCount);
         OnTextInserted(GetLineIndex(viewModel, viewModel.CursorPosition), 1);
         viewModel.CursorPosition++;
     }
@@ -420,24 +446,24 @@ public partial class TextEditor : UserControl
 
     public override void Render(DrawingContext context)
     {
-        if (DataContext is not ScrollableTextEditorViewModel scrollableViewModel) return;
+        if (_scrollableViewModel == null) return;
 
         context.FillRectangle(Brushes.LightGray, new Rect(Bounds.Size));
 
         var lineCount = GetLineCount();
         if (lineCount == 0) return;
 
-        var viewableAreaWidth = scrollableViewModel.Viewport.Width;
-        var viewableAreaHeight = scrollableViewModel.Viewport.Height;
+        var viewableAreaWidth = _scrollableViewModel.Viewport.Width;
+        var viewableAreaHeight = _scrollableViewModel.Viewport.Height;
 
-        var firstVisibleLine = Math.Max(0, (int)(scrollableViewModel.VerticalOffset / LineHeight));
+        var firstVisibleLine = Math.Max(0, (int)(_scrollableViewModel.VerticalOffset / LineHeight));
         var lastVisibleLine = Math.Min(
             firstVisibleLine + (int)(viewableAreaHeight / LineHeight) + 5,
             lineCount);
 
-        RenderVisibleLines(context, scrollableViewModel, firstVisibleLine, lastVisibleLine, viewableAreaWidth);
-        DrawSelection(context, viewableAreaWidth, viewableAreaHeight, scrollableViewModel);
-        DrawCursor(context, viewableAreaWidth, viewableAreaHeight, scrollableViewModel);
+        RenderVisibleLines(context, _scrollableViewModel, firstVisibleLine, lastVisibleLine, viewableAreaWidth);
+        DrawSelection(context, viewableAreaWidth, viewableAreaHeight, _scrollableViewModel);
+        DrawCursor(context, viewableAreaWidth, viewableAreaHeight, _scrollableViewModel);
     }
 
     private void RenderVisibleLines(DrawingContext context, ScrollableTextEditorViewModel scrollableViewModel,
@@ -535,9 +561,9 @@ public partial class TextEditor : UserControl
 
     private void SelectAll()
     {
-        if (DataContext is ScrollableTextEditorViewModel scrollableViewModel)
+        if (_scrollableViewModel != null)
         {
-            var viewModel = scrollableViewModel.TextEditorViewModel;
+            var viewModel = _scrollableViewModel.TextEditorViewModel;
             viewModel.SelectionStart = 0;
             viewModel.SelectionEnd = viewModel.Rope.Length;
             viewModel.CursorPosition = viewModel.Rope.Length;
@@ -547,9 +573,9 @@ public partial class TextEditor : UserControl
 
     private void CopyText()
     {
-        if (DataContext is ScrollableTextEditorViewModel scrollableViewModel)
+        if (_scrollableViewModel != null)
         {
-            var viewModel = scrollableViewModel.TextEditorViewModel;
+            var viewModel = _scrollableViewModel.TextEditorViewModel;
             if (viewModel.SelectionStart == -1 || viewModel.SelectionEnd == -1)
                 return;
 
@@ -564,9 +590,9 @@ public partial class TextEditor : UserControl
 
     private async void PasteText()
     {
-        if (DataContext is ScrollableTextEditorViewModel scrollableViewModel)
+        if (_scrollableViewModel != null)
         {
-            var viewModel = scrollableViewModel.TextEditorViewModel;
+            var viewModel = _scrollableViewModel.TextEditorViewModel;
             var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
             if (clipboard == null) return;
 

@@ -8,18 +8,13 @@ public class ScrollableTextEditorViewModel : ViewModelBase
     private double _verticalOffset;
     private double _horizontalOffset;
     private Size _viewport;
-    private int _longestLineWidth;
+    private double _longestLineWidth;
 
-    public ScrollableTextEditorViewModel()
+    public TextEditorViewModel TextEditorViewModel { get; } = new();
+
+    public double LongestLineWidth
     {
-        TextEditorViewModel = new TextEditorViewModel();
-    }
-
-    public TextEditorViewModel TextEditorViewModel { get; }
-
-    public int LongestLineWidth
-    {
-        get => LongestLineWidth;
+        get => _longestLineWidth;
         set
         {
             if (_longestLineWidth != value) this.RaiseAndSetIfChanged(ref _longestLineWidth, value);
