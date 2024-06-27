@@ -19,6 +19,9 @@ public partial class TextEditor : UserControl
     private readonly string _fontFamily = "Monospace";
     private readonly List<int> _lineStarts = new();
     private int _cachedLineCount;
+    private readonly Dictionary<int, int> _lineLengths = new();
+    private int _longestLineIndex = -1;
+    private int _longestLineLength;
 
     public TextEditor()
     {
@@ -49,6 +52,7 @@ public partial class TextEditor : UserControl
         {
             var viewModel = scrollableViewModel.TextEditorViewModel;
             _lineStarts.Clear();
+            _lineLengths.Clear();
             _lineStarts.Add(0);
 
             var lineStart = 0;
@@ -62,12 +66,37 @@ public partial class TextEditor : UserControl
             }
 
             _cachedLineCount = _lineStarts.Count;
+
+            _longestLineIndex = -1;
+            _longestLineLength = 0;
+
+            for (var i = 0; i < _cachedLineCount; i++)
+            {
+                var length = GetVisualLineLength(viewModel, i);
+                _lineLengths[i] = length;
+
+                if (length > _longestLineLength)
+                {
+                    _longestLineLength = length;
+                    _longestLineIndex = i;
+                }
+            }
         }
+    }
+
+    private int GetLineLength(TextEditorViewModel viewModel, int lineIndex)
+    {
+        return _lineLengths.TryGetValue(lineIndex, out var length) ? length : 0;
     }
 
     private int GetLineCount()
     {
         return _cachedLineCount;
+    }
+
+    private string GetLongestLine(TextEditorViewModel viewModel)
+    {
+        return _longestLineIndex != -1 ? GetLineText(_longestLineIndex) : string.Empty;
     }
 
     public string GetLineText(int lineIndex)
@@ -99,7 +128,55 @@ public partial class TextEditor : UserControl
         if (DataContext is ScrollableTextEditorViewModel scrollableViewModel)
         {
             var viewModel = scrollableViewModel.TextEditorViewModel;
-            if (!string.IsNullOrEmpty(e.Text)) viewModel.InsertText(e.Text);
+            if (!string.IsNullOrEmpty(e.Text))
+            {
+                var lineIndex = GetLineIndex(viewModel, viewModel.CursorPosition);
+                viewModel.InsertText(e.Text);
+                OnTextInserted(lineIndex, e.Text.Length);
+            }
+        }
+    }
+
+    private void OnTextInserted(int lineIndex, int length)
+    {
+        if (_lineLengths.ContainsKey(lineIndex))
+        {
+            _lineLengths[lineIndex] += length;
+
+            if (_lineLengths[lineIndex] > _longestLineLength)
+            {
+                _longestLineLength = _lineLengths[lineIndex];
+                _longestLineIndex = lineIndex;
+            }
+        }
+        else
+        {
+            UpdateLineCache(); // Fallback to a full cache update if the line index is not found
+        }
+    }
+
+    private void OnTextDeleted(int lineIndex, int length)
+    {
+        if (_lineLengths.ContainsKey(lineIndex))
+        {
+            _lineLengths[lineIndex] -= length;
+
+            if (lineIndex == _longestLineIndex && _lineLengths[lineIndex] < _longestLineLength)
+            {
+                // Recalculate the longest line if the current longest line is affected
+                _longestLineIndex = -1;
+                _longestLineLength = 0;
+                foreach (var kvp in _lineLengths)
+                    if (kvp.Value > _longestLineLength)
+                    {
+                        _longestLineLength = kvp.Value;
+                        _longestLineIndex = kvp.Key;
+                    }
+            }
+        }
+        else
+        {
+            UpdateLineCache(); // Fallback to a full cache update if the line index is not found
         }
     }
 
@@ -179,7 +256,9 @@ public partial class TextEditor : UserControl
     {
         if (viewModel.CursorPosition < viewModel.Rope.Length)
         {
+            var lineIndex = GetLineIndex(viewModel, viewModel.CursorPosition);
             viewModel.CursorPosition++;
+            OnTextInserted(lineIndex, 1);
             UpdateDesiredColumn(viewModel);
         }
 
@@ -190,7 +269,9 @@ public partial class TextEditor : UserControl
     {
         if (viewModel.CursorPosition > 0)
         {
+            var lineIndex = GetLineIndex(viewModel, viewModel.CursorPosition);
             viewModel.CursorPosition--;
+            OnTextDeleted(lineIndex, 1);
             UpdateDesiredColumn(viewModel);
         }
 
@@ -201,14 +282,18 @@ public partial class TextEditor : UserControl
     {
         if (viewModel.SelectionStart != -1 && viewModel.SelectionEnd != -1)
         {
+            var lineIndex = GetLineIndex(viewModel, viewModel.SelectionStart);
             viewModel.DeleteText(Math.Min(viewModel.SelectionStart, viewModel.SelectionEnd),
                 Math.Abs(viewModel.SelectionEnd - viewModel.SelectionStart));
+            OnTextDeleted(lineIndex, Math.Abs(viewModel.SelectionEnd - viewModel.SelectionStart));
             viewModel.CursorPosition = Math.Min(viewModel.SelectionStart, viewModel.SelectionEnd);
             viewModel.ClearSelection();
         }
         else if (viewModel.CursorPosition > 0)
         {
+            var lineIndex = GetLineIndex(viewModel, viewModel.CursorPosition);
             viewModel.DeleteText(viewModel.CursorPosition - 1, 1);
+            OnTextDeleted(lineIndex, 1);
             viewModel.CursorPosition--;
         }
     }
@@ -217,15 +302,18 @@ public partial class TextEditor : UserControl
     {
         if (viewModel.SelectionStart != -1 && viewModel.SelectionEnd != -1)
         {
+            var lineIndex = GetLineIndex(viewModel, viewModel.SelectionStart);
             viewModel.DeleteText(Math.Min(viewModel.SelectionStart, viewModel.SelectionEnd),
                 Math.Abs(viewModel.SelectionEnd - viewModel.SelectionStart));
+            OnTextDeleted(lineIndex, Math.Abs(viewModel.SelectionEnd - viewModel.SelectionStart));
             viewModel.CursorPosition = Math.Min(viewModel.SelectionStart, viewModel.SelectionEnd);
             viewModel.ClearSelection();
         }
 
         viewModel.InsertText("\n");
+        Console.WriteLine(viewModel.LineCount);
+        OnTextInserted(GetLineIndex(viewModel, viewModel.CursorPosition), 1);
         viewModel.CursorPosition++;
-        Console.WriteLine(viewModel.Rope.GetLineCount());
     }
 
     private void HandleControlKeyDown(KeyEventArgs keyEventArgs, TextEditorViewModel viewModel)
@@ -307,11 +395,11 @@ public partial class TextEditor : UserControl
 
     private int GetVisualLineLength(TextEditorViewModel viewModel, int lineIndex)
     {
-        var lineLength = viewModel.Rope.GetLineLength(lineIndex);
+        var lineLength = GetLineLength(viewModel, lineIndex);
         // Subtract 1 if the line ends with a newline character
         if (lineLength > 0 &&
-            viewModel.Rope.GetText(viewModel.Rope.GetLineStartPosition(lineIndex) + lineLength - 1, 1) ==
-            "\n") lineLength--;
+            viewModel.Rope.GetText(viewModel.Rope.GetLineStartPosition(lineIndex) + lineLength - 1, 1) == "\n")
+            lineLength--;
         return lineLength;
     }
 
@@ -413,7 +501,7 @@ public partial class TextEditor : UserControl
 
             var selectionRect = new Rect(xOffsetStart, yOffset, xOffsetEnd - xOffsetStart, LineHeight);
 
-            context.FillRectangle(new SolidColorBrush(Color.FromArgb(77, 0, 0, 255)), selectionRect);
+            context.FillRectangle(new SolidColorBrush(Color.FromArgb(100, 139, 205, 192)), selectionRect);
 
             yOffset += LineHeight;
         }
@@ -489,13 +577,16 @@ public partial class TextEditor : UserControl
             {
                 if (viewModel.SelectionStart != -1 && viewModel.SelectionEnd != -1)
                 {
+                    var lineIndex = GetLineIndex(viewModel, viewModel.SelectionStart);
                     viewModel.DeleteText(Math.Min(viewModel.SelectionStart, viewModel.SelectionEnd),
                         Math.Abs(viewModel.SelectionEnd - viewModel.SelectionStart));
+                    OnTextDeleted(lineIndex, Math.Abs(viewModel.SelectionEnd - viewModel.SelectionStart));
                     viewModel.CursorPosition = Math.Min(viewModel.SelectionStart, viewModel.SelectionEnd);
                     viewModel.ClearSelection();
                 }
 
                 viewModel.InsertText(text);
+                OnTextInserted(GetLineIndex(viewModel, viewModel.CursorPosition), text.Length);
                 viewModel.CursorPosition += text.Length;
                 viewModel.CursorPosition = Math.Min(viewModel.CursorPosition, viewModel.Rope.Length);
 
