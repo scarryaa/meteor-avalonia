@@ -9,39 +9,15 @@ public class Rope
 {
     private const int SPLIT_LENGTH = 1024;
 
-    private class Node
-    {
-        public string Text { get; set; }
-        public int Length { get; set; }
-        public int LineCount { get; set; }
-        public Node Left { get; set; }
-        public Node Right { get; set; }
-        public List<int> LinePositions { get; }
-
-        public Node(string text)
-        {
-            Text = text;
-            Length = text.Length;
-            LineCount = text.Count(c => c == '\n') + 1;
-            LinePositions = new List<int>();
-            CalculateLinePositions();
-        }
-
-        public void CalculateLinePositions()
-        {
-            LinePositions.Add(0); // Start of the first line
-            for (var i = 0; i < Text.Length; i++)
-                if (Text[i] == '\n')
-                    LinePositions.Add(i + 1);
-        }
-    }
-
     private Node root;
 
     public Rope(string text)
     {
         root = Build(text);
     }
+
+    public int Length => root?.Length ?? 0;
+    public int LineCount => root.LineCount;
 
     private Node Build(string text)
     {
@@ -98,8 +74,8 @@ public class Rope
 
         var start = GetLineStartPosition(lineIndex);
         var end = lineIndex < LineCount - 1 ? GetLineStartPosition(lineIndex + 1) : Length;
-
-        return end - start;
+        var length = end - start;
+        return length;
     }
 
     public void Insert(int index, string text)
@@ -268,9 +244,6 @@ public class Rope
         return -1;
     }
 
-    public int Length => root?.Length ?? 0;
-    public int LineCount => root.LineCount;
-
     public string GetLineText(int i)
     {
         if (i < 0 || i >= GetLineCount())
@@ -313,5 +286,33 @@ public class Rope
 
         // Search in the right subtree
         return GetLineText(node.Right, ref lineIndex, sb);
+    }
+
+    private class Node
+    {
+        public Node(string text)
+        {
+            Text = text;
+            Length = text.Length;
+            LineCount = text.Count(c => c == '\n') + 1;
+            LinePositions = new List<int>();
+            CalculateLinePositions();
+        }
+
+        public string Text { get; set; }
+        public int Length { get; set; }
+        public int LineCount { get; set; }
+        public Node Left { get; set; }
+        public Node Right { get; set; }
+        public List<int> LinePositions { get; }
+
+        public void CalculateLinePositions()
+        {
+            LinePositions.Clear();
+            LinePositions.Add(0); // Start of the first line
+            for (var i = 0; i < Text.Length; i++)
+                if (Text[i] == '\n')
+                    LinePositions.Add(i + 1);
+        }
     }
 }

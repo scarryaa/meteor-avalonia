@@ -13,6 +13,7 @@ namespace meteor.Views;
 
 public partial class TextEditor : UserControl
 {
+    private int _desiredColumn;
     private const double LineHeight = 20;
     private double TextWidth { get; }
     private readonly string _fontFamily = "Monospace";
@@ -157,12 +158,18 @@ public partial class TextEditor : UserControl
                     break;
                 case Key.Left:
                     if (viewModel.CursorPosition > 0)
+                    {
                         viewModel.CursorPosition--;
+                        UpdateDesiredColumn(viewModel);
+                    }
                     viewModel.ClearSelection();
                     break;
                 case Key.Right:
                     if (viewModel.CursorPosition < viewModel.Rope.Length)
+                    {
                         viewModel.CursorPosition++;
+                        UpdateDesiredColumn(viewModel);
+                    }
                     viewModel.ClearSelection();
                     break;
                 case Key.Up:
@@ -173,6 +180,21 @@ public partial class TextEditor : UserControl
                     MoveCursorDown(viewModel);
                     viewModel.ClearSelection();
                     break;
+                case Key.Home:
+                    var lineStartPosition =
+                        viewModel.Rope.GetLineStartPosition(GetLineIndex(viewModel, viewModel.CursorPosition));
+                    viewModel.CursorPosition = lineStartPosition;
+                    _desiredColumn = 0;
+                    viewModel.ClearSelection();
+                    break;
+                case Key.End:
+                    var lineIndex = GetLineIndex(viewModel, viewModel.CursorPosition);
+                    var lineEndPosition = viewModel.Rope.GetLineStartPosition(lineIndex) +
+                                          GetVisualLineLength(viewModel, lineIndex);
+                    viewModel.CursorPosition = lineEndPosition;
+                    UpdateDesiredColumn(viewModel);
+                    viewModel.ClearSelection();
+                    break;
             }
 
             viewModel.CursorPosition = Math.Max(0, Math.Min(viewModel.CursorPosition, viewModel.Rope.Length));
@@ -180,28 +202,75 @@ public partial class TextEditor : UserControl
         }
     }
 
-    private void MoveCursorUp(TextEditorViewModel viewModel)
+    private void UpdateDesiredColumn(TextEditorViewModel viewModel)
     {
         var lineIndex = GetLineIndex(viewModel, viewModel.CursorPosition);
-        if (lineIndex > 0)
+        var lineStart = viewModel.Rope.GetLineStartPosition(lineIndex);
+        _desiredColumn = viewModel.CursorPosition - lineStart;
+    }
+
+    private void MoveCursorUp(TextEditorViewModel viewModel)
+    {
+        var currentLineIndex = GetLineIndex(viewModel, viewModel.CursorPosition);
+        if (currentLineIndex > 0)
         {
-            var currentLinePosition = viewModel.CursorPosition - viewModel.Rope.GetLineStartPosition(lineIndex);
-            var previousLineStart = viewModel.Rope.GetLineStartPosition(lineIndex - 1);
-            var previousLineLength = viewModel.Rope.GetLineLength(lineIndex - 1);
-            viewModel.CursorPosition = previousLineStart + Math.Min(currentLinePosition, previousLineLength);
+            var currentLineStart = viewModel.Rope.GetLineStartPosition(currentLineIndex);
+            var currentColumn = viewModel.CursorPosition - currentLineStart;
+
+            // Update desired column only if it's greater than the current column
+            _desiredColumn = Math.Max(_desiredColumn, currentColumn);
+
+            var previousLineIndex = currentLineIndex - 1;
+            var previousLineStart = viewModel.Rope.GetLineStartPosition(previousLineIndex);
+            var previousLineLength = viewModel.Rope.GetLineLength(previousLineIndex);
+
+            // Calculate new cursor position
+            viewModel.CursorPosition = previousLineStart + Math.Min(_desiredColumn, previousLineLength - 1);
+        }
+        else
+        {
+            // Move to the start of the first line
+            viewModel.CursorPosition = 0;
+            UpdateDesiredColumn(viewModel);
         }
     }
 
     private void MoveCursorDown(TextEditorViewModel viewModel)
     {
-        var lineIndex = GetLineIndex(viewModel, viewModel.CursorPosition);
-        if (lineIndex < viewModel.Rope.GetLineCount() - 1)
+        var currentLineIndex = GetLineIndex(viewModel, viewModel.CursorPosition);
+        if (currentLineIndex < viewModel.Rope.GetLineCount() - 1)
         {
-            var currentLinePosition = viewModel.CursorPosition - viewModel.Rope.GetLineStartPosition(lineIndex);
-            var nextLineStart = viewModel.Rope.GetLineStartPosition(lineIndex + 1);
-            var nextLineLength = viewModel.Rope.GetLineLength(lineIndex + 1);
-            viewModel.CursorPosition = nextLineStart + Math.Min(currentLinePosition, nextLineLength);
+            var currentLineStart = viewModel.Rope.GetLineStartPosition(currentLineIndex);
+            var currentColumn = viewModel.CursorPosition - currentLineStart;
+
+            // Update the desired column only if it's greater than the current column
+            _desiredColumn = Math.Max(_desiredColumn, currentColumn);
+
+            var nextLineIndex = currentLineIndex + 1;
+            var nextLineStart = viewModel.Rope.GetLineStartPosition(nextLineIndex);
+            var nextLineLength = GetVisualLineLength(viewModel, nextLineIndex);
+
+            // Calculate new cursor position
+            viewModel.CursorPosition = nextLineStart + Math.Min(_desiredColumn, nextLineLength);
         }
+        else
+        {
+            // Move to the end of the last line
+            var lastLineStart = viewModel.Rope.GetLineStartPosition(currentLineIndex);
+            var lastLineLength = viewModel.Rope.GetLineLength(currentLineIndex);
+            viewModel.CursorPosition = lastLineStart + lastLineLength;
+            UpdateDesiredColumn(viewModel);
+        }
+    }
+
+    private int GetVisualLineLength(TextEditorViewModel viewModel, int lineIndex)
+    {
+        var lineLength = viewModel.Rope.GetLineLength(lineIndex);
+        // Subtract 1 if the line ends with a newline character
+        if (lineLength > 0 &&
+            viewModel.Rope.GetText(viewModel.Rope.GetLineStartPosition(lineIndex) + lineLength - 1, 1) ==
+            "\n") lineLength--;
+        return lineLength;
     }
 
     private int GetLineIndex(TextEditorViewModel viewModel, int position)
