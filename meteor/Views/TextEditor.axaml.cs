@@ -126,7 +126,7 @@ public partial class TextEditor : UserControl
             viewModel.CursorPosition = Math.Max(0, Math.Min(viewModel.CursorPosition, viewModel.Rope.Length));
         }
     }
-
+    
     public override void Render(DrawingContext context)
     {
         if (DataContext is not ScrollableTextEditorViewModel scrollableViewModel) return;
@@ -141,12 +141,13 @@ public partial class TextEditor : UserControl
         var viewableAreaHeight = Bounds.Height;
 
         // Calculate the first and last visible lines
-        var firstVisibleLine = (int)(scrollableViewModel.VerticalOffset / LineHeight);
-        var lastVisibleLine = Math.Min(firstVisibleLine + (int)(viewableAreaHeight / LineHeight) + 1,
-            viewModel.Rope.GetLineCount());
+        var firstVisibleLine = Math.Max(0, (int)(scrollableViewModel.VerticalOffset / LineHeight));
+        var lastVisibleLine = Math.Min(
+            firstVisibleLine + (int)(viewableAreaHeight / LineHeight) + 5,
+            lines.Length);
 
-        var yOffset = firstVisibleLine * LineHeight - scrollableViewModel.VerticalOffset;
-
+        var yOffset = firstVisibleLine * LineHeight - scrollableViewModel.VerticalOffset % LineHeight;
+        
         for (var i = firstVisibleLine; i < lastVisibleLine; i++)
         {
             var lineText = viewModel.Rope.GetLineText(i);
