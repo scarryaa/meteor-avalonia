@@ -1,3 +1,4 @@
+using Avalonia;
 using ReactiveUI;
 
 namespace meteor.ViewModels;
@@ -6,6 +7,7 @@ public class ScrollableTextEditorViewModel : ViewModelBase
 {
     private double _verticalOffset;
     private double _horizontalOffset;
+    private Size _viewport;
 
     public ScrollableTextEditorViewModel()
     {
@@ -29,6 +31,15 @@ public class ScrollableTextEditorViewModel : ViewModelBase
         set
         {
             if (_horizontalOffset != value) this.RaiseAndSetIfChanged(ref _horizontalOffset, value);
+        }
+    }
+
+    public Size Viewport
+    {
+        get => _viewport;
+        set
+        {
+            if (_viewport != value) this.RaiseAndSetIfChanged(ref _viewport, value);
         }
     }
 }

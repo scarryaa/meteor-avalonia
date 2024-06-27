@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
@@ -15,12 +16,23 @@ public class Rope
         public int LineCount { get; set; }
         public Node Left { get; set; }
         public Node Right { get; set; }
+        public List<int> LinePositions { get; }
 
         public Node(string text)
         {
             Text = text;
             Length = text.Length;
             LineCount = text.Count(c => c == '\n') + 1;
+            LinePositions = new List<int>();
+            CalculateLinePositions();
+        }
+
+        public void CalculateLinePositions()
+        {
+            LinePositions.Add(0); // Start of the first line
+            for (var i = 0; i < Text.Length; i++)
+                if (Text[i] == '\n')
+                    LinePositions.Add(i + 1);
         }
     }
 
@@ -45,6 +57,51 @@ public class Rope
         return node;
     }
 
+    public int GetLineStartPosition(int lineIndex)
+    {
+        if (lineIndex < 0 || lineIndex >= LineCount)
+            throw new ArgumentOutOfRangeException(nameof(lineIndex), "Line index is out of range");
+
+        var position = 0;
+        GetLineStartPosition(root, ref lineIndex, ref position);
+        return position;
+    }
+
+    private bool GetLineStartPosition(Node node, ref int lineIndex, ref int position)
+    {
+        if (node == null)
+            return false;
+
+        if (node.Text != null)
+        {
+            if (lineIndex < node.LinePositions.Count)
+            {
+                position += node.LinePositions[lineIndex];
+                return true;
+            }
+
+            lineIndex -= node.LinePositions.Count;
+            position += node.Length;
+            return false;
+        }
+
+        if (GetLineStartPosition(node.Left, ref lineIndex, ref position))
+            return true;
+
+        return GetLineStartPosition(node.Right, ref lineIndex, ref position);
+    }
+
+    public int GetLineLength(int lineIndex)
+    {
+        if (lineIndex < 0 || lineIndex >= LineCount)
+            throw new ArgumentOutOfRangeException(nameof(lineIndex), "Line index is out of range");
+
+        var start = GetLineStartPosition(lineIndex);
+        var end = lineIndex < LineCount - 1 ? GetLineStartPosition(lineIndex + 1) : Length;
+
+        return end - start;
+    }
+
     public void Insert(int index, string text)
     {
         index = Math.Max(0, Math.Min(index, Length));
@@ -61,6 +118,8 @@ public class Rope
             node.Text = node.Text.Insert(index, text);
             node.Length = node.Text.Length;
             node.LineCount = node.Text.Count(c => c == '\n') + 1;
+            node.LinePositions.Clear();
+            node.CalculateLinePositions();
             return node;
         }
 
@@ -92,6 +151,8 @@ public class Rope
             node.Text = node.Text.Remove(start, Math.Min(length, node.Text.Length - start));
             node.Length = node.Text.Length;
             node.LineCount = node.Text.Count(c => c == '\n') + 1;
+            node.LinePositions.Clear();
+            node.CalculateLinePositions();
             return node.Length > 0 ? node : null;
         }
 
@@ -125,24 +186,86 @@ public class Rope
 
     public string GetText()
     {
+        return GetText(0, Length);
+    }
+
+    public string GetText(int start, int length)
+    {
+        if (start < 0 || start >= Length)
+            throw new ArgumentOutOfRangeException(nameof(start), "Start index is out of range");
+        if (length < 0 || start + length > Length)
+            throw new ArgumentOutOfRangeException(nameof(length), "Length is out of range");
+
         var sb = new StringBuilder();
-        GetText(root, sb);
+        GetText(root, start, length, sb);
         return sb.ToString();
     }
 
-    private void GetText(Node node, StringBuilder sb)
+    private void GetText(Node node, int start, int length, StringBuilder sb)
     {
-        if (node == null)
+        if (node == null || length == 0)
             return;
 
         if (node.Text != null)
         {
-            sb.Append(node.Text);
+            var end = Math.Min(start + length, node.Length);
+            sb.Append(node.Text.Substring(start, end - start));
             return;
         }
 
-        GetText(node.Left, sb);
-        GetText(node.Right, sb);
+        if (start < node.Left.Length)
+        {
+            GetText(node.Left, start, Math.Min(length, node.Left.Length - start), sb);
+            length -= Math.Min(length, node.Left.Length - start);
+            start = 0;
+        }
+        else
+        {
+            start -= node.Left.Length;
+        }
+
+        if (length > 0)
+            GetText(node.Right, start, length, sb);
+    }
+
+    public int IndexOf(char value, int startIndex = 0)
+    {
+        if (startIndex < 0 || startIndex >= Length)
+            throw new ArgumentOutOfRangeException(nameof(startIndex), "Start index is out of range");
+
+        return IndexOf(root, value, ref startIndex);
+    }
+
+    private int IndexOf(Node node, char value, ref int startIndex)
+    {
+        if (node == null)
+            return -1;
+
+        if (node.Text != null)
+        {
+            var index = node.Text.IndexOf(value, startIndex);
+            if (index != -1)
+                return index;
+            startIndex = 0;
+            return -1;
+        }
+
+        if (startIndex < node.Left.Length)
+        {
+            var index = IndexOf(node.Left, value, ref startIndex);
+            if (index != -1)
+                return index;
+        }
+        else
+        {
+            startIndex -= node.Left.Length;
+        }
+
+        var rightIndex = IndexOf(node.Right, value, ref startIndex);
+        if (rightIndex != -1)
+            return node.Left.Length + rightIndex;
+
+        return -1;
     }
 
     public int Length => root?.Length ?? 0;
@@ -165,30 +288,22 @@ public class Rope
 
         if (node.Text != null)
         {
-            // Count lines and find the start of the target line
-            var currentLineIndex = 0;
-            var lineStart = 0;
-            for (var j = 0; j < node.Text.Length; j++)
-                if (node.Text[j] == '\n')
-                {
-                    if (currentLineIndex == lineIndex)
-                    {
-                        sb.Append(node.Text.Substring(lineStart, j - lineStart));
-                        return true;
-                    }
-
-                    currentLineIndex++;
-                    lineStart = j + 1;
-                }
-
-            // If the target line is the last line (without a trailing newline)
-            if (currentLineIndex == lineIndex)
+            if (lineIndex < node.LinePositions.Count - 1)
             {
+                var lineStart = node.LinePositions[lineIndex];
+                var lineEnd = node.LinePositions[lineIndex + 1] - 1;
+                sb.Append(node.Text.Substring(lineStart, lineEnd - lineStart));
+                return true;
+            }
+
+            if (lineIndex == node.LinePositions.Count - 1)
+            {
+                var lineStart = node.LinePositions[lineIndex];
                 sb.Append(node.Text.Substring(lineStart));
                 return true;
             }
 
-            lineIndex -= currentLineIndex + 1;
+            lineIndex -= node.LinePositions.Count;
             return false;
         }
 

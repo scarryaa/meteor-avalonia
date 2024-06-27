@@ -16,7 +16,9 @@
 
     <ScrollViewer x:Name="EditorScrollViewer"
                   VerticalScrollBarVisibility="Auto"
-                  HorizontalScrollBarVisibility="Auto">
+                  HorizontalScrollBarVisibility="Auto"
+                  ScrollChanged="EditorScrollViewer_ScrollChanged"
+                  SizeChanged="EditorScrollViewer_SizeChanged">
         <views:TextEditor x:Name="TextEditor"
                           Width="{Binding TextEditorViewModel.WindowWidth}">
             <views:TextEditor.Height>

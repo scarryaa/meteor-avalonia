@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
 using Avalonia;
@@ -15,6 +16,8 @@ public partial class TextEditor : UserControl
     private const double LineHeight = 20;
     private double TextWidth { get; }
     private readonly string _fontFamily = "Monospace";
+    private readonly List<int> _lineStarts = new();
+    private int _cachedLineCount;
 
     public TextEditor()
     {
@@ -35,6 +38,46 @@ public partial class TextEditor : UserControl
         TextWidth = referenceText.Width;
 
         Focusable = true;
+    }
+
+    private void UpdateLineCache()
+    {
+        if (DataContext is ScrollableTextEditorViewModel scrollableViewModel)
+        {
+            var viewModel = scrollableViewModel.TextEditorViewModel;
+            _lineStarts.Clear();
+            _lineStarts.Add(0);
+
+            var lineStart = 0;
+            while (lineStart < viewModel.Rope.Length)
+            {
+                var nextNewline = viewModel.Rope.IndexOf('\n', lineStart);
+                if (nextNewline == -1)
+                    break;
+                _lineStarts.Add(nextNewline + 1);
+                lineStart = nextNewline + 1;
+            }
+
+            _cachedLineCount = _lineStarts.Count;
+        }
+    }
+
+    private int GetLineCount()
+    {
+        return _cachedLineCount;
+    }
+
+    public string GetLineText(int lineIndex)
+    {
+        if (DataContext is ScrollableTextEditorViewModel scrollableViewModel)
+        {
+            if (lineIndex < 0 || lineIndex >= GetLineCount())
+                throw new ArgumentOutOfRangeException(nameof(lineIndex), "Line index is out of range");
+
+            return scrollableViewModel.TextEditorViewModel.Rope.GetLineText(lineIndex);
+        }
+
+        return "";
     }
 
     private void ViewModel_PropertyChanged(object sender, PropertyChangedEventArgs e)
@@ -95,6 +138,7 @@ public partial class TextEditor : UserControl
 
                     viewModel.InsertText("\n");
                     viewModel.CursorPosition++;
+                    Console.WriteLine(viewModel.Rope.GetLineCount());
                     break;
                 case Key.Back:
                     if (viewModel.SelectionStart != -1 && viewModel.SelectionEnd != -1)
@@ -121,46 +165,85 @@ public partial class TextEditor : UserControl
                         viewModel.CursorPosition++;
                     viewModel.ClearSelection();
                     break;
+                case Key.Up:
+                    MoveCursorUp(viewModel);
+                    viewModel.ClearSelection();
+                    break;
+                case Key.Down:
+                    MoveCursorDown(viewModel);
+                    viewModel.ClearSelection();
+                    break;
             }
 
             viewModel.CursorPosition = Math.Max(0, Math.Min(viewModel.CursorPosition, viewModel.Rope.Length));
+            InvalidateVisual();
         }
     }
-    
+
+    private void MoveCursorUp(TextEditorViewModel viewModel)
+    {
+        var lineIndex = GetLineIndex(viewModel, viewModel.CursorPosition);
+        if (lineIndex > 0)
+        {
+            var currentLinePosition = viewModel.CursorPosition - viewModel.Rope.GetLineStartPosition(lineIndex);
+            var previousLineStart = viewModel.Rope.GetLineStartPosition(lineIndex - 1);
+            var previousLineLength = viewModel.Rope.GetLineLength(lineIndex - 1);
+            viewModel.CursorPosition = previousLineStart + Math.Min(currentLinePosition, previousLineLength);
+        }
+    }
+
+    private void MoveCursorDown(TextEditorViewModel viewModel)
+    {
+        var lineIndex = GetLineIndex(viewModel, viewModel.CursorPosition);
+        if (lineIndex < viewModel.Rope.GetLineCount() - 1)
+        {
+            var currentLinePosition = viewModel.CursorPosition - viewModel.Rope.GetLineStartPosition(lineIndex);
+            var nextLineStart = viewModel.Rope.GetLineStartPosition(lineIndex + 1);
+            var nextLineLength = viewModel.Rope.GetLineLength(lineIndex + 1);
+            viewModel.CursorPosition = nextLineStart + Math.Min(currentLinePosition, nextLineLength);
+        }
+    }
+
+    private int GetLineIndex(TextEditorViewModel viewModel, int position)
+    {
+        var lineIndex = 0;
+        var accumulatedLength = 0;
+
+        while (accumulatedLength + viewModel.Rope.GetLineLength(lineIndex) <= position &&
+               lineIndex < viewModel.Rope.GetLineCount() - 1)
+        {
+            accumulatedLength += viewModel.Rope.GetLineLength(lineIndex);
+            lineIndex++;
+        }
+
+        return lineIndex;
+    }
+
     public override void Render(DrawingContext context)
     {
         if (DataContext is not ScrollableTextEditorViewModel scrollableViewModel) return;
-        var viewModel = scrollableViewModel.TextEditorViewModel;
+
+        UpdateLineCache();
 
         context.FillRectangle(Brushes.LightGray, new Rect(Bounds.Size));
 
-        var text = viewModel.Rope.GetText();
-        var lines = text.Split('\n');
+        if (GetLineCount() == 0) return;
 
-        var viewableAreaWidth = Bounds.Width;
-        var viewableAreaHeight = Bounds.Height;
+        var viewableAreaWidth = scrollableViewModel.Viewport.Width;
+        var viewableAreaHeight = scrollableViewModel.Viewport.Height;
 
-        // Calculate the first and last visible lines
         var firstVisibleLine = Math.Max(0, (int)(scrollableViewModel.VerticalOffset / LineHeight));
         var lastVisibleLine = Math.Min(
             firstVisibleLine + (int)(viewableAreaHeight / LineHeight) + 5,
-            lines.Length);
+            GetLineCount());
 
-        var yOffset = firstVisibleLine * LineHeight - scrollableViewModel.VerticalOffset % LineHeight;
-        
+        var yOffset = firstVisibleLine * LineHeight;
+
         for (var i = firstVisibleLine; i < lastVisibleLine; i++)
         {
-            var lineText = viewModel.Rope.GetLineText(i);
+            var lineText = GetLineText(i);
             var xOffset = -scrollableViewModel.HorizontalOffset;
 
-            // Skip drawing if text is completely out of view vertically
-            if (yOffset + LineHeight < 0 || yOffset > viewableAreaHeight)
-            {
-                yOffset += LineHeight;
-                continue;
-            }
-
-            // Render only the visible part of the line
             var visiblePart = GetVisiblePart(lineText, xOffset, viewableAreaWidth);
 
             var formattedText = new FormattedText(
@@ -171,22 +254,13 @@ public partial class TextEditor : UserControl
                 14,
                 Brushes.Black);
 
-            // Draw only the visible part of the text
-            var clipRect = new Rect(0, Math.Max(0, yOffset), viewableAreaWidth, LineHeight);
-            using (context.PushClip(clipRect))
-            {
-                context.DrawText(formattedText, new Point(xOffset, yOffset));
-            }
+            context.DrawText(formattedText, new Point(xOffset, yOffset));
 
             yOffset += LineHeight;
         }
 
-        // Draw selection
-        if (viewModel.SelectionStart != -1 && viewModel.SelectionEnd != -1)
-            DrawSelection(context, text, lines, viewableAreaWidth, viewableAreaHeight, scrollableViewModel);
-
-        // Draw cursor
-        DrawCursor(context, text, viewableAreaWidth, viewableAreaHeight, scrollableViewModel);
+        DrawSelection(context, viewableAreaWidth, viewableAreaHeight, scrollableViewModel);
+        DrawCursor(context, viewableAreaWidth, viewableAreaHeight, scrollableViewModel);
     }
 
     private string GetVisiblePart(string lineText, double xOffset, double viewableAreaWidth)
@@ -196,136 +270,71 @@ public partial class TextEditor : UserControl
         return lineText.Substring(startIndex, endIndex - startIndex);
     }
 
-    private void DrawSelection(DrawingContext context, string text, string[] lines, double viewableAreaWidth,
+    private void DrawSelection(DrawingContext context, double viewableAreaWidth,
         double viewableAreaHeight, ScrollableTextEditorViewModel scrollableViewModel)
     {
         var viewModel = scrollableViewModel.TextEditorViewModel;
 
         var selectionStart = Math.Min(viewModel.SelectionStart, viewModel.SelectionEnd);
         var selectionEnd = Math.Max(viewModel.SelectionStart, viewModel.SelectionEnd);
-        var selectionText = text.Substring(selectionStart, selectionEnd - selectionStart);
-        var selectionLines = selectionText.Split('\n');
-        var startLine = text.Substring(0, selectionStart).Split('\n').Length - 1;
-        var endLine = startLine + selectionLines.Length - 1;
 
-        var yOffset = startLine * LineHeight - scrollableViewModel.VerticalOffset;
-        for (var i = startLine; i <= endLine; i++)
+        var startLine = GetLineIndexFromPosition(selectionStart);
+        var endLine = GetLineIndexFromPosition(selectionEnd);
+
+        var firstVisibleLine = Math.Max(0, (int)(scrollableViewModel.VerticalOffset / LineHeight));
+        var lastVisibleLine = Math.Min(
+            firstVisibleLine + (int)(viewableAreaHeight / LineHeight) + 5,
+            GetLineCount());
+
+        var yOffset = firstVisibleLine * LineHeight;
+        for (var i = firstVisibleLine; i <= lastVisibleLine; i++)
         {
-            // Skip if the selection line is not visible
-            if (yOffset + LineHeight < 0 || yOffset > viewableAreaHeight)
-            {
-                yOffset += LineHeight;
-                continue;
-            }
+            if (i < startLine || i > endLine) continue;
 
-            var lineStart = i == startLine
-                ? selectionStart - text.Substring(0, selectionStart).LastIndexOf('\n') - 1
-                : 0;
-            var lineEnd = i == endLine
-                ? selectionEnd - text.Substring(0, selectionStart + selectionText.Length).LastIndexOf('\n') - 1
-                : lines[i].Length;
+            var lineStart = i == startLine ? selectionStart - _lineStarts[i] : 0;
+            var lineEnd = i == endLine ? selectionEnd - _lineStarts[i] : GetLineText(i).Length;
             var xOffsetStart = lineStart * TextWidth - scrollableViewModel.HorizontalOffset;
             var xOffsetEnd = lineEnd * TextWidth - scrollableViewModel.HorizontalOffset;
 
             var selectionRect = new Rect(xOffsetStart, yOffset, xOffsetEnd - xOffsetStart, LineHeight);
-            var visibleSelectionRect = selectionRect.Intersect(new Rect(0, 0, viewableAreaWidth, viewableAreaHeight));
 
-            if (visibleSelectionRect is { Width: > 0, Height: > 0 })
-                context.FillRectangle(new SolidColorBrush(Color.FromArgb(77, 0, 0, 255)), visibleSelectionRect);
+            context.FillRectangle(new SolidColorBrush(Color.FromArgb(77, 0, 0, 255)), selectionRect);
 
             yOffset += LineHeight;
         }
     }
 
-    private void DrawCursor(DrawingContext context, string text, double viewableAreaWidth, double viewableAreaHeight,
+    private void DrawCursor(DrawingContext context, double viewableAreaWidth, double viewableAreaHeight,
         ScrollableTextEditorViewModel scrollableViewModel)
     {
         var viewModel = scrollableViewModel.TextEditorViewModel;
 
-        var cursorLine = text.Substring(0, viewModel.CursorPosition).Split('\n').Length - 1;
-        var cursorColumn = viewModel.CursorPosition - text.Substring(0, viewModel.CursorPosition).LastIndexOf('\n') - 1;
+        var cursorLine = GetLineIndexFromPosition(viewModel.CursorPosition);
+        var cursorColumn = viewModel.CursorPosition - _lineStarts[cursorLine];
         var cursorX = cursorColumn * TextWidth - scrollableViewModel.HorizontalOffset;
-        var cursorY = cursorLine * LineHeight - scrollableViewModel.VerticalOffset;
+        var cursorY = cursorLine * LineHeight;
 
-        if (cursorX >= 0 && cursorX < viewableAreaWidth && cursorY >= 0 && cursorY < viewableAreaHeight)
-            context.DrawLine(new Pen(Brushes.Black), new Point(cursorX, cursorY),
-                new Point(cursorX, cursorY + LineHeight));
+        context.DrawLine(new Pen(Brushes.Black), new Point(cursorX, cursorY),
+            new Point(cursorX, cursorY + LineHeight));
     }
 
-    protected override void OnPointerPressed(PointerPressedEventArgs e)
+    private int GetLineIndexFromPosition(int position)
     {
-        base.OnPointerPressed(e);
+        var low = 0;
+        var high = _lineStarts.Count - 1;
 
-        if (DataContext is ScrollableTextEditorViewModel scrollableViewModel)
+        while (low <= high)
         {
-            var viewModel = scrollableViewModel.TextEditorViewModel;
-            var point = e.GetCurrentPoint(this);
-            var column = (int)(point.Position.X / TextWidth);
-            var line = (int)(point.Position.Y / LineHeight);
-
-            viewModel.CursorPosition = GetPositionFromLineColumn(line, column, viewModel);
-            viewModel.CursorPosition = Math.Min(viewModel.CursorPosition, viewModel.Rope.Length);
-            viewModel.SelectionStart = viewModel.CursorPosition;
-            viewModel.IsSelecting = true;
-
-            InvalidateVisual();
+            var mid = (low + high) / 2;
+            if (_lineStarts[mid] <= position && (mid == _lineStarts.Count - 1 || _lineStarts[mid + 1] > position))
+                return mid;
+            if (_lineStarts[mid] > position)
+                high = mid - 1;
+            else
+                low = mid + 1;
         }
-    }
 
-    protected override void OnPointerMoved(PointerEventArgs e)
-    {
-        base.OnPointerMoved(e);
-
-        if (DataContext is ScrollableTextEditorViewModel scrollableViewModel)
-        {
-            var viewModel = scrollableViewModel.TextEditorViewModel;
-            if (viewModel.IsSelecting)
-            {
-                var point = e.GetCurrentPoint(this);
-                var column = (int)(point.Position.X / TextWidth);
-                var line = (int)(point.Position.Y / LineHeight);
-
-                viewModel.CursorPosition = GetPositionFromLineColumn(line, column, viewModel);
-                viewModel.CursorPosition = Math.Min(viewModel.CursorPosition, viewModel.Rope.Length);
-                viewModel.SelectionEnd = viewModel.CursorPosition;
-
-                InvalidateVisual();
-            }
-        }
-    }
-
-    protected override void OnPointerReleased(PointerReleasedEventArgs e)
-    {
-        base.OnPointerReleased(e);
-
-        if (DataContext is ScrollableTextEditorViewModel scrollableViewModel)
-        {
-            var viewModel = scrollableViewModel.TextEditorViewModel;
-            viewModel.IsSelecting = false;
-        }
-    }
-
-    private int GetPositionFromLineColumn(int line, int column, TextEditorViewModel viewModel)
-    {
-        var lines = viewModel.Rope.GetText().Split('\n');
-
-        // Clamp the line parameter to the valid range
-        line = Math.Max(0, Math.Min(line, lines.Length - 1));
-
-        // Clamp the column parameter to the valid range
-        column = Math.Max(0, Math.Min(column, lines[line].Length));
-
-        var position = 0;
-
-        // +1 for newline character
-        for (var i = 0; i < line; i++) position += lines[i].Length + 1;
-
-        position += column;
-
-        // Ensure the position does not exceed the text length
-        position = Math.Min(position, viewModel.Rope.Length);
-
-        return position;
+        return _lineStarts.Count - 1;
     }
 
     private void SelectAll()

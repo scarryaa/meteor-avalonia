@@ -27,4 +27,20 @@ public partial class ScrollableTextEditor : UserControl
             });
         }
     }
+
+    private void EditorScrollViewer_ScrollChanged(object? sender, ScrollChangedEventArgs e)
+    {
+        if (sender is ScrollViewer { } viewer && DataContext is ScrollableTextEditorViewModel viewModel)
+        {
+            viewModel.Viewport = viewer.Viewport;
+            viewModel.HorizontalOffset = viewer.Offset.X;
+            viewModel.VerticalOffset = viewer.Offset.Y;
+        }
+    }
+
+    private void EditorScrollViewer_SizeChanged(object? sender, SizeChangedEventArgs e)
+    {
+        if (sender is ScrollViewer { } viewer && DataContext is ScrollableTextEditorViewModel viewModel)
+            viewModel.Viewport = viewer.Viewport;
+    }
 }
