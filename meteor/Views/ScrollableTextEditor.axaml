@@ -1,0 +1,31 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:views="clr-namespace:meteor.Views"
+             xmlns:converters="clr-namespace:meteor.Converters"
+             xmlns:vm="clr-namespace:meteor.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="meteor.Views.ScrollableTextEditor"
+             x:DataType="vm:ScrollableTextEditorViewModel"
+             AttachedToVisualTree="OnAttachedToVisualTree">
+
+    <UserControl.Resources>
+        <converters:LineCountToHeightConverter x:Key="LineCountToHeightConverter" />
+    </UserControl.Resources>
+
+    <ScrollViewer x:Name="EditorScrollViewer"
+                  VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Auto">
+        <views:TextEditor x:Name="TextEditor"
+                          Width="{Binding TextEditorViewModel.WindowWidth}">
+            <views:TextEditor.Height>
+                <MultiBinding Converter="{StaticResource LineCountToHeightConverter}">
+                    <Binding Path="TextEditorViewModel.LineCount" />
+                    <Binding Path="TextEditorViewModel.LineHeight" />
+                    <Binding Path="TextEditorViewModel.WindowHeight" />
+                </MultiBinding>
+            </views:TextEditor.Height>
+        </views:TextEditor>
+    </ScrollViewer>
+</UserControl>
