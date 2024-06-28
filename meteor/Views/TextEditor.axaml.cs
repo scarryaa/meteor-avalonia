@@ -480,69 +480,51 @@ public partial class TextEditor : UserControl
     {
         var currentLineIndex = GetLineIndex(viewModel, viewModel.CursorPosition);
         var linesPerPage = (int)(_scrollableViewModel.Viewport.Height / LineHeight);
+        var newLineIndex = Math.Max(0, currentLineIndex - linesPerPage);
 
-        if (currentLineIndex == 0)
-        {
-            // Already on the first line, jump to the start of the document
-            viewModel.CursorPosition = 0;
-            _desiredColumn = 0;
-        }
-        else
-        {
-            var newLineIndex = Math.Max(0, currentLineIndex - linesPerPage);
-            var lineStart = viewModel.Rope.GetLineStartPosition(newLineIndex);
-            var newCursorPosition = lineStart + Math.Min(_desiredColumn, GetVisualLineLength(viewModel, newLineIndex));
+        // Set cursor to the start of the first line if newLineIndex is 0
+        var newCursorPosition = newLineIndex == 0
+            ? 0
+            : Math.Min(viewModel.Rope.GetLineStartPosition(newLineIndex) + _desiredColumn,
+                viewModel.Rope.GetLineStartPosition(newLineIndex) + GetVisualLineLength(viewModel, newLineIndex));
 
-            viewModel.CursorPosition = newCursorPosition;
-            _scrollableViewModel.VerticalOffset = Math.Max(0,
-                _scrollableViewModel.VerticalOffset - _scrollableViewModel.Viewport.Height);
-
-            // Update desired column based on the new cursor position
-            _desiredColumn = viewModel.CursorPosition - lineStart;
-        }
+        viewModel.CursorPosition = newCursorPosition;
 
         if (!isShiftPressed)
             viewModel.ClearSelection();
         else
             viewModel.SelectionEnd = viewModel.CursorPosition;
+
+        _scrollableViewModel.VerticalOffset =
+            Math.Max(0, _scrollableViewModel.VerticalOffset - _scrollableViewModel.Viewport.Height);
     }
+
 
     private void HandlePageDown(TextEditorViewModel viewModel, bool isShiftPressed)
     {
         var currentLineIndex = GetLineIndex(viewModel, viewModel.CursorPosition);
         var linesPerPage = (int)(_scrollableViewModel.Viewport.Height / LineHeight);
-        var maxLineIndex = GetLineCount() - 1;
+        var newLineIndex = Math.Min(GetLineCount() - 1, currentLineIndex + linesPerPage);
 
-        if (currentLineIndex == maxLineIndex)
-        {
-            // Already on the last line, jump to the end of the document
-            var lastLineStart = viewModel.Rope.GetLineStartPosition(maxLineIndex);
-            var lastLineLength = GetVisualLineLength(viewModel, maxLineIndex);
-            viewModel.CursorPosition = lastLineStart + lastLineLength;
-            _desiredColumn = lastLineLength;
-        }
-        else
-        {
-            var newLineIndex = Math.Min(maxLineIndex, currentLineIndex + linesPerPage);
-            var lineStart = viewModel.Rope.GetLineStartPosition(newLineIndex);
-            var newCursorPosition = lineStart + Math.Min(_desiredColumn, GetVisualLineLength(viewModel, newLineIndex));
+        // Set cursor to the end of the last line if newLineIndex is the last line
+        var lastLineIndex = GetLineCount() - 1;
+        var lineStart = viewModel.Rope.GetLineStartPosition(newLineIndex);
+        var newCursorPosition = newLineIndex == lastLineIndex
+            ? lineStart + GetVisualLineLength(viewModel, newLineIndex)
+            : Math.Min(lineStart + _desiredColumn, lineStart + GetVisualLineLength(viewModel, newLineIndex));
 
-            viewModel.CursorPosition = newCursorPosition;
-
-            var maxVerticalOffset = Math.Max(0, maxLineIndex * LineHeight - _scrollableViewModel.Viewport.Height);
-            _scrollableViewModel.VerticalOffset =
-                Math.Min(_scrollableViewModel.VerticalOffset + _scrollableViewModel.Viewport.Height, maxVerticalOffset);
-
-            // Update desired column based on the new cursor position
-            _desiredColumn = viewModel.CursorPosition - lineStart;
-        }
+        viewModel.CursorPosition = newCursorPosition;
 
         if (!isShiftPressed)
             viewModel.ClearSelection();
         else
             viewModel.SelectionEnd = viewModel.CursorPosition;
+
+        _scrollableViewModel.VerticalOffset = Math.Min(
+            _scrollableViewModel.VerticalOffset + _scrollableViewModel.Viewport.Height,
+            (_cachedLineCount - 1) * LineHeight);
     }
-    
+
     private void HandleShiftLeftArrow(TextEditorViewModel viewModel)
     {
         if (viewModel.CursorPosition > 0)
