@@ -103,33 +103,26 @@ public class TextEditorViewModel : ViewModelBase
     {
         if (_rope == null) throw new InvalidOperationException("Rope is not initialized.");
 
-        if (_selectionStart != -1 && _selectionEnd != -1)
-        {
-            _rope.Delete(Math.Min(_selectionStart, _selectionEnd), Math.Abs(_selectionEnd - _selectionStart));
-            _cursorPosition = Math.Min(_selectionStart, _selectionEnd);
-            ClearSelection();
-        }
-
         _rope.Insert(_cursorPosition, text);
-        _cursorPosition += text.Length;
-        _cursorPosition = Math.Min(_cursorPosition, _rope.Length);
 
         this.RaisePropertyChanged(nameof(LineCount));
         this.RaisePropertyChanged(nameof(Rope));
     }
-
+    
     public void DeleteText(int start, int length)
     {
         if (_rope == null) throw new InvalidOperationException("Rope is not initialized.");
 
-        _rope.Delete(start, length);
-        this.RaisePropertyChanged(nameof(LineCount));
-        this.RaisePropertyChanged(nameof(Rope));
+        if (length > 0)
+        {
+            _rope.Delete(start, length);
+            this.RaisePropertyChanged(nameof(Rope));
+        }
     }
-
+    
     public void ClearSelection()
     {
-        SelectionStart = -1;
-        SelectionEnd = -1;
+        SelectionStart = CursorPosition;
+        SelectionEnd = CursorPosition;
     }
 }
