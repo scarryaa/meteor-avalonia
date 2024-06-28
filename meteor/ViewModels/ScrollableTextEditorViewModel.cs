@@ -9,6 +9,7 @@ public class ScrollableTextEditorViewModel : ViewModelBase
     private double _horizontalOffset;
     private Size _viewport;
     private double _longestLineWidth;
+    private Vector _offset;
 
     public TextEditorViewModel TextEditorViewModel { get; } = new();
 
@@ -26,7 +27,11 @@ public class ScrollableTextEditorViewModel : ViewModelBase
         get => _verticalOffset;
         set
         {
-            if (_verticalOffset != value) this.RaiseAndSetIfChanged(ref _verticalOffset, value);
+            if (_verticalOffset != value)
+            {
+                this.RaiseAndSetIfChanged(ref _verticalOffset, value);
+                Offset = new Vector(Offset.X, _verticalOffset);
+            }
         }
     }
 
@@ -35,7 +40,20 @@ public class ScrollableTextEditorViewModel : ViewModelBase
         get => _horizontalOffset;
         set
         {
-            if (_horizontalOffset != value) this.RaiseAndSetIfChanged(ref _horizontalOffset, value);
+            if (_horizontalOffset != value)
+            {
+                this.RaiseAndSetIfChanged(ref _horizontalOffset, value);
+                Offset = new Vector(_horizontalOffset, Offset.Y);
+            }
+        }
+    }
+
+    public Vector Offset
+    {
+        get => _offset;
+        set
+        {
+            if (_offset != value) this.RaiseAndSetIfChanged(ref _offset, value);
         }
     }
 

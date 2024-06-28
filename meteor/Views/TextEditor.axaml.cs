@@ -5,6 +5,7 @@ using System.Globalization;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
 using meteor.ViewModels;
@@ -13,6 +14,7 @@ namespace meteor.Views;
 
 public partial class TextEditor : UserControl
 {
+    private bool _suppressScrollOnNextCursorMove;
     private bool _isSelecting;
     private int _selectionAnchor = -1;
     private const double SelectionEndPadding = 2;
@@ -45,6 +47,9 @@ public partial class TextEditor : UserControl
 
     private void OnDataContextChanged(object sender, EventArgs e)
     {
+        if (_scrollableViewModel?.TextEditorViewModel != null)
+            _scrollableViewModel.TextEditorViewModel.PropertyChanged -= ViewModel_PropertyChanged;
+
         if (DataContext is ScrollableTextEditorViewModel scrollableViewModel)
         {
             _scrollableViewModel = scrollableViewModel;
@@ -52,6 +57,13 @@ public partial class TextEditor : UserControl
             viewModel.PropertyChanged += ViewModel_PropertyChanged;
             UpdateLineCache();
         }
+    }
+
+    protected override void OnUnloaded(RoutedEventArgs e)
+    {
+        base.OnUnloaded(e);
+        if (_scrollableViewModel?.TextEditorViewModel != null)
+            _scrollableViewModel.TextEditorViewModel.PropertyChanged -= ViewModel_PropertyChanged;
     }
 
     private void UpdateLineCache()
@@ -132,6 +144,10 @@ public partial class TextEditor : UserControl
             UpdateLineCache();
             Dispatcher.UIThread.Post(InvalidateVisual);
         }
+        else if (e.PropertyName == nameof(TextEditorViewModel.CursorPosition))
+        {
+            Dispatcher.UIThread.Post(EnsureCursorVisible);
+        }
     }
 
     protected override void OnPointerPressed(PointerPressedEventArgs e)
@@ -190,22 +206,38 @@ public partial class TextEditor : UserControl
     {
         if (_scrollableViewModel == null) return;
 
-        // var cursorLine = GetLineIndexFromPosition(_scrollableViewModel.TextEditorViewModel.CursorPosition);
-        // var cursorColumn = _scrollableViewModel.TextEditorViewModel.CursorPosition - _lineStarts[cursorLine];
-        //
-        // // Vertical scrolling
-        // var cursorY = cursorLine * LineHeight;
-        // if (cursorY < _scrollableViewModel.VerticalOffset)
-        //     _scrollableViewModel.VerticalOffset = cursorY;
-        // else if (cursorY + LineHeight > _scrollableViewModel.VerticalOffset + _scrollableViewModel.Viewport.Height)
-        //     _scrollableViewModel.VerticalOffset = cursorY + LineHeight - _scrollableViewModel.Viewport.Height;
-        //
-        // // Horizontal scrolling
-        // var cursorX = cursorColumn * CharWidth;
-        // if (cursorX < _scrollableViewModel.HorizontalOffset)
-        //     _scrollableViewModel.HorizontalOffset = cursorX;
-        // else if (cursorX + CharWidth > _scrollableViewModel.HorizontalOffset + _scrollableViewModel.Viewport.Width)
-        //     _scrollableViewModel.HorizontalOffset = cursorX + CharWidth - _scrollableViewModel.Viewport.Width;
+        var viewModel = _scrollableViewModel.TextEditorViewModel;
+        var cursorLine = GetLineIndexFromPosition(viewModel.CursorPosition);
+        var cursorColumn = viewModel.CursorPosition - _lineStarts[cursorLine];
+
+        if (!_suppressScrollOnNextCursorMove)
+        {
+            // Vertical scrolling
+            var cursorY = cursorLine * LineHeight;
+
+            if (cursorY < _scrollableViewModel.VerticalOffset)
+                _scrollableViewModel.VerticalOffset = cursorY;
+            else if (cursorY + LineHeight > _scrollableViewModel.VerticalOffset + _scrollableViewModel.Viewport.Height)
+                _scrollableViewModel.VerticalOffset = cursorY + LineHeight - _scrollableViewModel.Viewport.Height;
+
+            // Horizontal scrolling
+            var cursorX = cursorColumn * CharWidth;
+            var viewportWidth = _scrollableViewModel.Viewport.Width;
+            var currentOffset = _scrollableViewModel.HorizontalOffset;
+
+            // Define a margin (e.g., 10% of viewport width) to keep the cursor visible
+            var margin = viewportWidth * 0.1;
+
+            if (cursorX < currentOffset + margin)
+                // Cursor is too close to or beyond the left edge
+                _scrollableViewModel.HorizontalOffset = Math.Max(0, cursorX - margin);
+            else if (cursorX > currentOffset + viewportWidth - margin)
+                // Cursor is too close to or beyond the right edge
+                _scrollableViewModel.HorizontalOffset = Math.Max(0, cursorX - viewportWidth + margin);
+        }
+
+        _suppressScrollOnNextCursorMove = false;
+        InvalidateVisual();
     }
 
     private int GetPositionFromPoint(Point point)
@@ -265,7 +297,7 @@ public partial class TextEditor : UserControl
                 _selectionAnchor = -1; // Reset selection anchor
             }
         }
-
+        
         InvalidateVisual();
     }
 
@@ -336,10 +368,11 @@ public partial class TextEditor : UserControl
 
     private void HandleKeyDown(KeyEventArgs e, TextEditorViewModel viewModel)
     {
+        _suppressScrollOnNextCursorMove = false;
         var shiftFlag = (e.KeyModifiers & KeyModifiers.Shift) != 0;
         var ctrlFlag = (e.KeyModifiers & KeyModifiers.Control) != 0;
 
-        // Don't clear selection for modifier keys
+        // Don't clear selection or alter offsets for modifier keys
         if (e.Key == Key.LeftShift || e.Key == Key.RightShift ||
             e.Key == Key.LeftCtrl || e.Key == Key.RightCtrl ||
             e.Key == Key.LeftAlt || e.Key == Key.RightAlt ||
@@ -429,6 +462,7 @@ public partial class TextEditor : UserControl
         }
 
         viewModel.CursorPosition = Math.Clamp(viewModel.CursorPosition, 0, viewModel.Rope.Length);
+        InvalidateVisual();
     }
 
     private void HandleShiftLeftArrow(TextEditorViewModel viewModel)
@@ -501,6 +535,8 @@ public partial class TextEditor : UserControl
 
     private void HandleDelete(TextEditorViewModel viewModel)
     {
+        _suppressScrollOnNextCursorMove = true;
+    
         if (viewModel.SelectionStart != -1 && viewModel.SelectionEnd != -1 &&
             viewModel.SelectionStart != viewModel.SelectionEnd)
         {
@@ -1005,13 +1041,31 @@ public partial class TextEditor : UserControl
             OnTextInserted(GetLineIndex(viewModel, viewModel.CursorPosition), text.Length);
             viewModel.CursorPosition += text.Length;
             viewModel.CursorPosition = Math.Min(viewModel.CursorPosition, viewModel.Rope.Length);
+            UpdateDesiredColumn(viewModel);
 
             UpdateLineCache(); // Ensure the cache is fully updated after pasting
 
             viewModel.ClearSelection(); // Clear selection after pasting
             _lastKnownSelection = (viewModel.CursorPosition, viewModel.CursorPosition); // Update last known selection
 
+            UpdateHorizontalScrollPosition();
+            EnsureCursorVisible();
             InvalidateVisual();
         }
+    }
+
+    private void UpdateHorizontalScrollPosition()
+    {
+        if (_scrollableViewModel == null) return;
+
+        var viewModel = _scrollableViewModel.TextEditorViewModel;
+        var cursorLine = GetLineIndexFromPosition(viewModel.CursorPosition);
+        var cursorColumn = viewModel.CursorPosition - _lineStarts[cursorLine];
+        var cursorX = cursorColumn * CharWidth;
+
+        if (cursorX < _scrollableViewModel.HorizontalOffset)
+            _scrollableViewModel.HorizontalOffset = cursorX;
+        else if (cursorX > _scrollableViewModel.HorizontalOffset + _scrollableViewModel.Viewport.Width)
+            _scrollableViewModel.HorizontalOffset = cursorX - _scrollableViewModel.Viewport.Width + CharWidth;
     }
 }

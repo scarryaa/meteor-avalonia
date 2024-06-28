@@ -94,7 +94,9 @@ public class Rope
 
         if (node.Text != null)
         {
-            node.Text = node.Text.Insert(index, text);
+            var sb = new StringBuilder(node.Text);
+            sb.Insert(index, text);
+            node.Text = sb.ToString();
             node.Length = node.Text.Length;
             node.LineCount = node.Text.Count(c => c == '\n') + 1;
             node.LinePositions.Clear();
@@ -175,7 +177,8 @@ public class Rope
         if (length < 0 || start + length > Length)
             throw new ArgumentOutOfRangeException(nameof(length), "Length is out of range");
 
-        var sb = new StringBuilder();
+        // Preallocate StringBuilder with the exact capacity needed
+        var sb = new StringBuilder(length);
         GetText(root, start, length, sb);
         return sb.ToString();
     }
@@ -187,15 +190,20 @@ public class Rope
 
         if (node.Text != null)
         {
-            var end = Math.Min(start + length, node.Length);
-            sb.Append(node.Text.Substring(start, end - start));
+            // If this node contains the entire requested range, append it directly
+            if (start == 0 && length == node.Text.Length)
+                sb.Append(node.Text);
+            else
+                // Otherwise, append only the requested portion
+                sb.Append(node.Text, start, Math.Min(length, node.Text.Length - start));
             return;
         }
 
         if (start < node.Left.Length)
         {
-            GetText(node.Left, start, Math.Min(length, node.Left.Length - start), sb);
-            length -= Math.Min(length, node.Left.Length - start);
+            var leftLength = Math.Min(length, node.Left.Length - start);
+            GetText(node.Left, start, leftLength, sb);
+            length -= leftLength;
             start = 0;
         }
         else
@@ -203,10 +211,9 @@ public class Rope
             start -= node.Left.Length;
         }
 
-        if (length > 0)
-            GetText(node.Right, start, length, sb);
+        if (length > 0) GetText(node.Right, start, length, sb);
     }
-
+    
     public int IndexOf(char value, int startIndex = 0)
     {
         if (startIndex < 0 || startIndex >= Length)

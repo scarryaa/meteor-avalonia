@@ -19,7 +19,8 @@
                   VerticalScrollBarVisibility="Auto"
                   HorizontalScrollBarVisibility="Auto"
                   ScrollChanged="EditorScrollViewer_ScrollChanged"
-                  SizeChanged="EditorScrollViewer_SizeChanged">
+                  SizeChanged="EditorScrollViewer_SizeChanged"
+                  Offset="{Binding Offset, Mode=TwoWay}">
         <views:TextEditor x:Name="TextEditor">
             <views:TextEditor.Width>
                 <MultiBinding Converter="{StaticResource LongestLineOrWindowWidthConverter}">
