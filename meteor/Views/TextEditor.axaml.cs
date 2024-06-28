@@ -214,18 +214,23 @@ public partial class TextEditor : UserControl
         {
             // Vertical scrolling
             var cursorY = cursorLine * LineHeight;
+            var bottomPadding = 5;
+            var verticalBufferLines = 3;
+            var verticalBufferHeight = verticalBufferLines * LineHeight;
 
-            if (cursorY < _scrollableViewModel.VerticalOffset)
-                _scrollableViewModel.VerticalOffset = cursorY;
-            else if (cursorY + LineHeight > _scrollableViewModel.VerticalOffset + _scrollableViewModel.Viewport.Height)
-                _scrollableViewModel.VerticalOffset = cursorY + LineHeight - _scrollableViewModel.Viewport.Height;
+            if (cursorY < _scrollableViewModel.VerticalOffset + verticalBufferHeight)
+                _scrollableViewModel.VerticalOffset = Math.Max(0, cursorY - verticalBufferHeight);
+            else if (cursorY + LineHeight + bottomPadding > _scrollableViewModel.VerticalOffset +
+                     _scrollableViewModel.Viewport.Height - verticalBufferHeight)
+                _scrollableViewModel.VerticalOffset = cursorY + LineHeight + bottomPadding -
+                    _scrollableViewModel.Viewport.Height + verticalBufferHeight;
 
             // Horizontal scrolling
             var cursorX = cursorColumn * CharWidth;
             var viewportWidth = _scrollableViewModel.Viewport.Width;
             var currentOffset = _scrollableViewModel.HorizontalOffset;
 
-            // Define a margin (e.g., 10% of viewport width) to keep the cursor visible
+            // Margin to keep the cursor visible
             var margin = viewportWidth * 0.1;
 
             if (cursorX < currentOffset + margin)

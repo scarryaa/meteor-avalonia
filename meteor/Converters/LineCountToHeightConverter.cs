@@ -9,11 +9,12 @@ public class LineCountToHeightConverter : IMultiValueConverter
 {
     public object? Convert(IList<object?> values, Type targetType, object? parameter, CultureInfo culture)
     {
+        const int verticalPadding = 5;
         if (values.Count == 3 && values[0] is int lineCount && values[1] is double lineHeight &&
             values[2] is double minHeight)
         {
             var calculatedHeight = lineCount * lineHeight;
-            return Math.Max(calculatedHeight, minHeight);
+            return Math.Max(calculatedHeight, minHeight) + verticalPadding;
         }
 
         return 0;
