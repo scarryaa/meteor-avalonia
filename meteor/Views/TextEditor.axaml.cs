@@ -369,8 +369,6 @@ public partial class TextEditor : UserControl
         }
         else
         {
-            Console.WriteLine(
-                $"Error: lineIndex {lineIndex} is out of bounds for _lineStarts with count {_lineStarts.Count}");
             _desiredColumn = 0;
         }
     }
@@ -400,6 +398,8 @@ public partial class TextEditor : UserControl
             viewModel.CursorPosition = 0;
             UpdateDesiredColumn(viewModel);
         }
+
+        viewModel.ClearSelection(); // Clear the selection
     }
 
     private void HandleDownArrow(TextEditorViewModel viewModel)
@@ -428,6 +428,8 @@ public partial class TextEditor : UserControl
             viewModel.CursorPosition = lastLineStart + lastLineLength;
             UpdateDesiredColumn(viewModel);
         }
+
+        viewModel.ClearSelection(); // Clear the selection
     }
 
     private int GetVisualLineLength(TextEditorViewModel viewModel, int lineIndex)
@@ -447,9 +449,6 @@ public partial class TextEditor : UserControl
         var lineIndex = 0;
         var accumulatedLength = 0;
 
-        Console.WriteLine($"Calculating line index for position {position}");
-        Console.WriteLine($"Total Line Count: {viewModel.Rope.LineCount}");
-
         while (lineIndex < viewModel.Rope.LineCount &&
                accumulatedLength + viewModel.Rope.GetLineLength(lineIndex) <= position)
         {
@@ -459,8 +458,7 @@ public partial class TextEditor : UserControl
 
         // Ensure lineIndex does not exceed the line count
         lineIndex = Math.Max(0, Math.Min(lineIndex, viewModel.Rope.LineCount - 1));
-
-        Console.WriteLine($"Calculated line index: {lineIndex}");
+        
         return lineIndex;
     }
 
