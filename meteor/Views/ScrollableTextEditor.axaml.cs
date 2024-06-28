@@ -11,7 +11,6 @@ public partial class ScrollableTextEditor : UserControl
     {
         InitializeComponent();
         AttachedToVisualTree += OnAttachedToVisualTree;
-        DataContext = new ScrollableTextEditorViewModel();
     }
 
     private void OnAttachedToVisualTree(object sender, VisualTreeAttachmentEventArgs e)

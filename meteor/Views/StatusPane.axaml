@@ -1,0 +1,34 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="meteor.Views.StatusPane"
+             xmlns:vm="clr-namespace:meteor.ViewModels"
+             x:DataType="vm:StatusPaneViewModel">
+
+    <Border Background="#dcdcdc" BorderBrush="#a6a6a6" BorderThickness="1">
+        <Grid Margin="0" Height="25" ColumnDefinitions="*,Auto">
+
+            <!-- Left-aligned StackPanel -->
+            <StackPanel VerticalAlignment="Center" Orientation="Horizontal" Margin="0" Grid.Column="0"
+                        HorizontalAlignment="Left" />
+
+            <!-- Right-aligned StackPanel -->
+            <StackPanel VerticalAlignment="Center" Orientation="Horizontal" Margin="0" Grid.Column="1"
+                        HorizontalAlignment="Right">
+                <Button HorizontalAlignment="Right" VerticalAlignment="Center"
+                        Background="Transparent" BorderThickness="0" Margin="5 0" Padding="5,0">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="{Binding CursorPosition.Y}" Foreground="Black"
+                                   TextAlignment="Right" FontSize="13" FontFamily="{StaticResource SanFrancisco}" />
+                        <TextBlock Text=":" Margin="0,0,0,0" Foreground="Black" FontSize="13"
+                                   FontFamily="{StaticResource SanFrancisco}" />
+                        <TextBlock Text="{Binding CursorPosition.X}" Foreground="Black"
+                                   TextAlignment="Left" FontSize="13" FontFamily="{StaticResource SanFrancisco}" />
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+        </Grid>
+    </Border>
+</UserControl>

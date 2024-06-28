@@ -3,12 +3,15 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:views="clr-namespace:meteor.Views"
+        xmlns:viewModels="clr-namespace:meteor.ViewModels"
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
         x:Class="meteor.Views.MainWindow"
         Title="meteor" Height="450" Width="450"
-        WindowStartupLocation="CenterScreen">
+        WindowStartupLocation="CenterScreen"
+        x:DataType="viewModels:MainWindowViewModel">
 
-    <Grid>
-        <views:ScrollableTextEditor />
+    <Grid RowDefinitions="*, Auto">
+        <views:ScrollableTextEditor DataContext="{Binding ScrollableTextEditorViewModel }" />
+        <views:StatusPane x:Name="StatusPane" DataContext="{Binding StatusPaneViewModel}" Grid.Row="1" />
     </Grid>
 </Window>

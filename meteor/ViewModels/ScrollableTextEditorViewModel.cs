@@ -1,9 +1,10 @@
 using Avalonia;
+using meteor.Interfaces;
 using ReactiveUI;
 
 namespace meteor.ViewModels;
 
-public class ScrollableTextEditorViewModel : ViewModelBase
+public class ScrollableTextEditorViewModel(ICursorPositionService cursorPositionService) : ViewModelBase
 {
     private double _verticalOffset;
     private double _horizontalOffset;
@@ -11,7 +12,7 @@ public class ScrollableTextEditorViewModel : ViewModelBase
     private double _longestLineWidth;
     private Vector _offset;
 
-    public TextEditorViewModel TextEditorViewModel { get; } = new();
+    public TextEditorViewModel TextEditorViewModel { get; } = new(cursorPositionService);
 
     public double LongestLineWidth
     {

@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using meteor.Interfaces;
 using meteor.Models;
 using ReactiveUI;
 
@@ -6,6 +8,7 @@ namespace meteor.ViewModels;
 
 public class TextEditorViewModel : ViewModelBase
 {
+    private readonly ICursorPositionService _cursorPositionService;
     private Rope _rope = new(string.Empty);
     private int _cursorPosition;
     private int _selectionStart = -1;
@@ -14,6 +17,14 @@ public class TextEditorViewModel : ViewModelBase
     private double _lineHeight = 20;
     private double _windowHeight;
     private double _windowWidth;
+    private int[] _lineStarts = Array.Empty<int>();
+
+    public TextEditorViewModel(ICursorPositionService cursorPositionService)
+    {
+        _cursorPositionService = cursorPositionService;
+        UpdateLineStarts();
+    }
+    
 
     public double LineHeight
     {
@@ -47,7 +58,12 @@ public class TextEditorViewModel : ViewModelBase
         get => _cursorPosition;
         set
         {
-            if (_cursorPosition != value) this.RaiseAndSetIfChanged(ref _cursorPosition, value);
+            if (_cursorPosition != value)
+            {
+                _cursorPosition = value;
+                this.RaisePropertyChanged();
+                _cursorPositionService.UpdateCursorPosition(_cursorPosition, _lineStarts);
+            }
         }
     }
 
@@ -96,11 +112,12 @@ public class TextEditorViewModel : ViewModelBase
         if (string.IsNullOrEmpty(text) || position < 0 || position > _rope.Length) return;
 
         _rope.Insert(position, text);
-
+        UpdateLineStarts();
         this.RaisePropertyChanged(nameof(LineCount));
         this.RaisePropertyChanged(nameof(Rope));
+        CursorPosition = position + text.Length;
     }
-    
+
     public void DeleteText(int start, int length)
     {
         if (_rope == null) throw new InvalidOperationException("Rope is not initialized.");
@@ -108,13 +125,31 @@ public class TextEditorViewModel : ViewModelBase
         if (length > 0)
         {
             _rope.Delete(start, length);
+            UpdateLineStarts();
             this.RaisePropertyChanged(nameof(Rope));
         }
     }
-    
+
     public void ClearSelection()
     {
         SelectionStart = CursorPosition;
         SelectionEnd = CursorPosition;
+    }
+
+    private void UpdateLineStarts()
+    {
+        var lineStarts = new List<int> { 0 };
+        var lineStart = 0;
+
+        while (lineStart < _rope.Length)
+        {
+            var nextNewline = _rope.IndexOf('\n', lineStart);
+            if (nextNewline == -1) break;
+
+            lineStarts.Add(nextNewline + 1);
+            lineStart = nextNewline + 1;
+        }
+
+        _lineStarts = lineStarts.ToArray();
     }
 }
