@@ -244,14 +244,13 @@ public partial class TextEditor : UserControl
                     var length = end - start;
 
                     viewModel.DeleteText(start, length);
-                    OnTextDeleted(GetLineIndex(viewModel, start), length);
 
+                    // Update insertPosition to be where the selection started
                     insertPosition = start;
                 }
 
                 var currentLineIndex = GetLineIndex(viewModel, insertPosition);
-                viewModel.InsertText(e.Text);
-                OnTextInserted(currentLineIndex, e.Text.Length);
+                viewModel.InsertText(insertPosition, e.Text); // Modify this to insert at insertPosition
 
                 // Update cursor position and clear selection after insertion
                 viewModel.CursorPosition = insertPosition + e.Text.Length;
@@ -262,6 +261,7 @@ public partial class TextEditor : UserControl
 
         InvalidateVisual();
     }
+
 
     private void OnTextInserted(int lineIndex, int length)
     {
@@ -346,7 +346,21 @@ public partial class TextEditor : UserControl
         }
 
         // Initialize selection anchor if Shift is pressed and no selection exists
-        if (shiftFlag && _selectionAnchor == -1) _selectionAnchor = viewModel.CursorPosition;
+        if (shiftFlag && _selectionAnchor == -1)
+        {
+            if (viewModel.SelectionStart == 0 && viewModel.SelectionEnd == viewModel.Rope.Length)
+                // Handle case when all text is selected
+                _selectionAnchor = e.Key switch
+                {
+                    Key.Left => viewModel.SelectionEnd,
+                    Key.Right => viewModel.SelectionStart,
+                    Key.Up => viewModel.SelectionEnd,
+                    Key.Down => viewModel.SelectionStart,
+                    _ => viewModel.CursorPosition
+                };
+            else
+                _selectionAnchor = viewModel.CursorPosition;
+        }
 
         switch (e.Key)
         {
@@ -360,16 +374,32 @@ public partial class TextEditor : UserControl
                 HandleDelete(viewModel);
                 break;
             case Key.Left:
-                HandleLeftArrow(viewModel, shiftFlag);
+                if (shiftFlag)
+                    // Handle Shift + Left Arrow
+                    HandleShiftLeftArrow(viewModel);
+                else
+                    HandleLeftArrow(viewModel, shiftFlag);
                 break;
             case Key.Right:
-                HandleRightArrow(viewModel, shiftFlag);
+                if (shiftFlag)
+                    // Handle Shift + Right Arrow
+                    HandleShiftRightArrow(viewModel);
+                else
+                    HandleRightArrow(viewModel, shiftFlag);
                 break;
             case Key.Up:
-                HandleUpArrow(viewModel, shiftFlag);
+                if (shiftFlag)
+                    // Handle Shift + Up Arrow
+                    HandleShiftUpArrow(viewModel);
+                else
+                    HandleUpArrow(viewModel, shiftFlag);
                 break;
             case Key.Down:
-                HandleDownArrow(viewModel, shiftFlag);
+                if (shiftFlag)
+                    // Handle Shift + Down Arrow
+                    HandleShiftDownArrow(viewModel);
+                else
+                    HandleDownArrow(viewModel, shiftFlag);
                 break;
             case Key.Home:
                 HandleHome(viewModel, shiftFlag);
@@ -394,6 +424,73 @@ public partial class TextEditor : UserControl
         viewModel.CursorPosition = Math.Clamp(viewModel.CursorPosition, 0, viewModel.Rope.Length);
     }
 
+    private void HandleShiftLeftArrow(TextEditorViewModel viewModel)
+    {
+        if (viewModel.CursorPosition > 0)
+        {
+            viewModel.CursorPosition--;
+            UpdateDesiredColumn(viewModel);
+            viewModel.SelectionEnd = viewModel.CursorPosition;
+
+
+            // Ensure SelectionStart is always less than or equal to SelectionEnd
+            if (viewModel.SelectionStart > viewModel.SelectionEnd)
+                (viewModel.SelectionStart, viewModel.SelectionEnd) = (viewModel.SelectionEnd, viewModel.SelectionStart);
+
+            // Update the last known selection
+            _lastKnownSelection = (viewModel.SelectionStart, viewModel.SelectionEnd);
+        }
+    }
+
+    private void HandleShiftRightArrow(TextEditorViewModel viewModel)
+    {
+        // Do nothing if the cursor is at the end of the document
+        if (viewModel.CursorPosition < viewModel.Rope.Length)
+        {
+            viewModel.CursorPosition++;
+            UpdateDesiredColumn(viewModel);
+            viewModel.SelectionEnd = viewModel.CursorPosition;
+        }
+    }
+
+    private void HandleShiftUpArrow(TextEditorViewModel viewModel)
+    {
+        var currentLineIndex = GetLineIndex(viewModel, viewModel.CursorPosition);
+        if (currentLineIndex > 0)
+        {
+            var currentLineStart = viewModel.Rope.GetLineStartPosition(currentLineIndex);
+            var currentColumn = viewModel.CursorPosition - currentLineStart;
+
+            _desiredColumn = Math.Max(_desiredColumn, currentColumn);
+
+            var previousLineIndex = currentLineIndex - 1;
+            var previousLineStart = viewModel.Rope.GetLineStartPosition(previousLineIndex);
+            var previousLineLength = viewModel.Rope.GetLineLength(previousLineIndex);
+
+            viewModel.CursorPosition = previousLineStart + Math.Min(_desiredColumn, previousLineLength - 1);
+            viewModel.SelectionEnd = viewModel.CursorPosition;
+        }
+    }
+
+    private void HandleShiftDownArrow(TextEditorViewModel viewModel)
+    {
+        // Do nothing if the cursor is at the end of the document
+        var currentLineIndex = GetLineIndex(viewModel, viewModel.CursorPosition);
+        if (currentLineIndex < viewModel.Rope.GetLineCount() - 1)
+        {
+            var currentLineStart = viewModel.Rope.GetLineStartPosition(currentLineIndex);
+            var currentColumn = viewModel.CursorPosition - currentLineStart;
+
+            _desiredColumn = Math.Max(_desiredColumn, currentColumn);
+
+            var nextLineIndex = currentLineIndex + 1;
+            var nextLineStart = viewModel.Rope.GetLineStartPosition(nextLineIndex);
+            var nextLineLength = GetVisualLineLength(viewModel, nextLineIndex);
+
+            viewModel.CursorPosition = nextLineStart + Math.Min(_desiredColumn, nextLineLength);
+            viewModel.SelectionEnd = viewModel.CursorPosition;
+        }
+    }
 
     private void HandleDelete(TextEditorViewModel viewModel)
     {
@@ -595,20 +692,24 @@ public partial class TextEditor : UserControl
 
     private void HandleReturn(TextEditorViewModel viewModel)
     {
-        if (viewModel.SelectionStart != -1 && viewModel.SelectionEnd != -1)
+        if (viewModel.SelectionStart != viewModel.SelectionEnd)
         {
-            var lineIndex = GetLineIndex(viewModel, viewModel.SelectionStart);
-            viewModel.DeleteText(Math.Min(viewModel.SelectionStart, viewModel.SelectionEnd),
-                Math.Abs(viewModel.SelectionEnd - viewModel.SelectionStart));
-            OnTextDeleted(lineIndex, Math.Abs(viewModel.SelectionEnd - viewModel.SelectionStart));
-            viewModel.CursorPosition = Math.Min(viewModel.SelectionStart, viewModel.SelectionEnd);
-            viewModel.ClearSelection();
+            // Handle deletion of selected text
+            var start = Math.Min(viewModel.SelectionStart, viewModel.SelectionEnd);
+            var end = Math.Max(viewModel.SelectionStart, viewModel.SelectionEnd);
+            var length = end - start;
+
+            viewModel.DeleteText(start, length);
+            viewModel.CursorPosition = start;
         }
 
-        var currentLineIndex = GetLineIndex(viewModel, viewModel.CursorPosition);
-        viewModel.InsertText("\n");
-        OnTextInserted(currentLineIndex, 1);
-        viewModel.CursorPosition++;
+        var insertPosition = viewModel.CursorPosition;
+        viewModel.InsertText(insertPosition, "\n");
+        viewModel.CursorPosition = insertPosition + 1;
+
+        // Clear selection after insertion
+        viewModel.ClearSelection();
+        _lastKnownSelection = (viewModel.CursorPosition, viewModel.CursorPosition);
     }
 
     private void HandleControlKeyDown(KeyEventArgs keyEventArgs, TextEditorViewModel viewModel)
@@ -848,10 +949,12 @@ public partial class TextEditor : UserControl
             viewModel.SelectionStart = 0;
             viewModel.SelectionEnd = viewModel.Rope.Length;
             viewModel.CursorPosition = viewModel.Rope.Length;
+            _selectionAnchor = 0;
             _lastKnownSelection = (0, viewModel.Rope.Length);
             InvalidateVisual();
         }
     }
+
 
     private void CopyText()
     {
@@ -891,7 +994,7 @@ public partial class TextEditor : UserControl
                 viewModel.ClearSelection();
             }
 
-            viewModel.InsertText(text);
+            viewModel.InsertText(viewModel.CursorPosition, text);
             OnTextInserted(GetLineIndex(viewModel, viewModel.CursorPosition), text.Length);
             viewModel.CursorPosition += text.Length;
             viewModel.CursorPosition = Math.Min(viewModel.CursorPosition, viewModel.Rope.Length);

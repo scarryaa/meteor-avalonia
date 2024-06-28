@@ -99,11 +99,12 @@ public class TextEditorViewModel : ViewModelBase
         }
     }
 
-    public void InsertText(string text)
+    public void InsertText(int position, string text)
     {
         if (_rope == null) throw new InvalidOperationException("Rope is not initialized.");
+        if (string.IsNullOrEmpty(text) || position < 0 || position > _rope.Length) return;
 
-        _rope.Insert(_cursorPosition, text);
+        _rope.Insert(position, text);
 
         this.RaisePropertyChanged(nameof(LineCount));
         this.RaisePropertyChanged(nameof(Rope));
