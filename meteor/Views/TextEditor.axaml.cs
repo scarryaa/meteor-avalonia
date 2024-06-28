@@ -278,8 +278,35 @@ public partial class TextEditor : UserControl
         viewModel.ClearSelection();
     }
 
+    private void HandleLeftArrow(TextEditorViewModel viewModel)
+    {
+        // Move the cursor to the beginning of the selection if it exists
+        if (viewModel.SelectionStart != -1 && viewModel.SelectionEnd != -1)
+        {
+            viewModel.CursorPosition = Math.Min(viewModel.SelectionStart, viewModel.SelectionEnd);
+            viewModel.ClearSelection();
+            return;
+        }
+
+        if (viewModel.CursorPosition > 0)
+        {
+            viewModel.CursorPosition--;
+            UpdateDesiredColumn(viewModel);
+        }
+
+        viewModel.ClearSelection();
+    }
+
     private void HandleRightArrow(TextEditorViewModel viewModel)
     {
+        // Move the cursor to the end of the selection if it exists
+        if (viewModel.SelectionStart != -1 && viewModel.SelectionEnd != -1)
+        {
+            viewModel.CursorPosition = Math.Max(viewModel.SelectionStart, viewModel.SelectionEnd);
+            viewModel.ClearSelection();
+            return;
+        }
+
         if (viewModel.CursorPosition < viewModel.Rope.Length)
         {
             viewModel.CursorPosition++;
@@ -289,16 +316,6 @@ public partial class TextEditor : UserControl
         viewModel.ClearSelection();
     }
 
-    private void HandleLeftArrow(TextEditorViewModel viewModel)
-    {
-        if (viewModel.CursorPosition > 0)
-        {
-            viewModel.CursorPosition--;
-            UpdateDesiredColumn(viewModel);
-        }
-
-        viewModel.ClearSelection();
-    }
 
     private void HandleBackspace(TextEditorViewModel viewModel)
     {
@@ -376,6 +393,14 @@ public partial class TextEditor : UserControl
 
     private void HandleUpArrow(TextEditorViewModel viewModel)
     {
+        // Move the cursor to the beginning of the selection if it exists
+        if (viewModel.SelectionStart != -1 && viewModel.SelectionEnd != -1)
+        {
+            viewModel.CursorPosition = Math.Min(viewModel.SelectionStart, viewModel.SelectionEnd);
+            viewModel.ClearSelection();
+            return;
+        }
+
         var currentLineIndex = GetLineIndex(viewModel, viewModel.CursorPosition);
         if (currentLineIndex > 0)
         {
@@ -404,6 +429,14 @@ public partial class TextEditor : UserControl
 
     private void HandleDownArrow(TextEditorViewModel viewModel)
     {
+        // Move the cursor to the end of the selection if it exists
+        if (viewModel.SelectionStart != -1 && viewModel.SelectionEnd != -1)
+        {
+            viewModel.CursorPosition = Math.Max(viewModel.SelectionStart, viewModel.SelectionEnd);
+            viewModel.ClearSelection();
+            return;
+        }
+
         var currentLineIndex = GetLineIndex(viewModel, viewModel.CursorPosition);
         if (currentLineIndex < viewModel.Rope.GetLineCount() - 1)
         {
