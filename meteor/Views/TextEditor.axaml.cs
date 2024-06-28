@@ -452,6 +452,12 @@ public partial class TextEditor : UserControl
             case Key.End:
                 HandleEnd(viewModel, shiftFlag);
                 break;
+            case Key.PageUp:
+                HandlePageUp(viewModel, shiftFlag);
+                break;
+            case Key.PageDown:
+                HandlePageDown(viewModel, shiftFlag);
+                break;
         }
 
         // Only update the selection if shift is pressed and the key is not a character key
@@ -470,6 +476,73 @@ public partial class TextEditor : UserControl
         InvalidateVisual();
     }
 
+    private void HandlePageUp(TextEditorViewModel viewModel, bool isShiftPressed)
+    {
+        var currentLineIndex = GetLineIndex(viewModel, viewModel.CursorPosition);
+        var linesPerPage = (int)(_scrollableViewModel.Viewport.Height / LineHeight);
+
+        if (currentLineIndex == 0)
+        {
+            // Already on the first line, jump to the start of the document
+            viewModel.CursorPosition = 0;
+            _desiredColumn = 0;
+        }
+        else
+        {
+            var newLineIndex = Math.Max(0, currentLineIndex - linesPerPage);
+            var lineStart = viewModel.Rope.GetLineStartPosition(newLineIndex);
+            var newCursorPosition = lineStart + Math.Min(_desiredColumn, GetVisualLineLength(viewModel, newLineIndex));
+
+            viewModel.CursorPosition = newCursorPosition;
+            _scrollableViewModel.VerticalOffset = Math.Max(0,
+                _scrollableViewModel.VerticalOffset - _scrollableViewModel.Viewport.Height);
+
+            // Update desired column based on the new cursor position
+            _desiredColumn = viewModel.CursorPosition - lineStart;
+        }
+
+        if (!isShiftPressed)
+            viewModel.ClearSelection();
+        else
+            viewModel.SelectionEnd = viewModel.CursorPosition;
+    }
+
+    private void HandlePageDown(TextEditorViewModel viewModel, bool isShiftPressed)
+    {
+        var currentLineIndex = GetLineIndex(viewModel, viewModel.CursorPosition);
+        var linesPerPage = (int)(_scrollableViewModel.Viewport.Height / LineHeight);
+        var maxLineIndex = GetLineCount() - 1;
+
+        if (currentLineIndex == maxLineIndex)
+        {
+            // Already on the last line, jump to the end of the document
+            var lastLineStart = viewModel.Rope.GetLineStartPosition(maxLineIndex);
+            var lastLineLength = GetVisualLineLength(viewModel, maxLineIndex);
+            viewModel.CursorPosition = lastLineStart + lastLineLength;
+            _desiredColumn = lastLineLength;
+        }
+        else
+        {
+            var newLineIndex = Math.Min(maxLineIndex, currentLineIndex + linesPerPage);
+            var lineStart = viewModel.Rope.GetLineStartPosition(newLineIndex);
+            var newCursorPosition = lineStart + Math.Min(_desiredColumn, GetVisualLineLength(viewModel, newLineIndex));
+
+            viewModel.CursorPosition = newCursorPosition;
+
+            var maxVerticalOffset = Math.Max(0, maxLineIndex * LineHeight - _scrollableViewModel.Viewport.Height);
+            _scrollableViewModel.VerticalOffset =
+                Math.Min(_scrollableViewModel.VerticalOffset + _scrollableViewModel.Viewport.Height, maxVerticalOffset);
+
+            // Update desired column based on the new cursor position
+            _desiredColumn = viewModel.CursorPosition - lineStart;
+        }
+
+        if (!isShiftPressed)
+            viewModel.ClearSelection();
+        else
+            viewModel.SelectionEnd = viewModel.CursorPosition;
+    }
+    
     private void HandleShiftLeftArrow(TextEditorViewModel viewModel)
     {
         if (viewModel.CursorPosition > 0)
