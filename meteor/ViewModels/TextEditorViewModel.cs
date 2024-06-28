@@ -6,23 +6,14 @@ namespace meteor.ViewModels;
 
 public class TextEditorViewModel : ViewModelBase
 {
-    private Rope _rope;
+    private Rope _rope = new(string.Empty);
     private int _cursorPosition;
-    private int _selectionStart;
-    private int _selectionEnd;
+    private int _selectionStart = -1;
+    private int _selectionEnd = -1;
     private bool _isSelecting;
     private double _lineHeight = 20;
     private double _windowHeight;
     private double _windowWidth;
-
-    public TextEditorViewModel()
-    {
-        _rope = new Rope(string.Empty);
-        _cursorPosition = 0;
-        _selectionStart = -1;
-        _selectionEnd = -1;
-        _isSelecting = false;
-    }
 
     public double LineHeight
     {

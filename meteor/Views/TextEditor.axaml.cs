@@ -250,12 +250,19 @@ public partial class TextEditor : UserControl
                 }
 
                 var currentLineIndex = GetLineIndex(viewModel, insertPosition);
-                viewModel.InsertText(insertPosition, e.Text); // Modify this to insert at insertPosition
+                viewModel.InsertText(insertPosition, e.Text);
 
-                // Update cursor position and clear selection after insertion
+                // Update cursor position after insertion
                 viewModel.CursorPosition = insertPosition + e.Text.Length;
-                viewModel.ClearSelection();
+
+                // Clear the selection after insertion
+                viewModel.SelectionStart = viewModel.CursorPosition;
+                viewModel.SelectionEnd = viewModel.CursorPosition;
+                viewModel.IsSelecting = false;
+
+                // Update the last known selection
                 _lastKnownSelection = (viewModel.CursorPosition, viewModel.CursorPosition);
+                _selectionAnchor = -1; // Reset selection anchor
             }
         }
 
@@ -345,8 +352,8 @@ public partial class TextEditor : UserControl
             return;
         }
 
-        // Initialize selection anchor if Shift is pressed and no selection exists
-        if (shiftFlag && _selectionAnchor == -1)
+        // Initialize selection anchor only for arrow keys if Shift is pressed and no selection exists
+        if (shiftFlag && _selectionAnchor == -1 && e.Key is Key.Left or Key.Right or Key.Up or Key.Down)
         {
             if (viewModel.SelectionStart == 0 && viewModel.SelectionEnd == viewModel.Rope.Length)
                 // Handle case when all text is selected
