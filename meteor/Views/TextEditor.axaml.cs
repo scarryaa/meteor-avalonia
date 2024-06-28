@@ -847,6 +847,7 @@ public partial class TextEditor : UserControl
     private void RenderVisibleLines(DrawingContext context, ScrollableTextEditorViewModel scrollableViewModel,
         int firstVisibleLine, int lastVisibleLine, double viewableAreaWidth)
     {
+        const int startIndexBuffer = 5;
         var yOffset = firstVisibleLine * LineHeight;
 
         for (var i = firstVisibleLine; i < lastVisibleLine; i++)
@@ -862,7 +863,7 @@ public partial class TextEditor : UserControl
             }
 
             // Calculate the start index and the number of characters to display based on the visible area width
-            var startIndex = Math.Max(0, (int)(scrollableViewModel.HorizontalOffset / CharWidth));
+            var startIndex = Math.Max(0, (int)(scrollableViewModel.HorizontalOffset / CharWidth) - startIndexBuffer);
 
             // Ensure startIndex is within the lineText length
             if (startIndex >= lineText.Length) startIndex = Math.Max(0, lineText.Length - 1);
@@ -1050,7 +1051,6 @@ public partial class TextEditor : UserControl
 
             UpdateHorizontalScrollPosition();
             EnsureCursorVisible();
-            InvalidateVisual();
         }
     }
 
