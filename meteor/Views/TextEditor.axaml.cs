@@ -839,9 +839,9 @@ public partial class TextEditor : UserControl
         var viewableAreaWidth = _scrollableViewModel.Viewport.Width + LinePadding;
         var viewableAreaHeight = _scrollableViewModel.Viewport.Height;
 
-        var firstVisibleLine = Math.Max(0, (int)(_scrollableViewModel.VerticalOffset / LineHeight));
+        var firstVisibleLine = Math.Max(0, (int)(_scrollableViewModel.VerticalOffset / LineHeight) - 5);
         var lastVisibleLine = Math.Min(
-            firstVisibleLine + (int)(viewableAreaHeight / LineHeight) + 5,
+            firstVisibleLine + (int)(viewableAreaHeight / LineHeight) + 10,
             lineCount);
 
         RenderVisibleLines(context, _scrollableViewModel, firstVisibleLine, lastVisibleLine, viewableAreaWidth);
@@ -868,7 +868,7 @@ public partial class TextEditor : UserControl
             }
 
             // Calculate the start index and the number of characters to display based on the visible area width
-            var startIndex = Math.Max(0, (int)(scrollableViewModel.HorizontalOffset / CharWidth) - startIndexBuffer);
+            var startIndex = Math.Max(0, (int)(scrollableViewModel.HorizontalOffset / CharWidth));
 
             // Ensure startIndex is within the lineText length
             if (startIndex >= lineText.Length) startIndex = Math.Max(0, lineText.Length - 1);
@@ -911,9 +911,9 @@ public partial class TextEditor : UserControl
         var endLine = GetLineIndexFromPosition(selectionEnd);
         var cursorLine = GetLineIndexFromPosition(cursorPosition);
 
-        var firstVisibleLine = Math.Max(0, (int)(scrollableViewModel.VerticalOffset / LineHeight));
+        var firstVisibleLine = Math.Max(0, (int)(scrollableViewModel.VerticalOffset / LineHeight) - 5);
         var lastVisibleLine = Math.Min(
-            firstVisibleLine + (int)(viewableAreaHeight / LineHeight) + 1,
+            firstVisibleLine + (int)(viewableAreaHeight / LineHeight) + 1 + 5,
             GetLineCount());
 
         for (var i = Math.Max(startLine, firstVisibleLine); i <= Math.Min(endLine, lastVisibleLine); i++)
@@ -1043,8 +1043,9 @@ public partial class TextEditor : UserControl
                 viewModel.ClearSelection();
             }
 
-            viewModel.InsertText(viewModel.CursorPosition, text);
-            OnTextInserted(GetLineIndex(viewModel, viewModel.CursorPosition), text.Length);
+            var insertPosition = viewModel.CursorPosition;
+            viewModel.InsertText(insertPosition, text);
+            OnTextInserted(GetLineIndex(viewModel, insertPosition), text.Length);
             viewModel.CursorPosition += text.Length;
             viewModel.CursorPosition = Math.Min(viewModel.CursorPosition, viewModel.Rope.Length);
             UpdateDesiredColumn(viewModel);
@@ -1056,8 +1057,10 @@ public partial class TextEditor : UserControl
 
             UpdateHorizontalScrollPosition();
             EnsureCursorVisible();
+            InvalidateVisual();
         }
     }
+
 
     private void UpdateHorizontalScrollPosition()
     {
