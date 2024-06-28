@@ -1,6 +1,7 @@
 using System;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Media;
 using meteor.ViewModels;
 
 namespace meteor.Views;
@@ -11,6 +12,26 @@ public partial class ScrollableTextEditor : UserControl
     {
         InitializeComponent();
         AttachedToVisualTree += OnAttachedToVisualTree;
+    }
+
+    public static readonly StyledProperty<FontFamily> FontFamilyProperty =
+        AvaloniaProperty.Register<ScrollableTextEditor, FontFamily>(
+            nameof(FontFamily),
+            new FontFamily("avares://meteor/Assets/Fonts/SanFrancisco/SF-Mono-Medium.otf#SF Mono"));
+
+    public static readonly StyledProperty<double> FontSizeProperty =
+        AvaloniaProperty.Register<ScrollableTextEditor, double>(nameof(FontSize), 13);
+
+    public FontFamily FontFamily
+    {
+        get => GetValue(FontFamilyProperty);
+        set => SetValue(FontFamilyProperty, value);
+    }
+
+    public double FontSize
+    {
+        get => GetValue(FontSizeProperty);
+        set => SetValue(FontSizeProperty, value);
     }
 
     private void OnAttachedToVisualTree(object sender, VisualTreeAttachmentEventArgs e)
@@ -24,6 +45,12 @@ public partial class ScrollableTextEditor : UserControl
                 viewModel.TextEditorViewModel.WindowWidth = bounds.Width;
                 viewModel.TextEditorViewModel.WindowHeight = bounds.Height;
             });
+
+            // Bind the FontFamily and FontSize properties to the ViewModel
+            viewModel.FontFamily = FontFamily;
+            viewModel.FontSize = FontSize;
+            this.GetObservable(FontFamilyProperty).Subscribe(font => viewModel.FontFamily = font);
+            this.GetObservable(FontSizeProperty).Subscribe(size => viewModel.FontSize = size);
         }
     }
 

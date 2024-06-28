@@ -14,14 +14,15 @@
         <converters:LineCountToHeightConverter x:Key="LineCountToHeightConverter" />
         <converters:LongestLineOrWindowWidthConverter x:Key="LongestLineOrWindowWidthConverter" />
     </UserControl.Resources>
-
     <ScrollViewer x:Name="EditorScrollViewer"
                   VerticalScrollBarVisibility="Auto"
                   HorizontalScrollBarVisibility="Auto"
                   ScrollChanged="EditorScrollViewer_ScrollChanged"
                   SizeChanged="EditorScrollViewer_SizeChanged"
                   Offset="{Binding Offset, Mode=TwoWay}">
-        <views:TextEditor x:Name="TextEditor">
+        <views:TextEditor x:Name="TextEditor"
+                          FontFamily="{Binding $parent[views:ScrollableTextEditor].FontFamily}"
+                          FontSize="{Binding $parent[views:ScrollableTextEditor].FontSize}">
             <views:TextEditor.Width>
                 <MultiBinding Converter="{StaticResource LongestLineOrWindowWidthConverter}">
                     <Binding Path="LongestLineWidth" />

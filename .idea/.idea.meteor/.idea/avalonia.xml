@@ -3,6 +3,7 @@
   <component name="AvaloniaProject">
     <option name="projectPerEditor">
       <map>
+        <entry key="meteor/App.axaml" value="meteor/meteor.csproj" />
         <entry key="meteor/Resources/Resources.axaml" value="meteor/meteor.csproj" />
         <entry key="meteor/Views/MainWindow.axaml" value="meteor/meteor.csproj" />
         <entry key="meteor/Views/ScrollableTextEditor.axaml" value="meteor/meteor.csproj" />

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Avalonia.Media;
 using meteor.Interfaces;
 using meteor.Models;
 using ReactiveUI;
@@ -14,18 +15,32 @@ public class TextEditorViewModel : ViewModelBase
     private int _selectionStart = -1;
     private int _selectionEnd = -1;
     private bool _isSelecting;
-    private double _lineHeight = 20;
     private double _windowHeight;
+    private double _lineHeight = 20;
     private double _windowWidth;
-    private int[] _lineStarts = Array.Empty<int>();
+    private int[] _lineStarts = [];
+    private FontFamily _fontFamily;
+    private double _fontSize;
 
     public TextEditorViewModel(ICursorPositionService cursorPositionService)
     {
         _cursorPositionService = cursorPositionService;
+        _fontFamily = new FontFamily("avares://meteor/Assets/Fonts/SanFrancisco/SF-Mono-Medium.otf#SF Mono");
         UpdateLineStarts();
     }
-    
 
+    public FontFamily FontFamily
+    {
+        get => _fontFamily;
+        set => this.RaiseAndSetIfChanged(ref _fontFamily, value);
+    }
+
+    public double FontSize
+    {
+        get => _fontSize;
+        set => this.RaiseAndSetIfChanged(ref _fontSize, value);
+    }
+    
     public double LineHeight
     {
         get => _lineHeight;

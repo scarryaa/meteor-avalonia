@@ -14,15 +14,16 @@ namespace meteor.Views;
 
 public partial class TextEditor : UserControl
 {
+    private const double DefaultFontSize = 13;
+    private const double BaseLineHeight = 20;
+    private double _fontSize = DefaultFontSize;
     private bool _suppressScrollOnNextCursorMove;
     private bool _isSelecting;
     private int _selectionAnchor = -1;
     private const double SelectionEndPadding = 2;
     private const double LinePadding = 20;
     private int _desiredColumn;
-    private const double LineHeight = 20;
-    private double CharWidth { get; }
-    private readonly string _fontFamily = "Monospace";
+    private double _lineHeight = BaseLineHeight;
     private readonly List<int> _lineStarts = new();
     private int _cachedLineCount;
     private readonly Dictionary<int, int> _lineLengths = new();
@@ -30,21 +31,102 @@ public partial class TextEditor : UserControl
     private int _longestLineLength;
     private ScrollableTextEditorViewModel _scrollableViewModel;
     private (int start, int end) _lastKnownSelection = (-1, -1);
+    private readonly double _lineSpacingFactor = BaseLineHeight / DefaultFontSize;
+
+    public static readonly StyledProperty<FontFamily> FontFamilyProperty =
+        AvaloniaProperty.Register<TextEditor, FontFamily>(nameof(FontFamily),
+            new FontFamily("avares://meteor/Assets/Fonts/SanFrancisco/SF-Mono-Medium.otf#SF Mono"));
+
+    public static readonly StyledProperty<double> FontSizeProperty =
+        AvaloniaProperty.Register<TextEditor, double>(nameof(FontSize), 13);
+
+    public double CharWidth
+    {
+        get
+        {
+            var formattedText = new FormattedText(
+                "x",
+                CultureInfo.CurrentCulture,
+                FlowDirection.LeftToRight,
+                new Typeface(FontFamily),
+                FontSize,
+                Brushes.Black);
+            return formattedText.Width;
+        }
+    }
+
+    public FontFamily FontFamily
+    {
+        get => GetValue(FontFamilyProperty);
+        set => SetValue(FontFamilyProperty, value);
+    }
+
+    public double FontSize
+    {
+        get => GetValue(FontSizeProperty);
+        set => SetValue(FontSizeProperty, value);
+    }
+
+    public double LineHeight
+    {
+        get => _lineHeight;
+        private set
+        {
+            if (_lineHeight != value)
+            {
+                Console.WriteLine("line height set");
+                _lineHeight = value;
+
+                InvalidateVisual();
+            }
+        }
+    }
 
     public TextEditor()
     {
         InitializeComponent();
-
         DataContextChanged += OnDataContextChanged;
-
-        // Measure text to calculate CharWidth
-        var referenceText = new FormattedText("0", CultureInfo.CurrentCulture, FlowDirection.LeftToRight,
-            new Typeface(_fontFamily), 14, Brushes.Black);
-        CharWidth = referenceText.Width;
-
         Focusable = true;
+
+        FontFamily = new FontFamily("avares://meteor/Assets/Fonts/SanFrancisco/SF-Mono-Medium.otf#SF Mono");
+
+        // Add handlers for FontFamily and FontSize changes
+        this.GetObservable(FontFamilyProperty).Subscribe(OnFontFamilyChanged);
+        this.GetObservable(FontSizeProperty).Subscribe(OnFontSizeChanged);
+
+        // Initial measurement
+        MeasureCharWidth();
     }
 
+    private void OnFontSizeChanged(double newFontSize)
+    {
+        _fontSize = newFontSize;
+        UpdateMetrics();
+        InvalidateVisual();
+    }
+
+    private void OnFontFamilyChanged(FontFamily newFontFamily)
+    {
+        Console.WriteLine(newFontFamily);
+        MeasureCharWidth();
+        InvalidateVisual();
+    }
+
+    private void MeasureCharWidth()
+    {
+        var referenceText = new FormattedText(
+            "0",
+            CultureInfo.CurrentCulture,
+            FlowDirection.LeftToRight,
+            new Typeface(FontFamily),
+            FontSize,
+            Brushes.Black);
+
+        // If _scrollableViewModel is available, update the LongestLineWidth
+        if (_scrollableViewModel != null)
+            _scrollableViewModel.LongestLineWidth = _longestLineLength * CharWidth + LinePadding;
+    }
+    
     private void OnDataContextChanged(object sender, EventArgs e)
     {
         if (_scrollableViewModel?.TextEditorViewModel != null)
@@ -54,6 +136,7 @@ public partial class TextEditor : UserControl
         {
             _scrollableViewModel = scrollableViewModel;
             var viewModel = scrollableViewModel.TextEditorViewModel;
+            viewModel.LineHeight = LineHeight;
             viewModel.PropertyChanged += ViewModel_PropertyChanged;
             UpdateLineCache();
         }
@@ -64,6 +147,12 @@ public partial class TextEditor : UserControl
         base.OnUnloaded(e);
         if (_scrollableViewModel?.TextEditorViewModel != null)
             _scrollableViewModel.TextEditorViewModel.PropertyChanged -= ViewModel_PropertyChanged;
+    }
+
+    private void UpdateMetrics()
+    {
+        MeasureCharWidth();
+        LineHeight = Math.Ceiling(_fontSize * _lineSpacingFactor);
     }
 
     private void UpdateLineCache()
@@ -94,7 +183,6 @@ public partial class TextEditor : UserControl
 
             _longestLineIndex = -1;
             _longestLineLength = 0;
-
 
             for (var i = 0; i < _cachedLineCount; i++)
             {
@@ -302,10 +390,9 @@ public partial class TextEditor : UserControl
                 _selectionAnchor = -1; // Reset selection anchor
             }
         }
-        
+
         InvalidateVisual();
     }
-
 
     private void OnTextInserted(int lineIndex, int length)
     {
@@ -499,7 +586,6 @@ public partial class TextEditor : UserControl
             Math.Max(0, _scrollableViewModel.VerticalOffset - _scrollableViewModel.Viewport.Height);
     }
 
-
     private void HandlePageDown(TextEditorViewModel viewModel, bool isShiftPressed)
     {
         var currentLineIndex = GetLineIndex(viewModel, viewModel.CursorPosition);
@@ -532,7 +618,6 @@ public partial class TextEditor : UserControl
             viewModel.CursorPosition--;
             UpdateDesiredColumn(viewModel);
             viewModel.SelectionEnd = viewModel.CursorPosition;
-
 
             // Ensure SelectionStart is always less than or equal to SelectionEnd
             if (viewModel.SelectionStart > viewModel.SelectionEnd)
@@ -596,7 +681,7 @@ public partial class TextEditor : UserControl
     private void HandleDelete(TextEditorViewModel viewModel)
     {
         _suppressScrollOnNextCursorMove = true;
-    
+
         if (viewModel.SelectionStart != -1 && viewModel.SelectionEnd != -1 &&
             viewModel.SelectionStart != viewModel.SelectionEnd)
         {
@@ -923,13 +1008,13 @@ public partial class TextEditor : UserControl
             }
 
             // Calculate the start index and the number of characters to display based on the visible area width
-            var startIndex = Math.Max(0, (int)(scrollableViewModel.HorizontalOffset / CharWidth));
+            var startIndex = Math.Max(0, (int)(scrollableViewModel.HorizontalOffset / CharWidth) - startIndexBuffer);
 
             // Ensure startIndex is within the lineText length
             if (startIndex >= lineText.Length) startIndex = Math.Max(0, lineText.Length - 1);
 
             var maxCharsToDisplay = Math.Min(lineText.Length - startIndex,
-                (int)((viewableAreaWidth - LinePadding) / CharWidth) + 5);
+                (int)((viewableAreaWidth - LinePadding) / CharWidth) + startIndexBuffer);
 
             // Ensure maxCharsToDisplay is non-negative
             if (maxCharsToDisplay < 0) maxCharsToDisplay = 0;
@@ -941,11 +1026,14 @@ public partial class TextEditor : UserControl
                 visiblePart,
                 CultureInfo.CurrentCulture,
                 FlowDirection.LeftToRight,
-                new Typeface(_fontFamily),
-                14,
+                new Typeface(FontFamily),
+                FontSize,
                 Brushes.Black);
 
-            context.DrawText(formattedText, new Point(xOffset + startIndex * CharWidth, yOffset));
+            // Calculate the vertical offset to center the text
+            var verticalOffset = (LineHeight - formattedText.Height) / 2;
+
+            context.DrawText(formattedText, new Point(xOffset + startIndex * CharWidth, yOffset + verticalOffset));
 
             yOffset += LineHeight;
         }
@@ -1059,7 +1147,6 @@ public partial class TextEditor : UserControl
         }
     }
 
-
     private void CopyText()
     {
         if (_scrollableViewModel != null)
@@ -1115,7 +1202,6 @@ public partial class TextEditor : UserControl
             InvalidateVisual();
         }
     }
-
 
     private void UpdateHorizontalScrollPosition()
     {
