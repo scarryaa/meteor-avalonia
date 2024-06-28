@@ -101,6 +101,8 @@ public class TextEditorViewModel : ViewModelBase
 
     public void InsertText(string text)
     {
+        if (_rope == null) throw new InvalidOperationException("Rope is not initialized.");
+
         if (_selectionStart != -1 && _selectionEnd != -1)
         {
             _rope.Delete(Math.Min(_selectionStart, _selectionEnd), Math.Abs(_selectionEnd - _selectionStart));
@@ -118,6 +120,8 @@ public class TextEditorViewModel : ViewModelBase
 
     public void DeleteText(int start, int length)
     {
+        if (_rope == null) throw new InvalidOperationException("Rope is not initialized.");
+
         _rope.Delete(start, length);
         this.RaisePropertyChanged(nameof(LineCount));
         this.RaisePropertyChanged(nameof(Rope));

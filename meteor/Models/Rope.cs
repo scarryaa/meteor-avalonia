@@ -17,10 +17,13 @@ public class Rope
     }
 
     public int Length => root?.Length ?? 0;
-    public int LineCount => root.LineCount;
+    public int LineCount => root?.LineCount ?? 0;
 
     private Node Build(string text)
     {
+        if (string.IsNullOrEmpty(text))
+            return new Node(string.Empty);
+
         if (text.Length <= SPLIT_LENGTH)
             return new Node(text);
 
