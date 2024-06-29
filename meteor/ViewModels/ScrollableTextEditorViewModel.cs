@@ -106,7 +106,11 @@ public class ScrollableTextEditorViewModel : ViewModelBase
         get => _viewport;
         set
         {
-            if (_viewport != value) this.RaiseAndSetIfChanged(ref _viewport, value);
+            if (_viewport != value)
+            {
+                this.RaiseAndSetIfChanged(ref _viewport, value);
+                LineCountViewModel.ViewportHeight = value.Height;
+            }
         }
     }
 }

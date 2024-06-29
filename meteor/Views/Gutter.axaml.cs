@@ -125,24 +125,23 @@ public partial class Gutter : UserControl
         
         if (DataContext is GutterViewModel viewModel)
         {
-            var verticalBufferLines = 50;
-
             // Calculate the first visible line
             var firstVisibleLine =
-                (BigInteger)Math.Max(0, Math.Floor(viewModel.LineCountViewModel.VerticalOffset / LineHeight));
+                (BigInteger)Math.Max(0, Math.Floor(viewModel.VerticalOffset / LineHeight));
 
             // Calculate the last visible line
             var lastVisibleLine =
-                (BigInteger)Math.Ceiling((viewModel.LineCountViewModel.VerticalOffset + viewModel.ViewportHeight) /
+                (BigInteger)Math.Ceiling(
+                    (viewModel.VerticalOffset + viewModel.ViewportHeight) /
                                          LineHeight);
-
+            
             // Ensure lastVisibleLine is not less than 0
             lastVisibleLine = BigInteger.Max(0, lastVisibleLine);
 
             // Extend the range by buffer lines
-            firstVisibleLine = BigInteger.Max(0, firstVisibleLine - verticalBufferLines);
+            firstVisibleLine = BigInteger.Max(0, firstVisibleLine);
             lastVisibleLine = BigInteger.Min(viewModel.LineCountViewModel.LineCount - 1,
-                lastVisibleLine + verticalBufferLines + 1);
+                lastVisibleLine + 1);
 
             var hasDrawnLine = false;
             for (var i = firstVisibleLine; i <= lastVisibleLine; i++)
