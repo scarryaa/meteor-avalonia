@@ -18,7 +18,7 @@ public class LineCountToHeightConverter : IMultiValueConverter
             var calculatedHeight = (double)(lineCount * (BigInteger)adjustedLineHeight);
             // Hacky method to fix text rendering below the viewport
             calculatedHeight = (double)lineCount * lineHeight;
-            return Math.Max(calculatedHeight, minHeight) + verticalPadding;
+            return Math.Max(calculatedHeight + verticalPadding, minHeight);
         }
 
         return 0;

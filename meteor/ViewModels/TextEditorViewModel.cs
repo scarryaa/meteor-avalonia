@@ -155,6 +155,7 @@ public class TextEditorViewModel : ViewModelBase
             _rope.Delete((int)start, (int)length);
             UpdateLineStarts();
             _lineCountViewModel.UpdateLineCount(LineCount);
+            this.RaisePropertyChanged(nameof(LineCount));
             this.RaisePropertyChanged(nameof(Rope));
             _lineCountViewModel.MaxLineNumber = LineCount;
         }
