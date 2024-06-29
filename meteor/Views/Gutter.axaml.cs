@@ -3,6 +3,8 @@ using System.Globalization;
 using System.Numerics;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Media;
 using meteor.ViewModels;
 using ReactiveUI;
@@ -42,6 +44,24 @@ public partial class Gutter : UserControl
     {
         InitializeComponent();
         DataContextChanged += OnDataContextChanged;
+        AddHandler(PointerWheelChangedEvent, OnPointerWheelChanged, RoutingStrategies.Tunnel);
+    }
+
+    private void OnPointerWheelChanged(object? sender, PointerWheelEventArgs e)
+    {
+        if (DataContext is GutterViewModel viewModel)
+        {
+            // Adjust the vertical offset based on the delta of the wheel event
+            var delta = e.Delta.Y * viewModel.LineHeight;
+            var newOffset = viewModel.VerticalOffset - delta;
+
+            // Clamp the new offset between 0 and the maximum allowed offset
+            var maxOffset = Math.Max(0, (double)viewModel.LineCount * viewModel.LineHeight - Bounds.Height + 5);
+            viewModel.VerticalOffset = Math.Max(0, Math.Min(newOffset, maxOffset));
+
+            // Prevent the event from bubbling up
+            e.Handled = true;
+        }
     }
 
     private void OnDataContextChanged(object? sender, EventArgs e)
