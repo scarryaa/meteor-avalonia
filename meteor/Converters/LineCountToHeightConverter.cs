@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Numerics;
 using Avalonia.Data.Converters;
 
 namespace meteor.Converters;
@@ -10,9 +11,9 @@ public class LineCountToHeightConverter : IMultiValueConverter
     public object? Convert(IList<object?> values, Type targetType, object? parameter, CultureInfo culture)
     {
         const int verticalPadding = 5;
-        if (values is [int lineCount, double lineHeight, double minHeight])
+        if (values is [BigInteger lineCount, double lineHeight, double minHeight])
         {
-            var calculatedHeight = lineCount * lineHeight;
+            var calculatedHeight = (double)(lineCount * (BigInteger)lineHeight);
             return Math.Max(calculatedHeight, minHeight) + verticalPadding;
         }
 

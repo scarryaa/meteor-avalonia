@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Numerics;
 using Avalonia.Media;
 using meteor.Interfaces;
 using meteor.Models;
@@ -11,14 +12,14 @@ public class TextEditorViewModel : ViewModelBase
 {
     private readonly ICursorPositionService _cursorPositionService;
     private Rope _rope = new(string.Empty);
-    private int _cursorPosition;
-    private int _selectionStart = -1;
-    private int _selectionEnd = -1;
+    private BigInteger _cursorPosition;
+    private BigInteger _selectionStart = -1;
+    private BigInteger _selectionEnd = -1;
     private bool _isSelecting;
     private double _windowHeight;
     private double _lineHeight = 20;
     private double _windowWidth;
-    private int[] _lineStarts = [];
+    private BigInteger[] _lineStarts = Array.Empty<BigInteger>();
     private FontFamily _fontFamily;
     private double _fontSize;
 
@@ -40,7 +41,7 @@ public class TextEditorViewModel : ViewModelBase
         get => _fontSize;
         set => this.RaiseAndSetIfChanged(ref _fontSize, value);
     }
-    
+
     public double LineHeight
     {
         get => _lineHeight;
@@ -68,7 +69,7 @@ public class TextEditorViewModel : ViewModelBase
         }
     }
 
-    public int CursorPosition
+    public BigInteger CursorPosition
     {
         get => _cursorPosition;
         set
@@ -77,12 +78,12 @@ public class TextEditorViewModel : ViewModelBase
             {
                 _cursorPosition = value;
                 this.RaisePropertyChanged();
-                _cursorPositionService.UpdateCursorPosition(_cursorPosition, _lineStarts);
+                _cursorPositionService.UpdateCursorPosition((long)_cursorPosition, _lineStarts);
             }
         }
     }
 
-    public int SelectionStart
+    public BigInteger SelectionStart
     {
         get => _selectionStart;
         set
@@ -91,7 +92,7 @@ public class TextEditorViewModel : ViewModelBase
         }
     }
 
-    public int SelectionEnd
+    public BigInteger SelectionEnd
     {
         get => _selectionEnd;
         set
@@ -109,7 +110,7 @@ public class TextEditorViewModel : ViewModelBase
         }
     }
 
-    public int LineCount => _rope.LineCount;
+    public BigInteger LineCount => _rope.LineCount;
 
     public Rope Rope
     {
@@ -121,25 +122,25 @@ public class TextEditorViewModel : ViewModelBase
         }
     }
 
-    public void InsertText(int position, string text)
+    public void InsertText(BigInteger position, string text)
     {
         if (_rope == null) throw new InvalidOperationException("Rope is not initialized.");
         if (string.IsNullOrEmpty(text) || position < 0 || position > _rope.Length) return;
 
-        _rope.Insert(position, text);
+        _rope.Insert((int)position, text);
         UpdateLineStarts();
         this.RaisePropertyChanged(nameof(LineCount));
         this.RaisePropertyChanged(nameof(Rope));
         CursorPosition = position + text.Length;
     }
 
-    public void DeleteText(int start, int length)
+    public void DeleteText(BigInteger start, BigInteger length)
     {
         if (_rope == null) throw new InvalidOperationException("Rope is not initialized.");
 
         if (length > 0)
         {
-            _rope.Delete(start, length);
+            _rope.Delete((int)start, (int)length);
             UpdateLineStarts();
             this.RaisePropertyChanged(nameof(Rope));
         }
@@ -153,12 +154,12 @@ public class TextEditorViewModel : ViewModelBase
 
     private void UpdateLineStarts()
     {
-        var lineStarts = new List<int> { 0 };
-        var lineStart = 0;
+        var lineStarts = new List<BigInteger> { 0 };
+        BigInteger lineStart = 0;
 
         while (lineStart < _rope.Length)
         {
-            var nextNewline = _rope.IndexOf('\n', lineStart);
+            var nextNewline = _rope.IndexOf('\n', (int)lineStart);
             if (nextNewline == -1) break;
 
             lineStarts.Add(nextNewline + 1);

@@ -13,9 +13,7 @@ public class LongestLineOrWindowWidthConverter : IMultiValueConverter
             return 0;
 
         if (values[0] is double longestLineWidth && values[1] is double windowWidth)
-        {
             return Math.Max(longestLineWidth, windowWidth);
-        }
 
         return 0;
     }

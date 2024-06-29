@@ -41,7 +41,7 @@ public class ScrollableTextEditorViewModel : ViewModelBase
         get => _fontSize;
         set => this.RaiseAndSetIfChanged(ref _fontSize, value);
     }
-    
+
     public double LongestLineWidth
     {
         get => _longestLineWidth;
@@ -50,7 +50,7 @@ public class ScrollableTextEditorViewModel : ViewModelBase
             if (_longestLineWidth != value) this.RaiseAndSetIfChanged(ref _longestLineWidth, value);
         }
     }
-    
+
     public double VerticalOffset
     {
         get => _verticalOffset;

@@ -1,9 +1,10 @@
 using System;
+using System.Numerics;
 
 namespace meteor.Interfaces;
 
 public interface ICursorPositionService
 {
-    event Action<int, int[]>? CursorPositionChanged;
-    void UpdateCursorPosition(int position, int[] lineStarts);
+    event Action<BigInteger, BigInteger[]>? CursorPositionChanged;
+    void UpdateCursorPosition(BigInteger cursorPosition, BigInteger[] lineStarts);
 }

@@ -262,15 +262,13 @@ public class Rope
         if (root == null)
             return string.Empty;
 
-        var sb = new StringBuilder();
-        GetLineText(root, ref i, sb);
-        return sb.ToString();
+        return GetLineTextInternal(root, i);
     }
 
-    private bool GetLineText(Node node, ref int lineIndex, StringBuilder sb)
+    private string GetLineTextInternal(Node node, int lineIndex)
     {
         if (node == null)
-            return false;
+            return string.Empty;
 
         if (node.Text != null)
         {
@@ -278,27 +276,23 @@ public class Rope
             {
                 var lineStart = node.LinePositions[lineIndex];
                 var lineEnd = node.LinePositions[lineIndex + 1] - 1;
-                sb.Append(node.Text.Substring(lineStart, lineEnd - lineStart));
-                return true;
+                return node.Text.Substring(lineStart, lineEnd - lineStart);
             }
 
             if (lineIndex == node.LinePositions.Count - 1)
             {
                 var lineStart = node.LinePositions[lineIndex];
-                sb.Append(node.Text.Substring(lineStart));
-                return true;
+                return node.Text.Substring(lineStart);
             }
 
-            lineIndex -= node.LinePositions.Count;
-            return false;
+            return string.Empty;
         }
 
-        // Search in the left subtree
-        if (GetLineText(node.Left, ref lineIndex, sb))
-            return true;
+        var leftResult = GetLineTextInternal(node.Left, lineIndex);
+        if (!string.IsNullOrEmpty(leftResult))
+            return leftResult;
 
-        // Search in the right subtree
-        return GetLineText(node.Right, ref lineIndex, sb);
+        return GetLineTextInternal(node.Right, lineIndex - node.Left.LineCount);
     }
 
     private class Node
