@@ -12,13 +12,18 @@ public class GutterViewModel : ViewModelBase
 
     public LineCountViewModel LineCountViewModel { get; }
 
+    public TextEditorViewModel TextEditorViewModel { get; }
+
     public GutterViewModel(
         FontPropertiesViewModel fontPropertiesViewModel,
-        LineCountViewModel lineCountViewModel)
+        LineCountViewModel lineCountViewModel, TextEditorViewModel textEditorViewModel)
     {
         _fontPropertiesViewModel = fontPropertiesViewModel;
         LineCountViewModel = lineCountViewModel;
+        TextEditorViewModel = textEditorViewModel;
 
+        TextEditorViewModel.SelectionChanged += OnTextEditorSelectionChanged;
+        
         _fontPropertiesViewModel.WhenAnyValue(x => x.LineHeight)
             .Subscribe(lineHeight => LineHeight = lineHeight);
 
@@ -43,6 +48,11 @@ public class GutterViewModel : ViewModelBase
             .Subscribe(count => OnInvalidateRequired());
     }
 
+    private void OnTextEditorSelectionChanged(object sender, EventArgs e)
+    {
+        OnInvalidateRequired();
+    }
+    
     public event EventHandler? InvalidateRequired;
 
     public FontFamily FontFamily

@@ -13,6 +13,11 @@ namespace meteor.Views;
 
 public partial class Gutter : UserControl
 {
+    private bool _isDragging;
+    private BigInteger _dragStartLine;
+    private const double ScrollThreshold = 10;
+    private const double ScrollSpeed = 1; 
+    
     public static readonly StyledProperty<FontFamily> FontFamilyProperty =
         AvaloniaProperty.Register<Gutter, FontFamily>(nameof(FontFamily));
 
@@ -46,7 +51,7 @@ public partial class Gutter : UserControl
         DataContextChanged += OnDataContextChanged;
         AddHandler(PointerWheelChangedEvent, OnPointerWheelChanged, RoutingStrategies.Tunnel);
     }
-
+    
     private void OnPointerWheelChanged(object? sender, PointerWheelEventArgs e)
     {
         if (DataContext is GutterViewModel viewModel)
@@ -63,6 +68,90 @@ public partial class Gutter : UserControl
             // Prevent the event from bubbling up
             e.Handled = true;
         }
+    }
+
+    private void OnPointerMoved(object? sender, PointerEventArgs e)
+    {
+        if (_isDragging && DataContext is GutterViewModel viewModel)
+        {
+            var position = e.GetPosition(this);
+            var currentLine = GetLineNumberFromY(position.Y);
+            UpdateSelection(viewModel, _dragStartLine, currentLine);
+            HandleAutoScroll(viewModel, position.Y);
+            e.Handled = true;
+        }
+    }
+
+    private void HandleAutoScroll(GutterViewModel viewModel, double y)
+    {
+        if (y < ScrollThreshold)
+        {
+            // Scroll up
+            viewModel.VerticalOffset = Math.Max(0, viewModel.VerticalOffset - ScrollSpeed * LineHeight);
+        }
+        else if (y > Bounds.Height - ScrollThreshold)
+        {
+            // Scroll down
+            var maxOffset = Math.Max(0, (double)viewModel.LineCount * LineHeight - Bounds.Height);
+            viewModel.VerticalOffset = Math.Min(maxOffset, viewModel.VerticalOffset + ScrollSpeed * LineHeight);
+        }
+    }
+
+    private void OnPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (DataContext is GutterViewModel viewModel)
+        {
+            _isDragging = true;
+            _dragStartLine = GetLineNumberFromY(e.GetPosition(this).Y);
+            UpdateSelection(viewModel, _dragStartLine, _dragStartLine);
+        }
+    }
+
+    private void OnPointerReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        _isDragging = false;
+    }
+
+    private BigInteger GetLineNumberFromY(double y)
+    {
+        if (DataContext is GutterViewModel viewModel)
+        {
+            var lineNumber = (BigInteger)Math.Floor((y + viewModel.VerticalOffset) / LineHeight);
+            return BigInteger.Max(BigInteger.Zero, BigInteger.Min(lineNumber, viewModel.LineCount - 1));
+        }
+
+        return BigInteger.Zero;
+    }
+
+    private void UpdateSelection(GutterViewModel viewModel, BigInteger startLine, BigInteger endLine)
+    {
+        var textEditorViewModel = viewModel.TextEditorViewModel;
+        var rope = textEditorViewModel.Rope;
+
+        // Ensure start and end lines are within bounds
+        startLine = BigInteger.Max(BigInteger.Zero, BigInteger.Min(startLine, viewModel.LineCount - 1));
+        endLine = BigInteger.Max(BigInteger.Zero, BigInteger.Min(endLine, viewModel.LineCount - 1));
+
+        // Determine the actual start and end of the selection
+        var selectionStartLine = BigInteger.Min(startLine, endLine);
+        var selectionEndLine = BigInteger.Max(startLine, endLine);
+
+        var selectionStart = rope.GetLineStartPosition((int)selectionStartLine);
+        var selectionEnd = rope.GetLineEndPosition((int)selectionEndLine);
+
+        // Update the selection in the TextEditorViewModel
+        textEditorViewModel.SelectionStart = selectionStart;
+        textEditorViewModel.SelectionEnd = selectionEnd;
+
+        // Set the cursor position based on the drag direction
+        if (startLine <= endLine)
+            // Dragging downwards or no movement
+            textEditorViewModel.CursorPosition = selectionEnd;
+        else
+            // Dragging upwards
+            textEditorViewModel.CursorPosition = selectionStart;
+
+        InvalidateVisual();
     }
 
     private void OnDataContextChanged(object? sender, EventArgs e)
@@ -109,7 +198,7 @@ public partial class Gutter : UserControl
         );
 
         // Determine the gutter width
-        Width = Math.Max(formattedTextMaxLine.Width, formattedText9999.Width) + 10; // Add some padding
+        Width = Math.Max(formattedTextMaxLine.Width, formattedText9999.Width) + 10;
     }
 
     private void OnInvalidateRequired(object? sender, EventArgs e)
@@ -122,32 +211,41 @@ public partial class Gutter : UserControl
         base.Render(context);
 
         context.FillRectangle(Brushes.White, new Rect(Bounds.Size));
-        
+
         if (DataContext is GutterViewModel viewModel)
         {
-            // Calculate the first visible line
-            var firstVisibleLine =
-                (BigInteger)Math.Max(0, Math.Floor(viewModel.VerticalOffset / LineHeight));
-
-            // Calculate the last visible line
+            var firstVisibleLine = (BigInteger)Math.Max(0, Math.Floor(viewModel.VerticalOffset / LineHeight));
             var lastVisibleLine =
-                (BigInteger)Math.Ceiling(
-                    (viewModel.VerticalOffset + viewModel.ViewportHeight) /
-                                         LineHeight);
-            
-            // Ensure lastVisibleLine is not less than 0
+                (BigInteger)Math.Ceiling((viewModel.VerticalOffset + viewModel.ViewportHeight) / LineHeight);
+
             lastVisibleLine = BigInteger.Max(0, lastVisibleLine);
-
-            // Extend the range by buffer lines
             firstVisibleLine = BigInteger.Max(0, firstVisibleLine);
-            lastVisibleLine = BigInteger.Min(viewModel.LineCountViewModel.LineCount - 1,
-                lastVisibleLine + 1);
+            lastVisibleLine = BigInteger.Min(viewModel.LineCountViewModel.LineCount - 1, lastVisibleLine + 1);
 
-            var hasDrawnLine = false;
+            var selectionStart = viewModel.TextEditorViewModel.SelectionStart;
+            var selectionEnd = viewModel.TextEditorViewModel.SelectionEnd;
+            var cursorLine = GetLineIndexFromPosition(viewModel.TextEditorViewModel.CursorPosition);
+            var rope = viewModel.TextEditorViewModel.Rope;
+
             for (var i = firstVisibleLine; i <= lastVisibleLine; i++)
             {
                 var lineNumber = i + 1;
                 var yPosition = (double)i * LineHeight - viewModel.VerticalOffset;
+
+                // Check if this line is within the selection
+                var lineStart = BigInteger.Zero;
+                var lineEnd = BigInteger.Zero;
+
+                // Ensure the line indices are within the valid range
+                if (i < rope.LineCount)
+                {
+                    lineStart = rope.GetLineStartPosition((int)i);
+                    lineEnd = rope.GetLineEndPosition((int)i);
+                }
+
+                var isSelected = (lineStart >= selectionStart && lineStart < selectionEnd) ||
+                                 (lineEnd > selectionStart && lineEnd <= selectionEnd) ||
+                                 (lineStart <= selectionStart && lineEnd >= selectionEnd);
 
                 var formattedText = new FormattedText(
                     lineNumber.ToString(),
@@ -155,28 +253,46 @@ public partial class Gutter : UserControl
                     FlowDirection.LeftToRight,
                     new Typeface(FontFamily),
                     FontSize,
-                    Brushes.Gray
+                    isSelected ? Brushes.Black : new SolidColorBrush(Color.Parse("#bbbbbb"))
                 );
 
-                // Adjust yPosition to center the text vertically within the line
                 var verticalOffset = (LineHeight - formattedText.Height) / 2;
                 yPosition += verticalOffset;
 
-                // Ensure that at least one line is rendered
-                if (yPosition + LineHeight >= 0 && yPosition <= Bounds.Height)
+                // Highlight the background for the current line
+                if (i == cursorLine)
                 {
-                    context.DrawText(formattedText, new Point(Bounds.Width - formattedText.Width - 5, yPosition));
-                    hasDrawnLine = true;
+                    var highlightRect = new Rect(0, yPosition - verticalOffset, Bounds.Width, LineHeight);
+                    context.FillRectangle(new SolidColorBrush(Color.Parse("#ededed")), highlightRect);
                 }
-                else if (!hasDrawnLine)
-                {
-                    context.DrawText(formattedText, new Point(Bounds.Width - formattedText.Width - 5, yPosition));
-                    hasDrawnLine = true;
-                }
+
+                context.DrawText(formattedText, new Point(Bounds.Width - formattedText.Width - 5, yPosition));
             }
         }
     }
 
+    private BigInteger GetLineIndexFromPosition(BigInteger position)
+    {
+        var rope = DataContext is GutterViewModel viewModel ? viewModel.TextEditorViewModel.Rope : null;
+        if (rope == null) return BigInteger.Zero;
+
+        var lineIndex = BigInteger.Zero;
+        var accumulatedLength = BigInteger.Zero;
+
+        while (lineIndex < rope.LineCount &&
+               accumulatedLength + rope.GetLineLength((int)lineIndex) <= position)
+        {
+            accumulatedLength += rope.GetLineLength((int)lineIndex);
+            lineIndex++;
+        }
+
+        // Ensure lineIndex does not exceed the line count
+        lineIndex = BigInteger.Max(BigInteger.Zero, BigInteger.Min(lineIndex, rope.LineCount - 1));
+
+        return lineIndex;
+    }
+
+    
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnDetachedFromVisualTree(e);

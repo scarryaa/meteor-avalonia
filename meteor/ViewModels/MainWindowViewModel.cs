@@ -9,5 +9,7 @@ public class MainWindowViewModel(
 {
     public StatusPaneViewModel StatusPaneViewModel { get; } = statusPaneViewModel;
     public ScrollableTextEditorViewModel ScrollableTextEditorViewModel { get; } = scrollableTextEditorViewModel;
-    public GutterViewModel GutterViewModel { get; } = new(fontPropertiesViewModel, lineCountViewModel);
+
+    public GutterViewModel GutterViewModel { get; } = new(fontPropertiesViewModel, lineCountViewModel,
+        scrollableTextEditorViewModel.TextEditorViewModel);
 }

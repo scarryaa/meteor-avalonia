@@ -1013,12 +1013,63 @@ public partial class TextEditor : UserControl
             (BigInteger)(firstVisibleLine + viewableAreaHeight / LineHeight + 10),
             lineCount);
 
+        // Draw background for the current line
+        var viewModel = _scrollableViewModel.TextEditorViewModel;
+        RenderCurrentLine(context, viewModel, viewableAreaWidth);
+
         RenderVisibleLines(context, _scrollableViewModel, (BigInteger)firstVisibleLine, lastVisibleLine,
             viewableAreaWidth);
         DrawSelection(context, viewableAreaWidth, viewableAreaHeight, _scrollableViewModel);
         DrawCursor(context, viewableAreaWidth, viewableAreaHeight, _scrollableViewModel);
     }
 
+    private void RenderCurrentLine(DrawingContext context, TextEditorViewModel viewModel, double viewableAreaWidth)
+    {
+        // Draw background for the current line
+        var cursorLine = GetLineIndexFromPosition(viewModel.CursorPosition);
+        var y = (double)cursorLine * LineHeight;
+
+        // Check if the current line is part of the selection
+        var selectionStartLine = GetLineIndexFromPosition(viewModel.SelectionStart);
+        var selectionEndLine = GetLineIndexFromPosition(viewModel.SelectionEnd);
+
+        if (cursorLine < selectionStartLine || cursorLine > selectionEndLine)
+        {
+            var rect = new Rect(0, y, viewableAreaWidth + _scrollableViewModel.HorizontalOffset, LineHeight);
+            context.FillRectangle(new SolidColorBrush(Color.Parse("#ededed")), rect);
+        }
+        else
+        {
+            // Render the part of the current line that is not selected
+            var selectionStart = BigInteger.Min(viewModel.SelectionStart, viewModel.SelectionEnd);
+            var selectionEnd = BigInteger.Max(viewModel.SelectionStart, viewModel.SelectionEnd);
+
+            var lineStartOffset = cursorLine == selectionStartLine
+                ? selectionStart - _lineStarts[(int)cursorLine]
+                : BigInteger.Zero;
+            var lineEndOffset = cursorLine == selectionEndLine
+                ? selectionEnd - _lineStarts[(int)cursorLine]
+                : GetVisualLineLength(viewModel, cursorLine);
+
+            var xStart = (double)lineStartOffset * CharWidth;
+            var xEnd = (double)lineEndOffset * CharWidth;
+
+            // Draw the part of the line before the selection
+            if (xStart > 0)
+            {
+                var beforeSelectionRect = new Rect(0, y, xStart, LineHeight);
+                context.FillRectangle(new SolidColorBrush(Color.Parse("#ededed")), beforeSelectionRect);
+            }
+
+            // Draw the part of the line after the selection
+            if (xEnd < viewableAreaWidth)
+            {
+                var afterSelectionRect = new Rect(xEnd, y,
+                    _scrollableViewModel.HorizontalOffset + viewableAreaWidth - xEnd, LineHeight);
+                context.FillRectangle(new SolidColorBrush(Color.Parse("#ededed")), afterSelectionRect);
+            }
+        }
+    }
 
     private void RenderVisibleLines(DrawingContext context, ScrollableTextEditorViewModel scrollableViewModel,
         BigInteger firstVisibleLine, BigInteger lastVisibleLine, double viewableAreaWidth)

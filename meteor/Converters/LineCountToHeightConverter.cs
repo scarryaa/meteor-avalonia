@@ -14,7 +14,7 @@ public class LineCountToHeightConverter : IMultiValueConverter
         if (values is [BigInteger lineCount, double lineHeight, double minHeight])
         {
             // Calculate the height using the adjusted line height
-            var adjustedLineHeight = lineHeight * 1.2;
+            var adjustedLineHeight = lineHeight * 1.5;
             var calculatedHeight = (double)(lineCount * (BigInteger)adjustedLineHeight);
             // Hacky method to fix text rendering below the viewport
             calculatedHeight = (double)lineCount * lineHeight;

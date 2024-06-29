@@ -42,6 +42,8 @@ public class TextEditorViewModel : ViewModelBase
         UpdateLineStarts();
     }
 
+    public event EventHandler SelectionChanged;
+
     public FontFamily FontFamily
     {
         get => FontPropertiesViewModel.FontFamily;
@@ -88,6 +90,7 @@ public class TextEditorViewModel : ViewModelBase
                 _cursorPosition = value;
                 this.RaisePropertyChanged();
                 _cursorPositionService.UpdateCursorPosition((long)_cursorPosition, _lineStarts);
+                NotifySelectionChanged();
             }
         }
     }
@@ -97,7 +100,11 @@ public class TextEditorViewModel : ViewModelBase
         get => _selectionStart;
         set
         {
-            if (_selectionStart != value) this.RaiseAndSetIfChanged(ref _selectionStart, value);
+            if (_selectionStart != value)
+            {
+                this.RaiseAndSetIfChanged(ref _selectionStart, value);
+                NotifySelectionChanged();
+            }
         }
     }
 
@@ -106,7 +113,11 @@ public class TextEditorViewModel : ViewModelBase
         get => _selectionEnd;
         set
         {
-            if (_selectionEnd != value) this.RaiseAndSetIfChanged(ref _selectionEnd, value);
+            if (_selectionEnd != value)
+            {
+                this.RaiseAndSetIfChanged(ref _selectionEnd, value);
+                NotifySelectionChanged();
+            }
         }
     }
 
@@ -117,6 +128,11 @@ public class TextEditorViewModel : ViewModelBase
         {
             if (_isSelecting != value) this.RaiseAndSetIfChanged(ref _isSelecting, value);
         }
+    }
+
+    private void NotifySelectionChanged()
+    {
+        SelectionChanged?.Invoke(this, EventArgs.Empty);
     }
 
     public BigInteger LineCount => _rope.LineCount;

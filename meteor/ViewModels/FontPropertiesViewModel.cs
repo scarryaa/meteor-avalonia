@@ -39,6 +39,6 @@ public class FontPropertiesViewModel : ViewModelBase
 
     private double CalculateLineHeight(double fontSize)
     {
-        return fontSize * 1.2;
+        return fontSize * 1.5;
     }
 }

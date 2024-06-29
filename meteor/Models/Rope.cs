@@ -46,6 +46,17 @@ public class Rope
         return position;
     }
 
+    public int GetLineEndPosition(int lineIndex)
+    {
+        if (lineIndex < 0 || lineIndex >= LineCount)
+            throw new ArgumentOutOfRangeException(nameof(lineIndex), "Line index is out of range");
+
+        if (lineIndex == LineCount - 1)
+            return Length;
+
+        return GetLineStartPosition(lineIndex + 1) - 1;
+    }
+
     private bool GetLineStartPosition(Node node, ref int lineIndex, ref int position)
     {
         if (node == null)
