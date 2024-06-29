@@ -13,33 +13,44 @@ public class ScrollableTextEditorViewModel : ViewModelBase
     private Size _viewport;
     private double _longestLineWidth;
     private Vector _offset;
-    private FontFamily _fontFamily;
-    private double _fontSize;
+    private double _lineHeight;
 
     public TextEditorViewModel TextEditorViewModel { get; }
+    public LineCountViewModel LineCountViewModel { get; }
 
-    public ScrollableTextEditorViewModel(ICursorPositionService cursorPositionService)
+    public ScrollableTextEditorViewModel(
+        ICursorPositionService cursorPositionService,
+        FontPropertiesViewModel fontPropertiesViewModel,
+        LineCountViewModel lineCountViewModel)
     {
-        _fontFamily = new FontFamily("avares://meteor/Assets/Fonts/SanFrancisco/SF-Mono-Medium.otf#SF Mono");
-        _fontSize = 13;
-        TextEditorViewModel = new TextEditorViewModel(cursorPositionService);
+        FontPropertiesViewModel = fontPropertiesViewModel;
+        LineCountViewModel = lineCountViewModel;
+        TextEditorViewModel =
+            new TextEditorViewModel(cursorPositionService, fontPropertiesViewModel, lineCountViewModel);
 
-        this.WhenAnyValue(x => x.FontFamily)
-            .Subscribe(font => TextEditorViewModel.FontFamily = font);
-        this.WhenAnyValue(x => x.FontSize)
-            .Subscribe(size => TextEditorViewModel.FontSize = size);
+        // Subscribe to changes in line count
+        this.WhenAnyValue(x => x.LineCountViewModel.LineCount)
+            .Subscribe(count => LongestLineWidth = Math.Max(LongestLineWidth, (double)count * LineHeight));
     }
+
+    public FontPropertiesViewModel FontPropertiesViewModel { get; }
 
     public FontFamily FontFamily
     {
-        get => _fontFamily;
-        set => this.RaiseAndSetIfChanged(ref _fontFamily, value);
+        get => FontPropertiesViewModel.FontFamily;
+        set => FontPropertiesViewModel.FontFamily = value;
     }
 
     public double FontSize
     {
-        get => _fontSize;
-        set => this.RaiseAndSetIfChanged(ref _fontSize, value);
+        get => FontPropertiesViewModel.FontSize;
+        set => FontPropertiesViewModel.FontSize = value;
+    }
+
+    public double LineHeight
+    {
+        get => FontPropertiesViewModel.LineHeight;
+        set => this.RaiseAndSetIfChanged(ref _lineHeight, value);
     }
 
     public double LongestLineWidth
@@ -60,6 +71,7 @@ public class ScrollableTextEditorViewModel : ViewModelBase
             {
                 this.RaiseAndSetIfChanged(ref _verticalOffset, value);
                 Offset = new Vector(Offset.X, _verticalOffset);
+                LineCountViewModel.VerticalOffset = Offset.Y;
             }
         }
     }

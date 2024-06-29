@@ -11,8 +11,11 @@
         x:DataType="viewModels:MainWindowViewModel">
 
     <Grid RowDefinitions="*, Auto">
-        <views:ScrollableTextEditor FontFamily="{StaticResource SanFranciscoMonoMedium}"
-                                    DataContext="{Binding ScrollableTextEditorViewModel}" FontSize="13" />
+        <Grid ColumnDefinitions="Auto, *">
+            <views:Gutter Grid.Column="0" DataContext="{Binding GutterViewModel}" />
+            <views:ScrollableTextEditor Grid.Column="1"
+                                        DataContext="{Binding ScrollableTextEditorViewModel}" />
+        </Grid>
         <views:StatusPane x:Name="StatusPane" DataContext="{Binding StatusPaneViewModel}" Grid.Row="1" />
     </Grid>
 </Window>

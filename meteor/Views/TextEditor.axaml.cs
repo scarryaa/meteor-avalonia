@@ -10,6 +10,7 @@ using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
 using meteor.ViewModels;
+using ReactiveUI;
 
 namespace meteor.Views;
 
@@ -41,6 +42,9 @@ public partial class TextEditor : UserControl
     public static readonly StyledProperty<double> FontSizeProperty =
         AvaloniaProperty.Register<TextEditor, double>(nameof(FontSize), 13);
 
+    public static readonly StyledProperty<double> LineHeightProperty =
+        AvaloniaProperty.Register<TextEditor, double>(nameof(LineHeight), 20.0);
+
     public double CharWidth
     {
         get
@@ -70,15 +74,8 @@ public partial class TextEditor : UserControl
 
     public double LineHeight
     {
-        get => _lineHeight;
-        private set
-        {
-            if (_lineHeight != value)
-            {
-                _lineHeight = value;
-                InvalidateVisual();
-            }
-        }
+        get => GetValue(LineHeightProperty);
+        set => SetValue(LineHeightProperty, value);
     }
 
     public TextEditor()
@@ -89,12 +86,19 @@ public partial class TextEditor : UserControl
 
         FontFamily = new FontFamily("avares://meteor/Assets/Fonts/SanFrancisco/SF-Mono-Medium.otf#SF Mono");
 
-        // Add handlers for FontFamily and FontSize changes
+        // Add handlers for FontFamily, FontSize, and LineHeight changes
         this.GetObservable(FontFamilyProperty).Subscribe(OnFontFamilyChanged);
         this.GetObservable(FontSizeProperty).Subscribe(OnFontSizeChanged);
+        this.GetObservable(LineHeightProperty).Subscribe(OnLineHeightChanged);
 
         // Initial measurement
         MeasureCharWidth();
+    }
+
+    private void OnLineHeightChanged(double newLineHeight)
+    {
+        _lineHeight = newLineHeight;
+        InvalidateVisual();
     }
 
     private void OnFontSizeChanged(double newFontSize)
@@ -138,6 +142,10 @@ public partial class TextEditor : UserControl
             var viewModel = scrollableViewModel.TextEditorViewModel;
             viewModel.LineHeight = LineHeight;
             viewModel.PropertyChanged += ViewModel_PropertyChanged;
+
+            // Bind the LineHeight property to the ViewModel
+            Bind(LineHeightProperty, viewModel.WhenAnyValue(vm => vm.LineHeight));
+
             UpdateLineCache();
         }
     }
@@ -304,7 +312,8 @@ public partial class TextEditor : UserControl
             // Vertical scrolling
             var cursorY = (double)cursorLine * LineHeight;
             var bottomPadding = 5;
-            var verticalBufferLines = 3;
+            // var verticalBufferLines = 3;
+            var verticalBufferLines = 0;
             var verticalBufferHeight = verticalBufferLines * LineHeight;
 
             if (cursorY < _scrollableViewModel.VerticalOffset + verticalBufferHeight)
@@ -982,8 +991,8 @@ public partial class TextEditor : UserControl
     public override void Render(DrawingContext context)
     {
         if (_scrollableViewModel == null) return;
-        
-        context.FillRectangle(Brushes.LightGray, new Rect(Bounds.Size));
+
+        context.FillRectangle(Brushes.White, new Rect(Bounds.Size));
 
         var lineCount = GetLineCount();
         if (lineCount == BigInteger.Zero) return;

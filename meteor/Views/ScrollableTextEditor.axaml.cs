@@ -45,12 +45,6 @@ public partial class ScrollableTextEditor : UserControl
                 viewModel.TextEditorViewModel.WindowWidth = bounds.Width;
                 viewModel.TextEditorViewModel.WindowHeight = bounds.Height;
             });
-
-            // Bind the FontFamily and FontSize properties to the ViewModel
-            viewModel.FontFamily = FontFamily;
-            viewModel.FontSize = FontSize;
-            this.GetObservable(FontFamilyProperty).Subscribe(font => viewModel.FontFamily = font);
-            this.GetObservable(FontSizeProperty).Subscribe(size => viewModel.FontSize = size);
         }
     }
 

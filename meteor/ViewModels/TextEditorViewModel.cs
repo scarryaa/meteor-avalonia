@@ -17,38 +17,47 @@ public class TextEditorViewModel : ViewModelBase
     private BigInteger _selectionEnd = -1;
     private bool _isSelecting;
     private double _windowHeight;
-    private double _lineHeight = 20;
+    private double _lineHeight;
     private double _windowWidth;
     private BigInteger[] _lineStarts = Array.Empty<BigInteger>();
-    private FontFamily _fontFamily;
-    private double _fontSize;
+    private readonly LineCountViewModel _lineCountViewModel;
 
-    public TextEditorViewModel(ICursorPositionService cursorPositionService)
+    public FontPropertiesViewModel FontPropertiesViewModel { get; }
+
+    public TextEditorViewModel(ICursorPositionService cursorPositionService,
+        FontPropertiesViewModel fontPropertiesViewModel,
+        LineCountViewModel lineCountViewModel)
     {
         _cursorPositionService = cursorPositionService;
-        _fontFamily = new FontFamily("avares://meteor/Assets/Fonts/SanFrancisco/SF-Mono-Medium.otf#SF Mono");
+        FontPropertiesViewModel = fontPropertiesViewModel;
+        _lineCountViewModel = lineCountViewModel;
+
+        this.WhenAnyValue(x => x.FontPropertiesViewModel.FontFamily)
+            .Subscribe(font => FontFamily = font);
+        this.WhenAnyValue(x => x.FontPropertiesViewModel.FontSize)
+            .Subscribe(size => FontSize = size);
+        this.WhenAnyValue(x => x.FontPropertiesViewModel.LineHeight)
+            .Subscribe(height => LineHeight = height);
+
         UpdateLineStarts();
     }
 
     public FontFamily FontFamily
     {
-        get => _fontFamily;
-        set => this.RaiseAndSetIfChanged(ref _fontFamily, value);
+        get => FontPropertiesViewModel.FontFamily;
+        set => FontPropertiesViewModel.FontFamily = value;
     }
 
     public double FontSize
     {
-        get => _fontSize;
-        set => this.RaiseAndSetIfChanged(ref _fontSize, value);
+        get => FontPropertiesViewModel.FontSize;
+        set => FontPropertiesViewModel.FontSize = value;
     }
 
     public double LineHeight
     {
-        get => _lineHeight;
-        set
-        {
-            if (_lineHeight != value) this.RaiseAndSetIfChanged(ref _lineHeight, value);
-        }
+        get => FontPropertiesViewModel.LineHeight;
+        set => this.RaiseAndSetIfChanged(ref _lineHeight, value);
     }
 
     public double WindowHeight
@@ -119,6 +128,7 @@ public class TextEditorViewModel : ViewModelBase
         {
             this.RaiseAndSetIfChanged(ref _rope, value);
             this.RaisePropertyChanged(nameof(LineCount));
+            _lineCountViewModel.LineCount = _rope.LineCount; // Update LineCountViewModel
         }
     }
 
@@ -129,6 +139,7 @@ public class TextEditorViewModel : ViewModelBase
 
         _rope.Insert((int)position, text);
         UpdateLineStarts();
+        _lineCountViewModel.UpdateLineCount(LineCount); 
         this.RaisePropertyChanged(nameof(LineCount));
         this.RaisePropertyChanged(nameof(Rope));
         CursorPosition = position + text.Length;
@@ -142,6 +153,7 @@ public class TextEditorViewModel : ViewModelBase
         {
             _rope.Delete((int)start, (int)length);
             UpdateLineStarts();
+            _lineCountViewModel.UpdateLineCount(LineCount);
             this.RaisePropertyChanged(nameof(Rope));
         }
     }

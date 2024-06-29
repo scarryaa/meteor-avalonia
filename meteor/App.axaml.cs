@@ -41,6 +41,8 @@ public partial class App : Application
     private void ConfigureServices(IServiceCollection services)
     {
         services.AddSingleton<ICursorPositionService, CursorPositionService>();
+        services.AddSingleton<FontPropertiesViewModel>();
+        services.AddSingleton<LineCountViewModel>();
         services.AddTransient<MainWindowViewModel>();
         services.AddTransient<StatusPaneViewModel>();
         services.AddTransient<TextEditorViewModel>();

@@ -21,8 +21,8 @@
                   SizeChanged="EditorScrollViewer_SizeChanged"
                   Offset="{Binding Offset, Mode=TwoWay}">
         <views:TextEditor x:Name="TextEditor"
-                          FontFamily="{Binding $parent[views:ScrollableTextEditor].FontFamily}"
-                          FontSize="{Binding $parent[views:ScrollableTextEditor].FontSize}">
+                          FontFamily="{Binding FontPropertiesViewModel.FontFamily}"
+                          FontSize="{Binding FontPropertiesViewModel.FontSize}">
             <views:TextEditor.Width>
                 <MultiBinding Converter="{StaticResource LongestLineOrWindowWidthConverter}">
                     <Binding Path="LongestLineWidth" />
