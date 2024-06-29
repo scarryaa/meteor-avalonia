@@ -31,6 +31,9 @@ public class ScrollableTextEditorViewModel : ViewModelBase
         // Subscribe to changes in line count
         this.WhenAnyValue(x => x.LineCountViewModel.LineCount)
             .Subscribe(count => LongestLineWidth = Math.Max(LongestLineWidth, (double)count * LineHeight));
+
+        this.WhenAnyValue(x => x.LineCountViewModel.VerticalOffset)
+            .Subscribe(verticalOffset => VerticalOffset = verticalOffset);
     }
 
     public FontPropertiesViewModel FontPropertiesViewModel { get; }

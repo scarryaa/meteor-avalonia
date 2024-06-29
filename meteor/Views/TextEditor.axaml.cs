@@ -857,10 +857,17 @@ public partial class TextEditor : UserControl
         }
         else
         {
-            // Move to the end of the last line
-            var lastLineStart = viewModel.Rope.GetLineStartPosition((int)currentLineIndex);
-            var lastLineLength = viewModel.Rope.GetLineLength((int)currentLineIndex);
-            viewModel.CursorPosition = lastLineStart + lastLineLength;
+            // If the document is empty or at the end of the last line, set cursor to the end of the document
+            if (viewModel.Rope.Length == BigInteger.Zero)
+            {
+                viewModel.CursorPosition = BigInteger.Zero;
+            }
+            else
+            {
+                var lastLineStart = viewModel.Rope.GetLineStartPosition((int)currentLineIndex);
+                var lastLineLength = viewModel.Rope.GetLineLength((int)currentLineIndex);
+                viewModel.CursorPosition = lastLineStart + lastLineLength;
+            }
             UpdateDesiredColumn(viewModel);
         }
 

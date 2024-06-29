@@ -31,7 +31,7 @@ public class LineCountViewModel : ReactiveObject
     public BigInteger MaxLineNumber
     {
         get => _maxLineNumber;
-        private set => this.RaiseAndSetIfChanged(ref _maxLineNumber, value);
+        set => this.RaiseAndSetIfChanged(ref _maxLineNumber, value);
     }
 
     private void UpdateMaxLineNumber()

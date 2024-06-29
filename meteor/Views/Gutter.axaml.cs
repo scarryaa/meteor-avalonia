@@ -52,12 +52,13 @@ public partial class Gutter : UserControl
         if (DataContext is GutterViewModel viewModel)
         {
             // Adjust the vertical offset based on the delta of the wheel event
-            var delta = e.Delta.Y * viewModel.LineHeight;
+            var delta = e.Delta.Y * 3 * viewModel.LineHeight;
             var newOffset = viewModel.VerticalOffset - delta;
 
             // Clamp the new offset between 0 and the maximum allowed offset
-            var maxOffset = Math.Max(0, (double)viewModel.LineCount * viewModel.LineHeight - Bounds.Height + 5);
+            var maxOffset = Math.Max(0, (double)viewModel.LineCount * viewModel.LineHeight - Bounds.Height + 6);
             viewModel.VerticalOffset = Math.Max(0, Math.Min(newOffset, maxOffset));
+            viewModel.LineCountViewModel.VerticalOffset = viewModel.VerticalOffset;
 
             // Prevent the event from bubbling up
             e.Handled = true;
@@ -120,6 +121,8 @@ public partial class Gutter : UserControl
     {
         base.Render(context);
 
+        context.FillRectangle(Brushes.White, new Rect(Bounds.Size));
+        
         if (DataContext is GutterViewModel viewModel)
         {
             var verticalBufferLines = 50;

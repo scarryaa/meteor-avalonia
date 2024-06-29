@@ -143,6 +143,7 @@ public class TextEditorViewModel : ViewModelBase
         this.RaisePropertyChanged(nameof(LineCount));
         this.RaisePropertyChanged(nameof(Rope));
         CursorPosition = position + text.Length;
+        _lineCountViewModel.MaxLineNumber = LineCount;
     }
 
     public void DeleteText(BigInteger start, BigInteger length)
@@ -155,6 +156,7 @@ public class TextEditorViewModel : ViewModelBase
             UpdateLineStarts();
             _lineCountViewModel.UpdateLineCount(LineCount);
             this.RaisePropertyChanged(nameof(Rope));
+            _lineCountViewModel.MaxLineNumber = LineCount;
         }
     }
 

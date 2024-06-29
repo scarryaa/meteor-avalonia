@@ -14,9 +14,5 @@
             BorderThickness="0,0,1,0"
             Background="Transparent"
             PointerWheelChanged="OnPointerWheelChanged">
-        <Canvas Name="GutterCanvas"
-                Background="Transparent"
-                Width="{Binding $parent[UserControl].Bounds.Width}"
-                Height="{Binding $parent[UserControl].Bounds.Height}" />
     </Border>
 </UserControl>
