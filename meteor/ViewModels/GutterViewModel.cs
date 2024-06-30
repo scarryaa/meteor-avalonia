@@ -77,6 +77,12 @@ public class GutterViewModel : ViewModelBase
         // Subscribe to LineCount changes
         LineCountViewModel.WhenAnyValue(x => x.LineCount)
             .Subscribe(count => OnInvalidateRequired());
+
+        TextEditorViewModel.LineChanged += (sender, args) =>
+        {
+            CursorPosition = TextEditorViewModel.CursorPosition;
+            OnInvalidateRequired();
+        };
     }
 
     private void OnTextEditorSelectionChanged(object sender, EventArgs e)

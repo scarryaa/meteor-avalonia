@@ -41,7 +41,8 @@ public class TextEditorViewModel : ViewModelBase
     }
 
     public event EventHandler SelectionChanged;
-
+    public event EventHandler LineChanged;
+    
     public bool ShouldScrollToCursor { get; set; } = true;
 
     public FontFamily FontFamily
@@ -146,6 +147,11 @@ public class TextEditorViewModel : ViewModelBase
             this.RaisePropertyChanged(nameof(LineCount));
             _lineCountViewModel.LineCount = _rope.LineCount; // Update LineCountViewModel
         }
+    }
+
+    public void NotifyGutterOfLineChange()
+    {
+        LineChanged?.Invoke(this, EventArgs.Empty);
     }
 
     public void InsertText(long position, string text)

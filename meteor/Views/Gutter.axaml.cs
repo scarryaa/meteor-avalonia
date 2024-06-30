@@ -237,7 +237,7 @@ public partial class Gutter : UserControl
             var yPosition = i * LineHeight - viewModel.VerticalOffset;
 
             var isSelected = false;
-            if (i >= 0 && i < rope.GetLineCount())
+            if (i >= 0 && i < rope.LineCount)
                 try
                 {
                     isSelected = rope.IsLineSelected(i, selectionStart, selectionEnd);
@@ -245,7 +245,7 @@ public partial class Gutter : UserControl
                 catch (ArgumentOutOfRangeException ex)
                 {
                     Console.WriteLine(
-                        $"Error in IsLineSelected: {ex.Message}. Line index: {i}, Selection: {selectionStart}-{selectionEnd}, Total lines: {rope.GetLineCount()}");
+                        $"Error in IsLineSelected: {ex.Message}. Line index: {i}, Selection: {selectionStart}-{selectionEnd}, Total lines: {rope.LineCount}");
                 }
 
             var isCurrentLine = i == cursorLine;

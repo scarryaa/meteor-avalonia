@@ -194,7 +194,7 @@ public partial class TextEditor : UserControl
         else
         {
             // Ensure the changedLineIndex is within valid bounds
-            var lineCount = viewModel.Rope.GetLineCount();
+            var lineCount = viewModel.Rope.LineCount;
             if (lineCount == 0) return; // No lines to update
 
             if (changedLineIndex < 0)
@@ -276,16 +276,14 @@ public partial class TextEditor : UserControl
 
     public string GetLineText(long lineIndex)
     {
-        if (_scrollableViewModel != null)
-        {
-            var viewModel = _scrollableViewModel.TextEditorViewModel;
-            if (lineIndex < 0 || lineIndex >= viewModel.Rope.GetLineCount())
-                return string.Empty; // Return empty string if line index is out of range
+        if (_scrollableViewModel == null)
+            return string.Empty;
 
-            return viewModel.Rope.GetLineText((int)lineIndex);
-        }
+        var viewModel = _scrollableViewModel.TextEditorViewModel;
+        if (lineIndex < 0 || lineIndex >= viewModel.Rope.LineCount)
+            return string.Empty;
 
-        return string.Empty;
+        return viewModel.Rope.GetLineText((int)lineIndex);
     }
 
     private void ViewModel_PropertyChanged(object sender, PropertyChangedEventArgs e)
@@ -704,7 +702,7 @@ public partial class TextEditor : UserControl
     {
         // Do nothing if the cursor is at the end of the document
         var currentLineIndex = GetLineIndex(viewModel, viewModel.CursorPosition);
-        if (currentLineIndex < viewModel.Rope.GetLineCount() - 1)
+        if (currentLineIndex < viewModel.Rope.LineCount - 1)
         {
             var currentLineStart = viewModel.Rope.GetLineStartPosition((int)currentLineIndex);
             var currentColumn = viewModel.CursorPosition - currentLineStart;
@@ -870,7 +868,7 @@ public partial class TextEditor : UserControl
         }
 
         var currentLineIndex = GetLineIndex(viewModel, viewModel.CursorPosition);
-        if (currentLineIndex < viewModel.Rope.GetLineCount() - 1)
+        if (currentLineIndex < viewModel.Rope.LineCount - 1)
         {
             var currentLineStart = viewModel.Rope.GetLineStartPosition((int)currentLineIndex);
             var currentColumn = viewModel.CursorPosition - currentLineStart;
@@ -950,11 +948,18 @@ public partial class TextEditor : UserControl
 
         var insertPosition = viewModel.CursorPosition;
         viewModel.InsertText(insertPosition, "\n");
-        viewModel.CursorPosition = insertPosition + 1;
+
+        // Get the position of the start of the next line
+        var nextLineStart =
+            viewModel.Rope.GetLineStartPosition(viewModel.Rope.GetLineIndexFromPosition((int)insertPosition) + 1);
+        viewModel.CursorPosition = nextLineStart;
 
         // Clear selection after insertion
         viewModel.ClearSelection();
         _lastKnownSelection = (viewModel.CursorPosition, viewModel.CursorPosition);
+
+        // Ensure the gutter is updated
+        viewModel.NotifyGutterOfLineChange();
     }
 
     private void HandleControlKeyDown(KeyEventArgs keyEventArgs, TextEditorViewModel viewModel)
@@ -1060,7 +1065,7 @@ public partial class TextEditor : UserControl
         if (cursorPosition >= lineEnd)
         {
             // Move to the start of the next line if at the end of the current line
-            if (lineIndex < viewModel.Rope.GetLineCount() - 1)
+            if (lineIndex < viewModel.Rope.LineCount - 1)
                 viewModel.CursorPosition = viewModel.Rope.GetLineStartPosition((int)lineIndex + 1);
             return;
         }
