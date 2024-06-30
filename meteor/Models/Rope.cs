@@ -1,14 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Numerics;
 using System.Text;
-
-namespace meteor.Models;
 
 public class Rope
 {
     private const int SPLIT_LENGTH = 1024;
+    private const int MAX_NODE_LENGTH = 2048; // Example threshold for balancing
 
     private Node root;
 
@@ -124,6 +122,7 @@ public class Rope
     {
         index = Math.Max(0, Math.Min(index, Length));
         root = Insert(root, index, text);
+        root = Balance(root); // Ensure the tree is balanced after insertion
     }
 
     private Node Insert(Node node, int index, string text)
@@ -148,8 +147,8 @@ public class Rope
         else
             node.Right = Insert(node.Right, index - node.Left.Length, text);
 
-        node.Length = node.Left.Length + node.Right.Length;
-        node.LineCount = node.Left.LineCount + node.Right.LineCount;
+        node.Length = node.Left.Length + (node.Right?.Length ?? 0);
+        node.LineCount = node.Left.LineCount + (node.Right?.LineCount ?? 0);
         return node;
     }
 
@@ -158,7 +157,11 @@ public class Rope
         start = Math.Max(0, Math.Min(start, Length));
         length = Math.Max(0, Math.Min(length, Length - start));
 
-        if (length > 0) root = Delete(root, start, length);
+        if (length > 0)
+        {
+            root = Delete(root, start, length);
+            root = Balance(root); // Ensure the tree is balanced after deletion
+        }
     }
 
     private Node Delete(Node node, int start, int length)
@@ -187,15 +190,16 @@ public class Rope
             start -= node.Left.Length;
         }
 
-        if (length > 0 && node.Right != null) node.Right = Delete(node.Right, start, length);
+        if (length > 0 && node.Right != null)
+            node.Right = Delete(node.Right, start, length);
 
         if (node.Left == null)
             return node.Right;
         if (node.Right == null)
             return node.Left;
 
-        node.Length = node.Left.Length + node.Right.Length;
-        node.LineCount = node.Left.LineCount + node.Right.LineCount;
+        node.Length = node.Left.Length + (node.Right?.Length ?? 0);
+        node.LineCount = node.Left.LineCount + (node.Right?.LineCount ?? 0);
         return node;
     }
 
@@ -222,7 +226,8 @@ public class Rope
         if (node.Text != null)
         {
             var lines = node.Text.Split('\n');
-            for (var i = 0; i < lines.Length - 1; i++) yield return lines[i] + "\n";
+            for (var i = 0; i < lines.Length - 1; i++)
+                yield return lines[i] + "\n";
             yield return lines[^1];
         }
         else
@@ -235,97 +240,13 @@ public class Rope
         }
     }
 
-    public bool IsLineSelected(int lineIndex, long selectionStart, BigInteger selectionEnd)
+    public bool IsLineSelected(int lineIndex, long selectionStart, long selectionEnd)
     {
         var lineStart = GetLineStartPosition(lineIndex);
         var lineEnd = GetLineEndPosition(lineIndex);
         return (lineStart >= selectionStart && lineStart < selectionEnd) ||
                (lineEnd > selectionStart && lineEnd <= selectionEnd) ||
                (lineStart <= selectionStart && lineEnd >= selectionEnd);
-    }
-
-    public string GetText(int start, int length)
-    {
-        if (start < 0 || start >= Length)
-            throw new ArgumentOutOfRangeException(nameof(start), "Start index is out of range");
-        if (length < 0 || start + length > Length)
-            throw new ArgumentOutOfRangeException(nameof(length), "Length is out of range");
-
-        // Preallocate StringBuilder with the exact capacity needed
-        var sb = new StringBuilder(length);
-        GetText(root, start, length, sb);
-        return sb.ToString();
-    }
-
-    private void GetText(Node node, int start, int length, StringBuilder sb)
-    {
-        if (node == null || length == 0)
-            return;
-
-        if (node.Text != null)
-        {
-            // If this node contains the entire requested range, append it directly
-            if (start == 0 && length == node.Text.Length)
-                sb.Append(node.Text);
-            else
-                // Otherwise, append only the requested portion
-                sb.Append(node.Text, start, Math.Min(length, node.Text.Length - start));
-            return;
-        }
-
-        if (start < node.Left.Length)
-        {
-            var leftLength = Math.Min(length, node.Left.Length - start);
-            GetText(node.Left, start, leftLength, sb);
-            length -= leftLength;
-            start = 0;
-        }
-        else
-        {
-            start -= node.Left.Length;
-        }
-
-        if (length > 0) GetText(node.Right, start, length, sb);
-    }
-    
-    public int IndexOf(char value, int startIndex = 0)
-    {
-        if (startIndex < 0 || startIndex >= Length)
-            throw new ArgumentOutOfRangeException(nameof(startIndex), "Start index is out of range");
-
-        return IndexOf(root, value, ref startIndex);
-    }
-
-    private int IndexOf(Node node, char value, ref int startIndex)
-    {
-        if (node == null)
-            return -1;
-
-        if (node.Text != null)
-        {
-            var index = node.Text.IndexOf(value, startIndex);
-            if (index != -1)
-                return index;
-            startIndex = 0;
-            return -1;
-        }
-
-        if (startIndex < node.Left.Length)
-        {
-            var index = IndexOf(node.Left, value, ref startIndex);
-            if (index != -1)
-                return index;
-        }
-        else
-        {
-            startIndex -= node.Left.Length;
-        }
-
-        var rightIndex = IndexOf(node.Right, value, ref startIndex);
-        if (rightIndex != -1)
-            return node.Left.Length + rightIndex;
-
-        return -1;
     }
 
     public string GetLineText(int i)
@@ -369,31 +290,222 @@ public class Rope
         return GetLineTextInternal(node.Right, lineIndex - node.Left.LineCount);
     }
 
-    private class Node
+    public string GetText(int start, int length)
     {
-        public Node(string text)
+        if (start < 0 || start >= Length)
+            throw new ArgumentOutOfRangeException(nameof(start), "Start index is out of range");
+        if (length < 0 || start + length > Length)
+            throw new ArgumentOutOfRangeException(nameof(length), "Length is out of range");
+
+        // Preallocate StringBuilder with the exact capacity needed
+        var sb = new StringBuilder(length);
+        GetText(root, start, length, sb);
+        return sb.ToString();
+    }
+
+    private void GetText(Node node, int start, int length, StringBuilder sb)
+    {
+        if (node == null || length == 0)
+            return;
+
+        if (node.Text != null)
         {
-            Text = text;
-            Length = text.Length;
-            LineCount = text.Count(c => c == '\n') + 1;
-            LinePositions = new List<int>();
-            CalculateLinePositions();
+            // If this node contains the entire requested range, append it directly
+            if (start == 0 && length == node.Text.Length)
+                sb.Append(node.Text);
+            else
+                // Otherwise, append only the requested portion
+                sb.Append(node.Text, start, Math.Min(length, node.Text.Length - start));
+            return;
         }
 
+        if (start < node.Left.Length)
+        {
+            var leftLength = Math.Min(length, node.Left.Length - start);
+            GetText(node.Left, start, leftLength, sb);
+            length -= leftLength;
+            start = 0;
+        }
+        else
+        {
+            start -= node.Left.Length;
+        }
+
+        if (length > 0)
+            GetText(node.Right, start, length, sb);
+    }
+    
+    public int IndexOf(char value, int startIndex = 0)
+    {
+        if (startIndex < 0 || startIndex >= Length)
+            throw new ArgumentOutOfRangeException(nameof(startIndex), "Start index is out of range");
+
+        return IndexOf(root, value, ref startIndex);
+    }
+
+    private int IndexOf(Node node, char value, ref int startIndex)
+    {
+        if (node == null)
+            return -1;
+
+        if (node.Text != null)
+        {
+            var index = node.Text.IndexOf(value, startIndex);
+            if (index != -1)
+            {
+                startIndex = 0;
+                return index;
+            }
+
+            startIndex -= node.Text.Length;
+            return -1;
+        }
+
+        if (startIndex < node.Left.Length)
+        {
+            var index = IndexOf(node.Left, value, ref startIndex);
+            if (index != -1)
+                return index;
+
+            startIndex = 0;
+        }
+        else
+        {
+            startIndex -= node.Left.Length;
+        }
+
+        return IndexOf(node.Right, value, ref startIndex);
+    }
+
+    private Node Balance(Node node)
+    {
+        if (node == null)
+            return null;
+
+        // Check if left subtree is heavier
+        if (NodeSize(node.Left) > MAX_NODE_LENGTH)
+        {
+            // Check if left-left case
+            if (NodeSize(node.Left.Left) > NodeSize(node.Left.Right))
+            {
+                // Perform right rotation
+                return RotateRight(node);
+            }
+
+            // Perform left-right rotation
+            node.Left = RotateLeft(node.Left);
+            return RotateRight(node);
+        }
+        // Check if right subtree is heavier
+
+        if (NodeSize(node.Right) > MAX_NODE_LENGTH)
+        {
+            // Check if right-right case
+            if (NodeSize(node.Right.Right) > NodeSize(node.Right.Left))
+            {
+                // Perform left rotation
+                return RotateLeft(node);
+            }
+            else
+            {
+                // Perform right-left rotation
+                node.Right = RotateRight(node.Right);
+                return RotateLeft(node);
+            }
+        }
+
+        // If no balancing needed, return the node itself
+        return node;
+    }
+
+    private int NodeSize(Node node)
+    {
+        return node?.Length ?? 0;
+    }
+
+    private Node RotateLeft(Node node)
+    {
+        if (node == null || node.Right == null)
+            return node;
+
+        var newRoot = node.Right;
+        node.Right = newRoot.Left;
+        newRoot.Left = node;
+
+        // Recalculate properties like Length, LineCount, LinePositions
+        RecalculateNodeProperties(node);
+        RecalculateNodeProperties(newRoot);
+
+        return newRoot;
+    }
+
+    private Node RotateRight(Node node)
+    {
+        if (node == null || node.Left == null)
+            return node;
+
+        var newRoot = node.Left;
+        node.Left = newRoot.Right;
+        newRoot.Right = node;
+
+        // Recalculate properties like Length, LineCount, LinePositions
+        RecalculateNodeProperties(node);
+        RecalculateNodeProperties(newRoot);
+
+        return newRoot;
+    }
+
+    private void RecalculateNodeProperties(Node node)
+    {
+        if (node == null)
+            return;
+
+        node.Length = (node.Left?.Length ?? 0) + (node.Right?.Length ?? 0);
+        node.LineCount = (node.Left?.LineCount ?? 0) + (node.Right?.LineCount ?? 0);
+        node.LinePositions.Clear();
+        node.CalculateLinePositions();
+    }
+
+    private class Node
+    {
         public string Text { get; set; }
         public int Length { get; set; }
         public int LineCount { get; set; }
+        public List<int> LinePositions { get; } = new();
         public Node Left { get; set; }
         public Node Right { get; set; }
-        public List<int> LinePositions { get; }
+
+        public Node(string text)
+        {
+            Text = text;
+            if (text != null)
+            {
+                Length = text.Length;
+                LineCount = text.Count(c => c == '\n') + 1;
+                CalculateLinePositions();
+            }
+        }
 
         public void CalculateLinePositions()
         {
-            LinePositions.Clear();
-            LinePositions.Add(0); // Start of the first line
-            for (var i = 0; i < Text.Length; i++)
-                if (Text[i] == '\n')
-                    LinePositions.Add(i + 1);
+            if (Text != null)
+            {
+                var position = 0;
+                var lines = Text.Split('\n');
+                foreach (var line in lines)
+                {
+                    LinePositions.Add(position);
+                    position += line.Length + 1;
+                }
+            }
+            else
+            {
+                if (Left != null)
+                    Left.CalculateLinePositions();
+
+                if (Right != null)
+                    Right.CalculateLinePositions();
+            }
         }
     }
 }

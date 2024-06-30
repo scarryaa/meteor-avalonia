@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using Avalonia.Media;
 using meteor.Interfaces;
-using meteor.Models;
 using ReactiveUI;
 
 namespace meteor.ViewModels;
@@ -184,7 +183,7 @@ public class TextEditorViewModel : ViewModelBase
         SelectionEnd = CursorPosition;
     }
 
-    private void UpdateLineStarts()
+    public void UpdateLineStarts()
     {
         var lineStarts = new List<long> { 0 };
         long lineStart = 0;

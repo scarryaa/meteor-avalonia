@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -1257,7 +1258,7 @@ public partial class TextEditor : UserControl
         // Draw background for the current line
         var viewModel = _scrollableViewModel.TextEditorViewModel;
         RenderCurrentLine(context, viewModel, viewableAreaWidth);
-
+        
         RenderVisibleLines(context, _scrollableViewModel, (long)firstVisibleLine, lastVisibleLine,
             viewableAreaWidth);
         DrawSelection(context, viewableAreaWidth, viewableAreaHeight, _scrollableViewModel);
@@ -1518,37 +1519,40 @@ public partial class TextEditor : UserControl
         {
             var insertPosition = viewModel.CursorPosition;
             var lineIndex = GetLineIndex(viewModel, insertPosition);
-            var linesInserted = text.Split('\n').Length; // Count newlines for line cache optimization
 
-            // Delete selected text (if any) with optimization
-            if (viewModel.SelectionStart != -1 && viewModel.SelectionEnd != -1)
+            Dispatcher.UIThread.InvokeAsync(async () => 
             {
-                var start = long.Min(viewModel.SelectionStart, viewModel.SelectionEnd);
-                var length = long.Abs(viewModel.SelectionEnd - viewModel.SelectionStart);
-                viewModel.DeleteText(start, length);
-                OnTextDeleted(lineIndex, length);
-                insertPosition = start;
-            }
+                // Disable updates while pasting
+                viewModel.ShouldScrollToCursor = false;
+                if (viewModel.SelectionStart != -1 && viewModel.SelectionEnd != -1)
+                {
+                    var start = long.Min(viewModel.SelectionStart, viewModel.SelectionEnd);
+                    var length = long.Abs(viewModel.SelectionEnd - viewModel.SelectionStart);
+                    viewModel.DeleteText(start, length);
+                    OnTextDeleted(lineIndex, length);
+                    insertPosition = start;
+                }
 
-            viewModel.InsertText(insertPosition, text);
-            OnTextInserted(lineIndex, text.Length);
+                viewModel.InsertText(insertPosition, text);
+                OnTextInserted(lineIndex, text.Length);
+                viewModel.CursorPosition += text.Length;
+                viewModel.CursorPosition = long.Min(viewModel.CursorPosition, viewModel.Rope.Length);
+                UpdateDesiredColumn(viewModel);
 
-            viewModel.CursorPosition += text.Length;
-            viewModel.CursorPosition = long.Min(viewModel.CursorPosition, viewModel.Rope.Length);
-            UpdateDesiredColumn(viewModel);
+                viewModel.UpdateLineStarts();
+                viewModel.ClearSelection();
+                _lastKnownSelection = (viewModel.CursorPosition, viewModel.CursorPosition);
 
-            viewModel.ClearSelection();
-            _lastKnownSelection = (viewModel.CursorPosition, viewModel.CursorPosition);
+                InvalidateVisual();
 
-            // Delay or throttle horizontal scroll updates here
-            UpdateHorizontalScrollPosition();
-            EnsureCursorVisible();
-
-            // Redraw only the affected lines instead of the entire TextEditor
-            InvalidateVisual();
+                await Task.Delay(50);
+                viewModel.ShouldScrollToCursor = true;
+                UpdateHorizontalScrollPosition();
+                EnsureCursorVisible();
+            });
         }
     }
-
+    
     private void UpdateHorizontalScrollPosition()
     {
         if (_scrollableViewModel == null ||
