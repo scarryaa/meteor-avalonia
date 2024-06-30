@@ -823,6 +823,7 @@ public partial class TextEditor : UserControl
         {
             // Move cursor to the start of the selection
             viewModel.CursorPosition = BigInteger.Min(viewModel.SelectionStart, viewModel.SelectionEnd);
+            _lastKnownSelection = new ValueTuple<BigInteger, BigInteger>(-1, -1);
             viewModel.ClearSelection();
             return;
         }
@@ -835,7 +836,10 @@ public partial class TextEditor : UserControl
                 // Update selection
                 viewModel.SelectionEnd = viewModel.CursorPosition;
             else
+            {
+                _lastKnownSelection = new ValueTuple<BigInteger, BigInteger>(-1, -1);
                 viewModel.ClearSelection();
+            }
         }
     }
 
@@ -845,6 +849,7 @@ public partial class TextEditor : UserControl
         {
             // Move cursor to the end of the selection
             viewModel.CursorPosition = BigInteger.Max(viewModel.SelectionStart, viewModel.SelectionEnd);
+            _lastKnownSelection = new ValueTuple<BigInteger, BigInteger>(-1, -1);
             viewModel.ClearSelection();
             return;
         }
@@ -857,7 +862,10 @@ public partial class TextEditor : UserControl
                 // Update selection
                 viewModel.SelectionEnd = viewModel.CursorPosition;
             else
+            {
+                _lastKnownSelection = new ValueTuple<BigInteger, BigInteger>(-1, -1);
                 viewModel.ClearSelection();
+            }
         }
     }
 
