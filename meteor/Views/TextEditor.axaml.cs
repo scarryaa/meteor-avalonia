@@ -18,21 +18,22 @@ public partial class TextEditor : UserControl
 {
     private const double DefaultFontSize = 13;
     private const double BaseLineHeight = 20;
+    private const double SelectionEndPadding = 2;
+    private const double LinePadding = 20;
+    private readonly double _lineSpacingFactor = BaseLineHeight / DefaultFontSize;
+    private readonly List<long> _lineStarts = new();
+    private readonly Dictionary<long, long> _lineLengths = new();
+    
     private double _fontSize = DefaultFontSize;
+    private double _lineHeight = BaseLineHeight;
     private bool _suppressScrollOnNextCursorMove;
     private bool _isSelecting;
     private long _selectionAnchor = -1;
-    private const double SelectionEndPadding = 2;
-    private const double LinePadding = 20;
     private long _desiredColumn;
-    private double _lineHeight = BaseLineHeight;
-    private readonly List<long> _lineStarts = new();
     private long _cachedLineCount;
-    private readonly Dictionary<long, long> _lineLengths = new();
+    private long _longestLineLength;
     private ScrollableTextEditorViewModel _scrollableViewModel;
     private (long start, long end) _lastKnownSelection = (-1, -1);
-    private readonly double _lineSpacingFactor = BaseLineHeight / DefaultFontSize;
-    private long _longestLineLength;
 
     public static readonly StyledProperty<FontFamily> FontFamilyProperty =
         AvaloniaProperty.Register<TextEditor, FontFamily>(nameof(FontFamily),
@@ -43,21 +44,6 @@ public partial class TextEditor : UserControl
 
     public static readonly StyledProperty<double> LineHeightProperty =
         AvaloniaProperty.Register<TextEditor, double>(nameof(LineHeight), 20.0);
-
-    public double CharWidth
-    {
-        get
-        {
-            var formattedText = new FormattedText(
-                "x",
-                CultureInfo.CurrentCulture,
-                FlowDirection.LeftToRight,
-                new Typeface(FontFamily),
-                FontSize,
-                Brushes.Black);
-            return formattedText.Width;
-        }
-    }
 
     public FontFamily FontFamily
     {
@@ -94,6 +80,32 @@ public partial class TextEditor : UserControl
         MeasureCharWidth();
     }
 
+    private void OnDataContextChanged(object sender, EventArgs e)
+    {
+        if (_scrollableViewModel?.TextEditorViewModel != null)
+            _scrollableViewModel.TextEditorViewModel.PropertyChanged -= ViewModel_PropertyChanged;
+
+        if (DataContext is ScrollableTextEditorViewModel scrollableViewModel)
+        {
+            _scrollableViewModel = scrollableViewModel;
+            var viewModel = scrollableViewModel.TextEditorViewModel;
+            viewModel.LineHeight = LineHeight;
+            viewModel.PropertyChanged += ViewModel_PropertyChanged;
+
+            // Bind the LineHeight property to the ViewModel
+            Bind(LineHeightProperty, viewModel.WhenAnyValue(vm => vm.LineHeight));
+
+            UpdateLineCache(-1);
+        }
+    }
+
+    protected override void OnUnloaded(RoutedEventArgs e)
+    {
+        base.OnUnloaded(e);
+        if (_scrollableViewModel?.TextEditorViewModel != null)
+            _scrollableViewModel.TextEditorViewModel.PropertyChanged -= ViewModel_PropertyChanged;
+    }
+
     private void OnLineHeightChanged(double newLineHeight)
     {
         _lineHeight = newLineHeight;
@@ -127,33 +139,6 @@ public partial class TextEditor : UserControl
         if (_scrollableViewModel != null)
             _scrollableViewModel.LongestLineWidth =
                 ConvertlongToDouble(_longestLineLength) * CharWidth + LinePadding;
-    }
-
-
-    private void OnDataContextChanged(object sender, EventArgs e)
-    {
-        if (_scrollableViewModel?.TextEditorViewModel != null)
-            _scrollableViewModel.TextEditorViewModel.PropertyChanged -= ViewModel_PropertyChanged;
-
-        if (DataContext is ScrollableTextEditorViewModel scrollableViewModel)
-        {
-            _scrollableViewModel = scrollableViewModel;
-            var viewModel = scrollableViewModel.TextEditorViewModel;
-            viewModel.LineHeight = LineHeight;
-            viewModel.PropertyChanged += ViewModel_PropertyChanged;
-
-            // Bind the LineHeight property to the ViewModel
-            Bind(LineHeightProperty, viewModel.WhenAnyValue(vm => vm.LineHeight));
-
-            UpdateLineCache(-1);
-        }
-    }
-    
-    protected override void OnUnloaded(RoutedEventArgs e)
-    {
-        base.OnUnloaded(e);
-        if (_scrollableViewModel?.TextEditorViewModel != null)
-            _scrollableViewModel.TextEditorViewModel.PropertyChanged -= ViewModel_PropertyChanged;
     }
 
     private void UpdateMetrics()
@@ -337,7 +322,6 @@ public partial class TextEditor : UserControl
     protected override void OnPointerReleased(PointerReleasedEventArgs e)
     {
         base.OnPointerReleased(e);
-
         _isSelecting = false;
         e.Handled = true;
     }
@@ -358,16 +342,14 @@ public partial class TextEditor : UserControl
             _scrollableViewModel.TextEditorViewModel.ShouldScrollToCursor == false) return;
 
         var viewModel = _scrollableViewModel.TextEditorViewModel;
-
         var cursorLine = GetLineIndexFromPosition(viewModel.CursorPosition);
         var cursorColumn = viewModel.CursorPosition - _lineStarts[(int)cursorLine];
-        
+
         if (!_suppressScrollOnNextCursorMove)
         {
             // Vertical scrolling
             var cursorY = cursorLine * LineHeight;
             var bottomPadding = 5;
-            // var verticalBufferLines = 3;
             var verticalBufferLines = 0;
             var verticalBufferHeight = verticalBufferLines * LineHeight;
 
@@ -649,7 +631,6 @@ public partial class TextEditor : UserControl
             verticalOffsetlong + viewportHeightlong,
             (_cachedLineCount - 1) * (long)LineHeight);
     }
-
 
     private void HandleShiftLeftArrow(TextEditorViewModel viewModel)
     {
@@ -1516,5 +1497,18 @@ public partial class TextEditor : UserControl
                 cursorX - _scrollableViewModel.Viewport.Width + CharWidth;
     }
 
-
+    public double CharWidth
+    {
+        get
+        {
+            var formattedText = new FormattedText(
+                "x",
+                CultureInfo.CurrentCulture,
+                FlowDirection.LeftToRight,
+                new Typeface(FontFamily),
+                FontSize,
+                Brushes.Black);
+            return formattedText.Width;
+        }
+    }
 }
