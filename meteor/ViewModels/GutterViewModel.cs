@@ -10,6 +10,7 @@ public class GutterViewModel : ViewModelBase
     private readonly FontPropertiesViewModel _fontPropertiesViewModel;
     private double _lineHeight;
     private TextEditorViewModel _textEditorViewModel;
+    private ScrollableTextEditorViewModel _scrollableTextEditorViewModel;
 
     public LineCountViewModel LineCountViewModel { get; }
 
@@ -29,14 +30,22 @@ public class GutterViewModel : ViewModelBase
         }
     }
 
+    public ScrollableTextEditorViewModel ScrollableTextEditorViewModel
+    {
+        get => _scrollableTextEditorViewModel;
+        set => this.RaiseAndSetIfChanged(ref _scrollableTextEditorViewModel, value);
+    }
+
     public GutterViewModel(
         ICursorPositionService cursorPositionService,
         FontPropertiesViewModel fontPropertiesViewModel,
-        LineCountViewModel lineCountViewModel, TextEditorViewModel textEditorViewModel)
+        LineCountViewModel lineCountViewModel, ScrollableTextEditorViewModel scrollableTextEditorViewModel,
+        TextEditorViewModel textEditorViewModel)
     {
         _fontPropertiesViewModel = fontPropertiesViewModel;
         LineCountViewModel = lineCountViewModel;
         TextEditorViewModel = textEditorViewModel;
+        _scrollableTextEditorViewModel = scrollableTextEditorViewModel;
 
         cursorPositionService.CursorPositionChanged += (cursorPosition, _) =>
         {

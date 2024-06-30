@@ -79,6 +79,7 @@ public partial class Gutter : UserControl
             UpdateSelection(viewModel, _dragStartLine, currentLine);
             HandleAutoScroll(viewModel, position.Y);
             e.Handled = true;
+            InvalidateVisual();
         }
     }
 
@@ -99,15 +100,22 @@ public partial class Gutter : UserControl
     {
         if (DataContext is GutterViewModel viewModel)
         {
+            if (viewModel.ScrollableTextEditorViewModel is ScrollableTextEditorViewModel scrollableViewModel)
+                scrollableViewModel.DisableHorizontalScrollToCursor = true;
             _isDragging = true;
             _dragStartLine = GetLineNumberFromY(e.GetPosition(this).Y);
             UpdateSelection(viewModel, _dragStartLine, _dragStartLine);
+            InvalidateVisual();
         }
     }
 
     private void OnPointerReleased(object? sender, PointerReleasedEventArgs e)
     {
+        if (DataContext is GutterViewModel viewModel)
+            if (viewModel.ScrollableTextEditorViewModel is ScrollableTextEditorViewModel scrollableViewModel)
+                scrollableViewModel.DisableHorizontalScrollToCursor = false;
         _isDragging = false;
+        InvalidateVisual();
     }
 
     private long GetLineNumberFromY(double y)
@@ -138,10 +146,18 @@ public partial class Gutter : UserControl
         textEditorViewModel.SelectionStart = selectionStart;
         textEditorViewModel.SelectionEnd = selectionEnd;
 
-        // textEditorViewModel.CursorPosition = startLine <= endLine ? selectionEnd : selectionStart;
+        // Set the cursor position based on the selection direction
+        textEditorViewModel.ShouldScrollToCursor = false;
+        if (startLine <= endLine)
+            textEditorViewModel.CursorPosition = selectionEnd;
+        else
+            textEditorViewModel.CursorPosition = selectionStart;
+        textEditorViewModel.ShouldScrollToCursor = true;
 
+        
         InvalidateVisual();
     }
+
 
     private void OnDataContextChanged(object? sender, EventArgs e)
     {

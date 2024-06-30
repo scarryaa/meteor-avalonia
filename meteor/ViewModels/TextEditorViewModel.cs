@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Numerics;
 using Avalonia.Media;
 using meteor.Interfaces;
 using meteor.Models;
@@ -43,6 +42,8 @@ public class TextEditorViewModel : ViewModelBase
     }
 
     public event EventHandler SelectionChanged;
+
+    public bool ShouldScrollToCursor { get; set; } = true;
 
     public FontFamily FontFamily
     {

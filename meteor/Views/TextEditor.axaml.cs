@@ -372,16 +372,18 @@ public partial class TextEditor : UserControl
 
     private void EnsureCursorVisible()
     {
-        if (_scrollableViewModel == null) return;
+        if (_scrollableViewModel == null ||
+            _scrollableViewModel.TextEditorViewModel.ShouldScrollToCursor == false) return;
 
         var viewModel = _scrollableViewModel.TextEditorViewModel;
+
         var cursorLine = GetLineIndexFromPosition(viewModel.CursorPosition);
         var cursorColumn = viewModel.CursorPosition - _lineStarts[(int)cursorLine];
-
+        
         if (!_suppressScrollOnNextCursorMove)
         {
             // Vertical scrolling
-            var cursorY = (double)cursorLine * LineHeight;
+            var cursorY = cursorLine * LineHeight;
             var bottomPadding = 5;
             // var verticalBufferLines = 3;
             var verticalBufferLines = 0;
@@ -395,7 +397,13 @@ public partial class TextEditor : UserControl
                     _scrollableViewModel.Viewport.Height + verticalBufferHeight;
 
             // Horizontal scrolling
-            var cursorX = (double)cursorColumn * CharWidth;
+            if (_scrollableViewModel.DisableHorizontalScrollToCursor)
+            {
+                InvalidateVisual();
+                return;
+            }
+
+            var cursorX = cursorColumn * CharWidth;
             var viewportWidth = _scrollableViewModel.Viewport.Width;
             var currentOffset = _scrollableViewModel.HorizontalOffset;
 
@@ -1542,7 +1550,8 @@ public partial class TextEditor : UserControl
 
     private void UpdateHorizontalScrollPosition()
     {
-        if (_scrollableViewModel == null) return;
+        if (_scrollableViewModel == null ||
+            _scrollableViewModel.TextEditorViewModel.ShouldScrollToCursor == false) return;
 
         var viewModel = _scrollableViewModel.TextEditorViewModel;
         var cursorLine = GetLineIndexFromPosition(viewModel.CursorPosition);

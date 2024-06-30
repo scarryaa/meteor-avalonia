@@ -14,10 +14,17 @@ public class ScrollableTextEditorViewModel : ViewModelBase
     private double _longestLineWidth;
     private Vector _offset;
     private double _lineHeight;
+    private bool _disableHorizontalScrollToCursor;
 
     public TextEditorViewModel TextEditorViewModel { get; }
     public LineCountViewModel LineCountViewModel { get; }
 
+    public bool DisableHorizontalScrollToCursor
+    {
+        get => _disableHorizontalScrollToCursor;
+        set => this.RaiseAndSetIfChanged(ref _disableHorizontalScrollToCursor, value);
+    }
+    
     public ScrollableTextEditorViewModel(
         ICursorPositionService cursorPositionService,
         FontPropertiesViewModel fontPropertiesViewModel,

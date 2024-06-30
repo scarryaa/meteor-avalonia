@@ -15,5 +15,6 @@ public class MainWindowViewModel(
 
     public GutterViewModel GutterViewModel { get; } = new(cursorPositionService, fontPropertiesViewModel,
         lineCountViewModel,
+        scrollableTextEditorViewModel,
         scrollableTextEditorViewModel.TextEditorViewModel);
 }
