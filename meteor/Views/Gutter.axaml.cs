@@ -181,7 +181,7 @@ public partial class Gutter : UserControl
             viewModel.FontSize,
             Brushes.Gray);
 
-        Width = Math.Max(formattedTextMaxLine.Width, formattedText9999.Width) + 10;
+        Width = Math.Max(formattedTextMaxLine.Width, formattedText9999.Width) + 40;
     }
 
     private void OnInvalidateRequired(object? sender, EventArgs e)
@@ -221,15 +221,25 @@ public partial class Gutter : UserControl
             var lineNumber = i + 1;
             var yPosition = i * LineHeight - viewModel.VerticalOffset;
 
-            var formattedText = formattedTextCache.GetValueOrDefault(i);
-            var isSelected = rope.IsLineSelected(i, selectionStart, selectionEnd);
+            var isSelected = false;
+            if (i >= 0 && i < rope.GetLineCount())
+                try
+                {
+                    isSelected = rope.IsLineSelected(i, selectionStart, selectionEnd);
+                }
+                catch (ArgumentOutOfRangeException ex)
+                {
+                    Console.WriteLine(
+                        $"Error in IsLineSelected: {ex.Message}. Line index: {i}, Selection: {selectionStart}-{selectionEnd}, Total lines: {rope.GetLineCount()}");
+                }
+
             var isCurrentLine = i == cursorLine;
 
             var brush = (isSelected && _lastKnownSelection.start != _lastKnownSelection.end) || isCurrentLine
                 ? new SolidColorBrush(Brushes.Black.Color)
                 : new SolidColorBrush(Color.Parse("#bbbbbb"));
 
-            formattedText = new FormattedText(
+            var formattedText = new FormattedText(
                     lineNumber.ToString(),
                     CultureInfo.CurrentCulture,
                     FlowDirection.LeftToRight,
@@ -247,7 +257,7 @@ public partial class Gutter : UserControl
                 context.FillRectangle(new SolidColorBrush(Color.Parse("#ededed")), highlightRect);
             }
 
-            context.DrawText(formattedText, new Point(Bounds.Width - formattedText.Width - 5, yPosition));
+            context.DrawText(formattedText, new Point(Bounds.Width - formattedText.Width - 20, yPosition));
         }
     }
 

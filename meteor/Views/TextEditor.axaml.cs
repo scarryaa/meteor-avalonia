@@ -1009,10 +1009,12 @@ public partial class TextEditor : UserControl
         {
             viewModel.SelectionEnd = viewModel.CursorPosition;
             UpdateSelection(viewModel);
+            _lastKnownSelection = (viewModel.SelectionStart, viewModel.SelectionEnd);
         }
         else
         {
             viewModel.ClearSelection();
+            _lastKnownSelection = (viewModel.CursorPosition, viewModel.CursorPosition);
         }
 
         InvalidateVisual();
@@ -1068,10 +1070,12 @@ public partial class TextEditor : UserControl
         {
             viewModel.SelectionEnd = viewModel.CursorPosition;
             UpdateSelection(viewModel);
+            _lastKnownSelection = (viewModel.SelectionStart, viewModel.SelectionEnd);
         }
         else
         {
             viewModel.ClearSelection();
+            _lastKnownSelection = (viewModel.CursorPosition, viewModel.CursorPosition);
         }
 
         InvalidateVisual();
