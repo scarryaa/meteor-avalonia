@@ -929,6 +929,8 @@ public partial class TextEditor : UserControl
 
     private void HandleControlKeyDown(KeyEventArgs keyEventArgs, TextEditorViewModel viewModel)
     {
+        var shiftFlag = (keyEventArgs.KeyModifiers & KeyModifiers.Shift) != 0;
+
         switch (keyEventArgs.Key)
         {
             case Key.A:
@@ -940,6 +942,153 @@ public partial class TextEditor : UserControl
             case Key.V:
                 PasteText();
                 break;
+            case Key.Left:
+                MoveCursorToPreviousWord(viewModel, shiftFlag);
+                break;
+            case Key.Right:
+                MoveCursorToNextWord(viewModel, shiftFlag);
+                break;
+            case Key.Up:
+                ScrollViewport(-LineHeight);
+                break;
+            case Key.Down:
+                ScrollViewport(LineHeight);
+                break;
+        }
+
+        InvalidateVisual();
+    }
+
+    private void MoveCursorToPreviousWord(TextEditorViewModel viewModel, bool extendSelection)
+    {
+        var cursorPosition = viewModel.CursorPosition;
+
+        if (cursorPosition == BigInteger.Zero)
+            return;
+
+        var lineIndex = GetLineIndex(viewModel, cursorPosition);
+        var lineStart = viewModel.Rope.GetLineStartPosition((int)lineIndex);
+
+        if (cursorPosition == lineStart)
+        {
+            // If at the start of a line, move to the end of the previous line
+            if (lineIndex > 0)
+            {
+                var previousLineIndex = lineIndex - 1;
+                viewModel.CursorPosition = viewModel.Rope.GetLineEndPosition((int)previousLineIndex);
+            }
+
+            return;
+        }
+
+        var lineText = viewModel.Rope.GetText(lineStart, (int)(cursorPosition - lineStart));
+        var index = lineText.Length - 1;
+
+        // Move left past any whitespace
+        while (index > 0 && char.IsWhiteSpace(lineText[index - 1]))
+        {
+            index--;
+            viewModel.CursorPosition--;
+        }
+
+        if (index > 0)
+        {
+            if (IsCommonCodingSymbol(lineText[index - 1]))
+                // Move left past consecutive coding symbols
+                while (index > 0 && IsCommonCodingSymbol(lineText[index - 1]))
+                    index--;
+            else
+                // Move left until the next whitespace or coding symbol
+                while (index > 0 && !char.IsWhiteSpace(lineText[index - 1]) &&
+                       !IsCommonCodingSymbol(lineText[index - 1]))
+                    index--;
+        }
+
+        viewModel.CursorPosition = lineStart + index;
+        if (extendSelection)
+        {
+            viewModel.SelectionEnd = viewModel.CursorPosition;
+            UpdateSelection(viewModel);
+        }
+        else
+        {
+            viewModel.ClearSelection();
+        }
+
+        InvalidateVisual();
+    }
+
+    private void MoveCursorToNextWord(TextEditorViewModel viewModel, bool extendSelection)
+    {
+        var cursorPosition = viewModel.CursorPosition;
+        var lineIndex = GetLineIndex(viewModel, cursorPosition);
+        var lineStart = viewModel.Rope.GetLineStartPosition((int)lineIndex);
+        var lineEnd = viewModel.Rope.GetLineEndPosition((int)lineIndex);
+
+        if (cursorPosition >= lineEnd)
+        {
+            // Move to the start of the next line if at the end of the current line
+            if (lineIndex < viewModel.Rope.GetLineCount() - 1)
+                viewModel.CursorPosition = viewModel.Rope.GetLineStartPosition((int)lineIndex + 1);
+            return;
+        }
+
+        var lineText = viewModel.Rope.GetText((int)cursorPosition, (int)(lineEnd - cursorPosition));
+        var index = 0;
+
+        // Move through whitespace, updating cursor position for each character
+        while (index < lineText.Length && char.IsWhiteSpace(lineText[index]))
+        {
+            viewModel.CursorPosition = cursorPosition + index + 1;
+            index++;
+            viewModel.CursorPosition++;
+        }
+
+        // If we're still within the line after moving through whitespace
+        if (index < lineText.Length)
+        {
+            if (IsCommonCodingSymbol(lineText[index]))
+                // Move through coding symbols
+                while (index < lineText.Length && IsCommonCodingSymbol(lineText[index]))
+                {
+                    viewModel.CursorPosition = cursorPosition + index + 1;
+                    index++;
+                }
+            else
+                // Move through word characters
+                while (index < lineText.Length && !char.IsWhiteSpace(lineText[index]) &&
+                       !IsCommonCodingSymbol(lineText[index]))
+                {
+                    viewModel.CursorPosition = cursorPosition + index + 1;
+                    index++;
+                }
+        }
+
+        if (extendSelection)
+        {
+            viewModel.SelectionEnd = viewModel.CursorPosition;
+            UpdateSelection(viewModel);
+        }
+        else
+        {
+            viewModel.ClearSelection();
+        }
+
+        InvalidateVisual();
+    }
+
+    private bool IsCommonCodingSymbol(char c)
+    {
+        return "(){}[]<>.,;:'\"\\|`~!@#$%^&*-+=/?".Contains(c);
+    }
+
+    private void ScrollViewport(double delta)
+    {
+        if (_scrollableViewModel != null)
+        {
+            var newOffset = _scrollableViewModel.VerticalOffset + delta;
+            var maxOffset = (double)GetLineCount() * LineHeight - _scrollableViewModel.Viewport.Height;
+            _scrollableViewModel.VerticalOffset = Math.Max(0, Math.Min(newOffset, maxOffset));
         }
     }
 
@@ -1062,12 +1211,9 @@ public partial class TextEditor : UserControl
             }
 
             // Draw the part of the line after the selection
-            if (xEnd < viewableAreaWidth)
-            {
-                var afterSelectionRect = new Rect(xEnd, y,
-                    _scrollableViewModel.HorizontalOffset + viewableAreaWidth - xEnd, LineHeight);
-                context.FillRectangle(new SolidColorBrush(Color.Parse("#ededed")), afterSelectionRect);
-            }
+            var afterSelectionRect = new Rect(xEnd, y,
+                viewableAreaWidth + _scrollableViewModel.HorizontalOffset - xEnd, LineHeight);
+            context.FillRectangle(new SolidColorBrush(Color.Parse("#ededed")), afterSelectionRect);
         }
     }
 

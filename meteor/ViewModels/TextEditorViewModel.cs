@@ -88,9 +88,9 @@ public class TextEditorViewModel : ViewModelBase
             if (_cursorPosition != value)
             {
                 _cursorPosition = value;
-                this.RaisePropertyChanged();
                 _cursorPositionService.UpdateCursorPosition((long)_cursorPosition, _lineStarts);
                 NotifySelectionChanged();
+                this.RaisePropertyChanged();
             }
         }
     }

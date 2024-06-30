@@ -1,6 +1,7 @@
 using System;
 using System.Numerics;
 using Avalonia.Media;
+using meteor.Interfaces;
 using ReactiveUI;
 
 namespace meteor.ViewModels;
@@ -9,12 +10,28 @@ public class GutterViewModel : ViewModelBase
 {
     private readonly FontPropertiesViewModel _fontPropertiesViewModel;
     private double _lineHeight;
+    private TextEditorViewModel _textEditorViewModel;
 
     public LineCountViewModel LineCountViewModel { get; }
 
-    public TextEditorViewModel TextEditorViewModel { get; }
+    public TextEditorViewModel TextEditorViewModel
+    {
+        get => _textEditorViewModel;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _textEditorViewModel, value);
+            if (_textEditorViewModel != null && InvalidateRequired != null)
+                _textEditorViewModel.WhenAnyValue(te => te.CursorPosition)
+                    .Subscribe(cursorPosition =>
+                    {
+                        CursorPosition = cursorPosition;
+                        InvalidateRequired.Invoke(this, EventArgs.Empty);
+                    });
+        }
+    }
 
     public GutterViewModel(
+        ICursorPositionService cursorPositionService,
         FontPropertiesViewModel fontPropertiesViewModel,
         LineCountViewModel lineCountViewModel, TextEditorViewModel textEditorViewModel)
     {
@@ -22,6 +39,12 @@ public class GutterViewModel : ViewModelBase
         LineCountViewModel = lineCountViewModel;
         TextEditorViewModel = textEditorViewModel;
 
+        cursorPositionService.CursorPositionChanged += (cursorPosition, _) =>
+        {
+            CursorPosition = cursorPosition;
+            OnInvalidateRequired();
+        };
+        
         TextEditorViewModel.SelectionChanged += OnTextEditorSelectionChanged;
         
         _fontPropertiesViewModel.WhenAnyValue(x => x.LineHeight)
@@ -54,6 +77,8 @@ public class GutterViewModel : ViewModelBase
     }
     
     public event EventHandler? InvalidateRequired;
+
+    public BigInteger CursorPosition { get; set; }
 
     public FontFamily FontFamily
     {

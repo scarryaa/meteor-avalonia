@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using System.Text;
 
 namespace meteor.Models;
@@ -34,6 +35,33 @@ public class Rope
         node.Length = node.Left.Length + (node.Right?.Length ?? 0);
         node.LineCount = node.Left.LineCount + (node.Right?.LineCount ?? 0);
         return node;
+    }
+
+    public int GetLineIndexFromPosition(int position)
+    {
+        if (position < 0 || position > Length)
+            throw new ArgumentOutOfRangeException(nameof(position), "Position is out of range");
+
+        return GetLineIndexFromPosition(root, position);
+    }
+
+    private int GetLineIndexFromPosition(Node node, int position)
+    {
+        if (node == null)
+            return 0;
+
+        if (node.Text != null)
+        {
+            var lineIndex = node.LinePositions.BinarySearch(position);
+            if (lineIndex < 0)
+                lineIndex = ~lineIndex - 1;
+            return lineIndex;
+        }
+
+        if (position < node.Left.Length)
+            return GetLineIndexFromPosition(node.Left, position);
+
+        return node.Left.LineCount + GetLineIndexFromPosition(node.Right, position - node.Left.Length);
     }
 
     public int GetLineStartPosition(int lineIndex)
@@ -179,6 +207,41 @@ public class Rope
     public string GetText()
     {
         return GetText(0, Length);
+    }
+
+    public IEnumerable<string> GetLines()
+    {
+        return GetLines(root);
+    }
+
+    private IEnumerable<string> GetLines(Node node)
+    {
+        if (node == null)
+            yield break;
+
+        if (node.Text != null)
+        {
+            var lines = node.Text.Split('\n');
+            for (var i = 0; i < lines.Length - 1; i++) yield return lines[i] + "\n";
+            yield return lines[^1];
+        }
+        else
+        {
+            foreach (var line in GetLines(node.Left))
+                yield return line;
+
+            foreach (var line in GetLines(node.Right))
+                yield return line;
+        }
+    }
+
+    public bool IsLineSelected(int lineIndex, BigInteger selectionStart, BigInteger selectionEnd)
+    {
+        var lineStart = GetLineStartPosition(lineIndex);
+        var lineEnd = GetLineEndPosition(lineIndex);
+        return (lineStart >= selectionStart && lineStart < selectionEnd) ||
+               (lineEnd > selectionStart && lineEnd <= selectionEnd) ||
+               (lineStart <= selectionStart && lineEnd >= selectionEnd);
     }
 
     public string GetText(int start, int length)
