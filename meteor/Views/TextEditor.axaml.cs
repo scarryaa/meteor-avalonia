@@ -146,7 +146,7 @@ public partial class TextEditor : UserControl
             // Bind the LineHeight property to the ViewModel
             Bind(LineHeightProperty, viewModel.WhenAnyValue(vm => vm.LineHeight));
 
-            UpdateLineCache();
+            UpdateLineCache(-1);
         }
     }
     
@@ -163,11 +163,14 @@ public partial class TextEditor : UserControl
         LineHeight = Math.Ceiling(_fontSize * _lineSpacingFactor);
     }
 
-    private void UpdateLineCache()
+    private void UpdateLineCache(BigInteger changedLineIndex, int linesInserted = 0)
     {
-        if (_scrollableViewModel != null)
+        if (_scrollableViewModel == null) return;
+        var viewModel = _scrollableViewModel.TextEditorViewModel;
+
+        if (changedLineIndex == -1)
         {
-            var viewModel = _scrollableViewModel.TextEditorViewModel;
+            // Full update if no specific line index is provided (initial or major changes)
             _lineStarts.Clear();
             _lineLengths.Clear();
             _lineStarts.Add(BigInteger.Zero);
@@ -203,12 +206,80 @@ public partial class TextEditor : UserControl
                     _longestLineIndex = i;
                 }
             }
-
-            // Update the longest line width property in the ScrollableTextEditorViewModel
-            _scrollableViewModel.LongestLineWidth = (double)_longestLineLength * CharWidth + LinePadding;
         }
-    }
+        else
+        {
+            // Ensure the changedLineIndex is within valid bounds
+            var lineCount = viewModel.Rope.GetLineCount();
+            if (lineCount == 0) return; // No lines to update
 
+            if (changedLineIndex < 0)
+                changedLineIndex = 0;
+            else if (changedLineIndex >= lineCount) changedLineIndex = lineCount - 1;
+
+            var lineStart = viewModel.Rope.GetLineStartPosition((int)changedLineIndex);
+            var lineEnd = viewModel.Rope.GetLineEndPosition((int)changedLineIndex) + linesInserted;
+
+            // Remove invalidated entries
+            while (_lineStarts.Count > changedLineIndex + 1 &&
+                   _lineStarts[(int)changedLineIndex + 1] <= lineEnd)
+            {
+                _lineStarts.RemoveAt((int)changedLineIndex + 1);
+                _lineLengths.Remove(changedLineIndex);
+            }
+
+            // If the change resulted in removing the last line
+            if (changedLineIndex >= lineCount)
+            {
+                _lineLengths[changedLineIndex - 1] = viewModel.Rope.Length - lineStart;
+                _cachedLineCount = _lineStarts.Count;
+                goto RecalculateLongestLine; // Skip recalculation of remaining lines
+            }
+
+            // Recalculate line starts and lengths from the changed line onwards
+            while (lineStart < viewModel.Rope.Length)
+            {
+                var nextNewline = viewModel.Rope.IndexOf('\n', lineStart);
+                if (nextNewline == -1)
+                {
+                    _lineLengths[changedLineIndex] = viewModel.Rope.Length - lineStart;
+                    break;
+                }
+
+                if (_lineStarts.Count > changedLineIndex + 1)
+                    _lineStarts[(int)changedLineIndex + 1] = nextNewline + 1;
+                else
+                    _lineStarts.Add(nextNewline + 1);
+
+                _lineLengths[changedLineIndex] = nextNewline - lineStart;
+                lineStart = nextNewline + 1;
+                changedLineIndex++;
+            }
+
+            // Update the line count cache
+            _cachedLineCount = _lineStarts.Count;
+        }
+
+        RecalculateLongestLine:
+        // Recalculate longest line considering lines around the changed line
+        BigInteger startLine = Math.Max(0, (int)changedLineIndex - 1);
+        var endLine = BigInteger.Min(_cachedLineCount - 1, changedLineIndex + 1);
+
+        for (var i = startLine; i <= endLine; i++)
+        {
+            var length = GetVisualLineLength(viewModel, i);
+            _lineLengths[i] = length;
+
+            if (length > _longestLineLength)
+            {
+                _longestLineLength = length;
+                _longestLineIndex = i;
+            }
+        }
+
+        // Update the longest line width property in the ScrollableTextEditorViewModel
+        _scrollableViewModel.LongestLineWidth = (double)_longestLineLength * CharWidth + LinePadding;
+    }
 
     private BigInteger GetLineLength(TextEditorViewModel viewModel, BigInteger lineIndex)
     {
@@ -238,7 +309,8 @@ public partial class TextEditor : UserControl
     {
         if (e.PropertyName == nameof(TextEditorViewModel.Rope))
         {
-            UpdateLineCache();
+            // Full update since the entire rope changed
+            UpdateLineCache(-1); 
             Dispatcher.UIThread.Post(InvalidateVisual);
         }
         else if (e.PropertyName == nameof(TextEditorViewModel.CursorPosition))
@@ -419,7 +491,7 @@ public partial class TextEditor : UserControl
         }
         else
         {
-            UpdateLineCache();
+            UpdateLineCache(lineIndex, 1);
         }
     }
 
@@ -452,7 +524,7 @@ public partial class TextEditor : UserControl
         }
         else
         {
-            UpdateLineCache();
+            UpdateLineCache(lineIndex);
         }
     }
 
@@ -1098,12 +1170,12 @@ public partial class TextEditor : UserControl
 
     private void UpdateDesiredColumn(TextEditorViewModel viewModel)
     {
-        // Ensure _lineStarts is correctly populated
-        if (_lineStarts.Count == 0) UpdateLineCache();
-
         var lineIndex = GetLineIndex(viewModel, viewModel.CursorPosition);
 
-        // Add bounds checking for lineIndex
+        // Update line cache only if the needed line is not yet calculated
+        if (lineIndex >= _lineStarts.Count) UpdateLineCache(lineIndex);
+
+        // Bounds check and calculate _desiredColumn
         if (lineIndex >= BigInteger.Zero && lineIndex < _lineStarts.Count)
         {
             var lineStart = _lineStarts[(int)lineIndex];
@@ -1428,30 +1500,35 @@ public partial class TextEditor : UserControl
 
         if (!string.IsNullOrEmpty(text))
         {
+            var insertPosition = viewModel.CursorPosition;
+            var lineIndex = GetLineIndex(viewModel, insertPosition);
+            var linesInserted = text.Split('\n').Length; // Count newlines for line cache optimization
+
+            // Delete selected text (if any) with optimization
             if (viewModel.SelectionStart != -1 && viewModel.SelectionEnd != -1)
             {
-                var lineIndex = GetLineIndex(viewModel, viewModel.SelectionStart);
-                viewModel.DeleteText(BigInteger.Min(viewModel.SelectionStart, viewModel.SelectionEnd),
-                    BigInteger.Abs(viewModel.SelectionEnd - viewModel.SelectionStart));
-                OnTextDeleted(lineIndex, BigInteger.Abs(viewModel.SelectionEnd - viewModel.SelectionStart));
-                viewModel.CursorPosition = BigInteger.Min(viewModel.SelectionStart, viewModel.SelectionEnd);
-                viewModel.ClearSelection();
+                var start = BigInteger.Min(viewModel.SelectionStart, viewModel.SelectionEnd);
+                var length = BigInteger.Abs(viewModel.SelectionEnd - viewModel.SelectionStart);
+                viewModel.DeleteText(start, length);
+                OnTextDeleted(lineIndex, length);
+                insertPosition = start;
             }
 
-            var insertPosition = viewModel.CursorPosition;
             viewModel.InsertText(insertPosition, text);
-            OnTextInserted(GetLineIndex(viewModel, insertPosition), text.Length);
+            OnTextInserted(lineIndex, text.Length);
+
             viewModel.CursorPosition += text.Length;
             viewModel.CursorPosition = BigInteger.Min(viewModel.CursorPosition, viewModel.Rope.Length);
             UpdateDesiredColumn(viewModel);
 
-            UpdateLineCache(); // Ensure the cache is fully updated after pasting
+            viewModel.ClearSelection();
+            _lastKnownSelection = (viewModel.CursorPosition, viewModel.CursorPosition);
 
-            viewModel.ClearSelection(); // Clear selection after pasting
-            _lastKnownSelection = (viewModel.CursorPosition, viewModel.CursorPosition); // Update last known selection
-
+            // Delay or throttle horizontal scroll updates here
             UpdateHorizontalScrollPosition();
             EnsureCursorVisible();
+
+            // Redraw only the affected lines instead of the entire TextEditor
             InvalidateVisual();
         }
     }
