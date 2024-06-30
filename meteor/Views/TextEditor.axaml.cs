@@ -399,6 +399,7 @@ public partial class TextEditor : UserControl
             // Horizontal scrolling
             if (_scrollableViewModel.DisableHorizontalScrollToCursor)
             {
+                _lastKnownSelection = (viewModel.SelectionStart, viewModel.SelectionEnd);
                 InvalidateVisual();
                 return;
             }
