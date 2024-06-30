@@ -1,4 +1,4 @@
-using System.Numerics;
+using System;
 using Avalonia;
 using meteor.Interfaces;
 using ReactiveUI;
@@ -24,13 +24,15 @@ public class StatusPaneViewModel : ViewModelBase
 
     private void OnCursorPositionChanged(long position, long[] lineStarts)
     {
-        int row = 1, column = 1;
-        for (var i = 0; i < lineStarts.Length; i++)
+        var index = Array.BinarySearch(lineStarts, position);
+
+        if (index < 0)
         {
-            if (position < lineStarts[i]) break;
-            row = i + 1;
-            column = (int)(position - lineStarts[i] + 1);
+            index = ~index - 1;
         }
+
+        var row = Math.Max(1, index + 1);
+        var column = (int)(position - lineStarts[index] + 1);
 
         CursorPosition = new Point(column, row);
     }

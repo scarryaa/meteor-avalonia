@@ -282,9 +282,6 @@ public partial class Gutter : UserControl
 
         var rope = viewModel.TextEditorViewModel.Rope;
 
-        // Clamp the position within the rope's length
-        position = Math.Max(0, Math.Min(position, rope.Length - 1));
-
         var lineIndex = rope.GetLineIndexFromPosition((int)position);
         return lineIndex;
     }

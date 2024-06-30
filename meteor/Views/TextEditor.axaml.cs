@@ -29,11 +29,10 @@ public partial class TextEditor : UserControl
     private readonly List<long> _lineStarts = new();
     private long _cachedLineCount;
     private readonly Dictionary<long, long> _lineLengths = new();
-    private long _longestLineIndex = -1;
-    private long _longestLineLength;
     private ScrollableTextEditorViewModel _scrollableViewModel;
     private (long start, long end) _lastKnownSelection = (-1, -1);
     private readonly double _lineSpacingFactor = BaseLineHeight / DefaultFontSize;
+    private long _longestLineLength;
 
     public static readonly StyledProperty<FontFamily> FontFamilyProperty =
         AvaloniaProperty.Register<TextEditor, FontFamily>(nameof(FontFamily),
@@ -170,7 +169,7 @@ public partial class TextEditor : UserControl
 
         if (changedLineIndex == -1)
         {
-            // Full update if no specific line index is provided (initial or major changes)
+            // Full update: Rope or major changes
             _lineStarts.Clear();
             _lineLengths.Clear();
             _lineStarts.Add(0);
@@ -191,21 +190,6 @@ public partial class TextEditor : UserControl
             }
 
             _cachedLineCount = _lineStarts.Count;
-
-            _longestLineIndex = -1;
-            _longestLineLength = 0;
-
-            for (var i = 0; i < _cachedLineCount; i++)
-            {
-                var length = GetVisualLineLength(viewModel, i);
-                _lineLengths[i] = length;
-
-                if (length > _longestLineLength)
-                {
-                    _longestLineLength = length;
-                    _longestLineIndex = i;
-                }
-            }
         }
         else
         {
@@ -270,15 +254,14 @@ public partial class TextEditor : UserControl
             var length = GetVisualLineLength(viewModel, i);
             _lineLengths[i] = length;
 
-            if (length > _longestLineLength)
-            {
-                _longestLineLength = length;
-                _longestLineIndex = i;
-            }
+            if (length > _longestLineLength) _longestLineLength = length;
         }
 
-        // Update the longest line width property in the ScrollableTextEditorViewModel
+        // Update longest line details from the Rope class
+        _longestLineLength = _scrollableViewModel.TextEditorViewModel.Rope.LongestLineLength;
         _scrollableViewModel.LongestLineWidth = (double)_longestLineLength * CharWidth + LinePadding;
+
+        InvalidateVisual(); // Redraw the editor to reflect changes
     }
 
     private long GetLineLength(TextEditorViewModel viewModel, long lineIndex)
@@ -487,54 +470,12 @@ public partial class TextEditor : UserControl
 
     private void OnTextInserted(long lineIndex, long length)
     {
-        if (_lineLengths.ContainsKey(lineIndex))
-        {
-            var newLength = GetVisualLineLength(_scrollableViewModel.TextEditorViewModel, lineIndex);
-            _lineLengths[lineIndex] = newLength;
-            if (newLength > _longestLineLength)
-            {
-                _longestLineLength = newLength;
-                _longestLineIndex = lineIndex;
-                _scrollableViewModel.LongestLineWidth = (double)_longestLineLength * CharWidth + LinePadding;
-            }
-        }
-        else
-        {
-            UpdateLineCache(lineIndex, 1);
-        }
+        UpdateLineCache(lineIndex, 1); 
     }
 
     private void OnTextDeleted(long lineIndex, long length)
     {
-        if (_lineLengths.ContainsKey(lineIndex))
-        {
-            var newLength = GetVisualLineLength(_scrollableViewModel.TextEditorViewModel, lineIndex);
-            _lineLengths[lineIndex] = newLength;
-
-            // Recalculate the longest line if necessary
-            if (newLength < _longestLineLength && lineIndex == _longestLineIndex)
-            {
-                _longestLineLength = 0;
-                _longestLineIndex = -1;
-                foreach (var kvp in _lineLengths)
-                    if (kvp.Value > _longestLineLength)
-                    {
-                        _longestLineLength = kvp.Value;
-                        _longestLineIndex = kvp.Key;
-                    }
-            }
-            else if (newLength > _longestLineLength)
-            {
-                _longestLineLength = newLength;
-                _longestLineIndex = lineIndex;
-            }
-
-            _scrollableViewModel.LongestLineWidth = (double)_longestLineLength * CharWidth + LinePadding;
-        }
-        else
-        {
-            UpdateLineCache(lineIndex);
-        }
+        UpdateLineCache(lineIndex); 
     }
 
     protected override void OnKeyDown(KeyEventArgs e)

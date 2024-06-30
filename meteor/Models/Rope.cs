@@ -7,6 +7,8 @@ public class Rope
 {
     private const int SPLIT_LENGTH = 1024;
     private const int MAX_NODE_LENGTH = 2048; // Example threshold for balancing
+    public int longestLineIndex = -1;
+    public int LongestLineLength { get; private set; }
 
     private Node root;
 
@@ -149,6 +151,10 @@ public class Rope
 
         node.Length = node.Left.Length + (node.Right?.Length ?? 0);
         node.LineCount = node.Left.LineCount + (node.Right?.LineCount ?? 0);
+
+        RecalculateNodeProperties(node);
+        UpdateLongestLine(node, index);
+
         return node;
     }
 
@@ -200,7 +206,53 @@ public class Rope
 
         node.Length = node.Left.Length + (node.Right?.Length ?? 0);
         node.LineCount = node.Left.LineCount + (node.Right?.LineCount ?? 0);
+        RecalculateNodeProperties(node);
+        UpdateLongestLine(node, start);
+
         return node;
+    }
+
+    private void UpdateLongestLine(Node node, int position)
+    {
+        if (node == null)
+            return;
+
+        if (node.Text != null)
+        {
+            if (node.LineCount == 1)
+            {
+                // If it's a single line, check if it's the new longest
+                if (node.Length > LongestLineLength)
+                {
+                    longestLineIndex = GetLineIndexFromPosition(position);
+                    LongestLineLength = node.Length;
+                }
+            }
+            else
+            {
+                // For multi-line nodes, check the affected line(s) and neighbors
+                var startLine = GetLineIndexFromPosition(position);
+                var endLine = startLine + node.LineCount - 1;
+
+                for (var i = Math.Max(0, startLine - 1); i <= Math.Min(LineCount - 1, endLine + 1); i++)
+                {
+                    var lineLength = GetLineLength(i);
+                    if (lineLength > LongestLineLength)
+                    {
+                        longestLineIndex = i;
+                        LongestLineLength = lineLength;
+                    }
+                }
+            }
+        }
+        else
+        {
+            // Recurse down into the children
+            UpdateLongestLine(node.Left, position);
+            if (node.Right != null)
+                // Adjust the position for the right child
+                UpdateLongestLine(node.Right, position - node.Left.Length);
+        }
     }
 
     public int GetLineCount()
