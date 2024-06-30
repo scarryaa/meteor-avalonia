@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Avalonia;
 using meteor.Interfaces;
 using ReactiveUI;
@@ -22,9 +23,9 @@ public class StatusPaneViewModel : ViewModelBase
         set => this.RaiseAndSetIfChanged(ref _cursorPosition, value);
     }
 
-    private void OnCursorPositionChanged(long position, long[] lineStarts)
+    private void OnCursorPositionChanged(long position, List<long> lineStarts)
     {
-        var index = Array.BinarySearch(lineStarts, position);
+        var index = lineStarts.BinarySearch(position);
 
         if (index < 0)
         {

@@ -20,7 +20,7 @@ public class Rope
     }
 
     public int Length => root?.Length ?? 0;
-    public int LineCount => _cachedLineCount >= 0 ? _cachedLineCount : _cachedLineCount = CalculateLineCount();
+    public int LineCount => Math.Max(1, _cachedLineCount >= 0 ? _cachedLineCount : _cachedLineCount = CalculateLineCount());
 
     public int LongestLineLength => _cachedLongestLineLength >= 0
         ? _cachedLongestLineLength

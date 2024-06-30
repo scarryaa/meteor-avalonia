@@ -62,7 +62,7 @@ public partial class Gutter : UserControl
         {
             var delta = e.Delta.Y * 3 * viewModel.LineHeight;
             var newOffset = viewModel.VerticalOffset - delta;
-            var maxOffset = Math.Max(0, (double)viewModel.LineCount * viewModel.LineHeight - Bounds.Height + 6);
+            var maxOffset = Math.Max(0, (double)viewModel.TextEditorViewModel.TextBuffer.LineCount * viewModel.LineHeight - Bounds.Height + 6);
 
             viewModel.VerticalOffset = Math.Max(0, Math.Min(newOffset, maxOffset));
             viewModel.LineCountViewModel.VerticalOffset = viewModel.VerticalOffset;
@@ -91,7 +91,7 @@ public partial class Gutter : UserControl
         }
         else if (y > Bounds.Height - ScrollThreshold)
         {
-            var maxOffset = Math.Max(0, (double)viewModel.LineCount * LineHeight - Bounds.Height);
+            var maxOffset = Math.Max(0, (double)viewModel.TextEditorViewModel.TextBuffer.LineCount * LineHeight - Bounds.Height);
             viewModel.VerticalOffset = Math.Min(maxOffset, viewModel.VerticalOffset + ScrollSpeed * LineHeight);
         }
     }
@@ -123,7 +123,7 @@ public partial class Gutter : UserControl
         if (DataContext is GutterViewModel viewModel)
         {
             var lineNumber = (long)Math.Floor((y + viewModel.VerticalOffset) / LineHeight);
-            return long.Max(0, long.Min(lineNumber, viewModel.LineCount - 1));
+            return long.Max(0, long.Min(lineNumber, viewModel.TextEditorViewModel.TextBuffer.LineCount - 1));
         }
 
         return 0;
@@ -132,16 +132,16 @@ public partial class Gutter : UserControl
     private void UpdateSelection(GutterViewModel viewModel, long startLine, long endLine)
     {
         var textEditorViewModel = viewModel.TextEditorViewModel;
-        var rope = textEditorViewModel.Rope;
+        var textBuffer = textEditorViewModel.TextBuffer;
 
-        startLine = long.Max(0, long.Min(startLine, viewModel.LineCount - 1));
-        endLine = long.Max(0, long.Min(endLine, viewModel.LineCount - 1));
+        startLine = long.Max(0, long.Min(startLine, viewModel.TextEditorViewModel.TextBuffer.LineCount - 1));
+        endLine = long.Max(0, long.Min(endLine, viewModel.TextEditorViewModel.TextBuffer.LineCount - 1));
 
         var selectionStartLine = long.Min(startLine, endLine);
         var selectionEndLine = long.Max(startLine, endLine);
 
-        var selectionStart = rope.GetLineStartPosition((int)selectionStartLine);
-        var selectionEnd = rope.GetLineEndPosition((int)selectionEndLine);
+        var selectionStart = textBuffer.GetLineStartPosition((int)selectionStartLine);
+        var selectionEnd = textBuffer.GetLineEndPosition((int)selectionEndLine);
 
         textEditorViewModel.SelectionStart = selectionStart;
         textEditorViewModel.SelectionEnd = selectionEnd;
@@ -217,12 +217,12 @@ public partial class Gutter : UserControl
         var firstVisibleLine = (int)Math.Max(0, Math.Floor(viewModel.VerticalOffset / LineHeight));
         var lastVisibleLine = (int)Math.Ceiling((viewModel.VerticalOffset + viewModel.ViewportHeight) / LineHeight);
         firstVisibleLine = Math.Max(0, firstVisibleLine);
-        lastVisibleLine = Math.Min((int)viewModel.LineCountViewModel.LineCount - 1, lastVisibleLine);
+        lastVisibleLine = Math.Min((int)viewModel.TextEditorViewModel.TextBuffer.LineCount - 1, lastVisibleLine);
 
         var selectionStart = viewModel.TextEditorViewModel.SelectionStart;
         var selectionEnd = viewModel.TextEditorViewModel.SelectionEnd;
         var cursorLine = GetLineIndexFromPosition(viewModel.TextEditorViewModel.CursorPosition);
-        var rope = viewModel.TextEditorViewModel.Rope;
+        var textBuffer = viewModel.TextEditorViewModel.TextBuffer;
 
         // Invalidate the cache if the selection has changed
         if (selectionStart != _lastKnownSelection.start || selectionEnd != _lastKnownSelection.end)
@@ -237,15 +237,15 @@ public partial class Gutter : UserControl
             var yPosition = i * LineHeight - viewModel.VerticalOffset;
 
             var isSelected = false;
-            if (i >= 0 && i < rope.LineCount)
+            if (i >= 0 && i < textBuffer.LineCount)
                 try
                 {
-                    isSelected = rope.IsLineSelected(i, selectionStart, selectionEnd);
+                    isSelected = textBuffer.IsLineSelected(i, selectionStart, selectionEnd);
                 }
                 catch (ArgumentOutOfRangeException ex)
                 {
                     Console.WriteLine(
-                        $"Error in IsLineSelected: {ex.Message}. Line index: {i}, Selection: {selectionStart}-{selectionEnd}, Total lines: {rope.LineCount}");
+                        $"Error in IsLineSelected: {ex.Message}. Line index: {i}, Selection: {selectionStart}-{selectionEnd}, Total lines: {textBuffer.LineCount}");
                 }
 
             var isCurrentLine = i == cursorLine;
@@ -280,10 +280,10 @@ public partial class Gutter : UserControl
     {
         if (DataContext is not GutterViewModel viewModel) return 0;
 
-        var rope = viewModel.TextEditorViewModel.Rope;
+        var textBuffer = viewModel.TextEditorViewModel.TextBuffer;
 
-        var lineIndex = rope.GetLineIndexFromPosition((int)position);
-        return lineIndex;
+        var lineIndex = textBuffer.GetLineIndexFromPosition((int)position);
+        return (int)lineIndex;
     }
     
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)

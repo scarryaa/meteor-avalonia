@@ -1,7 +1,7 @@
 using System;
-using System.Collections.Generic;
 using Avalonia.Media;
 using meteor.Interfaces;
+using meteor.Models;
 using ReactiveUI;
 
 namespace meteor.ViewModels;
@@ -9,7 +9,7 @@ namespace meteor.ViewModels;
 public class TextEditorViewModel : ViewModelBase
 {
     private readonly ICursorPositionService _cursorPositionService;
-    private Rope _rope = new(string.Empty);
+    private TextBuffer _textBuffer;
     private long _cursorPosition;
     private long _selectionStart = -1;
     private long _selectionEnd = -1;
@@ -17,7 +17,7 @@ public class TextEditorViewModel : ViewModelBase
     private double _windowHeight;
     private double _lineHeight;
     private double _windowWidth;
-    private long[] _lineStarts = Array.Empty<long>();
+    private long _desiredColumn;
     private readonly LineCountViewModel _lineCountViewModel;
 
     public FontPropertiesViewModel FontPropertiesViewModel { get; }
@@ -29,6 +29,9 @@ public class TextEditorViewModel : ViewModelBase
         _cursorPositionService = cursorPositionService;
         FontPropertiesViewModel = fontPropertiesViewModel;
         _lineCountViewModel = lineCountViewModel;
+
+        _textBuffer = new TextBuffer();
+        _textBuffer.LinesUpdated += OnLinesUpdated;
 
         this.WhenAnyValue(x => x.FontPropertiesViewModel.FontFamily)
             .Subscribe(font => FontFamily = font);
@@ -42,7 +45,7 @@ public class TextEditorViewModel : ViewModelBase
 
     public event EventHandler SelectionChanged;
     public event EventHandler LineChanged;
-    
+
     public bool ShouldScrollToCursor { get; set; } = true;
 
     public FontFamily FontFamily
@@ -89,7 +92,7 @@ public class TextEditorViewModel : ViewModelBase
             if (_cursorPosition != value)
             {
                 _cursorPosition = value;
-                _cursorPositionService.UpdateCursorPosition((long)_cursorPosition, _lineStarts);
+                _cursorPositionService.UpdateCursorPosition(_cursorPosition, _textBuffer.LineStarts);
                 NotifySelectionChanged();
                 this.RaisePropertyChanged();
             }
@@ -136,16 +139,16 @@ public class TextEditorViewModel : ViewModelBase
         SelectionChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    public long LineCount => _rope.LineCount;
+    public long LineCount => _textBuffer.LineCount;
 
-    public Rope Rope
+    public TextBuffer TextBuffer
     {
-        get => _rope;
-        private set
+        get => _textBuffer;
+        set
         {
-            this.RaiseAndSetIfChanged(ref _rope, value);
+            this.RaiseAndSetIfChanged(ref _textBuffer, value);
             this.RaisePropertyChanged(nameof(LineCount));
-            _lineCountViewModel.LineCount = _rope.LineCount; // Update LineCountViewModel
+            _lineCountViewModel.LineCount = _textBuffer.LineCount;
         }
     }
 
@@ -156,31 +159,17 @@ public class TextEditorViewModel : ViewModelBase
 
     public void InsertText(long position, string text)
     {
-        if (_rope == null) throw new InvalidOperationException("Rope is not initialized.");
-        if (string.IsNullOrEmpty(text) || position < 0 || position > _rope.Length) return;
-
-        _rope.Insert((int)position, text);
-        UpdateLineStarts();
-        _lineCountViewModel.UpdateLineCount(LineCount); 
-        this.RaisePropertyChanged(nameof(LineCount));
-        this.RaisePropertyChanged(nameof(Rope));
+        _textBuffer.InsertText(position, text);
         CursorPosition = position + text.Length;
-        _lineCountViewModel.MaxLineNumber = LineCount;
+        NotifyGutterOfLineChange();
+        this.RaisePropertyChanged(nameof(LineCount));
     }
 
     public void DeleteText(long start, long length)
     {
-        if (_rope == null) throw new InvalidOperationException("Rope is not initialized.");
-
-        if (length > 0)
-        {
-            _rope.Delete((int)start, (int)length);
-            UpdateLineStarts();
-            _lineCountViewModel.UpdateLineCount(LineCount);
-            this.RaisePropertyChanged(nameof(LineCount));
-            this.RaisePropertyChanged(nameof(Rope));
-            _lineCountViewModel.MaxLineNumber = LineCount;
-        }
+        _textBuffer.DeleteText(start, length);
+        NotifyGutterOfLineChange();
+        this.RaisePropertyChanged(nameof(LineCount));
     }
 
     public void ClearSelection()
@@ -191,18 +180,11 @@ public class TextEditorViewModel : ViewModelBase
 
     public void UpdateLineStarts()
     {
-        var lineStarts = new List<long> { 0 };
-        long lineStart = 0;
+        _textBuffer.UpdateLineCache();
+    }
 
-        while (lineStart < _rope.Length)
-        {
-            var nextNewline = _rope.IndexOf('\n', (int)lineStart);
-            if (nextNewline == -1) break;
-
-            lineStarts.Add(nextNewline + 1);
-            lineStart = nextNewline + 1;
-        }
-
-        _lineStarts = lineStarts.ToArray();
+    private void OnLinesUpdated(object sender, EventArgs e)
+    {
+        UpdateLineStarts();
     }
 }
