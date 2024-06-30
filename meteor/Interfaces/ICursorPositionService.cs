@@ -5,6 +5,6 @@ namespace meteor.Interfaces;
 
 public interface ICursorPositionService
 {
-    event Action<BigInteger, BigInteger[]>? CursorPositionChanged;
-    void UpdateCursorPosition(BigInteger cursorPosition, BigInteger[] lineStarts);
+    event Action<long, long[]>? CursorPositionChanged;
+    void UpdateCursorPosition(long cursorPosition, long[] lineStarts);
 }

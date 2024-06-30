@@ -235,7 +235,7 @@ public class Rope
         }
     }
 
-    public bool IsLineSelected(int lineIndex, BigInteger selectionStart, BigInteger selectionEnd)
+    public bool IsLineSelected(int lineIndex, long selectionStart, BigInteger selectionEnd)
     {
         var lineStart = GetLineStartPosition(lineIndex);
         var lineEnd = GetLineEndPosition(lineIndex);

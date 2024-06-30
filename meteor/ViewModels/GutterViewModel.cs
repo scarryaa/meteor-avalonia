@@ -1,5 +1,4 @@
 using System;
-using System.Numerics;
 using Avalonia.Media;
 using meteor.Interfaces;
 using ReactiveUI;
@@ -78,7 +77,7 @@ public class GutterViewModel : ViewModelBase
     
     public event EventHandler? InvalidateRequired;
 
-    public BigInteger CursorPosition { get; set; }
+    public long CursorPosition { get; set; }
 
     public FontFamily FontFamily
     {
@@ -132,7 +131,7 @@ public class GutterViewModel : ViewModelBase
         set => LineCountViewModel.ViewportHeight = value;
     }
 
-    public BigInteger LineCount
+    public long LineCount
     {
         get => LineCountViewModel.LineCount;
         set => LineCountViewModel.LineCount = value;

@@ -22,7 +22,7 @@ public class StatusPaneViewModel : ViewModelBase
         set => this.RaiseAndSetIfChanged(ref _cursorPosition, value);
     }
 
-    private void OnCursorPositionChanged(BigInteger position, BigInteger[] lineStarts)
+    private void OnCursorPositionChanged(long position, long[] lineStarts)
     {
         int row = 1, column = 1;
         for (var i = 0; i < lineStarts.Length; i++)

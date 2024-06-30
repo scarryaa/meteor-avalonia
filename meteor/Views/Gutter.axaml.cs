@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Numerics;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -15,11 +14,11 @@ namespace meteor.Views;
 public partial class Gutter : UserControl
 {
     private bool _isDragging;
-    private BigInteger _dragStartLine;
+    private long _dragStartLine;
     private const double ScrollThreshold = 10;
     private const double ScrollSpeed = 1;
-    private readonly Dictionary<BigInteger, FormattedText> formattedTextCache = new();
-    private (BigInteger start, BigInteger end) _lastKnownSelection = (-1, -1);
+    private readonly Dictionary<long, FormattedText> formattedTextCache = new();
+    private (long start, long end) _lastKnownSelection = (-1, -1);
     private int _lastRenderedLine = -1;
     private double _lastRenderedOffset = -1;
 
@@ -111,27 +110,27 @@ public partial class Gutter : UserControl
         _isDragging = false;
     }
 
-    private BigInteger GetLineNumberFromY(double y)
+    private long GetLineNumberFromY(double y)
     {
         if (DataContext is GutterViewModel viewModel)
         {
-            var lineNumber = (BigInteger)Math.Floor((y + viewModel.VerticalOffset) / LineHeight);
-            return BigInteger.Max(BigInteger.Zero, BigInteger.Min(lineNumber, viewModel.LineCount - 1));
+            var lineNumber = (long)Math.Floor((y + viewModel.VerticalOffset) / LineHeight);
+            return long.Max(0, long.Min(lineNumber, viewModel.LineCount - 1));
         }
 
-        return BigInteger.Zero;
+        return 0;
     }
 
-    private void UpdateSelection(GutterViewModel viewModel, BigInteger startLine, BigInteger endLine)
+    private void UpdateSelection(GutterViewModel viewModel, long startLine, long endLine)
     {
         var textEditorViewModel = viewModel.TextEditorViewModel;
         var rope = textEditorViewModel.Rope;
 
-        startLine = BigInteger.Max(BigInteger.Zero, BigInteger.Min(startLine, viewModel.LineCount - 1));
-        endLine = BigInteger.Max(BigInteger.Zero, BigInteger.Min(endLine, viewModel.LineCount - 1));
+        startLine = long.Max(0, long.Min(startLine, viewModel.LineCount - 1));
+        endLine = long.Max(0, long.Min(endLine, viewModel.LineCount - 1));
 
-        var selectionStartLine = BigInteger.Min(startLine, endLine);
-        var selectionEndLine = BigInteger.Max(startLine, endLine);
+        var selectionStartLine = long.Min(startLine, endLine);
+        var selectionEndLine = long.Max(startLine, endLine);
 
         var selectionStart = rope.GetLineStartPosition((int)selectionStartLine);
         var selectionEnd = rope.GetLineEndPosition((int)selectionEndLine);
@@ -261,7 +260,7 @@ public partial class Gutter : UserControl
         }
     }
 
-    private int GetLineIndexFromPosition(BigInteger position)
+    private int GetLineIndexFromPosition(long position)
     {
         if (DataContext is not GutterViewModel viewModel) return 0;
 

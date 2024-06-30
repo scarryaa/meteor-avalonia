@@ -1,18 +1,17 @@
-using System.Numerics;
 using ReactiveUI;
 
 namespace meteor.ViewModels;
 
 public class LineCountViewModel : ReactiveObject
 {
-    private BigInteger _lineCount = 1;
+    private long _lineCount = 1;
     private double _verticalOffset;
     private double _viewportHeight;
-    private BigInteger _maxLineNumber;
+    private long _maxLineNumber;
 
-    public BigInteger LineCount
+    public long LineCount
     {
-        get => BigInteger.Max(_lineCount, 1);
+        get => long.Max(_lineCount, 1);
         set => this.RaiseAndSetIfChanged(ref _lineCount, value);
     }
 
@@ -28,7 +27,7 @@ public class LineCountViewModel : ReactiveObject
         set => this.RaiseAndSetIfChanged(ref _viewportHeight, value);
     }
 
-    public BigInteger MaxLineNumber
+    public long MaxLineNumber
     {
         get => _maxLineNumber;
         set => this.RaiseAndSetIfChanged(ref _maxLineNumber, value);
@@ -39,8 +38,8 @@ public class LineCountViewModel : ReactiveObject
         MaxLineNumber = LineCount > 0 ? LineCount : 1;
     }
 
-    public void UpdateLineCount(BigInteger newLineCount)
+    public void UpdateLineCount(long newLineCount)
     {
-        LineCount = BigInteger.Max(newLineCount, 1);
+        LineCount = long.Max(newLineCount, 1);
     }
 }

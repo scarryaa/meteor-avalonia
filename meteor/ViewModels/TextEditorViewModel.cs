@@ -12,14 +12,14 @@ public class TextEditorViewModel : ViewModelBase
 {
     private readonly ICursorPositionService _cursorPositionService;
     private Rope _rope = new(string.Empty);
-    private BigInteger _cursorPosition;
-    private BigInteger _selectionStart = -1;
-    private BigInteger _selectionEnd = -1;
+    private long _cursorPosition;
+    private long _selectionStart = -1;
+    private long _selectionEnd = -1;
     private bool _isSelecting;
     private double _windowHeight;
     private double _lineHeight;
     private double _windowWidth;
-    private BigInteger[] _lineStarts = Array.Empty<BigInteger>();
+    private long[] _lineStarts = Array.Empty<long>();
     private readonly LineCountViewModel _lineCountViewModel;
 
     public FontPropertiesViewModel FontPropertiesViewModel { get; }
@@ -80,7 +80,7 @@ public class TextEditorViewModel : ViewModelBase
         }
     }
 
-    public BigInteger CursorPosition
+    public long CursorPosition
     {
         get => _cursorPosition;
         set
@@ -95,7 +95,7 @@ public class TextEditorViewModel : ViewModelBase
         }
     }
 
-    public BigInteger SelectionStart
+    public long SelectionStart
     {
         get => _selectionStart;
         set
@@ -108,7 +108,7 @@ public class TextEditorViewModel : ViewModelBase
         }
     }
 
-    public BigInteger SelectionEnd
+    public long SelectionEnd
     {
         get => _selectionEnd;
         set
@@ -135,7 +135,7 @@ public class TextEditorViewModel : ViewModelBase
         SelectionChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    public BigInteger LineCount => _rope.LineCount;
+    public long LineCount => _rope.LineCount;
 
     public Rope Rope
     {
@@ -148,7 +148,7 @@ public class TextEditorViewModel : ViewModelBase
         }
     }
 
-    public void InsertText(BigInteger position, string text)
+    public void InsertText(long position, string text)
     {
         if (_rope == null) throw new InvalidOperationException("Rope is not initialized.");
         if (string.IsNullOrEmpty(text) || position < 0 || position > _rope.Length) return;
@@ -162,7 +162,7 @@ public class TextEditorViewModel : ViewModelBase
         _lineCountViewModel.MaxLineNumber = LineCount;
     }
 
-    public void DeleteText(BigInteger start, BigInteger length)
+    public void DeleteText(long start, long length)
     {
         if (_rope == null) throw new InvalidOperationException("Rope is not initialized.");
 
@@ -185,8 +185,8 @@ public class TextEditorViewModel : ViewModelBase
 
     private void UpdateLineStarts()
     {
-        var lineStarts = new List<BigInteger> { 0 };
-        BigInteger lineStart = 0;
+        var lineStarts = new List<long> { 0 };
+        long lineStart = 0;
 
         while (lineStart < _rope.Length)
         {
