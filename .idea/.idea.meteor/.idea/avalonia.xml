@@ -5,6 +5,8 @@
       <map>
         <entry key="meteor/App.axaml" value="meteor/meteor.csproj" />
         <entry key="meteor/Resources/Resources.axaml" value="meteor/meteor.csproj" />
+        <entry key="meteor/Styles/Styles.axaml" value="meteor/meteor.csproj" />
+        <entry key="meteor/Views/ButtonlessScrollViewer.axaml" value="meteor/meteor.csproj" />
         <entry key="meteor/Views/MainWindow.axaml" value="meteor/meteor.csproj" />
         <entry key="meteor/Views/ScrollableTextEditor.axaml" value="meteor/meteor.csproj" />
         <entry key="meteor/Views/StatusPane.axaml" value="meteor/meteor.csproj" />
