@@ -49,31 +49,7 @@ public class MainWindowViewModel : ViewModelBase
 
         _tabSelectionHistory = new Stack<TabViewModel>();
 
-        Tabs = new ObservableCollection<TabViewModel>
-        {
-            new()
-            {
-                Title = "Tab 1",
-                ScrollableTextEditorViewModel = new ScrollableTextEditorViewModel(
-                    cursorPositionService,
-                    fontPropertiesViewModel,
-                    lineCountViewModel,
-                    new TextBuffer()
-                ),
-                CloseTabCommand = CloseTabCommand
-            },
-            new()
-            {
-                Title = "Tab 2",
-                ScrollableTextEditorViewModel = new ScrollableTextEditorViewModel(
-                    cursorPositionService,
-                    fontPropertiesViewModel,
-                    lineCountViewModel,
-                    new TextBuffer()
-                ),
-                CloseTabCommand = CloseTabCommand
-            }
-        };
+        Tabs = new ObservableCollection<TabViewModel>();
 
         SelectedTab = Tabs.FirstOrDefault();
 
