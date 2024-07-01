@@ -393,9 +393,34 @@ public partial class TextEditor : UserControl
         if (_scrollableViewModel != null)
         {
             var viewModel = _scrollableViewModel.TextEditorViewModel;
+
+            // Handle Ctrl+Z and Ctrl+Shift+Z
+            if (e.Key == Key.Z && e.KeyModifiers.HasFlag(KeyModifiers.Control))
+            {
+                if (e.KeyModifiers.HasFlag(KeyModifiers.Shift))
+                    // Ctrl+Shift+Z: Redo
+                    _scrollableViewModel.TabViewModel.Redo();
+                else
+                    // Ctrl+Z: Undo
+                    _scrollableViewModel.TabViewModel.Undo();
+
+                viewModel.TextBuffer.UpdateLineCache();
+                UpdateLineCache(-1);
+
+                // Invalidate visuals to ensure proper redraw
+                viewModel.LineCache.Clear();
+                InvalidateVisual();
+
+                // Ensure the cursor is visible
+                EnsureCursorVisible();
+
+                e.Handled = true;
+                return;
+            }
+
             HandleKeyDown(e, viewModel);
-            
-            var insertPosition = viewModel.CursorPosition; 
+
+            var insertPosition = viewModel.CursorPosition;
             HandleTextInsertion(insertPosition, e.ToString());
             InvalidateVisual();
         }

@@ -291,7 +291,7 @@ public class MainWindowViewModel : ViewModelBase
             Tabs.Add(_temporaryTab);
         }
 
-        _temporaryTab.LoadText(filePath);
+        _temporaryTab.LoadTextAsync(filePath);
         if (_temporaryTab.ScrollableTextEditorViewModel != null)
         {
             _temporaryTab.ScrollableTextEditorViewModel.TextEditorViewModel.CursorPosition = 0;
@@ -328,7 +328,7 @@ public class MainWindowViewModel : ViewModelBase
             )
         };
 
-        permanentTab.LoadText(filePath);
+        permanentTab.LoadTextAsync(filePath);
         permanentTab.FilePath = Path.GetFullPath(filePath);
         Tabs.Add(permanentTab);
         SelectedTab = permanentTab;

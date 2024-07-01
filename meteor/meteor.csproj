@@ -20,6 +20,7 @@
         <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->
         <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="Avalonia.Diagnostics" Version="11.0.10"/>
         <PackageReference Include="Avalonia.ReactiveUI" Version="11.0.10"/>
+        <PackageReference Include="DiffPlex" Version="1.7.2"/>
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0-preview.5.24306.7"/>
         <PackageReference Include="Projektanker.Icons.Avalonia" Version="9.3.0"/>
         <PackageReference Include="Projektanker.Icons.Avalonia.FontAwesome" Version="9.3.0"/>

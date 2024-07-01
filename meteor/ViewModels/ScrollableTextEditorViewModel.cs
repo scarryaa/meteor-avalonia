@@ -22,7 +22,8 @@ public class ScrollableTextEditorViewModel : ViewModelBase
     public TextEditorViewModel TextEditorViewModel { get; }
     public LineCountViewModel LineCountViewModel { get; }
     public GutterViewModel GutterViewModel { get; }
-
+    public TabViewModel TabViewModel { get; set; }
+    
     public bool DisableHorizontalScrollToCursor
     {
         get => _disableHorizontalScrollToCursor;
