@@ -2,6 +2,8 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "meteor", "meteor\meteor.csproj", "{8E92C1D9-EF6D-4865-8AAA-18504403CE72}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tests", "Tests\Tests.csproj", "{157E5DFB-110E-45B8-85B3-BFC4949D6AEE}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -12,5 +14,9 @@ Global
 		{8E92C1D9-EF6D-4865-8AAA-18504403CE72}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8E92C1D9-EF6D-4865-8AAA-18504403CE72}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8E92C1D9-EF6D-4865-8AAA-18504403CE72}.Release|Any CPU.Build.0 = Release|Any CPU
+		{157E5DFB-110E-45B8-85B3-BFC4949D6AEE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{157E5DFB-110E-45B8-85B3-BFC4949D6AEE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{157E5DFB-110E-45B8-85B3-BFC4949D6AEE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{157E5DFB-110E-45B8-85B3-BFC4949D6AEE}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

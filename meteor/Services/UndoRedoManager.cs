@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
-using meteor.Models;
+using meteor.Interfaces;
 
-public class UndoRedoManager<T> where T : TextState
+namespace meteor.Models;
+
+public class UndoRedoManager<T> : IUndoRedoManager<T>
 {
     private readonly CircularBuffer<UndoRedoAction<T>> _undoBuffer;
     private readonly CircularBuffer<UndoRedoAction<T>> _redoBuffer;
@@ -17,22 +19,38 @@ public class UndoRedoManager<T> where T : TextState
     {
         _undoBuffer = new CircularBuffer<UndoRedoAction<T>>(maxUndoLevels);
         _redoBuffer = new CircularBuffer<UndoRedoAction<T>>(maxUndoLevels);
-        AddState(initialState, "Initial state"); // Store initial state
+
+        if (initialState == null) throw new ArgumentNullException(nameof(initialState), "initialState cannot be null");
+
+        CurrentState = initialState;
+        // Initial state should not be added to the undo buffer
     }
 
     public void AddState(T newState, string description)
     {
+        if (newState == null)
+        {
+            Console.WriteLine("Error: Attempted to add a null state.");
+            return;
+        }
+
         _undoBuffer.Add(new UndoRedoAction<T>(CurrentState, newState, description));
         _redoBuffer.Clear(); // Clear redo stack when a new action is added
         CurrentState = newState;
         OnStateChanged();
     }
 
-    public (T State, string Description) Undo()
+    public (T state, string description) Undo()
     {
         if (!CanUndo) throw new InvalidOperationException("Cannot undo: No actions to undo.");
 
         var action = _undoBuffer.Remove();
+        if (action == null || action.OldState == null)
+        {
+            Console.WriteLine("Error: action or action.OldState is null during undo.");
+            return (default, "Error: action or action.OldState is null during undo.");
+        }
+
         _redoBuffer.Add(action); // Add the undone action to the redo buffer
         CurrentState = action.OldState; // Update current state to the old state
         OnStateChanged();
@@ -40,11 +58,18 @@ public class UndoRedoManager<T> where T : TextState
         return (CurrentState, action.Description);
     }
 
-    public (T State, string Description) Redo()
+    public (T state, string description) Redo()
     {
         if (!CanRedo) throw new InvalidOperationException("Cannot redo: No actions to redo.");
 
         var action = _redoBuffer.Remove();
+        if (action == null || action.NewState == null)
+        {
+            Console.WriteLine("Error: action or action.NewState is null during redo.");
+            return (default, "Error: action or action.NewState is null during redo.");
+        }
+
+        Console.WriteLine($"Redoing state: {action.NewState}");
         _undoBuffer.Add(action); // Add the redone action to the undo buffer
         CurrentState = action.NewState; // Update current state to the new state
         OnStateChanged();
@@ -84,6 +109,9 @@ public class UndoRedoManager<T> where T : TextState
 
         public UndoRedoAction(TState oldState, TState newState, string description)
         {
+            if (oldState == null) throw new ArgumentNullException(nameof(oldState), "oldState cannot be null");
+            if (newState == null) throw new ArgumentNullException(nameof(newState), "newState cannot be null");
+
             OldState = oldState;
             NewState = newState;
             Description = description;

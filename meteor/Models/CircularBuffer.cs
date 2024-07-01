@@ -12,6 +12,9 @@ public class CircularBuffer<T> : IEnumerable<T>
 
     public CircularBuffer(int capacity)
     {
+        if (capacity <= 0)
+            throw new ArgumentOutOfRangeException(nameof(capacity), "Capacity must be greater than zero.");
+
         _buffer = new T[capacity];
         _head = 0;
         _tail = 0;
@@ -38,7 +41,7 @@ public class CircularBuffer<T> : IEnumerable<T>
         _buffer[_tail] = item;
         _tail = (_tail + 1) % _buffer.Length;
         if (Count == _buffer.Length)
-            _head = (_head + 1) % _buffer.Length;
+            _head = (_head + 1) % _buffer.Length; // Overwrite the oldest item
         else
             Count++;
     }
@@ -59,7 +62,6 @@ public class CircularBuffer<T> : IEnumerable<T>
         _head = 0;
         _tail = 0;
         Count = 0;
-
         Array.Clear(_buffer, 0, _buffer.Length);
     }
 }

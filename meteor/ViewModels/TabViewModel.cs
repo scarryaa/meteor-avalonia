@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using System.Timers;
 using System.Windows.Input;
 using DiffPlex.DiffBuilder;
+using meteor.Interfaces;
 using meteor.Models;
 using ReactiveUI;
 using File = System.IO.File;
@@ -21,36 +22,57 @@ public class TabViewModel : ViewModelBase, IDisposable
     private bool _isTemporary;
     private double _savedVerticalOffset;
     private double _savedHorizontalOffset;
-    private string _originalText = string.Empty;
-    private string _text = string.Empty;
+    private string _originalText = "";
+    private string _text = "";
     private bool _isLoadingText;
-    private readonly UndoRedoManager<TextState> _undoRedoManager;
-    private readonly Timer _autoSaveTimer;
-    private FileSystemWatcher? _fileWatcher;
     private DateTime _lastWriteTime;
     private const int AutoSaveInterval = 30000; // 30 seconds
+    private readonly ICursorPositionService _cursorPositionService;
+    private readonly IUndoRedoManager<TextState> _undoRedoManager;
+    private readonly IFileSystemWatcherFactory _fileSystemWatcherFactory;
+    private readonly Timer _autoSaveTimer;
+    private readonly ITextBuffer _textBuffer;
+    private readonly FontPropertiesViewModel _fontPropertiesViewModel;
+    private readonly LineCountViewModel _lineCountViewModel;
+    private FileSystemWatcher? _fileWatcher;
 
     public event EventHandler? TextChanged;
     public event EventHandler? FileChangedExternally;
+    public event EventHandler? TabClosed;
 
     public ICommand CloseTabCommand { get; set; }
     public ICommand UndoCommand { get; }
     public ICommand RedoCommand { get; }
     public ICommand SaveCommand { get; }
 
-    public TabViewModel()
+    public TabViewModel(
+        ICursorPositionService cursorPositionService,
+        IUndoRedoManager<TextState> undoRedoManager,
+        IFileSystemWatcherFactory fileSystemWatcherFactory,
+        ITextBuffer textBuffer,
+        FontPropertiesViewModel fontPropertiesViewModel,
+        LineCountViewModel lineCountViewModel)
     {
-        _undoRedoManager = new UndoRedoManager<TextState>(new TextState(string.Empty, 0));
+        _cursorPositionService = cursorPositionService;
+        _undoRedoManager = undoRedoManager;
+        _fileSystemWatcherFactory = fileSystemWatcherFactory;
+        _textBuffer = textBuffer;
+        _fontPropertiesViewModel = fontPropertiesViewModel;
+        _lineCountViewModel = lineCountViewModel;
+
         UndoCommand = ReactiveCommand.Create(Undo, _undoRedoManager.WhenAnyValue(x => x.CanUndo));
         RedoCommand = ReactiveCommand.Create(Redo, _undoRedoManager.WhenAnyValue(x => x.CanRedo));
         SaveCommand = ReactiveCommand.CreateFromTask(SaveAsync, this.WhenAnyValue(x => x.IsDirty));
-        CloseTabCommand = ReactiveCommand.Create(() =>
-        {
-            /* Implement tab closing logic */
-        });
+        CloseTabCommand = ReactiveCommand.Create(CloseTab);
 
         _autoSaveTimer = new Timer(AutoSaveInterval);
         _autoSaveTimer.Elapsed += AutoSaveTimer_Elapsed;
+
+        ScrollableTextEditorViewModel = new ScrollableTextEditorViewModel(
+            _cursorPositionService,
+            _fontPropertiesViewModel,
+            _lineCountViewModel,
+            _textBuffer);
     }
 
     public string Title
@@ -104,8 +126,11 @@ public class TabViewModel : ViewModelBase, IDisposable
         get => _text;
         set
         {
-            OnTextChanged(_text, value);
-            this.RaiseAndSetIfChanged(ref _text, value);
+            if (_text != value)
+            {
+                OnTextChanged(_text, value);
+                this.RaiseAndSetIfChanged(ref _text, value);
+            }
         }
     }
 
@@ -136,11 +161,13 @@ public class TabViewModel : ViewModelBase, IDisposable
             OriginalText = await reader.ReadToEndAsync();
             Text = OriginalText;
             UpdateTextEditorBuffer();
-
             FilePath = filePath;
             _lastWriteTime = File.GetLastWriteTime(filePath);
             IsNew = false;
             _undoRedoManager.Clear();
+            var initialState =
+                new TextState(Text, (int)ScrollableTextEditorViewModel.TextEditorViewModel.CursorPosition);
+            _undoRedoManager.AddState(initialState, "Loaded text");
         }
         finally
         {
@@ -150,10 +177,12 @@ public class TabViewModel : ViewModelBase, IDisposable
 
     public void Undo()
     {
+        Console.WriteLine("Can undo: " + _undoRedoManager.CanUndo);
         if (_undoRedoManager.CanUndo)
         {
             var (undoneState, description) = _undoRedoManager.Undo();
             ApplyTextChange(undoneState);
+            UpdateDirtyState();
         }
     }
 
@@ -172,7 +201,7 @@ public class TabViewModel : ViewModelBase, IDisposable
         {
             var currentText = ScrollableTextEditorViewModel.TextEditorViewModel.TextBuffer.Text;
             _undoRedoManager.AddState(
-                new TextState(currentText, ScrollableTextEditorViewModel.TextEditorViewModel.CursorPosition),
+                new TextState(currentText, (int)ScrollableTextEditorViewModel.TextEditorViewModel.CursorPosition),
                 "Text buffer update");
             Text = currentText;
         }
@@ -202,7 +231,7 @@ public class TabViewModel : ViewModelBase, IDisposable
         if (IsDirty && !string.IsNullOrEmpty(FilePath))
         {
             await File.WriteAllTextAsync(FilePath, Text);
-            OriginalText = Text;
+            OriginalText = Text; // Update OriginalText here
             UpdateDirtyState();
             _lastWriteTime = File.GetLastWriteTime(FilePath);
             IsNew = false;
@@ -211,22 +240,24 @@ public class TabViewModel : ViewModelBase, IDisposable
 
     private void SetupFileWatcher(string filePath)
     {
+        if (string.IsNullOrEmpty(filePath))
+            throw new ArgumentException("File path cannot be null or empty", nameof(filePath));
+
+        var directoryName = Path.GetDirectoryName(filePath);
+        var fileName = Path.GetFileName(filePath);
+
+        if (directoryName == null || fileName == null)
+            throw new ArgumentException("Invalid file path", nameof(filePath));
+
         _fileWatcher?.Dispose();
-
-        var directory = Path.GetDirectoryName(filePath);
-        if (directory == null) return;
-
-        _fileWatcher = new FileSystemWatcher(directory)
-        {
-            Filter = Path.GetFileName(filePath),
-            NotifyFilter = NotifyFilters.LastWrite
-        };
-
+        _fileWatcher = _fileSystemWatcherFactory.Create(directoryName);
+        _fileWatcher.Filter = fileName;
+        _fileWatcher.NotifyFilter = NotifyFilters.LastWrite;
         _fileWatcher.Changed += OnFileChanged;
         _fileWatcher.EnableRaisingEvents = true;
     }
 
-    private async void OnFileChanged(object sender, FileSystemEventArgs e)
+    private void OnFileChanged(object sender, FileSystemEventArgs e)
     {
         if (e.ChangeType == WatcherChangeTypes.Changed)
         {
@@ -234,7 +265,7 @@ public class TabViewModel : ViewModelBase, IDisposable
             if (newLastWriteTime != _lastWriteTime)
             {
                 _lastWriteTime = newLastWriteTime;
-                await LoadTextAsync(e.FullPath);
+                LoadTextAsync(e.FullPath);
                 FileChangedExternally?.Invoke(this, EventArgs.Empty);
             }
         }
@@ -258,35 +289,41 @@ public class TabViewModel : ViewModelBase, IDisposable
 
     private void OnFilePathChanged(string? oldValue, string? newValue)
     {
-        if (newValue != null)
+        if (!string.IsNullOrEmpty(newValue))
             SetupFileWatcher(newValue);
     }
 
     private void OnTextChanged(string oldValue, string newValue)
     {
-        if (oldValue != newValue)
+        if (!_isLoadingText)
         {
-            if (!_isLoadingText)
-            {
-                var cursorPosition = ScrollableTextEditorViewModel.TextEditorViewModel.CursorPosition;
-                _undoRedoManager.AddState(new TextState(newValue, cursorPosition), "Text change");
-                UpdateDirtyState();
-                if (IsTemporary) IsTemporary = false;
-                if (!IsNew)
-                {
-                    _autoSaveTimer.Stop();
-                    _autoSaveTimer.Start();
-                }
-            }
+            var cursorPosition = ScrollableTextEditorViewModel.TextEditorViewModel.CursorPosition;
+            var newState = new TextState(newValue, (int)cursorPosition);
 
-            TextChanged?.Invoke(this, EventArgs.Empty);
+            _undoRedoManager.AddState(newState, "Text change");
+            UpdateDirtyState();
+            if (IsTemporary) IsTemporary = false;
+            if (!IsNew)
+            {
+                _autoSaveTimer.Stop();
+                _autoSaveTimer.Start();
+            }
         }
+
+        TextChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private void ApplyTextChange(TextState newState)
     {
+        if (newState == null)
+        {
+            Console.WriteLine("Error: newState is null.");
+            return;
+        }
+
         _isLoadingText = true;
         Text = newState.Text;
+        OriginalText = newState.Text;
         ScrollableTextEditorViewModel.TextEditorViewModel.TextBuffer.SetText(newState.Text);
         ScrollableTextEditorViewModel.TextEditorViewModel.CursorPosition = newState.CursorPosition;
         _isLoadingText = false;
@@ -294,7 +331,7 @@ public class TabViewModel : ViewModelBase, IDisposable
         ScrollableTextEditorViewModel.TextEditorViewModel.UpdateLineStarts();
         ScrollableTextEditorViewModel.TextEditorViewModel.OnInvalidateRequired();
     }
-    
+
     private void UpdateTextEditorBuffer()
     {
         ScrollableTextEditorViewModel.TextEditorViewModel.TextBuffer.Clear();
@@ -302,6 +339,12 @@ public class TabViewModel : ViewModelBase, IDisposable
         ScrollableTextEditorViewModel.TextEditorViewModel.TextBuffer.SetText(Text);
         ScrollableTextEditorViewModel.TextEditorViewModel.OnInvalidateRequired();
         ScrollableTextEditorViewModel.GutterViewModel.OnInvalidateRequired();
+    }
+
+    public void CloseTab()
+    {
+        Dispose();
+        TabClosed?.Invoke(this, EventArgs.Empty);
     }
 
     public void Dispose()

@@ -1,8 +1,9 @@
 using System;
 using System.Collections.Generic;
+using meteor.Interfaces;
 using ReactiveUI;
 
-public class TextBuffer : ReactiveObject
+public class TextBuffer : ReactiveObject, ITextBuffer
 {
     private Rope _rope;
     private readonly Dictionary<long, long> _lineLengths;
@@ -61,7 +62,9 @@ public class TextBuffer : ReactiveObject
         if (lineIndex < 0 || lineIndex >= _rope.LineCount)
             return string.Empty;
 
-        return _rope.GetLineText((int)lineIndex);
+        var lineStart = GetLineStartPosition((int)lineIndex);
+        var lineEnd = GetLineEndPosition((int)lineIndex);
+        return _rope.GetText((int)lineStart, (int)(lineEnd - lineStart + 1));
     }
 
     public void SetText(string newText)
@@ -126,7 +129,7 @@ public class TextBuffer : ReactiveObject
             throw new ArgumentOutOfRangeException(nameof(lineIndex), "Invalid line index");
 
         if (lineIndex == LineStarts.Count - 1)
-            return _rope.Length;
+            return _rope.Length - 1;
 
         return LineStarts[lineIndex + 1] - 1;
     }
@@ -157,7 +160,7 @@ public class TextBuffer : ReactiveObject
                 break;
             }
 
-            var currentLineLength = nextNewline - lineStart;
+            var currentLineLength = nextNewline - lineStart + 1; // Include newline character in length
             _lineLengths[LineStarts.Count - 1] = currentLineLength;
             LongestLineLength = Math.Max(LongestLineLength, currentLineLength);
 

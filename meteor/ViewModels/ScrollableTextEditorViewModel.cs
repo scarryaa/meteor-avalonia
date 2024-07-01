@@ -23,7 +23,7 @@ public class ScrollableTextEditorViewModel : ViewModelBase
     public LineCountViewModel LineCountViewModel { get; }
     public GutterViewModel GutterViewModel { get; }
     public TabViewModel TabViewModel { get; set; }
-    
+
     public bool DisableHorizontalScrollToCursor
     {
         get => _disableHorizontalScrollToCursor;
@@ -34,17 +34,14 @@ public class ScrollableTextEditorViewModel : ViewModelBase
         ICursorPositionService cursorPositionService,
         FontPropertiesViewModel fontPropertiesViewModel,
         LineCountViewModel lineCountViewModel,
-        TextBuffer textBuffer)
+        ITextBuffer textBuffer)
     {
         if (textBuffer == null) throw new ArgumentNullException(nameof(textBuffer));
 
         FontPropertiesViewModel = fontPropertiesViewModel;
         LineCountViewModel = lineCountViewModel;
         TextEditorViewModel =
-            new TextEditorViewModel(cursorPositionService, fontPropertiesViewModel, lineCountViewModel)
-            {
-                TextBuffer = textBuffer
-            };
+            new TextEditorViewModel(cursorPositionService, fontPropertiesViewModel, lineCountViewModel, textBuffer);
         GutterViewModel = new GutterViewModel(cursorPositionService, fontPropertiesViewModel, lineCountViewModel, this,
             TextEditorViewModel);
 
@@ -55,11 +52,11 @@ public class ScrollableTextEditorViewModel : ViewModelBase
             .Subscribe(lineHeight =>
             {
                 textBuffer.LineHeight = TextEditorViewModel.FontPropertiesViewModel.CalculateLineHeight(FontSize);
-                TextEditorViewModel.LineHeight = lineHeight;
                 textBuffer.UpdateLineCache();
+                TextEditorViewModel.LineHeight = lineHeight;
             });
 
-        TextEditorViewModel.TextBuffer.TextChanged += (sender, args) => UpdateDimensions();
+        textBuffer.TextChanged += (sender, args) => UpdateDimensions();
     }
 
     public FontPropertiesViewModel FontPropertiesViewModel { get; }

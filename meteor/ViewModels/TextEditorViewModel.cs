@@ -10,7 +10,7 @@ namespace meteor.ViewModels;
 public class TextEditorViewModel : ViewModelBase
 {
     private readonly ICursorPositionService _cursorPositionService;
-    private TextBuffer _textBuffer;
+    private ITextBuffer _textBuffer;
     private long _cursorPosition;
     private long _selectionStart = -1;
     private long _selectionEnd = -1;
@@ -25,13 +25,14 @@ public class TextEditorViewModel : ViewModelBase
 
     public TextEditorViewModel(ICursorPositionService cursorPositionService,
         FontPropertiesViewModel fontPropertiesViewModel,
-        LineCountViewModel lineCountViewModel)
+        LineCountViewModel lineCountViewModel,
+        ITextBuffer textBuffer)
     {
         _cursorPositionService = cursorPositionService;
         FontPropertiesViewModel = fontPropertiesViewModel;
         _lineCountViewModel = lineCountViewModel;
+        _textBuffer = textBuffer ?? throw new ArgumentNullException(nameof(textBuffer));
 
-        _textBuffer = new TextBuffer();
         _textBuffer.LinesUpdated += OnLinesUpdated;
 
         this.WhenAnyValue(x => x.FontPropertiesViewModel.FontFamily)
@@ -158,7 +159,7 @@ public class TextEditorViewModel : ViewModelBase
 
     public double TotalHeight => _textBuffer.TotalHeight;
 
-    public TextBuffer TextBuffer
+    public ITextBuffer TextBuffer
     {
         get => _textBuffer;
         set
@@ -167,6 +168,7 @@ public class TextEditorViewModel : ViewModelBase
             this.RaisePropertyChanged(nameof(LineCount));
             this.RaisePropertyChanged(nameof(TotalHeight));
             _lineCountViewModel.LineCount = _textBuffer.LineCount;
+            _textBuffer.TextChanged += OnLinesUpdated;
         }
     }
 

@@ -11,9 +11,11 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Threading;
 using meteor.Interfaces;
+using meteor.Models;
 using meteor.Views;
 using Microsoft.Extensions.DependencyInjection;
 using ReactiveUI;
+using File = System.IO.File;
 
 namespace meteor.ViewModels;
 
@@ -27,7 +29,7 @@ public class MainWindowViewModel : ViewModelBase
     private string _selectedPath;
     private bool _suppressHistoryTracking;
     private TabViewModel _temporaryTab;
-    
+
     public MainWindowViewModel(
         TitleBarViewModel titleBarViewModel,
         StatusPaneViewModel statusPaneViewModel,
@@ -39,7 +41,9 @@ public class MainWindowViewModel : ViewModelBase
         StatusPaneViewModel = statusPaneViewModel;
         FileExplorerViewModel = fileExplorerViewModel;
         TitleBarViewModel = titleBarViewModel;
-        
+
+        Tabs = new ObservableCollection<TabViewModel>();
+
         NewTabCommand = ReactiveCommand.Create(NewTab);
         CloseTabCommand = ReactiveCommand.Create<TabViewModel>(async tab => await CloseTabAsync(tab));
         SaveCommand = ReactiveCommand.Create(SaveCurrentFile);
@@ -48,8 +52,6 @@ public class MainWindowViewModel : ViewModelBase
         HideSaveDialogCommand = ReactiveCommand.Create(() => IsDialogOpen = false);
 
         _tabSelectionHistory = new Stack<TabViewModel>();
-
-        Tabs = new ObservableCollection<TabViewModel>();
 
         SelectedTab = Tabs.FirstOrDefault();
 
@@ -191,18 +193,30 @@ public class MainWindowViewModel : ViewModelBase
             ? desktop.MainWindow
             : null;
     }
-    
+
     private void NewTab()
     {
-        var newTab = new TabViewModel
+        var cursorPositionService = App.ServiceProvider.GetRequiredService<ICursorPositionService>();
+        var undoRedoManager = App.ServiceProvider.GetRequiredService<IUndoRedoManager<TextState>>();
+        var fileSystemWatcherFactory = App.ServiceProvider.GetRequiredService<IFileSystemWatcherFactory>();
+        var textBuffer = App.ServiceProvider.GetRequiredService<ITextBuffer>();
+        var fontPropertiesViewModel = App.ServiceProvider.GetRequiredService<FontPropertiesViewModel>();
+        var lineCountViewModel = App.ServiceProvider.GetRequiredService<LineCountViewModel>();
+
+        var newTab = new TabViewModel(
+            cursorPositionService,
+            undoRedoManager,
+            fileSystemWatcherFactory,
+            textBuffer,
+            fontPropertiesViewModel,
+            lineCountViewModel)
         {
             Title = $"Untitled {Tabs.Count + 1}",
             ScrollableTextEditorViewModel = new ScrollableTextEditorViewModel(
-                App.ServiceProvider.GetRequiredService<ICursorPositionService>(),
-                App.ServiceProvider.GetRequiredService<FontPropertiesViewModel>(),
-                App.ServiceProvider.GetRequiredService<LineCountViewModel>(),
-                new TextBuffer()
-            ),
+                cursorPositionService,
+                fontPropertiesViewModel,
+                lineCountViewModel,
+                textBuffer),
             CloseTabCommand = CloseTabCommand
         };
 
@@ -273,7 +287,13 @@ public class MainWindowViewModel : ViewModelBase
 
         if (_temporaryTab == null)
         {
-            _temporaryTab = new TabViewModel
+            _temporaryTab = new TabViewModel(
+                App.ServiceProvider.GetRequiredService<ICursorPositionService>(),
+                App.ServiceProvider.GetRequiredService<IUndoRedoManager<TextState>>(),
+                App.ServiceProvider.GetRequiredService<IFileSystemWatcherFactory>(),
+                App.ServiceProvider.GetRequiredService<ITextBuffer>(),
+                App.ServiceProvider.GetRequiredService<FontPropertiesViewModel>(),
+                App.ServiceProvider.GetRequiredService<LineCountViewModel>())
             {
                 Title = Path.GetFileName(filePath),
                 CloseTabCommand = CloseTabCommand,
@@ -315,7 +335,13 @@ public class MainWindowViewModel : ViewModelBase
             return;
         }
 
-        var permanentTab = new TabViewModel
+        var permanentTab = new TabViewModel(
+            App.ServiceProvider.GetRequiredService<ICursorPositionService>(),
+            App.ServiceProvider.GetRequiredService<IUndoRedoManager<TextState>>(),
+            App.ServiceProvider.GetRequiredService<IFileSystemWatcherFactory>(),
+            App.ServiceProvider.GetRequiredService<ITextBuffer>(),
+            App.ServiceProvider.GetRequiredService<FontPropertiesViewModel>(),
+            App.ServiceProvider.GetRequiredService<LineCountViewModel>())
         {
             Title = Path.GetFileName(filePath),
             CloseTabCommand = CloseTabCommand,
@@ -333,7 +359,6 @@ public class MainWindowViewModel : ViewModelBase
         Tabs.Add(permanentTab);
         SelectedTab = permanentTab;
     }
-
 
     private void SaveFile(TabViewModel tab)
     {

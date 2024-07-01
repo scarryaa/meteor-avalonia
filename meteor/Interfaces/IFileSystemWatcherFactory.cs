@@ -1,6 +1,8 @@
+using System.IO;
+
 namespace meteor.Interfaces;
 
-public class IFileSystemWatcherFactory
+public interface IFileSystemWatcherFactory
 {
-    
+    FileSystemWatcher Create(string path);
 }
