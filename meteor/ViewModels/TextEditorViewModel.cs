@@ -30,6 +30,7 @@ public class TextEditorViewModel : ViewModelBase
     {
         _cursorPositionService = cursorPositionService;
         FontPropertiesViewModel = fontPropertiesViewModel;
+        FontFamily = FontFamily.DefaultFontFamilyName;
         _lineCountViewModel = lineCountViewModel;
         _textBuffer = textBuffer ?? throw new ArgumentNullException(nameof(textBuffer));
 

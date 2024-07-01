@@ -177,7 +177,6 @@ public class TabViewModel : ViewModelBase, IDisposable
 
     public void Undo()
     {
-        Console.WriteLine("Can undo: " + _undoRedoManager.CanUndo);
         if (_undoRedoManager.CanUndo)
         {
             var (undoneState, description) = _undoRedoManager.Undo();

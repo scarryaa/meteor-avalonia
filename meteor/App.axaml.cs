@@ -10,7 +10,7 @@ using meteor.ViewModels;
 using meteor.Views;
 using Microsoft.Extensions.DependencyInjection;
 
-[assembly: InternalsVisibleTo("Tests")]
+[assembly: InternalsVisibleTo("tests")]
 
 namespace meteor;
 
