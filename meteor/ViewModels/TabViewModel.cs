@@ -291,9 +291,10 @@ public class TabViewModel : ViewModelBase, IDisposable
         ScrollableTextEditorViewModel.TextEditorViewModel.CursorPosition = newState.CursorPosition;
         _isLoadingText = false;
         UpdateDirtyState();
+        ScrollableTextEditorViewModel.TextEditorViewModel.UpdateLineStarts();
         ScrollableTextEditorViewModel.TextEditorViewModel.OnInvalidateRequired();
     }
-
+    
     private void UpdateTextEditorBuffer()
     {
         ScrollableTextEditorViewModel.TextEditorViewModel.TextBuffer.Clear();

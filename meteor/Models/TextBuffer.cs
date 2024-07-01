@@ -54,6 +54,7 @@ public class TextBuffer : ReactiveObject
     public List<long> LineStarts { get; }
 
     public event EventHandler LinesUpdated;
+    public event EventHandler TextChanged;
 
     public string GetLineText(long lineIndex)
     {
@@ -86,6 +87,7 @@ public class TextBuffer : ReactiveObject
 
         _rope.Insert((int)position, text);
         UpdateLineCache();
+        TextChanged?.Invoke(this, EventArgs.Empty);
         LinesUpdated?.Invoke(this, EventArgs.Empty);
     }
 
@@ -148,16 +150,23 @@ public class TextBuffer : ReactiveObject
             var nextNewline = _rope.IndexOf('\n', (int)lineStart);
             if (nextNewline == -1)
             {
-                _lineLengths[LineStarts.Count - 1] = _rope.Length - lineStart;
+                // Handle the last line if there are no more newlines
+                var lastLineLength = _rope.Length - lineStart;
+                _lineLengths[LineStarts.Count - 1] = lastLineLength;
+                LongestLineLength = Math.Max(LongestLineLength, lastLineLength);
                 break;
             }
 
-            _lineLengths[LineStarts.Count - 1] = nextNewline - lineStart;
-            LongestLineLength = Math.Max(LongestLineLength, _lineLengths[LineStarts.Count - 1]);
+            var currentLineLength = nextNewline - lineStart;
+            _lineLengths[LineStarts.Count - 1] = currentLineLength;
+            LongestLineLength = Math.Max(LongestLineLength, currentLineLength);
 
             LineStarts.Add(nextNewline + 1);
             lineStart = nextNewline + 1;
         }
+
+        // Handle the case where there are no lines at all
+        if (_rope.Length == 0) LongestLineLength = 0;
 
         UpdateTotalHeight();
     }

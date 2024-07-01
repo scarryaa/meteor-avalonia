@@ -48,9 +48,6 @@ public class ScrollableTextEditorViewModel : ViewModelBase
         GutterViewModel = new GutterViewModel(cursorPositionService, fontPropertiesViewModel, lineCountViewModel, this,
             TextEditorViewModel);
 
-        this.WhenAnyValue(x => x.LineCountViewModel.LineCount)
-            .Subscribe(count => LongestLineWidth = Math.Max(LongestLineWidth, count * LineHeight));
-
         this.WhenAnyValue(x => x.LineCountViewModel.VerticalOffset)
             .Subscribe(verticalOffset => VerticalOffset = verticalOffset);
 
@@ -62,7 +59,7 @@ public class ScrollableTextEditorViewModel : ViewModelBase
                 textBuffer.UpdateLineCache();
             });
 
-        TextEditorViewModel.TextBuffer.LinesUpdated += (sender, args) => UpdateDimensions();
+        TextEditorViewModel.TextBuffer.TextChanged += (sender, args) => UpdateDimensions();
     }
 
     public FontPropertiesViewModel FontPropertiesViewModel { get; }
