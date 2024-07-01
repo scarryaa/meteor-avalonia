@@ -11,10 +11,11 @@ public interface ITextBuffer
     long Length { get; }
     double TotalHeight { get; }
     List<long> LineStarts { get; }
-    Rope Rope { get; }
+    IRope Rope { get; }
     long LineCount { get; }
     long LongestLineLength { get; }
     double LineHeight { get; set; }
+    string GetText(long start, long length);
     void InsertText(long position, string text);
     void DeleteText(long start, long length);
     void SetText(string newText);

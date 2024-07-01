@@ -2,8 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using meteor.Interfaces;
 
-public class Rope
+public class Rope : IRope
 {
     private const int SPLIT_LENGTH = 1024;
     private const int MAX_NODE_LENGTH = 2048;

@@ -9,6 +9,10 @@ public partial class StatusPane : UserControl
     public StatusPane()
     {
         InitializeComponent();
-        DataContext = App.ServiceProvider.GetRequiredService<StatusPaneViewModel>();
+
+        AttachedToVisualTree += (sender, e) =>
+        {
+            DataContext = App.ServiceProvider.GetRequiredService<StatusPaneViewModel>();
+        };
     }
 }

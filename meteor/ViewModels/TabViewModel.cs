@@ -34,6 +34,7 @@ public class TabViewModel : ViewModelBase, IDisposable
     private readonly ITextBuffer _textBuffer;
     private readonly FontPropertiesViewModel _fontPropertiesViewModel;
     private readonly LineCountViewModel _lineCountViewModel;
+    private readonly IClipboardService _clipboardService;
     private FileSystemWatcher? _fileWatcher;
 
     public event EventHandler? TextChanged;
@@ -51,7 +52,8 @@ public class TabViewModel : ViewModelBase, IDisposable
         IFileSystemWatcherFactory fileSystemWatcherFactory,
         ITextBuffer textBuffer,
         FontPropertiesViewModel fontPropertiesViewModel,
-        LineCountViewModel lineCountViewModel)
+        LineCountViewModel lineCountViewModel,
+        IClipboardService clipboardService)
     {
         _cursorPositionService = cursorPositionService;
         _undoRedoManager = undoRedoManager;
@@ -59,7 +61,8 @@ public class TabViewModel : ViewModelBase, IDisposable
         _textBuffer = textBuffer;
         _fontPropertiesViewModel = fontPropertiesViewModel;
         _lineCountViewModel = lineCountViewModel;
-
+        _clipboardService = clipboardService;
+        
         UndoCommand = ReactiveCommand.Create(Undo, _undoRedoManager.WhenAnyValue(x => x.CanUndo));
         RedoCommand = ReactiveCommand.Create(Redo, _undoRedoManager.WhenAnyValue(x => x.CanRedo));
         SaveCommand = ReactiveCommand.CreateFromTask(SaveAsync, this.WhenAnyValue(x => x.IsDirty));
@@ -72,7 +75,8 @@ public class TabViewModel : ViewModelBase, IDisposable
             _cursorPositionService,
             _fontPropertiesViewModel,
             _lineCountViewModel,
-            _textBuffer);
+            _textBuffer,
+            _clipboardService);
     }
 
     public string Title

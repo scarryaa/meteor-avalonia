@@ -5,7 +5,7 @@ using ReactiveUI;
 
 public class TextBuffer : ReactiveObject, ITextBuffer
 {
-    private Rope _rope;
+    private IRope _rope;
     private readonly Dictionary<long, long> _lineLengths;
     private long _longestLineLength;
     private double _lineHeight;
@@ -20,7 +20,7 @@ public class TextBuffer : ReactiveObject, ITextBuffer
 
     public string Text => _rope.GetText();
 
-    public Rope Rope
+    public IRope Rope
     {
         get => _rope;
         set
@@ -82,6 +82,11 @@ public class TextBuffer : ReactiveObject, ITextBuffer
         _rope = new Rope(string.Empty);
         UpdateLineCache();
         LinesUpdated?.Invoke(this, EventArgs.Empty);
+    }
+
+    public string GetText(long start, long end)
+    {
+        return Text.Substring((int)start, (int)end);
     }
 
     public void InsertText(long position, string text)

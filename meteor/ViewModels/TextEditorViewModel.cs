@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using System.Threading.Tasks;
 using Avalonia.Media;
 using meteor.Interfaces;
 using meteor.Models;
@@ -20,19 +21,26 @@ public class TextEditorViewModel : ViewModelBase
     private double _windowWidth;
     private long _desiredColumn;
     private readonly LineCountViewModel _lineCountViewModel;
-
+    private double _charWidth;
+    private bool _charWidthNeedsUpdate = true;
+    private double _fontSize;
+    private FontFamily _fontFamily;
+    private readonly IClipboardService _clipboardService;
+    
     public FontPropertiesViewModel FontPropertiesViewModel { get; }
 
     public TextEditorViewModel(ICursorPositionService cursorPositionService,
         FontPropertiesViewModel fontPropertiesViewModel,
         LineCountViewModel lineCountViewModel,
-        ITextBuffer textBuffer)
+        ITextBuffer textBuffer,
+        IClipboardService clipboardService)
     {
         _cursorPositionService = cursorPositionService;
         FontPropertiesViewModel = fontPropertiesViewModel;
         FontFamily = FontFamily.DefaultFontFamilyName;
         _lineCountViewModel = lineCountViewModel;
         _textBuffer = textBuffer ?? throw new ArgumentNullException(nameof(textBuffer));
+        _clipboardService = clipboardService ?? throw new ArgumentNullException(nameof(clipboardService));
 
         _textBuffer.LinesUpdated += OnLinesUpdated;
 
@@ -67,14 +75,24 @@ public class TextEditorViewModel : ViewModelBase
 
     public FontFamily FontFamily
     {
-        get => FontPropertiesViewModel.FontFamily;
-        set => FontPropertiesViewModel.FontFamily = value;
+        get => _fontFamily;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _fontFamily, value);
+            _charWidthNeedsUpdate = true;
+            this.RaisePropertyChanged(nameof(CharWidth));
+        }
     }
 
     public double FontSize
     {
-        get => FontPropertiesViewModel.FontSize;
-        set => FontPropertiesViewModel.FontSize = value;
+        get => _fontSize;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _fontSize, value);
+            _charWidthNeedsUpdate = true;
+            this.RaisePropertyChanged(nameof(CharWidth));
+        }
     }
 
     public double LineHeight
@@ -173,6 +191,38 @@ public class TextEditorViewModel : ViewModelBase
         }
     }
 
+    public double CharWidth
+    {
+        get
+        {
+            if (_charWidthNeedsUpdate) UpdateCharWidth();
+            return _charWidth;
+        }
+        set
+        {
+            if (_charWidth != value)
+            {
+                this.RaiseAndSetIfChanged(ref _charWidth, value);
+                _charWidthNeedsUpdate = false;
+            }
+        }
+    }
+
+    public async Task CopyText()
+    {
+        if (SelectionStart != SelectionEnd)
+        {
+            var selectedText = _textBuffer.GetText(SelectionStart, SelectionEnd - SelectionStart);
+            await _clipboardService.SetTextAsync(selectedText);
+        }
+    }
+
+    public async Task PasteText()
+    {
+        var clipboardText = await _clipboardService.GetTextAsync();
+        if (!string.IsNullOrEmpty(clipboardText)) InsertText(CursorPosition, clipboardText);
+    }
+
     public void NotifyGutterOfLineChange()
     {
         LineChanged?.Invoke(this, EventArgs.Empty);
@@ -185,6 +235,7 @@ public class TextEditorViewModel : ViewModelBase
         NotifyGutterOfLineChange();
         this.RaisePropertyChanged(nameof(LineCount));
         this.RaisePropertyChanged(nameof(TotalHeight));
+        OnInvalidateRequired();
     }
 
     public void DeleteText(long start, long length)
@@ -193,6 +244,7 @@ public class TextEditorViewModel : ViewModelBase
         NotifyGutterOfLineChange();
         this.RaisePropertyChanged(nameof(LineCount));
         this.RaisePropertyChanged(nameof(TotalHeight));
+        OnInvalidateRequired();
     }
 
     public void ClearSelection()
@@ -212,9 +264,9 @@ public class TextEditorViewModel : ViewModelBase
         this.RaisePropertyChanged(nameof(TotalHeight));
     }
 
-    public double CharWidth
+    private void UpdateCharWidth()
     {
-        get
+        try
         {
             var formattedText = new FormattedText(
                 "x",
@@ -223,7 +275,13 @@ public class TextEditorViewModel : ViewModelBase
                 new Typeface(FontFamily),
                 FontSize,
                 Brushes.Black);
-            return formattedText.Width;
+            _charWidth = formattedText.Width;
+            _charWidthNeedsUpdate = false;
+        }
+        catch (Exception ex)
+        {
+            _charWidth = 10;
+            _charWidthNeedsUpdate = false;
         }
     }
 }

@@ -1,3 +1,4 @@
+using System;
 using Avalonia.Media;
 using ReactiveUI;
 
@@ -14,6 +15,8 @@ public class FontPropertiesViewModel : ViewModelBase
         _lineHeight = CalculateLineHeight(_fontSize);
     }
 
+    public double LineSpacingFactor => 1.5;
+    
     public FontFamily FontFamily
     {
         get => _fontFamily;
@@ -38,6 +41,6 @@ public class FontPropertiesViewModel : ViewModelBase
 
     public double CalculateLineHeight(double fontSize)
     {
-        return fontSize * 1.5;
+        return Math.Ceiling(fontSize * LineSpacingFactor);
     }
 }

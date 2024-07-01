@@ -17,7 +17,7 @@ namespace meteor;
 public partial class App : Application
 {
     public static IServiceProvider ServiceProvider { get; private set; }
-    
+
     public override void Initialize()
     {
         AvaloniaXamlLoader.Load(this);
@@ -29,13 +29,12 @@ public partial class App : Application
         {
             var services = new ServiceCollection();
             ConfigureServices(services);
+
             ServiceProvider = services.BuildServiceProvider();
             ServiceLocator.SetLocatorProvider(ServiceProvider);
 
-            desktop.MainWindow = new MainWindow
-            {
-                DataContext = ServiceProvider.GetRequiredService<MainWindowViewModel>()
-            };
+            var mainWindow = ServiceProvider.GetRequiredService<MainWindow>();
+            desktop.MainWindow = mainWindow;
         }
 
         base.OnFrameworkInitializationCompleted();
@@ -53,6 +52,7 @@ public partial class App : Application
         services.AddTransient<TitleBarViewModel>();
         services.AddTransient<ScrollableTextEditorViewModel>();
 
+        services.AddSingleton<IRope, Rope>();
         services.AddSingleton<ITextBuffer, TextBuffer>();
         services.AddSingleton<IFileSystemWatcherFactory, FileSystemWatcherFactory>();
 
@@ -60,6 +60,14 @@ public partial class App : Application
         {
             var initialState = new TextState("", 0);
             return new UndoRedoManager<TextState>(initialState);
+        });
+
+        // Register MainWindow and ClipboardService
+        services.AddSingleton<MainWindow>();
+        services.AddSingleton<IClipboardService>(provider =>
+        {
+            var mainWindow = provider.GetRequiredService<MainWindow>();
+            return new ClipboardService(mainWindow);
         });
     }
 

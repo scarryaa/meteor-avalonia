@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -12,7 +13,10 @@ using Avalonia.Threading;
 using meteor.ViewModels;
 using ReactiveUI;
 
+[assembly: InternalsVisibleTo("tests")]
+
 namespace meteor.Views;
+
 
 public partial class TextEditor : UserControl
 {
@@ -78,8 +82,8 @@ public partial class TextEditor : UserControl
     {
         Height = height;
     }
-    
-    private void OnTextChanged(long lineIndex)
+
+    internal void OnTextChanged(long lineIndex)
     {
         _scrollableViewModel.TextEditorViewModel.LineCache.InvalidateLine(lineIndex);
         InvalidateVisual();
@@ -1039,6 +1043,7 @@ public partial class TextEditor : UserControl
 
     private long GetLineIndex(TextEditorViewModel viewModel, long position)
     {
+        Console.WriteLine(viewModel.TextBuffer);
         return viewModel.TextBuffer.Rope.GetLineIndexFromPosition((int)position);
     }
 
@@ -1239,10 +1244,10 @@ public partial class TextEditor : UserControl
 
     private long GetLineIndexFromPosition(long position)
     {
-        return _scrollableViewModel!.TextEditorViewModel.TextBuffer.Rope.GetLineIndexFromPosition((int)position);
+        return _scrollableViewModel.TextEditorViewModel.TextBuffer.Rope.GetLineIndexFromPosition((int)position);
     }
 
-    private void SelectAll()
+    internal void SelectAll()
     {
         if (_scrollableViewModel != null)
         {
@@ -1256,7 +1261,7 @@ public partial class TextEditor : UserControl
         }
     }
 
-    private void CopyText()
+    internal async Task CopyText()
     {
         if (_scrollableViewModel != null)
         {
@@ -1267,14 +1272,15 @@ public partial class TextEditor : UserControl
             var selectionStart = Math.Min(viewModel.SelectionStart, viewModel.SelectionEnd);
             var selectionEnd = Math.Max(viewModel.SelectionStart, viewModel.SelectionEnd);
 
+            Console.WriteLine(viewModel.TextBuffer.Rope);
             var selectedText =
                 viewModel.TextBuffer.Rope.GetText((int)selectionStart, (int)(selectionEnd - selectionStart));
 
-            TopLevel.GetTopLevel(this)?.Clipboard?.SetTextAsync(selectedText);
+            await TopLevel.GetTopLevel(this)?.Clipboard?.SetTextAsync(selectedText);
         }
     }
 
-    private async Task PasteText()
+    internal async Task PasteText()
     {
         var viewModel = _scrollableViewModel!.TextEditorViewModel;
         var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;

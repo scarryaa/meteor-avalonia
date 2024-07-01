@@ -202,6 +202,7 @@ public class MainWindowViewModel : ViewModelBase
         var textBuffer = App.ServiceProvider.GetRequiredService<ITextBuffer>();
         var fontPropertiesViewModel = App.ServiceProvider.GetRequiredService<FontPropertiesViewModel>();
         var lineCountViewModel = App.ServiceProvider.GetRequiredService<LineCountViewModel>();
+        var clipboardService = App.ServiceProvider.GetRequiredService<IClipboardService>();
 
         var newTab = new TabViewModel(
             cursorPositionService,
@@ -209,14 +210,16 @@ public class MainWindowViewModel : ViewModelBase
             fileSystemWatcherFactory,
             textBuffer,
             fontPropertiesViewModel,
-            lineCountViewModel)
+            lineCountViewModel,
+            clipboardService)
         {
             Title = $"Untitled {Tabs.Count + 1}",
             ScrollableTextEditorViewModel = new ScrollableTextEditorViewModel(
                 cursorPositionService,
                 fontPropertiesViewModel,
                 lineCountViewModel,
-                textBuffer),
+                textBuffer,
+                clipboardService),
             CloseTabCommand = CloseTabCommand
         };
 
@@ -293,7 +296,8 @@ public class MainWindowViewModel : ViewModelBase
                 App.ServiceProvider.GetRequiredService<IFileSystemWatcherFactory>(),
                 App.ServiceProvider.GetRequiredService<ITextBuffer>(),
                 App.ServiceProvider.GetRequiredService<FontPropertiesViewModel>(),
-                App.ServiceProvider.GetRequiredService<LineCountViewModel>())
+                App.ServiceProvider.GetRequiredService<LineCountViewModel>(),
+                App.ServiceProvider.GetRequiredService<IClipboardService>())
             {
                 Title = Path.GetFileName(filePath),
                 CloseTabCommand = CloseTabCommand,
@@ -304,7 +308,8 @@ public class MainWindowViewModel : ViewModelBase
                     App.ServiceProvider.GetRequiredService<ICursorPositionService>(),
                     App.ServiceProvider.GetRequiredService<FontPropertiesViewModel>(),
                     App.ServiceProvider.GetRequiredService<LineCountViewModel>(),
-                    new TextBuffer()
+                    new TextBuffer(),
+                    App.ServiceProvider.GetRequiredService<IClipboardService>()
                 )
             };
 
@@ -341,7 +346,8 @@ public class MainWindowViewModel : ViewModelBase
             App.ServiceProvider.GetRequiredService<IFileSystemWatcherFactory>(),
             App.ServiceProvider.GetRequiredService<ITextBuffer>(),
             App.ServiceProvider.GetRequiredService<FontPropertiesViewModel>(),
-            App.ServiceProvider.GetRequiredService<LineCountViewModel>())
+            App.ServiceProvider.GetRequiredService<LineCountViewModel>(),
+            App.ServiceProvider.GetRequiredService<IClipboardService>())
         {
             Title = Path.GetFileName(filePath),
             CloseTabCommand = CloseTabCommand,
@@ -350,7 +356,8 @@ public class MainWindowViewModel : ViewModelBase
                 App.ServiceProvider.GetRequiredService<ICursorPositionService>(),
                 App.ServiceProvider.GetRequiredService<FontPropertiesViewModel>(),
                 App.ServiceProvider.GetRequiredService<LineCountViewModel>(),
-                new TextBuffer()
+                new TextBuffer(),
+                App.ServiceProvider.GetRequiredService<IClipboardService>()
             )
         };
 

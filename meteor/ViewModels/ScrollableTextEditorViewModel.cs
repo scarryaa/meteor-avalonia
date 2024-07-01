@@ -34,14 +34,19 @@ public class ScrollableTextEditorViewModel : ViewModelBase
         ICursorPositionService cursorPositionService,
         FontPropertiesViewModel fontPropertiesViewModel,
         LineCountViewModel lineCountViewModel,
-        ITextBuffer textBuffer)
+        ITextBuffer textBuffer,
+        IClipboardService clipboardService)
     {
         if (textBuffer == null) throw new ArgumentNullException(nameof(textBuffer));
 
         FontPropertiesViewModel = fontPropertiesViewModel;
         LineCountViewModel = lineCountViewModel;
-        TextEditorViewModel =
-            new TextEditorViewModel(cursorPositionService, fontPropertiesViewModel, lineCountViewModel, textBuffer);
+        TextEditorViewModel = new TextEditorViewModel(
+            cursorPositionService,
+            fontPropertiesViewModel,
+            lineCountViewModel,
+            textBuffer,
+            clipboardService);
         GutterViewModel = new GutterViewModel(cursorPositionService, fontPropertiesViewModel, lineCountViewModel, this,
             TextEditorViewModel);
 
@@ -84,7 +89,8 @@ public class ScrollableTextEditorViewModel : ViewModelBase
         get => Math.Max(_longestLineWidth + 20, WindowWidth);
         set
         {
-            if (_longestLineWidth != value) this.RaiseAndSetIfChanged(ref _longestLineWidth, value);
+            if (_longestLineWidth != value)
+                this.RaiseAndSetIfChanged(ref _longestLineWidth, value);
         }
     }
 
