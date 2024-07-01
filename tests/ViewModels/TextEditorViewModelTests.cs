@@ -12,19 +12,22 @@ public class TextEditorViewModelTests
     private readonly Mock<LineCountViewModel> _mockLineCountViewModel;
     private readonly Mock<ITextBuffer> _mockTextBuffer;
     private readonly TextEditorViewModel _viewModel;
-
+    private readonly Mock<IClipboardService> _mockClipboardService;
+    
     public TextEditorViewModelTests()
     {
         _mockCursorPositionService = new Mock<ICursorPositionService>();
         _mockFontPropertiesViewModel = new Mock<FontPropertiesViewModel>();
         _mockLineCountViewModel = new Mock<LineCountViewModel>();
         _mockTextBuffer = new Mock<ITextBuffer>();
+        _mockClipboardService = new Mock<IClipboardService>();
 
         _viewModel = new TextEditorViewModel(
             _mockCursorPositionService.Object,
             _mockFontPropertiesViewModel.Object,
             _mockLineCountViewModel.Object,
-            _mockTextBuffer.Object
+            _mockTextBuffer.Object,
+            _mockClipboardService.Object
         );
     }
 

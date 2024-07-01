@@ -13,9 +13,9 @@ public class TabViewModelTests : IDisposable
     private readonly Mock<IUndoRedoManager<TextState>> _mockUndoRedoManager;
     private readonly Mock<IFileSystemWatcherFactory> _mockFileSystemWatcherFactory;
     private readonly Mock<ITextBuffer> _mockTextBuffer;
-    private readonly Mock<FontPropertiesViewModel> _mockFontPropertiesViewModel;
-    private readonly Mock<LineCountViewModel> _mockLineCountViewModel;
-    private readonly IServiceProvider _serviceProvider;
+    private readonly FontPropertiesViewModel _fontPropertiesViewModel;
+    private readonly LineCountViewModel _lineCountViewModel;
+    private readonly Mock<IClipboardService> _mockClipboardService;
 
     public TabViewModelTests()
     {
@@ -23,23 +23,30 @@ public class TabViewModelTests : IDisposable
         _mockUndoRedoManager = new Mock<IUndoRedoManager<TextState>>();
         _mockFileSystemWatcherFactory = new Mock<IFileSystemWatcherFactory>();
         _mockTextBuffer = new Mock<ITextBuffer>();
-        _mockFontPropertiesViewModel = new Mock<FontPropertiesViewModel>();
-        _mockLineCountViewModel = new Mock<LineCountViewModel>();
+        _fontPropertiesViewModel = new FontPropertiesViewModel();
+        _lineCountViewModel = new LineCountViewModel();
+        _mockClipboardService = new Mock<IClipboardService>();
 
         _mockFileSystemWatcherFactory
             .Setup(f => f.Create(It.IsAny<string>()))
             .Returns(() => { return new FileSystemWatcher(); });
-
+        
         var services = new ServiceCollection();
+        ConfigureServices(services);
+
+        var serviceProvider = services.BuildServiceProvider();
+        meteor.App.SetServiceProviderForTesting(serviceProvider);
+    }
+
+    private void ConfigureServices(IServiceCollection services)
+    {
         services.AddSingleton(_mockCursorPositionService.Object);
         services.AddSingleton(_mockUndoRedoManager.Object);
         services.AddSingleton(_mockFileSystemWatcherFactory.Object);
         services.AddSingleton(_mockTextBuffer.Object);
-        services.AddSingleton(_mockFontPropertiesViewModel.Object);
-        services.AddSingleton(_mockLineCountViewModel.Object);
-
-        _serviceProvider = services.BuildServiceProvider();
-        meteor.App.SetServiceProviderForTesting(_serviceProvider);
+        services.AddSingleton(_fontPropertiesViewModel);
+        services.AddSingleton(_lineCountViewModel);
+        services.AddSingleton(_mockClipboardService.Object);
     }
 
     public void Dispose()
@@ -50,13 +57,15 @@ public class TabViewModelTests : IDisposable
     private TabViewModel CreateTabViewModel()
     {
         return new TabViewModel(
-            meteor.App.ServiceProvider.GetRequiredService<ICursorPositionService>(),
-            meteor.App.ServiceProvider.GetRequiredService<IUndoRedoManager<TextState>>(),
-            meteor.App.ServiceProvider.GetRequiredService<IFileSystemWatcherFactory>(),
-            meteor.App.ServiceProvider.GetRequiredService<ITextBuffer>(),
-            meteor.App.ServiceProvider.GetRequiredService<FontPropertiesViewModel>(),
-            meteor.App.ServiceProvider.GetRequiredService<LineCountViewModel>());
+            _mockCursorPositionService.Object,
+            _mockUndoRedoManager.Object,
+            _mockFileSystemWatcherFactory.Object,
+            _mockTextBuffer.Object,
+            _fontPropertiesViewModel,
+            _lineCountViewModel,
+            _mockClipboardService.Object);
     }
+
 
     [Fact]
     public void Constructor_InitializesPropertiesCorrectly()
