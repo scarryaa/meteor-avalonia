@@ -29,6 +29,7 @@ public class MainWindowViewModel : ViewModelBase
     private string _selectedPath;
     private bool _suppressHistoryTracking;
     private TabViewModel _temporaryTab;
+    private readonly ITextBufferFactory _textBufferFactory;
 
     public MainWindowViewModel(
         TitleBarViewModel titleBarViewModel,
@@ -36,8 +37,10 @@ public class MainWindowViewModel : ViewModelBase
         FontPropertiesViewModel fontPropertiesViewModel,
         LineCountViewModel lineCountViewModel,
         ICursorPositionService cursorPositionService,
-        FileExplorerViewModel fileExplorerViewModel)
+        FileExplorerViewModel fileExplorerViewModel,
+        ITextBufferFactory textBufferFactory)
     {
+        _textBufferFactory = textBufferFactory;
         StatusPaneViewModel = statusPaneViewModel;
         FileExplorerViewModel = fileExplorerViewModel;
         TitleBarViewModel = titleBarViewModel;
@@ -199,7 +202,7 @@ public class MainWindowViewModel : ViewModelBase
         var cursorPositionService = App.ServiceProvider.GetRequiredService<ICursorPositionService>();
         var undoRedoManager = App.ServiceProvider.GetRequiredService<IUndoRedoManager<TextState>>();
         var fileSystemWatcherFactory = App.ServiceProvider.GetRequiredService<IFileSystemWatcherFactory>();
-        var textBuffer = App.ServiceProvider.GetRequiredService<ITextBuffer>();
+        var textBuffer = _textBufferFactory.Create();
         var fontPropertiesViewModel = App.ServiceProvider.GetRequiredService<FontPropertiesViewModel>();
         var lineCountViewModel = App.ServiceProvider.GetRequiredService<LineCountViewModel>();
         var clipboardService = App.ServiceProvider.GetRequiredService<IClipboardService>();
@@ -208,7 +211,7 @@ public class MainWindowViewModel : ViewModelBase
             cursorPositionService,
             undoRedoManager,
             fileSystemWatcherFactory,
-            textBuffer,
+            _textBufferFactory,
             fontPropertiesViewModel,
             lineCountViewModel,
             clipboardService)
@@ -294,7 +297,7 @@ public class MainWindowViewModel : ViewModelBase
                 App.ServiceProvider.GetRequiredService<ICursorPositionService>(),
                 App.ServiceProvider.GetRequiredService<IUndoRedoManager<TextState>>(),
                 App.ServiceProvider.GetRequiredService<IFileSystemWatcherFactory>(),
-                App.ServiceProvider.GetRequiredService<ITextBuffer>(),
+                _textBufferFactory,
                 App.ServiceProvider.GetRequiredService<FontPropertiesViewModel>(),
                 App.ServiceProvider.GetRequiredService<LineCountViewModel>(),
                 App.ServiceProvider.GetRequiredService<IClipboardService>())
@@ -308,7 +311,7 @@ public class MainWindowViewModel : ViewModelBase
                     App.ServiceProvider.GetRequiredService<ICursorPositionService>(),
                     App.ServiceProvider.GetRequiredService<FontPropertiesViewModel>(),
                     App.ServiceProvider.GetRequiredService<LineCountViewModel>(),
-                    new TextBuffer(),
+                    _textBufferFactory.Create(),
                     App.ServiceProvider.GetRequiredService<IClipboardService>()
                 )
             };
@@ -339,12 +342,12 @@ public class MainWindowViewModel : ViewModelBase
             SelectedTab = existingTab;
             return;
         }
-
+        
         var permanentTab = new TabViewModel(
             App.ServiceProvider.GetRequiredService<ICursorPositionService>(),
             App.ServiceProvider.GetRequiredService<IUndoRedoManager<TextState>>(),
             App.ServiceProvider.GetRequiredService<IFileSystemWatcherFactory>(),
-            App.ServiceProvider.GetRequiredService<ITextBuffer>(),
+            _textBufferFactory,
             App.ServiceProvider.GetRequiredService<FontPropertiesViewModel>(),
             App.ServiceProvider.GetRequiredService<LineCountViewModel>(),
             App.ServiceProvider.GetRequiredService<IClipboardService>())
@@ -356,7 +359,7 @@ public class MainWindowViewModel : ViewModelBase
                 App.ServiceProvider.GetRequiredService<ICursorPositionService>(),
                 App.ServiceProvider.GetRequiredService<FontPropertiesViewModel>(),
                 App.ServiceProvider.GetRequiredService<LineCountViewModel>(),
-                new TextBuffer(),
+                _textBufferFactory.Create(),
                 App.ServiceProvider.GetRequiredService<IClipboardService>()
             )
         };

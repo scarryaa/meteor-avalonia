@@ -10,7 +10,7 @@ public class DesignTabViewModel : TabViewModel
             ServiceLocator.GetService<ICursorPositionService>(),
             ServiceLocator.GetService<IUndoRedoManager<TextState>>(),
             ServiceLocator.GetService<IFileSystemWatcherFactory>(),
-            ServiceLocator.GetService<ITextBuffer>(),
+            ServiceLocator.GetService<ITextBufferFactory>(),
             ServiceLocator.GetService<FontPropertiesViewModel>(),
             ServiceLocator.GetService<LineCountViewModel>(),
             ServiceLocator.GetService<IClipboardService>())

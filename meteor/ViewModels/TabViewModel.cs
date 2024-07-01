@@ -50,7 +50,7 @@ public class TabViewModel : ViewModelBase, IDisposable
         ICursorPositionService cursorPositionService,
         IUndoRedoManager<TextState> undoRedoManager,
         IFileSystemWatcherFactory fileSystemWatcherFactory,
-        ITextBuffer textBuffer,
+        ITextBufferFactory textBufferFactory,
         FontPropertiesViewModel fontPropertiesViewModel,
         LineCountViewModel lineCountViewModel,
         IClipboardService clipboardService)
@@ -58,7 +58,7 @@ public class TabViewModel : ViewModelBase, IDisposable
         _cursorPositionService = cursorPositionService;
         _undoRedoManager = undoRedoManager;
         _fileSystemWatcherFactory = fileSystemWatcherFactory;
-        _textBuffer = textBuffer;
+        _textBuffer = textBufferFactory.Create();
         _fontPropertiesViewModel = fontPropertiesViewModel;
         _lineCountViewModel = lineCountViewModel;
         _clipboardService = clipboardService;

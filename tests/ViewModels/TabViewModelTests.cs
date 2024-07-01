@@ -12,6 +12,7 @@ public class TabViewModelTests : IDisposable
     private readonly Mock<ICursorPositionService> _mockCursorPositionService;
     private readonly Mock<IUndoRedoManager<TextState>> _mockUndoRedoManager;
     private readonly Mock<IFileSystemWatcherFactory> _mockFileSystemWatcherFactory;
+    private readonly Mock<ITextBufferFactory> _mockTextBufferFactory;
     private readonly Mock<ITextBuffer> _mockTextBuffer;
     private readonly FontPropertiesViewModel _fontPropertiesViewModel;
     private readonly LineCountViewModel _lineCountViewModel;
@@ -22,6 +23,7 @@ public class TabViewModelTests : IDisposable
         _mockCursorPositionService = new Mock<ICursorPositionService>();
         _mockUndoRedoManager = new Mock<IUndoRedoManager<TextState>>();
         _mockFileSystemWatcherFactory = new Mock<IFileSystemWatcherFactory>();
+        _mockTextBufferFactory = new Mock<ITextBufferFactory>();
         _mockTextBuffer = new Mock<ITextBuffer>();
         _fontPropertiesViewModel = new FontPropertiesViewModel();
         _lineCountViewModel = new LineCountViewModel();
@@ -30,6 +32,10 @@ public class TabViewModelTests : IDisposable
         _mockFileSystemWatcherFactory
             .Setup(f => f.Create(It.IsAny<string>()))
             .Returns(() => { return new FileSystemWatcher(); });
+
+        _mockTextBufferFactory
+            .Setup(f => f.Create())
+            .Returns(_mockTextBuffer.Object);
         
         var services = new ServiceCollection();
         ConfigureServices(services);
@@ -43,7 +49,7 @@ public class TabViewModelTests : IDisposable
         services.AddSingleton(_mockCursorPositionService.Object);
         services.AddSingleton(_mockUndoRedoManager.Object);
         services.AddSingleton(_mockFileSystemWatcherFactory.Object);
-        services.AddSingleton(_mockTextBuffer.Object);
+        services.AddSingleton(_mockTextBufferFactory.Object);
         services.AddSingleton(_fontPropertiesViewModel);
         services.AddSingleton(_lineCountViewModel);
         services.AddSingleton(_mockClipboardService.Object);
@@ -60,12 +66,11 @@ public class TabViewModelTests : IDisposable
             _mockCursorPositionService.Object,
             _mockUndoRedoManager.Object,
             _mockFileSystemWatcherFactory.Object,
-            _mockTextBuffer.Object,
+            _mockTextBufferFactory.Object,
             _fontPropertiesViewModel,
             _lineCountViewModel,
             _mockClipboardService.Object);
     }
-
 
     [Fact]
     public void Constructor_InitializesPropertiesCorrectly()

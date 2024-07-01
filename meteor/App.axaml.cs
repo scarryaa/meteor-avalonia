@@ -50,6 +50,7 @@ public partial class App : Application
         services.AddTransient<TextEditorViewModel>();
         services.AddTransient<FileExplorerViewModel>();
         services.AddTransient<TitleBarViewModel>();
+        services.AddSingleton<ITextBufferFactory, TextBufferFactory>();
         services.AddTransient<ScrollableTextEditorViewModel>();
 
         services.AddSingleton<IRope, Rope>();
