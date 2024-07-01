@@ -11,9 +11,9 @@ public class LongestLineOrWindowWidthConverter : IMultiValueConverter
     {
         if (values.Count != 2 || values[0] == null || values[1] == null)
             return 0;
-
+        
         if (values[0] is double longestLineWidth && values[1] is double windowWidth)
-            return Math.Max(longestLineWidth + 10, windowWidth);
+            return Math.Max(longestLineWidth + 20, windowWidth);
 
         return 0;
     }

@@ -9,7 +9,6 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
-using meteor.Models;
 using meteor.ViewModels;
 using ReactiveUI;
 
@@ -24,7 +23,6 @@ public partial class TextEditor : UserControl
     private readonly double _lineSpacingFactor = BaseLineHeight / DefaultFontSize;
     private readonly Dictionary<long, long> _lineLengths = new();
     private readonly HashSet<char> _commonCodingSymbols = new("(){}[]<>.,;:'\"\\|`~!@#$%^&*-+=/?");
-    private readonly LineCache _lineCache = new();
     
     private double _fontSize = DefaultFontSize;
     private double _lineHeight = BaseLineHeight;
@@ -71,14 +69,19 @@ public partial class TextEditor : UserControl
         this.GetObservable(FontFamilyProperty).Subscribe(OnFontFamilyChanged);
         this.GetObservable(FontSizeProperty).Subscribe(OnFontSizeChanged);
         this.GetObservable(LineHeightProperty).Subscribe(OnLineHeightChanged);
-
+        
         MeasureCharWidth();
         UpdateLineCache(-1);
     }
 
+    public void UpdateHeight(double height)
+    {
+        Height = height;
+    }
+    
     private void OnTextChanged(long lineIndex)
     {
-        _lineCache.InvalidateLine(lineIndex);
+        _scrollableViewModel.TextEditorViewModel.LineCache.InvalidateLine(lineIndex);
         InvalidateVisual();
         _scrollableViewModel?.TextEditorViewModel.NotifyGutterOfLineChange();
     }
@@ -94,13 +97,25 @@ public partial class TextEditor : UserControl
             var viewModel = scrollableViewModel.TextEditorViewModel;
             viewModel.LineHeight = LineHeight;
             viewModel.PropertyChanged += ViewModel_PropertyChanged;
+            _scrollableViewModel.TextEditorViewModel.RequestFocus += OnRequestFocus;
 
+            viewModel.InvalidateRequired += OnInvalidateRequired;
             Bind(LineHeightProperty, viewModel.WhenAnyValue(vm => vm.LineHeight));
 
             UpdateLineCache(-1);
         }
     }
 
+    private void OnRequestFocus(object? sender, EventArgs e)
+    {
+        Focus();
+    }
+
+    private void OnInvalidateRequired(object? sender, EventArgs e)
+    {
+        InvalidateVisual();
+    }
+    
     protected override void OnUnloaded(RoutedEventArgs e)
     {
         base.OnUnloaded(e);
@@ -149,9 +164,10 @@ public partial class TextEditor : UserControl
         LineHeight = Math.Ceiling(_fontSize * _lineSpacingFactor);
     }
 
-    private void UpdateLineCache(long changedLineIndex, int linesInserted = 0)
+    public void UpdateLineCache(long changedLineIndex, int linesInserted = 0)
     {
         _scrollableViewModel?.TextEditorViewModel?.TextBuffer?.UpdateLineCache();
+        InvalidateVisual();
     }
 
     private long GetLineCount()
@@ -161,7 +177,7 @@ public partial class TextEditor : UserControl
 
     private string GetLineText(long lineIndex)
     {
-        return _lineCache.GetLine(lineIndex, index =>
+        return _scrollableViewModel.TextEditorViewModel.LineCache.GetLine(lineIndex, index =>
         {
             if (_scrollableViewModel == null)
                 return string.Empty;
@@ -1032,9 +1048,13 @@ public partial class TextEditor : UserControl
         var selectionStartLine = GetLineIndexFromPosition(viewModel.SelectionStart);
         var selectionEndLine = GetLineIndexFromPosition(viewModel.SelectionEnd);
 
+        // Calculate the total width including horizontal offset
+        var totalWidth = Math.Max(viewModel.WindowWidth, viewableAreaWidth + _scrollableViewModel!.HorizontalOffset);
+
+        // Check if the cursor line is outside the selection range
         if (cursorLine < selectionStartLine || cursorLine > selectionEndLine)
         {
-            var rect = new Rect(0, y, viewableAreaWidth + _scrollableViewModel!.HorizontalOffset, LineHeight);
+            var rect = new Rect(0, y, totalWidth, LineHeight);
             context.FillRectangle(new SolidColorBrush(Color.Parse("#ededed")), rect);
         }
         else
@@ -1052,14 +1072,15 @@ public partial class TextEditor : UserControl
             var xStart = lineStartOffset * viewModel.CharWidth;
             var xEnd = lineEndOffset * viewModel.CharWidth;
 
+            // Highlight the area before the selection
             if (xStart > 0)
             {
                 var beforeSelectionRect = new Rect(0, y, xStart, LineHeight);
                 context.FillRectangle(new SolidColorBrush(Color.Parse("#ededed")), beforeSelectionRect);
             }
 
-            var afterSelectionRect = new Rect(xEnd, y,
-                viewableAreaWidth + _scrollableViewModel!.HorizontalOffset - xEnd, LineHeight);
+            // Highlight the area after the selection
+            var afterSelectionRect = new Rect(xEnd, y, totalWidth - xEnd, LineHeight);
             context.FillRectangle(new SolidColorBrush(Color.Parse("#ededed")), afterSelectionRect);
         }
     }

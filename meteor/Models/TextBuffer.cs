@@ -1,16 +1,14 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using ReactiveUI;
-
-namespace meteor.Models;
 
 public class TextBuffer : ReactiveObject
 {
     private Rope _rope;
     private readonly Dictionary<long, long> _lineLengths;
-    private int _cachedLineCount = -1;
-    
+    private long _longestLineLength;
+    private double _lineHeight;
+
     public TextBuffer()
     {
         _rope = new Rope(string.Empty);
@@ -29,14 +27,28 @@ public class TextBuffer : ReactiveObject
         }
     }
 
-    public void UpdateLongestLine(Dictionary<long, long> lineLengths, long longestLineLength)
+    public long LineCount => _rope.LineCount;
+
+    public double LineHeight
     {
-        LongestLineLength = lineLengths.Values.Max();
+        get => _lineHeight;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _lineHeight, value);
+            UpdateTotalHeight();
+        }
     }
 
-    public long LineCount => _rope.LineCount;
-    public long LongestLineLength { get; private set; }
+    public double TotalHeight { get; private set; }
+
+    public long LongestLineLength
+    {
+        get => _longestLineLength;
+        private set => this.RaiseAndSetIfChanged(ref _longestLineLength, value);
+    }
+
     public long Length => _rope.Length;
+
     public List<long> LineStarts { get; }
 
     public event EventHandler LinesUpdated;
@@ -54,24 +66,16 @@ public class TextBuffer : ReactiveObject
         if (string.IsNullOrEmpty(text) || position < 0 || position > _rope.Length) return;
 
         _rope.Insert((int)position, text);
-
-        // Update line cache and line lengths
-        var startLine = (int)GetLineIndexFromPosition(position);
-        UpdateLineCache(startLine, text.Count(c => c == '\n'), text); // Pass the inserted text
-    
+        UpdateLineCache();
         LinesUpdated?.Invoke(this, EventArgs.Empty);
     }
-    
+
     public void DeleteText(long start, long length)
     {
         if (length > 0)
         {
             _rope.Delete((int)start, (int)length);
-
-            // Update line cache and line lengths
-            var startLine = (int)GetLineIndexFromPosition(start);
-            UpdateLineCache(startLine);
-        
+            UpdateLineCache();
             LinesUpdated?.Invoke(this, EventArgs.Empty);
         }
     }
@@ -100,25 +104,25 @@ public class TextBuffer : ReactiveObject
         if (lineIndex < 0 || lineIndex >= LineStarts.Count)
             throw new ArgumentOutOfRangeException(nameof(lineIndex), "Invalid line index");
 
-        // If it's the last line, the end position is the length of the rope
         if (lineIndex == LineStarts.Count - 1)
             return _rope.Length;
 
-        // Otherwise, it's the start of the next line minus 1
         return LineStarts[lineIndex + 1] - 1;
     }
 
-    public void UpdateLineCache(int startLine = 0, int linesInserted = 0, string insertedText = "")
+    public long GetLineLength(long lineIndex)
     {
-        if (startLine == 0)
-        {
-            // Initial update or complete re-calculation of line cache
+        return _lineLengths.GetValueOrDefault(lineIndex, 0);
+    }
+
+    public void UpdateLineCache()
+    {
         LineStarts.Clear();
         _lineLengths.Clear();
         LineStarts.Add(0);
 
         long lineStart = 0;
-        LongestLineLength = 0; // Initialize to 0
+        LongestLineLength = 0;
 
         while (lineStart < _rope.Length)
         {
@@ -129,52 +133,14 @@ public class TextBuffer : ReactiveObject
                 break;
             }
 
+            _lineLengths[LineStarts.Count - 1] = nextNewline - lineStart;
+            LongestLineLength = Math.Max(LongestLineLength, _lineLengths[LineStarts.Count - 1]);
+
             LineStarts.Add(nextNewline + 1);
-            _lineLengths[LineStarts.Count - 2] = nextNewline - lineStart;
             lineStart = nextNewline + 1;
-
-            // Update LongestLineLength within the loop
-            LongestLineLength = Math.Max(LongestLineLength, nextNewline - lineStart);
-        }
-        }
-        else
-        {
-            // Incremental update after an insertion
-            var endLine = startLine + linesInserted; // Last line that might have been affected
-
-            // Recalculate line starts and lengths from the modified line onwards
-            var lineStart = LineStarts[startLine];
-            for (var i = startLine; i <= endLine && lineStart < _rope.Length; i++)
-            {
-                var nextNewline = _rope.IndexOf('\n', (int)lineStart);
-                if (nextNewline == -1 || nextNewline > _rope.Length) // Check for end of rope
-                {
-                    // Last line or no newline found
-                    _lineLengths[i] = _rope.Length - lineStart;
-                    break;
-                }
-
-                _lineLengths[i] = nextNewline - lineStart;
-                lineStart = nextNewline + 1;
-
-                // Update line starts for subsequent lines (if they exist)
-                if (i + 1 < LineStarts.Count)
-                    LineStarts[i + 1] = lineStart;
-                else
-                    LineStarts.Add(lineStart); // Add a new line start if needed
         }
 
-            // If new lines were added, update the line starts after the insertion point
-            for (var i = endLine + 1; i < LineStarts.Count; i++) LineStarts[i] += insertedText.Length;
-
-            // Update LongestLineLength
-            LongestLineLength = _lineLengths.Values.Max();
-        }
-    }
-
-    public long GetLineLength(long lineIndex)
-    {
-        return _lineLengths.GetValueOrDefault(lineIndex, 0);
+        UpdateTotalHeight();
     }
 
     public long GetLineIndexFromPosition(long position)
@@ -187,5 +153,11 @@ public class TextBuffer : ReactiveObject
         }
 
         return index;
+    }
+
+    private void UpdateTotalHeight()
+    {
+        TotalHeight = LineCount * LineHeight + 6;
+        this.RaisePropertyChanged(nameof(TotalHeight));
     }
 }

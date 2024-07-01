@@ -3,22 +3,60 @@
              x:Class="meteor.App"
              xmlns:local="using:meteor"
              RequestedThemeVariant="Default">
-             <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
 
     <Application.DataTemplates>
         <local:ViewLocator/>
     </Application.DataTemplates>
 
-             <Application.Resources>
-                 <ResourceDictionary>
-                     <ResourceDictionary.MergedDictionaries>
-                         <ResourceInclude Source="/Resources/Resources.axaml" />
-                     </ResourceDictionary.MergedDictionaries>
-                 </ResourceDictionary>
-             </Application.Resources>
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceInclude Source="/Resources/Resources.axaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
   
     <Application.Styles>
         <FluentTheme />
         <StyleInclude Source="/Styles/Styles.axaml" />
+        <StyleInclude Source="avares://meteor/Views/HorizontalScrollableTabControl.axaml" />
+
+        <Style Selector="ContentPresenter.tabPresenter">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+
+        <Style Selector="TabItem">
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="MinHeight" Value="20" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="Black" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Name="PART_Border"
+                            Background="{TemplateBinding Background}">
+                        <Grid ColumnDefinitions="Auto" RowDefinitions="Auto,Auto">
+                            <ContentPresenter
+                                Grid.Column="0" Grid.Row="0"
+                                Content="{TemplateBinding Header}"
+                                Margin="{TemplateBinding Padding}"
+                                HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
+                                Classes="tabPresenter" />
+                        </Grid>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+
+        <Style Selector="TabItem:selected /template/ ContentPresenter">
+            <Setter Property="Background" Value="White" />
+            <Setter Property="Foreground" Value="Black" />
+        </Style>
     </Application.Styles>
 </Application>

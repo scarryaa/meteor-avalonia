@@ -25,7 +25,6 @@ public class FontPropertiesViewModel : ViewModelBase
         get => _fontSize;
         set
         {
-            // Recalculate line height whenever font size changes
             this.RaiseAndSetIfChanged(ref _fontSize, value);
             LineHeight = CalculateLineHeight(value);
         }
@@ -33,11 +32,11 @@ public class FontPropertiesViewModel : ViewModelBase
 
     public double LineHeight
     {
-        get => _lineHeight;
-        set => this.RaiseAndSetIfChanged(ref _lineHeight, value);
+        get => CalculateLineHeight(_fontSize);
+        set => this.RaiseAndSetIfChanged(ref _lineHeight, CalculateLineHeight(_fontSize));
     }
 
-    private double CalculateLineHeight(double fontSize)
+    public double CalculateLineHeight(double fontSize)
     {
         return fontSize * 1.5;
     }

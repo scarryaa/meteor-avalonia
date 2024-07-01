@@ -3,17 +3,12 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:views="clr-namespace:meteor.Views"
-             xmlns:converters="clr-namespace:meteor.Converters"
              xmlns:vm="clr-namespace:meteor.ViewModels"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="meteor.Views.ScrollableTextEditor"
              x:DataType="vm:ScrollableTextEditorViewModel"
              AttachedToVisualTree="OnAttachedToVisualTree">
-
-    <UserControl.Resources>
-        <converters:LineCountToHeightConverter x:Key="LineCountToHeightConverter" />
-        <converters:LongestLineOrWindowWidthConverter x:Key="LongestLineOrWindowWidthConverter" />
-    </UserControl.Resources>
+    
     <views:ButtonlessScrollViewer x:Name="EditorScrollViewer"
                                   Theme="{StaticResource {x:Type ScrollViewer}}"
                                   VerticalScrollBarVisibility="Auto"
@@ -23,20 +18,8 @@
                                   Offset="{Binding Offset, Mode=TwoWay}">
         <views:TextEditor x:Name="TextEditor"
                           FontFamily="{Binding FontPropertiesViewModel.FontFamily}"
-                          FontSize="{Binding FontPropertiesViewModel.FontSize}">
-            <views:TextEditor.Width>
-                <MultiBinding Converter="{StaticResource LongestLineOrWindowWidthConverter}">
-                    <Binding Path="LongestLineWidth" />
-                    <Binding Path="TextEditorViewModel.WindowWidth" />
-                </MultiBinding>
-            </views:TextEditor.Width>
-            <views:TextEditor.Height>
-                <MultiBinding Converter="{StaticResource LineCountToHeightConverter}">
-                    <Binding Path="TextEditorViewModel.LineCount" />
-                    <Binding Path="TextEditorViewModel.LineHeight" />
-                    <Binding Path="TextEditorViewModel.WindowHeight" />
-                </MultiBinding>
-            </views:TextEditor.Height>
-        </views:TextEditor>
+                          FontSize="{Binding FontPropertiesViewModel.FontSize}"
+                          Width="{Binding LongestLineWidth}"
+                          Height="{Binding TotalHeight}" />
     </views:ButtonlessScrollViewer>
 </UserControl>

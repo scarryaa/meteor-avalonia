@@ -39,15 +39,29 @@ public class TextEditorViewModel : ViewModelBase
         this.WhenAnyValue(x => x.FontPropertiesViewModel.FontSize)
             .Subscribe(size => FontSize = size);
         this.WhenAnyValue(x => x.FontPropertiesViewModel.LineHeight)
-            .Subscribe(height => LineHeight = height);
+            .Subscribe(height => { LineHeight = height; });
 
         UpdateLineStarts();
     }
 
     public event EventHandler SelectionChanged;
     public event EventHandler LineChanged;
+    public event EventHandler? InvalidateRequired;
+    public event EventHandler? RequestFocus;
 
+    public virtual void OnInvalidateRequired()
+    {
+        InvalidateRequired?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void Focus()
+    {
+        RequestFocus?.Invoke(this, EventArgs.Empty);
+    }
+    
     public bool ShouldScrollToCursor { get; set; } = true;
+
+    public LineCache LineCache { get; } = new();
 
     public FontFamily FontFamily
     {
@@ -142,6 +156,8 @@ public class TextEditorViewModel : ViewModelBase
 
     public long LineCount => _textBuffer.LineCount;
 
+    public double TotalHeight => _textBuffer.TotalHeight;
+
     public TextBuffer TextBuffer
     {
         get => _textBuffer;
@@ -149,6 +165,7 @@ public class TextEditorViewModel : ViewModelBase
         {
             this.RaiseAndSetIfChanged(ref _textBuffer, value);
             this.RaisePropertyChanged(nameof(LineCount));
+            this.RaisePropertyChanged(nameof(TotalHeight));
             _lineCountViewModel.LineCount = _textBuffer.LineCount;
         }
     }
@@ -164,6 +181,7 @@ public class TextEditorViewModel : ViewModelBase
         CursorPosition = position + text.Length;
         NotifyGutterOfLineChange();
         this.RaisePropertyChanged(nameof(LineCount));
+        this.RaisePropertyChanged(nameof(TotalHeight));
     }
 
     public void DeleteText(long start, long length)
@@ -171,6 +189,7 @@ public class TextEditorViewModel : ViewModelBase
         _textBuffer.DeleteText(start, length);
         NotifyGutterOfLineChange();
         this.RaisePropertyChanged(nameof(LineCount));
+        this.RaisePropertyChanged(nameof(TotalHeight));
     }
 
     public void ClearSelection()
@@ -187,6 +206,7 @@ public class TextEditorViewModel : ViewModelBase
     private void OnLinesUpdated(object sender, EventArgs e)
     {
         UpdateLineStarts();
+        this.RaisePropertyChanged(nameof(TotalHeight));
     }
 
     public double CharWidth

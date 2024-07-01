@@ -12,37 +12,56 @@ public class ScrollableTextEditorViewModel : ViewModelBase
     private double _horizontalOffset;
     private Size _viewport;
     private double _longestLineWidth;
+    private double _totalHeight;
     private Vector _offset;
     private double _lineHeight;
     private bool _disableHorizontalScrollToCursor;
+    private double _windowHeight;
+    private double _windowWidth;
 
     public TextEditorViewModel TextEditorViewModel { get; }
     public LineCountViewModel LineCountViewModel { get; }
+    public GutterViewModel GutterViewModel { get; }
 
     public bool DisableHorizontalScrollToCursor
     {
         get => _disableHorizontalScrollToCursor;
         set => this.RaiseAndSetIfChanged(ref _disableHorizontalScrollToCursor, value);
     }
-    
+
     public ScrollableTextEditorViewModel(
         ICursorPositionService cursorPositionService,
         FontPropertiesViewModel fontPropertiesViewModel,
-        LineCountViewModel lineCountViewModel)
+        LineCountViewModel lineCountViewModel,
+        TextBuffer textBuffer)
     {
+        if (textBuffer == null) throw new ArgumentNullException(nameof(textBuffer));
+
         FontPropertiesViewModel = fontPropertiesViewModel;
         LineCountViewModel = lineCountViewModel;
         TextEditorViewModel =
-            new TextEditorViewModel(cursorPositionService, fontPropertiesViewModel, lineCountViewModel);
+            new TextEditorViewModel(cursorPositionService, fontPropertiesViewModel, lineCountViewModel)
+            {
+                TextBuffer = textBuffer
+            };
+        GutterViewModel = new GutterViewModel(cursorPositionService, fontPropertiesViewModel, lineCountViewModel, this,
+            TextEditorViewModel);
 
-        // Subscribe to changes in line count
         this.WhenAnyValue(x => x.LineCountViewModel.LineCount)
-            .Subscribe(count => LongestLineWidth = Math.Max(LongestLineWidth, (double)count * LineHeight));
+            .Subscribe(count => LongestLineWidth = Math.Max(LongestLineWidth, count * LineHeight));
 
         this.WhenAnyValue(x => x.LineCountViewModel.VerticalOffset)
             .Subscribe(verticalOffset => VerticalOffset = verticalOffset);
 
-        TextEditorViewModel.TextBuffer.LinesUpdated += (sender, args) => UpdateLongestLineWidth();
+        this.WhenAnyValue(fp => fp.FontPropertiesViewModel.LineHeight)
+            .Subscribe(lineHeight =>
+            {
+                textBuffer.LineHeight = TextEditorViewModel.FontPropertiesViewModel.CalculateLineHeight(FontSize);
+                TextEditorViewModel.LineHeight = lineHeight;
+                textBuffer.UpdateLineCache();
+            });
+
+        TextEditorViewModel.TextBuffer.LinesUpdated += (sender, args) => UpdateDimensions();
     }
 
     public FontPropertiesViewModel FontPropertiesViewModel { get; }
@@ -67,10 +86,39 @@ public class ScrollableTextEditorViewModel : ViewModelBase
 
     public double LongestLineWidth
     {
-        get => _longestLineWidth;
+        get => Math.Max(_longestLineWidth + 20, WindowWidth);
         set
         {
             if (_longestLineWidth != value) this.RaiseAndSetIfChanged(ref _longestLineWidth, value);
+        }
+    }
+
+    public double TotalHeight
+    {
+        get => Math.Max(_totalHeight, _windowHeight);
+        set
+        {
+            if (_totalHeight != value) this.RaiseAndSetIfChanged(ref _totalHeight, value);
+        }
+    }
+
+    public double WindowHeight
+    {
+        get => _windowHeight;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _windowHeight, value);
+            TotalHeight = Math.Max(_totalHeight, _windowHeight);
+        }
+    }
+
+    public double WindowWidth
+    {
+        get => _windowWidth;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _windowWidth, value);
+            LongestLineWidth = Math.Max(_windowWidth, _longestLineWidth);
         }
     }
 
@@ -119,12 +167,58 @@ public class ScrollableTextEditorViewModel : ViewModelBase
             {
                 this.RaiseAndSetIfChanged(ref _viewport, value);
                 LineCountViewModel.ViewportHeight = value.Height;
+                UpdateTotalHeight();
             }
         }
     }
 
-    private void UpdateLongestLineWidth()
+    public void UpdateLongestLineWidth()
     {
-        LongestLineWidth = TextEditorViewModel.TextBuffer.LongestLineLength * TextEditorViewModel.CharWidth;
+        var longestLineLength = TextEditorViewModel.TextBuffer.LongestLineLength;
+        var charWidth = TextEditorViewModel.CharWidth;
+        var calculatedWidth = longestLineLength * charWidth;
+
+        LongestLineWidth = calculatedWidth;
+    }
+
+    public void UpdateTotalHeight()
+    {
+        var totalHeight = TextEditorViewModel.TextBuffer.TotalHeight;
+        TotalHeight = totalHeight;
+    }
+
+    public void UpdateDimensions()
+    {
+        UpdateLongestLineWidth();
+        UpdateTotalHeight();
+    }
+
+    public void UpdateViewProperties()
+    {
+        this.RaisePropertyChanged(nameof(FontFamily));
+        this.RaisePropertyChanged(nameof(FontSize));
+        this.RaisePropertyChanged(nameof(LineHeight));
+        this.RaisePropertyChanged(nameof(LongestLineWidth));
+        this.RaisePropertyChanged(nameof(VerticalOffset));
+        this.RaisePropertyChanged(nameof(HorizontalOffset));
+        this.RaisePropertyChanged(nameof(Offset));
+        this.RaisePropertyChanged(nameof(Viewport));
+
+        TextEditorViewModel.RaisePropertyChanged(nameof(TextEditorViewModel.FontFamily));
+        TextEditorViewModel.RaisePropertyChanged(nameof(TextEditorViewModel.FontSize));
+        TextEditorViewModel.RaisePropertyChanged(nameof(TextEditorViewModel.LineHeight));
+        TextEditorViewModel.RaisePropertyChanged(nameof(TextEditorViewModel.WindowHeight));
+        TextEditorViewModel.RaisePropertyChanged(nameof(TextEditorViewModel.WindowWidth));
+        TextEditorViewModel.RaisePropertyChanged(nameof(TextEditorViewModel.TextBuffer));
+
+        TextEditorViewModel.TextBuffer.UpdateLineCache();
+        TextEditorViewModel.WindowWidth = WindowWidth;
+        TextEditorViewModel.WindowHeight = WindowHeight;
+        TextEditorViewModel.OnInvalidateRequired();
+        UpdateDimensions();
+
+        TextEditorViewModel.RaisePropertyChanged(nameof(TextEditorViewModel.TotalHeight));
+
+        GutterViewModel.OnInvalidateRequired();
     }
 }

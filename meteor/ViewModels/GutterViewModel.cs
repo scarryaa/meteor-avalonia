@@ -152,7 +152,7 @@ public class GutterViewModel : ViewModelBase
         set => LineCountViewModel.LineCount = value;
     }
 
-    protected virtual void OnInvalidateRequired()
+    public virtual void OnInvalidateRequired()
     {
         InvalidateRequired?.Invoke(this, EventArgs.Empty);
     }
