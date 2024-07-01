@@ -171,7 +171,7 @@ public partial class Gutter : UserControl
             Bind(FontSizeProperty, newViewModel.WhenAnyValue(vm => vm.FontSize));
             UpdateGutterWidth(newViewModel);
 
-            newViewModel.LineCountViewModel.WhenAnyValue(lvm => lvm.MaxLineNumber)
+            newViewModel.TextEditorViewModel.WhenAnyValue(lvm => lvm.LineCount)
                 .Subscribe(_ => UpdateGutterWidth(newViewModel));
             newViewModel.WhenAnyValue(vm => vm.FontSize).Subscribe(_ => UpdateGutterWidth(newViewModel));
         }
@@ -179,7 +179,7 @@ public partial class Gutter : UserControl
 
     private void UpdateGutterWidth(GutterViewModel viewModel)
     {
-        var maxLineNumber = viewModel.LineCountViewModel.MaxLineNumber;
+        var maxLineNumber = viewModel.TextEditorViewModel.LineCount;
         var formattedTextMaxLine = new FormattedText(
             maxLineNumber.ToString(),
             CultureInfo.CurrentCulture,

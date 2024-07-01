@@ -41,6 +41,8 @@ public class ScrollableTextEditorViewModel : ViewModelBase
 
         this.WhenAnyValue(x => x.LineCountViewModel.VerticalOffset)
             .Subscribe(verticalOffset => VerticalOffset = verticalOffset);
+
+        TextEditorViewModel.TextBuffer.LinesUpdated += (sender, args) => UpdateLongestLineWidth();
     }
 
     public FontPropertiesViewModel FontPropertiesViewModel { get; }
@@ -119,5 +121,10 @@ public class ScrollableTextEditorViewModel : ViewModelBase
                 LineCountViewModel.ViewportHeight = value.Height;
             }
         }
+    }
+
+    private void UpdateLongestLineWidth()
+    {
+        LongestLineWidth = TextEditorViewModel.TextBuffer.LongestLineLength * TextEditorViewModel.CharWidth;
     }
 }

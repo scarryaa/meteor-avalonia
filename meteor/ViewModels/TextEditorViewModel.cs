@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using Avalonia.Media;
 using meteor.Interfaces;
 using meteor.Models;
@@ -186,5 +187,20 @@ public class TextEditorViewModel : ViewModelBase
     private void OnLinesUpdated(object sender, EventArgs e)
     {
         UpdateLineStarts();
+    }
+
+    public double CharWidth
+    {
+        get
+        {
+            var formattedText = new FormattedText(
+                "x",
+                CultureInfo.CurrentCulture,
+                FlowDirection.LeftToRight,
+                new Typeface(FontFamily),
+                FontSize,
+                Brushes.Black);
+            return formattedText.Width;
+        }
     }
 }

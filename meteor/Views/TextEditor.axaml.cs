@@ -136,7 +136,8 @@ public partial class TextEditor : UserControl
         // If _scrollableViewModel is available, update the LongestLineWidth
         if (_scrollableViewModel != null)
             _scrollableViewModel.LongestLineWidth =
-                ConvertlongToDouble(_longestLineLength) * CharWidth + LinePadding;
+                ConvertlongToDouble(_longestLineLength) * _scrollableViewModel.TextEditorViewModel.CharWidth +
+                LinePadding;
     }
 
     private void UpdateMetrics()
@@ -271,7 +272,7 @@ public partial class TextEditor : UserControl
                 return;
             }
 
-            var cursorX = cursorColumn * CharWidth;
+            var cursorX = cursorColumn * _scrollableViewModel.TextEditorViewModel.CharWidth;
             var viewportWidth = _scrollableViewModel.Viewport.Width;
             var currentOffset = _scrollableViewModel.HorizontalOffset;
 
@@ -296,7 +297,7 @@ public partial class TextEditor : UserControl
             return 0;
 
         var lineIndex = (long)(point.Y / LineHeight);
-        var column = (long)(point.X / CharWidth);
+        var column = (long)(point.X / _scrollableViewModel.TextEditorViewModel.CharWidth);
 
         lineIndex = long.Max(0, long.Min(lineIndex, GetLineCount() - 1));
         var lineStart = _scrollableViewModel.TextEditorViewModel.TextBuffer.LineStarts[(int)lineIndex];
@@ -1105,8 +1106,8 @@ public partial class TextEditor : UserControl
                 ? selectionEnd - viewModel.TextBuffer.LineStarts[(int)cursorLine]
                 : GetVisualLineLength(viewModel, cursorLine);
 
-            var xStart = (double)lineStartOffset * CharWidth;
-            var xEnd = (double)lineEndOffset * CharWidth;
+            var xStart = lineStartOffset * viewModel.CharWidth;
+            var xEnd = lineEndOffset * viewModel.CharWidth;
 
             // Draw the part of the line before the selection
             if (xStart > 0)
@@ -1142,13 +1143,15 @@ public partial class TextEditor : UserControl
 
             // Calculate the start index and the number of characters to display based on the visible area width
             var startIndex = long.Max(0,
-                ConvertDoubleTolong(scrollableViewModel.HorizontalOffset / CharWidth) - startIndexBuffer);
+                ConvertDoubleTolong(scrollableViewModel.HorizontalOffset /
+                                    scrollableViewModel.TextEditorViewModel.CharWidth) - startIndexBuffer);
 
             // Ensure startIndex is within the lineText length
             if (startIndex >= lineText.Length) startIndex = long.Max(0, lineText.Length - 1);
 
             var maxCharsToDisplay = long.Min(lineText.Length - startIndex,
-                ConvertDoubleTolong((viewableAreaWidth - LinePadding) / CharWidth) + startIndexBuffer * 2);
+                ConvertDoubleTolong((viewableAreaWidth - LinePadding) /
+                                    scrollableViewModel.TextEditorViewModel.CharWidth) + startIndexBuffer * 2);
 
             // Ensure maxCharsToDisplay is non-negative
             if (maxCharsToDisplay < 0) maxCharsToDisplay = 0;
@@ -1168,7 +1171,8 @@ public partial class TextEditor : UserControl
             var verticalOffset = (LineHeight - formattedText.Height) / 2;
 
             context.DrawText(formattedText,
-                new Point(xOffset + (double)startIndex * CharWidth, yOffset + verticalOffset));
+                new Point(xOffset + startIndex * scrollableViewModel.TextEditorViewModel.CharWidth,
+                    yOffset + verticalOffset));
 
             yOffset += LineHeight;
         }
@@ -1216,12 +1220,12 @@ public partial class TextEditor : UserControl
             if (i == cursorLine && cursorPosition == selectionEnd)
                 lineEndOffset = long.Min(lineEndOffset, cursorPosition - viewModel.TextBuffer.LineStarts[(int)i]);
 
-            var xStart = (double)lineStartOffset * CharWidth;
-            var xEnd = (double)lineEndOffset * CharWidth;
+            var xStart = lineStartOffset * viewModel.CharWidth;
+            var xEnd = lineEndOffset * viewModel.CharWidth;
             var y = (double)i * LineHeight;
 
             // Get the actual line length
-            var actualLineLength = (double)GetVisualLineLength(viewModel, i) * CharWidth;
+            var actualLineLength = GetVisualLineLength(viewModel, i) * viewModel.CharWidth;
 
             // Skip drawing selection if the line is empty and the cursor is on this line
             if (actualLineLength == 0 && i == cursorLine) continue;
@@ -1233,7 +1237,7 @@ public partial class TextEditor : UserControl
             var selectionWidth = xEnd - xStart;
             if (actualLineLength == 0) // Empty line
             {
-                selectionWidth = CharWidth;
+                selectionWidth = viewModel.CharWidth;
                 if (!isLastSelectionLine) selectionWidth += SelectionEndPadding;
             }
             else if (xEnd > actualLineLength)
@@ -1247,7 +1251,7 @@ public partial class TextEditor : UserControl
             }
 
             // Ensure minimum width of one character
-            selectionWidth = Math.Max(selectionWidth, CharWidth);
+            selectionWidth = Math.Max(selectionWidth, viewModel.CharWidth);
 
             var selectionRect = new Rect(xStart, y, selectionWidth, LineHeight);
             context.FillRectangle(new SolidColorBrush(Color.FromArgb(100, 139, 205, 192)), selectionRect);
@@ -1264,7 +1268,7 @@ public partial class TextEditor : UserControl
         var cursorColumn = viewModel.CursorPosition - lineStartPosition;
 
         // Calculate cursor position relative to the visible area
-        var cursorXRelative = (double)cursorColumn * CharWidth;
+        var cursorXRelative = cursorColumn * viewModel.CharWidth;
 
         // Use the helper method to convert long to double for the calculation
         var cursorY = (double)cursorLine * LineHeight;
@@ -1273,7 +1277,7 @@ public partial class TextEditor : UserControl
             context.DrawLine(
                 new Pen(Brushes.Black),
                 new Point(cursorXRelative, cursorY),
-                new Point(cursorXRelative, cursorY + LineHeight)
+                new Point(cursorXRelative, cursorY + LineHeight) // Use fixed LineHeight
             );
     }
 
@@ -1362,7 +1366,7 @@ public partial class TextEditor : UserControl
             });
         }
     }
-    
+
     private void UpdateHorizontalScrollPosition()
     {
         if (_scrollableViewModel == null ||
@@ -1371,27 +1375,12 @@ public partial class TextEditor : UserControl
         var viewModel = _scrollableViewModel.TextEditorViewModel;
         var cursorLine = GetLineIndexFromPosition(viewModel.CursorPosition);
         var cursorColumn = viewModel.CursorPosition - viewModel.TextBuffer.LineStarts[(int)cursorLine];
-        var cursorX = (double)cursorColumn * CharWidth;
+        var cursorX = cursorColumn * viewModel.CharWidth;
 
         if (cursorX < _scrollableViewModel.HorizontalOffset)
             _scrollableViewModel.HorizontalOffset = cursorX;
         else if (cursorX > _scrollableViewModel.HorizontalOffset + _scrollableViewModel.Viewport.Width)
             _scrollableViewModel.HorizontalOffset =
-                cursorX - _scrollableViewModel.Viewport.Width + CharWidth;
-    }
-
-    public double CharWidth
-    {
-        get
-        {
-            var formattedText = new FormattedText(
-                "x",
-                CultureInfo.CurrentCulture,
-                FlowDirection.LeftToRight,
-                new Typeface(FontFamily),
-                FontSize,
-                Brushes.Black);
-            return formattedText.Width;
-        }
+                cursorX - _scrollableViewModel.Viewport.Width + _scrollableViewModel.TextEditorViewModel.CharWidth;
     }
 }

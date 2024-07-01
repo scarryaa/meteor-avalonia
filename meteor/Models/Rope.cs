@@ -20,7 +20,9 @@ public class Rope
     }
 
     public int Length => root?.Length ?? 0;
-    public int LineCount => Math.Max(1, _cachedLineCount >= 0 ? _cachedLineCount : _cachedLineCount = CalculateLineCount());
+
+    public int LineCount =>
+        _cachedLineCount >= 0 ? _cachedLineCount : _cachedLineCount = Math.Max(1, CalculateLineCount());
 
     public int LongestLineLength => _cachedLongestLineLength >= 0
         ? _cachedLongestLineLength
@@ -102,6 +104,8 @@ public class Rope
     {
         if (lineIndex < 0 || lineIndex >= LineCount)
             throw new ArgumentOutOfRangeException(nameof(lineIndex), "Line index is out of range");
+
+        if (Length == 0) return 0;
 
         var start = GetLineStartPosition(lineIndex);
         var end = lineIndex < LineCount - 1 ? GetLineStartPosition(lineIndex + 1) : Length;
@@ -215,6 +219,8 @@ public class Rope
     {
         if (lineIndex < 0 || lineIndex >= LineCount)
             return string.Empty;
+
+        if (Length == 0) return string.Empty;
 
         var start = GetLineStartPosition(lineIndex);
         var length = GetLineLength(lineIndex);
