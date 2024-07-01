@@ -198,7 +198,6 @@ public partial class TextEditor : UserControl
     {
         if (e.PropertyName == nameof(TextEditorViewModel.TextBuffer))
         {
-            UpdateLineCache(-1); 
             Dispatcher.UIThread.Post(InvalidateVisual);
         }
         else if (e.PropertyName == nameof(TextEditorViewModel.CursorPosition))
@@ -260,12 +259,16 @@ public partial class TextEditor : UserControl
 
     private void EnsureCursorVisible()
     {
-        if (_scrollableViewModel?.TextEditorViewModel.ShouldScrollToCursor != true) return;
+        if (_scrollableViewModel?.TextEditorViewModel == null) return;
 
         var viewModel = _scrollableViewModel.TextEditorViewModel;
         var cursorLine = GetLineIndexFromPosition(viewModel.CursorPosition);
-        var cursorColumn = viewModel.CursorPosition -
-                           _scrollableViewModel.TextEditorViewModel.TextBuffer.LineStarts[(int)cursorLine];
+
+        if (cursorLine < 0 || cursorLine >= viewModel.TextBuffer.LineStarts.Count)
+            // Invalid cursor line index, return to avoid out-of-range access
+            return;
+
+        var cursorColumn = viewModel.CursorPosition - viewModel.TextBuffer.LineStarts[(int)cursorLine];
 
         if (!_suppressScrollOnNextCursorMove)
         {
@@ -767,18 +770,18 @@ public partial class TextEditor : UserControl
 
     private void HandleEnd(TextEditorViewModel viewModel, bool isShiftPressed)
     {
-        var lineIndex = GetLineIndex(viewModel, viewModel.CursorPosition);
-        var lineEndPosition = viewModel.TextBuffer.GetLineStartPosition((int)lineIndex) +
-                              GetVisualLineLength(viewModel, lineIndex);
-        viewModel.CursorPosition = lineEndPosition;
+        var currentLineIndex = GetLineIndex(viewModel, viewModel.CursorPosition);
+        var lineStartPosition = viewModel.TextBuffer.GetLineStartPosition((int)currentLineIndex);
+        var lineLength = GetVisualLineLength(viewModel, currentLineIndex);
+        viewModel.CursorPosition = lineStartPosition + lineLength;
         UpdateDesiredColumn(viewModel);
         if (!isShiftPressed) viewModel.ClearSelection();
     }
 
     private void HandleHome(TextEditorViewModel viewModel, bool isShiftPressed)
     {
-        var lineStartPosition =
-            viewModel.TextBuffer.GetLineStartPosition((int)GetLineIndex(viewModel, viewModel.CursorPosition));
+        var currentLineIndex = GetLineIndex(viewModel, viewModel.CursorPosition);
+        var lineStartPosition = viewModel.TextBuffer.GetLineStartPosition((int)currentLineIndex);
         viewModel.CursorPosition = lineStartPosition;
         _desiredColumn = 0;
         if (!isShiftPressed) viewModel.ClearSelection();
@@ -1043,7 +1046,6 @@ public partial class TextEditor : UserControl
 
     private long GetLineIndex(TextEditorViewModel viewModel, long position)
     {
-        Console.WriteLine(viewModel.TextBuffer);
         return viewModel.TextBuffer.Rope.GetLineIndexFromPosition((int)position);
     }
 
@@ -1263,21 +1265,17 @@ public partial class TextEditor : UserControl
 
     internal async Task CopyText()
     {
-        if (_scrollableViewModel != null)
-        {
-            var viewModel = _scrollableViewModel.TextEditorViewModel;
-            if (viewModel.SelectionStart == -1 || viewModel.SelectionEnd == -1)
-                return;
+        if (_scrollableViewModel?.TextEditorViewModel == null) return;
 
-            var selectionStart = Math.Min(viewModel.SelectionStart, viewModel.SelectionEnd);
-            var selectionEnd = Math.Max(viewModel.SelectionStart, viewModel.SelectionEnd);
+        var viewModel = _scrollableViewModel.TextEditorViewModel;
+        if (viewModel.SelectionStart == -1 || viewModel.SelectionEnd == -1) return;
 
-            Console.WriteLine(viewModel.TextBuffer.Rope);
-            var selectedText =
-                viewModel.TextBuffer.Rope.GetText((int)selectionStart, (int)(selectionEnd - selectionStart));
+        var selectionStart = Math.Min(viewModel.SelectionStart, viewModel.SelectionEnd);
+        var selectionEnd = Math.Max(viewModel.SelectionStart, viewModel.SelectionEnd);
 
-            await TopLevel.GetTopLevel(this)?.Clipboard?.SetTextAsync(selectedText);
-        }
+        var selectedText = viewModel.TextBuffer.Rope.GetText((int)selectionStart, (int)(selectionEnd - selectionStart));
+
+        await _scrollableViewModel.ClipboardService.SetTextAsync(selectedText);
     }
 
     internal async Task PasteText()

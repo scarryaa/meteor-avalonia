@@ -28,8 +28,4 @@
         <ProjectReference Include="..\meteor\meteor.csproj" />
     </ItemGroup>
 
-    <ItemGroup>
-        <Folder Include="Mocks\" />
-    </ItemGroup>
-
 </Project>

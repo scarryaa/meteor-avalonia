@@ -26,7 +26,6 @@ public class TextBuffer : ReactiveObject, ITextBuffer
         set
         {
             this.RaiseAndSetIfChanged(ref _rope, value);
-            UpdateLineCache();
         }
     }
 

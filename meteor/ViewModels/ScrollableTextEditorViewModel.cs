@@ -37,6 +37,8 @@ public class ScrollableTextEditorViewModel : ViewModelBase
         ITextBuffer textBuffer,
         IClipboardService clipboardService)
     {
+        ClipboardService = clipboardService;
+        
         if (textBuffer == null) throw new ArgumentNullException(nameof(textBuffer));
 
         FontPropertiesViewModel = fontPropertiesViewModel;
@@ -50,6 +52,8 @@ public class ScrollableTextEditorViewModel : ViewModelBase
         GutterViewModel = new GutterViewModel(cursorPositionService, fontPropertiesViewModel, lineCountViewModel, this,
             TextEditorViewModel);
 
+        LineHeight = FontSize * 1.5;
+
         this.WhenAnyValue(x => x.LineCountViewModel.VerticalOffset)
             .Subscribe(verticalOffset => VerticalOffset = verticalOffset);
 
@@ -57,7 +61,6 @@ public class ScrollableTextEditorViewModel : ViewModelBase
             .Subscribe(lineHeight =>
             {
                 textBuffer.LineHeight = TextEditorViewModel.FontPropertiesViewModel.CalculateLineHeight(FontSize);
-                textBuffer.UpdateLineCache();
                 TextEditorViewModel.LineHeight = lineHeight;
             });
 
@@ -80,8 +83,15 @@ public class ScrollableTextEditorViewModel : ViewModelBase
 
     public double LineHeight
     {
-        get => FontPropertiesViewModel.LineHeight;
-        set => this.RaiseAndSetIfChanged(ref _lineHeight, value);
+        get => _lineHeight;
+        set
+        {
+            if (_lineHeight != value)
+            {
+                this.RaiseAndSetIfChanged(ref _lineHeight, value);
+                TextEditorViewModel.TextBuffer.LineHeight = value;
+            }
+        }
     }
 
     public double LongestLineWidth
@@ -122,6 +132,8 @@ public class ScrollableTextEditorViewModel : ViewModelBase
             LongestLineWidth = Math.Max(_windowWidth, _longestLineWidth);
         }
     }
+
+    public IClipboardService ClipboardService { get; set; }
 
     public double VerticalOffset
     {
@@ -190,11 +202,21 @@ public class ScrollableTextEditorViewModel : ViewModelBase
 
     public void UpdateDimensions()
     {
+        this.RaisePropertyChanged(nameof(Viewport));
+        this.RaisePropertyChanged(nameof(Offset));
+        this.RaisePropertyChanged(nameof(VerticalOffset));
+        this.RaisePropertyChanged(nameof(HorizontalOffset));
+        
         UpdateLongestLineWidth();
         UpdateTotalHeight();
     }
 
     public void UpdateViewProperties()
+    {
+        UpdateProperties();
+    }
+
+    private void UpdateProperties()
     {
         this.RaisePropertyChanged(nameof(FontFamily));
         this.RaisePropertyChanged(nameof(FontSize));
@@ -212,7 +234,6 @@ public class ScrollableTextEditorViewModel : ViewModelBase
         TextEditorViewModel.RaisePropertyChanged(nameof(TextEditorViewModel.WindowWidth));
         TextEditorViewModel.RaisePropertyChanged(nameof(TextEditorViewModel.TextBuffer));
 
-        TextEditorViewModel.TextBuffer.UpdateLineCache();
         TextEditorViewModel.WindowWidth = WindowWidth;
         TextEditorViewModel.WindowHeight = WindowHeight;
         TextEditorViewModel.OnInvalidateRequired();

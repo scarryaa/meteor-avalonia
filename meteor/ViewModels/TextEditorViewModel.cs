@@ -42,7 +42,7 @@ public class TextEditorViewModel : ViewModelBase
         _textBuffer = textBuffer ?? throw new ArgumentNullException(nameof(textBuffer));
         _clipboardService = clipboardService ?? throw new ArgumentNullException(nameof(clipboardService));
 
-        _textBuffer.LinesUpdated += OnLinesUpdated;
+        _textBuffer.TextChanged += OnLinesUpdated;
 
         this.WhenAnyValue(x => x.FontPropertiesViewModel.FontFamily)
             .Subscribe(font => FontFamily = font);
@@ -187,7 +187,6 @@ public class TextEditorViewModel : ViewModelBase
             this.RaisePropertyChanged(nameof(LineCount));
             this.RaisePropertyChanged(nameof(TotalHeight));
             _lineCountViewModel.LineCount = _textBuffer.LineCount;
-            _textBuffer.TextChanged += OnLinesUpdated;
         }
     }
 

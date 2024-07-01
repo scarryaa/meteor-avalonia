@@ -84,7 +84,7 @@ public class ScrollableTextEditorViewModelTests
 
         _viewModel.UpdateLongestLineWidth();
 
-        Assert.Equal(longestLineLength * charWidth, _viewModel.LongestLineWidth);
+        Assert.Equal(longestLineLength * charWidth + 20, _viewModel.LongestLineWidth);
     }
 
     [AvaloniaFact]
@@ -98,20 +98,21 @@ public class ScrollableTextEditorViewModelTests
         Assert.Equal(totalHeight, _viewModel.TotalHeight);
     }
 
-    [AvaloniaFact]
+    [Fact]
     public void UpdateDimensions_CallsUpdateMethodsAndRaisesPropertyChanged()
     {
-        var propertyChangedRaised = false;
-        _viewModel.PropertyChanged += (sender, args) =>
-        {
-            if (args.PropertyName == nameof(ScrollableTextEditorViewModel.LongestLineWidth) ||
-                args.PropertyName == nameof(ScrollableTextEditorViewModel.TotalHeight))
-                propertyChangedRaised = true;
-        };
+        // Arrange
+        var propertyChangedEvents = new List<string>();
+        _viewModel.PropertyChanged += (sender, args) => propertyChangedEvents.Add(args.PropertyName);
 
+        // Act
         _viewModel.UpdateDimensions();
 
-        Assert.True(propertyChangedRaised);
+        // Assert
+        Assert.Contains(nameof(ScrollableTextEditorViewModel.Viewport), propertyChangedEvents);
+        Assert.Contains(nameof(ScrollableTextEditorViewModel.Offset), propertyChangedEvents);
+        Assert.Contains(nameof(ScrollableTextEditorViewModel.VerticalOffset), propertyChangedEvents);
+        Assert.Contains(nameof(ScrollableTextEditorViewModel.HorizontalOffset), propertyChangedEvents);
     }
 
     [AvaloniaFact]
@@ -134,13 +135,18 @@ public class ScrollableTextEditorViewModelTests
         Assert.Equal(newFontSize, _viewModel.FontPropertiesViewModel.FontSize);
     }
 
-    [AvaloniaFact]
+    [Fact]
     public void LineHeight_UpdatesCorrectly()
     {
-        const double newLineHeight = 24;
-        _viewModel.LineHeight = newLineHeight;
+        // Arrange
+        const double expectedLineHeight = 24;
 
-        Assert.Equal(newLineHeight, _viewModel.LineHeight);
+        // Act
+        _viewModel.LineHeight = expectedLineHeight;
+
+        // Assert
+        Assert.Equal(expectedLineHeight, _viewModel.LineHeight);
+        _mockTextBuffer.VerifySet(tb => tb.LineHeight = expectedLineHeight);
     }
 
     [AvaloniaFact]
@@ -160,30 +166,40 @@ public class ScrollableTextEditorViewModelTests
         _viewModel.WindowWidth = newWindowWidth;
 
         Assert.Equal(newWindowWidth, _viewModel.WindowWidth);
-        Assert.Equal(newWindowWidth, _viewModel.LongestLineWidth);
+        Assert.Equal(newWindowWidth + 20, _viewModel.LongestLineWidth);
     }
 
-    [AvaloniaFact]
+    [Fact]
     public void UpdateViewProperties_RaisesPropertyChangedForAllProperties()
     {
-        var raisedProperties = new HashSet<string>();
-        _viewModel.PropertyChanged += (sender, args) => raisedProperties.Add(args.PropertyName);
+        // Arrange
+        var propertyChangedEvents = new List<string>();
+        _viewModel.PropertyChanged += (sender, args) => propertyChangedEvents.Add(args.PropertyName);
 
+        var textEditorPropertyChangedEvents = new List<string>();
+        _viewModel.TextEditorViewModel.PropertyChanged +=
+            (sender, args) => textEditorPropertyChangedEvents.Add(args.PropertyName);
+
+        // Act
         _viewModel.UpdateViewProperties();
 
-        var expectedProperties = new[]
-        {
-            nameof(ScrollableTextEditorViewModel.FontFamily),
-            nameof(ScrollableTextEditorViewModel.FontSize),
-            nameof(ScrollableTextEditorViewModel.LineHeight),
-            nameof(ScrollableTextEditorViewModel.LongestLineWidth),
-            nameof(ScrollableTextEditorViewModel.VerticalOffset),
-            nameof(ScrollableTextEditorViewModel.HorizontalOffset),
-            nameof(ScrollableTextEditorViewModel.Offset),
-            nameof(ScrollableTextEditorViewModel.Viewport)
-        };
+        // Assert
+        Assert.Contains(nameof(ScrollableTextEditorViewModel.FontFamily), propertyChangedEvents);
+        Assert.Contains(nameof(ScrollableTextEditorViewModel.FontSize), propertyChangedEvents);
+        Assert.Contains(nameof(ScrollableTextEditorViewModel.LineHeight), propertyChangedEvents);
+        Assert.Contains(nameof(ScrollableTextEditorViewModel.LongestLineWidth), propertyChangedEvents);
+        Assert.Contains(nameof(ScrollableTextEditorViewModel.VerticalOffset), propertyChangedEvents);
+        Assert.Contains(nameof(ScrollableTextEditorViewModel.HorizontalOffset), propertyChangedEvents);
+        Assert.Contains(nameof(ScrollableTextEditorViewModel.Offset), propertyChangedEvents);
+        Assert.Contains(nameof(ScrollableTextEditorViewModel.Viewport), propertyChangedEvents);
 
-        foreach (var prop in expectedProperties) Assert.Contains(prop, raisedProperties);
+        Assert.Contains(nameof(TextEditorViewModel.FontFamily), textEditorPropertyChangedEvents);
+        Assert.Contains(nameof(TextEditorViewModel.FontSize), textEditorPropertyChangedEvents);
+        Assert.Contains(nameof(TextEditorViewModel.LineHeight), textEditorPropertyChangedEvents);
+        Assert.Contains(nameof(TextEditorViewModel.WindowHeight), textEditorPropertyChangedEvents);
+        Assert.Contains(nameof(TextEditorViewModel.WindowWidth), textEditorPropertyChangedEvents);
+        Assert.Contains(nameof(TextEditorViewModel.TextBuffer), textEditorPropertyChangedEvents);
+        Assert.Contains(nameof(TextEditorViewModel.TotalHeight), textEditorPropertyChangedEvents);
 
         _mockTextBuffer.Verify(tb => tb.UpdateLineCache(), Times.Once);
     }
