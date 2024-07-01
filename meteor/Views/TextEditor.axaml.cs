@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
-using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -25,9 +24,7 @@ public partial class TextEditor : UserControl
     private readonly double _lineSpacingFactor = BaseLineHeight / DefaultFontSize;
     private readonly Dictionary<long, long> _lineLengths = new();
     private readonly HashSet<char> _commonCodingSymbols = new("(){}[]<>.,;:'\"\\|`~!@#$%^&*-+=/?");
-    private CancellationTokenSource _renderCancellationTokenSource = new();
     private readonly LineCache _lineCache = new();
-    private bool _isRendering = false;
     
     private double _fontSize = DefaultFontSize;
     private double _lineHeight = BaseLineHeight;
@@ -76,6 +73,7 @@ public partial class TextEditor : UserControl
         this.GetObservable(LineHeightProperty).Subscribe(OnLineHeightChanged);
 
         MeasureCharWidth();
+        UpdateLineCache(-1);
     }
 
     private void OnTextChanged(long lineIndex)
@@ -154,11 +152,6 @@ public partial class TextEditor : UserControl
     private void UpdateLineCache(long changedLineIndex, int linesInserted = 0)
     {
         _scrollableViewModel?.TextEditorViewModel?.TextBuffer?.UpdateLineCache();
-    }
-
-    private long GetLineLength(TextEditorViewModel viewModel, long lineIndex)
-    {
-        return _lineLengths.GetValueOrDefault(lineIndex, 0);
     }
 
     private long GetLineCount()
@@ -374,7 +367,7 @@ public partial class TextEditor : UserControl
 
     private void OnTextDeleted(long lineIndex, long length)
     {
-        UpdateLineCache(lineIndex); 
+        UpdateLineCache(lineIndex);
     }
 
     protected override void OnKeyDown(KeyEventArgs e)
@@ -385,6 +378,9 @@ public partial class TextEditor : UserControl
         {
             var viewModel = _scrollableViewModel.TextEditorViewModel;
             HandleKeyDown(e, viewModel);
+            
+            var insertPosition = viewModel.CursorPosition; 
+            HandleTextInsertion(insertPosition, e.ToString());
             InvalidateVisual();
         }
     }
@@ -1243,7 +1239,6 @@ public partial class TextEditor : UserControl
 
         await Dispatcher.UIThread.InvokeAsync(async () => 
         {
-            viewModel.ShouldScrollToCursor = false;
             var insertPosition = viewModel.CursorPosition;
 
             // Handle selection deletion in a single operation
@@ -1257,7 +1252,8 @@ public partial class TextEditor : UserControl
 
             // Perform text insertion as a single operation
             viewModel.InsertText(insertPosition, text);
-
+            HandleTextInsertion(insertPosition, text);
+            
             // Update only affected lines
             viewModel.UpdateLineStarts();
 
@@ -1272,7 +1268,6 @@ public partial class TextEditor : UserControl
             InvalidateVisual();
 
             await Task.Delay(50);
-            viewModel.ShouldScrollToCursor = true;
             UpdateHorizontalScrollPosition();
             EnsureCursorVisible();
         }, DispatcherPriority.Background);
