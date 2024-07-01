@@ -1,0 +1,33 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="meteor.Views.TitleBar"
+             xmlns:i="https://github.com/projektanker/icons.avalonia"
+             xmlns:viewmodels="clr-namespace:meteor.ViewModels"
+             xmlns:converters="clr-namespace:meteor.Converters"
+             Background="#dcdcdc" FontFamily="{StaticResource SanFrancisco}"
+             x:DataType="viewmodels:TitleBarViewModel">
+
+    <UserControl.Resources>
+        <converters:StringBoolToVisibilityConverter x:Key="StringBoolToVisibilityConverter" />
+        <converters:EscapeUnderscoreConverter x:Key="EscapeUnderscoreConverter" />
+    </UserControl.Resources>
+
+    <Border BorderBrush="#a6a6a6" BorderThickness="0 0 0 1">
+        <Grid Height="30" ColumnDefinitions="Auto, Auto, *">
+            <Button CornerRadius="0" Classes="flat" i:Attached.Icon="fa-solid fa-bars" HorizontalAlignment="Left">
+                <Button.Flyout>
+                    <MenuFlyout Placement="BottomEdgeAlignedLeft">
+                        <MenuItem FontSize="15" FontFamily="{StaticResource SanFrancisco}" Header="Settings"
+                                  i:MenuItem.Icon="fa-solid fa-gear" />
+                    </MenuFlyout>
+                </Button.Flyout>
+            </Button>
+            <Button HorizontalAlignment="Left" Grid.Column="2" FontSize="13" Foreground="Black"
+                    FontFamily="{StaticResource SanFrancisco}" Margin="0 0 0 0" VerticalAlignment="Center"
+                    Background="Transparent" Height="20" Padding="3 2"
+                    Click="OpenFolderButton_Click"
+                    Content="{Binding OpenProjectName, Converter={StaticResource EscapeUnderscoreConverter}}"
+                    IsVisible="{Binding OpenProjectName, Converter={StaticResource StringBoolToVisibilityConverter}}" />
+        </Grid>
+    </Border>
+</UserControl>

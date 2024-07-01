@@ -46,6 +46,8 @@ public partial class App : Application
         services.AddTransient<MainWindowViewModel>();
         services.AddTransient<StatusPaneViewModel>();
         services.AddTransient<TextEditorViewModel>();
+        services.AddTransient<FileExplorerViewModel>();
+        services.AddTransient<TitleBarViewModel>();
         services.AddTransient<ScrollableTextEditorViewModel>();
     }
 }

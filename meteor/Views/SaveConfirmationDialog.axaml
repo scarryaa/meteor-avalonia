@@ -1,0 +1,28 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="meteor.Views.SaveConfirmationDialog"
+        xmlns:viewmodels="clr-namespace:meteor.ViewModels"
+        Width="300" Height="150" WindowStartupLocation="CenterScreen"
+        FontSize="13"
+        SystemDecorations="None"
+        TransparencyLevelHint="AcrylicBlur"
+        Background="Transparent"
+        FontFamily="{StaticResource SanFrancisco}"
+        ZIndex="99999">
+
+    <Border CornerRadius="10" Background="LightGray"
+            BorderBrush="#a6a6a6" BorderThickness="1">
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center"
+                    x:DataType="viewmodels:SaveConfirmationDialogViewModel">
+            <TextBlock Foreground="Black" Text="This file has unsaved changes. Do you want to save them?"
+                       Margin="20 10"
+                       TextWrapping="Wrap" />
+
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <Button Foreground="Black" Content="Don't Save" Margin="5" Command="{Binding DiscardCommand}" />
+                <Button Foreground="Black" Content="Cancel" Margin="5" Command="{Binding CancelCommand}" />
+                <Button Foreground="Black" Content="Save" Margin="5" Command="{Binding SaveCommand}" />
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</Window>

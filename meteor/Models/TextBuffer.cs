@@ -17,6 +17,8 @@ public class TextBuffer : ReactiveObject
         UpdateLineCache();
     }
 
+    public string Text => _rope.GetText();
+
     public Rope Rope
     {
         get => _rope;
@@ -59,6 +61,23 @@ public class TextBuffer : ReactiveObject
             return string.Empty;
 
         return _rope.GetLineText((int)lineIndex);
+    }
+
+    public void SetText(string newText)
+    {
+        // Clear the current text buffer
+        Clear();
+
+        // Insert the new text
+        InsertText(0, newText);
+        UpdateLineCache();
+    }
+
+    public void Clear()
+    {
+        _rope = new Rope(string.Empty);
+        UpdateLineCache();
+        LinesUpdated?.Invoke(this, EventArgs.Empty);
     }
 
     public void InsertText(long position, string text)

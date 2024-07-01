@@ -60,7 +60,7 @@ public class TextEditorViewModel : ViewModelBase
     }
     
     public bool ShouldScrollToCursor { get; set; } = true;
-
+    
     public LineCache LineCache { get; } = new();
 
     public FontFamily FontFamily

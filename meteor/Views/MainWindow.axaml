@@ -18,12 +18,39 @@
         Cursor="Arrow"
         x:DataType="viewModels:MainWindowViewModel">
 
-    <Grid RowDefinitions="*, Auto">
+    <Grid ColumnDefinitions="125, 0, *" RowDefinitions="Auto, *, Auto">
+        <Rectangle Grid.Column="0" Name="DialogOverlay" Grid.RowSpan="3"
+                   Grid.ColumnSpan="3" ZIndex="9999"
+                   Fill="Black" Opacity="0.5" IsVisible="{Binding IsDialogOpen}" />
+
+        <!-- Title Bar -->
+        <views:TitleBar DataContext="{Binding TitleBarViewModel}" VerticalAlignment="Stretch"
+                        HorizontalAlignment="Stretch" Grid.Row="0" Grid.ColumnSpan="3" />
+
+        <!-- Left Sidebar -->
+        <views:LeftSidebar HorizontalAlignment="Stretch"
+                           x:Name="LeftSidebar"
+                           VerticalAlignment="Stretch" DataContext="{Binding FileExplorerViewModel}"
+                           Grid.Row="1" Grid.Column="0" />
+
+        <!-- Grid Splitter -->
+        <GridSplitter Grid.Column="1" Width="1" Background="#a6a6a6" HorizontalAlignment="Stretch"
+                      Cursor="SizeWestEast" Grid.Row="1">
+            <GridSplitter.Template>
+                <ControlTemplate>
+                    <Border Width="1" BorderBrush="#a6a6a6" BorderThickness="1" Padding="0,0" />
+                </ControlTemplate>
+            </GridSplitter.Template>
+        </GridSplitter>
+
+        <!-- Main Content -->
         <views:HorizontalScrollableTabControl
             SelectedItem="{Binding SelectedTab, Mode=TwoWay}"
             x:Name="HorizontalScrollableTabControl"
-            Background="#dcdcdc" ItemsSource="{Binding Tabs}"
-            TabStripPlacement="Top">
+            Background="#dcdcdc"
+            ItemsSource="{Binding Tabs}"
+            TabStripPlacement="Top"
+            Grid.Column="2" Grid.Row="1">
             <views:HorizontalScrollableTabControl.ItemTemplate>
                 <DataTemplate DataType="{x:Type viewModels:TabViewModel}">
                     <views:TabView />
@@ -33,19 +60,24 @@
                 <DataTemplate x:DataType="viewModels:TabViewModel">
                     <Grid ColumnDefinitions="Auto, *">
                         <views:Gutter Grid.Column="0"
+                                      ZIndex="99"
                                       DataContext="{Binding ScrollableTextEditorViewModel.GutterViewModel}" />
                         <views:ScrollableTextEditor Grid.Column="1"
+                                                    ZIndex="99"
                                                     DataContext="{Binding ScrollableTextEditorViewModel}" />
                     </Grid>
                 </DataTemplate>
             </views:HorizontalScrollableTabControl.ContentTemplate>
         </views:HorizontalScrollableTabControl>
-        <views:StatusPane x:Name="StatusPane" DataContext="{Binding StatusPaneViewModel}" Grid.Row="1" />
+
+        <!-- Status Pane -->
+        <views:StatusPane x:Name="StatusPane" DataContext="{Binding StatusPaneViewModel}" Grid.Row="2"
+                          Grid.ColumnSpan="3" />
     </Grid>
 
     <Window.KeyBindings>
         <KeyBinding Command="{Binding NewTabCommand}" Gesture="Ctrl+N" />
         <KeyBinding Command="{Binding CloseTabCommand}" CommandParameter="{Binding SelectedTab}" Gesture="Ctrl+W" />
-        <!-- <KeyBinding Command="{Binding SaveCommand}" Gesture="Ctrl+S" /> -->
+        <KeyBinding Command="{Binding SaveCommand}" Gesture="Ctrl+S" />
     </Window.KeyBindings>
 </Window>

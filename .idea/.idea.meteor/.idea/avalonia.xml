@@ -7,10 +7,18 @@
         <entry key="meteor/Resources/Resources.axaml" value="meteor/meteor.csproj" />
         <entry key="meteor/Styles/Styles.axaml" value="meteor/meteor.csproj" />
         <entry key="meteor/Views/ButtonlessScrollViewer.axaml" value="meteor/meteor.csproj" />
+        <entry key="meteor/Views/FileExplorer.axaml" value="meteor/meteor.csproj" />
+        <entry key="meteor/Views/Gutter.axaml" value="meteor/meteor.csproj" />
+        <entry key="meteor/Views/HorizontalScrollableTabControl.axaml" value="meteor/meteor.csproj" />
+        <entry key="meteor/Views/LeftSidebar.axaml" value="meteor/meteor.csproj" />
         <entry key="meteor/Views/MainWindow.axaml" value="meteor/meteor.csproj" />
+        <entry key="meteor/Views/SaveConfirmationDialog.axaml" value="meteor/meteor.csproj" />
         <entry key="meteor/Views/ScrollableTextEditor.axaml" value="meteor/meteor.csproj" />
         <entry key="meteor/Views/StatusPane.axaml" value="meteor/meteor.csproj" />
+        <entry key="meteor/Views/TabItemView.axaml" value="meteor/meteor.csproj" />
+        <entry key="meteor/Views/TabView.axaml" value="meteor/meteor.csproj" />
         <entry key="meteor/Views/TextEditor.axaml" value="meteor/meteor.csproj" />
+        <entry key="meteor/Views/TitleBar.axaml" value="meteor/meteor.csproj" />
       </map>
     </option>
   </component>
