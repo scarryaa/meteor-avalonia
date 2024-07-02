@@ -16,6 +16,7 @@ public class ScrollableTextEditorViewModel : ViewModelBase
     private Vector _offset;
     private double _lineHeight;
     private bool _disableHorizontalScrollToCursor;
+    private bool _disableVerticalScrollToCursor;
     private double _windowHeight;
     private double _windowWidth;
 
@@ -27,6 +28,12 @@ public class ScrollableTextEditorViewModel : ViewModelBase
     public bool DisableHorizontalScrollToCursor
     {
         get => _disableHorizontalScrollToCursor;
+        set => this.RaiseAndSetIfChanged(ref _disableHorizontalScrollToCursor, value);
+    }
+
+    public bool DisableVerticalScrollToCursor
+    {
+        get => _disableVerticalScrollToCursor;
         set => this.RaiseAndSetIfChanged(ref _disableHorizontalScrollToCursor, value);
     }
 

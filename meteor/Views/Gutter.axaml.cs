@@ -6,6 +6,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
+using Avalonia.Threading;
 using meteor.ViewModels;
 using ReactiveUI;
 
@@ -196,17 +197,19 @@ public partial class Gutter : UserControl
         if (DataContext is GutterViewModel viewModel)
         {
             if (viewModel.ScrollableTextEditorViewModel is ScrollableTextEditorViewModel scrollableViewModel)
+            {
+                scrollableViewModel.DisableVerticalScrollToCursor = true;
                 scrollableViewModel.DisableHorizontalScrollToCursor = true;
+            }
             
             _isDragging = true;
             _dragStartLine = GetLineNumberFromY(e.GetPosition(this).Y);
 
-            // Update selection for single click
             UpdateSelection(viewModel, _dragStartLine, _dragStartLine);
 
-            // Set cursor position to the start of the clicked line
             var lineStartPosition = viewModel.TextEditorViewModel.TextBuffer.GetLineStartPosition((int)_dragStartLine);
             viewModel.TextEditorViewModel.CursorPosition = lineStartPosition;
+            viewModel.TextEditorViewModel.ShouldScrollToCursor = false;
 
             e.Handled = true;
             InvalidateVisual();
@@ -243,16 +246,21 @@ public partial class Gutter : UserControl
     {
         if (DataContext is GutterViewModel viewModel)
         {
-            if (viewModel.ScrollableTextEditorViewModel is ScrollableTextEditorViewModel scrollableViewModel)
-                scrollableViewModel.DisableHorizontalScrollToCursor = false;
-
             _isDragging = false;
 
-            // Ensure the cursor is at the end of the selection
             var textEditorViewModel = viewModel.TextEditorViewModel;
-            textEditorViewModel.CursorPosition =
-                Math.Max(textEditorViewModel.SelectionStart, textEditorViewModel.SelectionEnd);
 
+            if (viewModel.ScrollableTextEditorViewModel is ScrollableTextEditorViewModel scrollableViewModel)
+            {
+                scrollableViewModel.DisableHorizontalScrollToCursor = false;
+                scrollableViewModel.DisableVerticalScrollToCursor = false;
+            }
+
+            // Delay re-enabling scroll to cursor
+            textEditorViewModel.ShouldScrollToCursor = false;
+            Dispatcher.UIThread.Post(() => textEditorViewModel.ShouldScrollToCursor = true,
+                DispatcherPriority.Background);
+            
             InvalidateVisual();
         }
     }
