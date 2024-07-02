@@ -141,16 +141,28 @@ public partial class TextEditor : UserControl
         if (_scrollableViewModel == null) return;
 
         _isManualScrolling = true;
-        var delta = e.Delta.Y * LineHeight * 3; // Adjust the multiplier as needed for desired scroll speed
-        var newOffset = _scrollableViewModel.VerticalOffset - delta;
-        var maxOffset = Math.Max(0, GetLineCount() * LineHeight - _scrollableViewModel.Viewport.Height);
-        _scrollableViewModel.VerticalOffset = Math.Max(0, Math.Min(newOffset, maxOffset));
-
-        if (_scrollableViewModel.TextEditorViewModel.IsSelecting)
+        var delta = e.Delta.Y * 3;
+        if (e.KeyModifiers.HasFlag(KeyModifiers.Shift))
         {
-            // Update selection based on new scroll position
-            var position = GetPositionFromPoint(e.GetPosition(this));
-            UpdateSelectionDuringManualScroll(position);
+            // Horizontal scrolling (shift + scroll)
+            var newOffset = _scrollableViewModel.HorizontalOffset -
+                            delta * _scrollableViewModel.TextEditorViewModel.CharWidth;
+            var maxOffset = Math.Max(0, _scrollableViewModel.LongestLineWidth - _scrollableViewModel.Viewport.Width);
+            _scrollableViewModel.HorizontalOffset = Math.Max(0, Math.Min(newOffset, maxOffset));
+        }
+        else
+        {
+            // Vertical scrolling
+            var newOffset = _scrollableViewModel.VerticalOffset - delta * LineHeight;
+            var maxOffset = Math.Max(0, GetLineCount() * LineHeight - _scrollableViewModel.Viewport.Height + 6);
+            _scrollableViewModel.VerticalOffset = Math.Max(0, Math.Min(newOffset, maxOffset));
+
+            if (_scrollableViewModel.TextEditorViewModel.IsSelecting)
+            {
+                // Update selection based on new scroll position
+                var position = GetPositionFromPoint(e.GetPosition(this));
+                UpdateSelectionDuringManualScroll(position);
+            }
         }
 
         e.Handled = true;
