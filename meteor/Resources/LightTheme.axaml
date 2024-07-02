@@ -16,9 +16,9 @@
     <Color x:Key="Text">#000000</Color>
 
     <!-- General UI -->
-    <Color x:Key="WindowBackground">#D3D3D3</Color>
+    <Color x:Key="WindowBackground">#E6E6E6</Color>
     <Color x:Key="MainBorder">#A6A6A6</Color>
-    <Color x:Key="LightGray">#DCDCDC</Color>
+    <Color x:Key="LightGray">#EBEBEB</Color>
 
     <!-- TextEditor Colors -->
     <FontFamily x:Key="TextEditorFontFamily">avares://meteor/Assets/Fonts/SanFrancisco/SF-Mono-Medium.otf#SF Mono</FontFamily>
