@@ -160,7 +160,8 @@ public partial class Gutter : UserControl
         if (DataContext is GutterViewModel viewModel)
         {
             var lineNumber = (long)Math.Floor((y + viewModel.VerticalOffset) / LineHeight);
-            return Math.Max(0, Math.Min(lineNumber, viewModel.TextEditorViewModel.TextBuffer.LineCount - 1));
+            lineNumber = Math.Max(0, lineNumber);
+            return lineNumber;
         }
 
         return 0;
@@ -181,7 +182,7 @@ public partial class Gutter : UserControl
         {
             var maxOffset = Math.Max(0,
                 viewModel.TextEditorViewModel.TextBuffer.LineCount * LineHeight - viewportHeight);
-            viewModel.VerticalOffset = Math.Min(maxOffset, viewModel.VerticalOffset + ScrollSpeed * LineHeight);
+            viewModel.VerticalOffset = Math.Min(maxOffset + 5, viewModel.VerticalOffset + ScrollSpeed * LineHeight);
         }
 
         // Horizontal scrolling
@@ -226,12 +227,15 @@ public partial class Gutter : UserControl
                 scrollableViewModel.DisableHorizontalScrollToCursor = true;
                 scrollableViewModel.HorizontalOffset = 0;
             }
-        
+
+            var lineNumber = GetLineNumberFromY(e.GetPosition(this).Y);
+            if (lineNumber >= viewModel.TextEditorViewModel.TextBuffer.LineCount) return;
+
             _isDragging = true;
-            _dragStartLine = GetLineNumberFromY(e.GetPosition(this).Y);
+            _dragStartLine = lineNumber;
 
             UpdateSelection(viewModel, _dragStartLine, _dragStartLine);
-        
+
             var lineStartPosition = viewModel.TextEditorViewModel.TextBuffer.GetLineStartPosition((int)_dragStartLine);
             viewModel.TextEditorViewModel.CursorPosition = lineStartPosition;
             viewModel.TextEditorViewModel.OnInvalidateRequired();
@@ -248,6 +252,8 @@ public partial class Gutter : UserControl
         {
             var position = e.GetPosition(this);
             var currentLine = GetLineNumberFromY(position.Y);
+
+            if (currentLine >= viewModel.TextEditorViewModel.TextBuffer.LineCount) return;
 
             if (_isDragging)
             {
@@ -306,7 +312,7 @@ public partial class Gutter : UserControl
         var selectionEnd = textBuffer.GetLineEndPosition((int)selectionEndLine);
 
         // If the selection ends at the last line, include the last character
-        if (selectionEndLine == textBuffer.LineCount - 1) selectionEnd++; // Adjust to include the last character of the last line
+        if (selectionEndLine == textBuffer.LineCount - 1) selectionEnd++;
 
         // Ensure the selection includes the entire range from start to end lines
         textEditorViewModel.SelectionStart = selectionStart;
