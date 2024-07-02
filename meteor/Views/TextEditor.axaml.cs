@@ -25,6 +25,7 @@ public partial class TextEditor : UserControl
     private const double ScrollAcceleration = 1.05;
     private double _currentScrollSpeed = ScrollSpeed;
     private readonly DispatcherTimer _scrollTimer;
+    private bool _isManualScrolling;
     
     private const double DefaultFontSize = 13;
     private const double BaseLineHeight = 20;
@@ -127,6 +128,7 @@ public partial class TextEditor : UserControl
         this.GetObservable(SelectionBrushProperty).Subscribe(_ => InvalidateVisual());
         this.GetObservable(LineHighlightBrushProperty).Subscribe(_ => InvalidateVisual());
 
+        AddHandler(PointerWheelChangedEvent, OnPointerWheelChanged, RoutingStrategies.Tunnel);
         MeasureCharWidth();
         UpdateLineCache(-1);
 
@@ -134,9 +136,41 @@ public partial class TextEditor : UserControl
         _scrollTimer.Tick += ScrollTimer_Tick;
     }
 
-    private void ScrollTimer_Tick(object sender, EventArgs e)
+    private void OnPointerWheelChanged(object? sender, PointerWheelEventArgs e)
     {
         if (_scrollableViewModel == null) return;
+
+        _isManualScrolling = true;
+        var delta = e.Delta.Y * LineHeight * 3; // Adjust the multiplier as needed for desired scroll speed
+        var newOffset = _scrollableViewModel.VerticalOffset - delta;
+        var maxOffset = Math.Max(0, GetLineCount() * LineHeight - _scrollableViewModel.Viewport.Height);
+        _scrollableViewModel.VerticalOffset = Math.Max(0, Math.Min(newOffset, maxOffset));
+
+        if (_scrollableViewModel.TextEditorViewModel.IsSelecting)
+        {
+            // Update selection based on new scroll position
+            var position = GetPositionFromPoint(e.GetPosition(this));
+            UpdateSelectionDuringManualScroll(position);
+        }
+
+        e.Handled = true;
+        InvalidateVisual();
+
+        // Use a dispatcher to reset the manual scrolling flag after a short delay
+        Dispatcher.UIThread.Post(() => _isManualScrolling = false, DispatcherPriority.Background);
+    }
+
+    private void UpdateSelectionDuringManualScroll(long position)
+    {
+        var viewModel = _scrollableViewModel.TextEditorViewModel;
+        viewModel.CursorPosition = position;
+        UpdateSelection(viewModel);
+        _lastKnownSelection = (viewModel.SelectionStart, viewModel.SelectionEnd);
+    }
+
+    private void ScrollTimer_Tick(object sender, EventArgs e)
+    {
+        if (_scrollableViewModel == null || _isManualScrolling) return;
 
         var cursorPosition = _scrollableViewModel.TextEditorViewModel.CursorPosition;
         var cursorPoint = GetPointFromPosition(cursorPosition);
@@ -393,8 +427,8 @@ public partial class TextEditor : UserControl
                 _lastKnownSelection = (viewModel.SelectionStart, viewModel.SelectionEnd);
                 e.Handled = true;
 
-                // Start or continue scrolling if needed
-                _scrollTimer.Start();
+                // Only start or continue auto-scrolling if not manually scrolling
+                if (!_isManualScrolling) _scrollTimer.Start();
 
                 InvalidateVisual();
             }
