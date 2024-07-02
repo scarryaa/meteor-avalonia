@@ -872,7 +872,8 @@ public partial class TextEditor : UserControl
             return;
         }
 
-        if (shiftFlag && _selectionAnchor == -1 && e.Key is Key.Left or Key.Right or Key.Up or Key.Down)
+        if (shiftFlag && _selectionAnchor == -1)
+        {
             _selectionAnchor = viewModel.SelectionStart == 0 && viewModel.SelectionEnd == viewModel.TextBuffer.Length
                 ? e.Key switch
                 {
@@ -883,6 +884,7 @@ public partial class TextEditor : UserControl
                     _ => viewModel.CursorPosition
                 }
                 : viewModel.CursorPosition;
+        }
 
         switch (e.Key)
         {
@@ -921,11 +923,11 @@ public partial class TextEditor : UserControl
                 break;
         }
 
-        if (shiftFlag && e.Key.ToString().Length != 1)
+        if (shiftFlag)
         {
             UpdateSelection(viewModel);
         }
-        else
+        else if (!IsNonPrintableKey(e.Key))
         {
             viewModel.ClearSelection();
             _selectionAnchor = -1;
@@ -935,6 +937,13 @@ public partial class TextEditor : UserControl
         InvalidateVisual();
     }
 
+    private bool IsNonPrintableKey(Key key)
+    {
+        return key is Key.Left or Key.Right or Key.Up or Key.Down or Key.Home or Key.End 
+            or Key.PageUp or Key.PageDown or Key.Insert or Key.Delete or Key.Back 
+            or Key.Tab or Key.Enter or Key.Escape;
+    }
+    
     private void HandleControlKeyDown(KeyEventArgs e, TextEditorViewModel viewModel)
     {
         var shiftFlag = (e.KeyModifiers & KeyModifiers.Shift) != 0;
