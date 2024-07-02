@@ -80,7 +80,12 @@ public class TextBuffer : ReactiveObject, ITextBuffer
     public void Clear()
     {
         _rope = new Rope(string.Empty);
-        UpdateLineCache();
+        LineStarts.Clear();
+        LineStarts.Add(0);
+        _lineLengths.Clear();
+        _lineLengths[0] = 0;
+        LongestLineLength = 0;
+        UpdateTotalHeight();
         LinesUpdated?.Invoke(this, EventArgs.Empty);
     }
 
@@ -149,11 +154,13 @@ public class TextBuffer : ReactiveObject, ITextBuffer
         var insertionLine = GetLineIndexFromPosition(position);
         var newLineCount = text.Count(c => c == '\n');
 
+        // Ensure the insertion line exists in the dictionary
+        if (!_lineLengths.ContainsKey(insertionLine)) _lineLengths[insertionLine] = 0;
+
         if (newLineCount == 0)
         {
             // Update the length of the affected line
             _lineLengths[insertionLine] += text.Length;
-            LongestLineLength = Math.Max(LongestLineLength, _lineLengths[insertionLine]);
         }
         else
         {
@@ -161,27 +168,30 @@ public class TextBuffer : ReactiveObject, ITextBuffer
             for (var i = LineStarts.Count - 1; i > insertionLine; i--) LineStarts[i] += text.Length;
 
             // Insert new line starts
-            var lastNewLineIndex = text.LastIndexOf('\n');
-            var remainingChars = text.Length - lastNewLineIndex - 1;
-            var newLineStart = position + lastNewLineIndex + 1;
+            var newLinePositions = text.Select((c, i) => c == '\n' ? i : -1)
+                .Where(i => i != -1)
+                .Select(i => position + i + 1)
+                .ToList();
 
-            for (var i = 0; i < newLineCount; i++)
-            {
-                var lineStartInText = text.IndexOf('\n', i == 0 ? 0 : text.IndexOf('\n', i - 1) + 1);
-                LineStarts.Insert((int)insertionLine + i + 1, position + lineStartInText + 1);
-            }
+            LineStarts.InsertRange((int)insertionLine + 1, newLinePositions);
 
             // Update line lengths
+            var lineStartPositions = new List<long> { position };
+            lineStartPositions.AddRange(newLinePositions);
+            lineStartPositions.Add(position + text.Length);
+
             for (var i = 0; i <= newLineCount; i++)
             {
-                var lineLength = i < newLineCount
-                    ? LineStarts[(int)insertionLine + i + 1] - LineStarts[(int)insertionLine + i]
-                    : remainingChars;
+                var lineLength = lineStartPositions[i + 1] - lineStartPositions[i];
                 _lineLengths[insertionLine + i] = lineLength;
-                LongestLineLength = Math.Max(LongestLineLength, lineLength);
             }
+
+            // Shift existing line lengths
+            for (long i = LineStarts.Count - 1; i > insertionLine + newLineCount; i--)
+                if (_lineLengths.ContainsKey(i - newLineCount)) _lineLengths[i] = _lineLengths[i - newLineCount];
         }
 
+        LongestLineLength = _lineLengths.Values.Max();
         UpdateTotalHeight();
     }
 
@@ -190,10 +200,13 @@ public class TextBuffer : ReactiveObject, ITextBuffer
         var startLine = GetLineIndexFromPosition(start);
         var endLine = GetLineIndexFromPosition(start + length);
 
+        // Ensure startLine is always a valid key in the dictionary
+        if (!_lineLengths.ContainsKey(startLine)) _lineLengths[startLine] = 0;
+
         if (startLine == endLine)
         {
             // Update the length of the affected line
-            _lineLengths[startLine] -= length;
+            _lineLengths[startLine] = Math.Max(0, _lineLengths[startLine] - length);
         }
         else
         {
@@ -203,14 +216,24 @@ public class TextBuffer : ReactiveObject, ITextBuffer
             // Update remaining line starts
             for (var i = (int)startLine + 1; i < LineStarts.Count; i++) LineStarts[i] -= length;
 
-            // Recalculate line lengths for affected lines
+            // Remove lengths for deleted lines
+            for (var i = startLine + 1; i <= endLine; i++) _lineLengths.Remove(i);
+
+            // Recalculate line length for the merged line
             _lineLengths[startLine] =
                 (startLine + 1 < LineStarts.Count ? LineStarts[(int)startLine + 1] : _rope.Length) -
                 LineStarts[(int)startLine];
         }
 
+        // Ensure we always have at least one line
+        if (LineStarts.Count == 0)
+        {
+            LineStarts.Add(0);
+            _lineLengths[0] = 0;
+        }
+
         // Recalculate longest line length
-        LongestLineLength = _lineLengths.Values.Max();
+        LongestLineLength = _lineLengths.Values.Count > 0 ? _lineLengths.Values.Max() : 0;
 
         UpdateTotalHeight();
     }
