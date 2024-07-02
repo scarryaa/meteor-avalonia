@@ -4,7 +4,12 @@
     <option name="projectPerEditor">
       <map>
         <entry key="meteor/App.axaml" value="meteor/meteor.csproj" />
+        <entry key="meteor/Resources/ButtonColors.axaml" value="meteor/meteor.csproj" />
+        <entry key="meteor/Resources/DarkTheme.axaml" value="meteor/meteor.csproj" />
+        <entry key="meteor/Resources/Fonts.axaml" value="meteor/meteor.csproj" />
+        <entry key="meteor/Resources/LightTheme.axaml" value="meteor/meteor.csproj" />
         <entry key="meteor/Resources/Resources.axaml" value="meteor/meteor.csproj" />
+        <entry key="meteor/Styles/Buttons.axaml" value="meteor/meteor.csproj" />
         <entry key="meteor/Styles/Styles.axaml" value="meteor/meteor.csproj" />
         <entry key="meteor/Views/ButtonlessScrollViewer.axaml" value="meteor/meteor.csproj" />
         <entry key="meteor/Views/FileExplorer.axaml" value="meteor/meteor.csproj" />
@@ -19,6 +24,7 @@
         <entry key="meteor/Views/TabView.axaml" value="meteor/meteor.csproj" />
         <entry key="meteor/Views/TextEditor.axaml" value="meteor/meteor.csproj" />
         <entry key="meteor/Views/TitleBar.axaml" value="meteor/meteor.csproj" />
+        <entry key="meteor/Windows/ContentDialog.axaml" value="meteor/meteor.csproj" />
       </map>
     </option>
   </component>

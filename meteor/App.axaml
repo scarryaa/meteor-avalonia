@@ -11,7 +11,10 @@
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <ResourceInclude Source="/Resources/Resources.axaml" />
+                <ResourceInclude Source="/Resources/ScrollViewer.axaml" />
+                <ResourceInclude Source="/Resources/DarkTheme.axaml" />
+                <ResourceInclude Source="/Resources/LightTheme.axaml" />
+                <ResourceInclude Source="/Resources/Fonts.axaml" />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Application.Resources>
@@ -19,6 +22,7 @@
     <Application.Styles>
         <FluentTheme />
         <StyleInclude Source="/Styles/Styles.axaml" />
+        <StyleInclude Source="/Styles/Buttons.axaml" />
         <StyleInclude Source="avares://meteor/Views/HorizontalScrollableTabControl.axaml" />
 
         <Style Selector="ContentPresenter.tabPresenter">

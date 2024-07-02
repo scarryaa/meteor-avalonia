@@ -27,24 +27,27 @@ public class TabViewModel : ViewModelBase, IDisposable
     private bool _isLoadingText;
     private DateTime _lastWriteTime;
     private const int AutoSaveInterval = 30000; // 30 seconds
+    private const string BackupExtension = ".backup";
     private readonly ICursorPositionService _cursorPositionService;
     private readonly IUndoRedoManager<TextState> _undoRedoManager;
     private readonly IFileSystemWatcherFactory _fileSystemWatcherFactory;
-    private readonly Timer _autoSaveTimer;
+    private Timer _autoSaveTimer;
     private readonly ITextBuffer _textBuffer;
     private readonly FontPropertiesViewModel _fontPropertiesViewModel;
     private readonly LineCountViewModel _lineCountViewModel;
     private readonly IClipboardService _clipboardService;
     private FileSystemWatcher? _fileWatcher;
-
+    private readonly IAutoSaveService _autoSaveService;
+    private bool _isClosing;
+    
     public event EventHandler? TextChanged;
     public event EventHandler? FileChangedExternally;
     public event EventHandler? TabClosed;
 
     public ICommand CloseTabCommand { get; set; }
-    public ICommand UndoCommand { get; }
-    public ICommand RedoCommand { get; }
-    public ICommand SaveCommand { get; }
+    public ICommand UndoCommand { get; set; }
+    public ICommand RedoCommand { get; set; }
+    public ICommand SaveCommand { get; set; }
 
     public TabViewModel(
         ICursorPositionService cursorPositionService,
@@ -53,7 +56,8 @@ public class TabViewModel : ViewModelBase, IDisposable
         ITextBufferFactory textBufferFactory,
         FontPropertiesViewModel fontPropertiesViewModel,
         LineCountViewModel lineCountViewModel,
-        IClipboardService clipboardService)
+        IClipboardService clipboardService,
+        IAutoSaveService autoSaveService)
     {
         _cursorPositionService = cursorPositionService;
         _undoRedoManager = undoRedoManager;
@@ -62,21 +66,30 @@ public class TabViewModel : ViewModelBase, IDisposable
         _fontPropertiesViewModel = fontPropertiesViewModel;
         _lineCountViewModel = lineCountViewModel;
         _clipboardService = clipboardService;
-        
+        _autoSaveService = autoSaveService;
+
+        InitializeCommands();
+        InitializeScrollableTextEditor();
+        InitializeAutoSaveTimer();
+    }
+
+    private void InitializeCommands()
+    {
         UndoCommand = ReactiveCommand.Create(Undo, _undoRedoManager.WhenAnyValue(x => x.CanUndo));
         RedoCommand = ReactiveCommand.Create(Redo, _undoRedoManager.WhenAnyValue(x => x.CanRedo));
         SaveCommand = ReactiveCommand.CreateFromTask(SaveAsync, this.WhenAnyValue(x => x.IsDirty));
-        CloseTabCommand = ReactiveCommand.Create(CloseTab);
+    }
 
-        _autoSaveTimer = new Timer(AutoSaveInterval);
-        _autoSaveTimer.Elapsed += AutoSaveTimer_Elapsed;
-
+    private void InitializeScrollableTextEditor()
+    {
         ScrollableTextEditorViewModel = new ScrollableTextEditorViewModel(
             _cursorPositionService,
             _fontPropertiesViewModel,
             _lineCountViewModel,
             _textBuffer,
             _clipboardService);
+        ScrollableTextEditorViewModel.TextEditorViewModel.TextBuffer.LinesUpdated += OnTextBufferLinesUpdated;
+        ScrollableTextEditorViewModel.TabViewModel = this;
     }
 
     public string Title
@@ -85,7 +98,7 @@ public class TabViewModel : ViewModelBase, IDisposable
         set => this.RaiseAndSetIfChanged(ref _title, value);
     }
 
-    public bool IsNew { get; set; }
+    public bool IsNew { get; set; } = true;
 
     public bool IsSelected
     {
@@ -156,6 +169,12 @@ public class TabViewModel : ViewModelBase, IDisposable
         set => this.RaiseAndSetIfChanged(ref _savedHorizontalOffset, value);
     }
 
+    private void InitializeAutoSaveTimer()
+    {
+        _autoSaveTimer = new Timer(AutoSaveInterval);
+        _autoSaveTimer.Elapsed += AutoSaveTimer_Elapsed;
+    }
+
     public async Task LoadTextAsync(string filePath)
     {
         _isLoadingText = true;
@@ -172,6 +191,10 @@ public class TabViewModel : ViewModelBase, IDisposable
             var initialState =
                 new TextState(Text, (int)ScrollableTextEditorViewModel.TextEditorViewModel.CursorPosition);
             _undoRedoManager.AddState(initialState, "Loaded text");
+
+            await _autoSaveService.InitializeAsync(filePath, Text);
+            // Start auto-save timer when file is loaded
+            _autoSaveTimer.Start();
         }
         finally
         {
@@ -225,21 +248,67 @@ public class TabViewModel : ViewModelBase, IDisposable
 
     private async void AutoSaveTimer_Elapsed(object? sender, ElapsedEventArgs e)
     {
-        if (!IsNew)
-            await SaveAsync();
+        if (!IsNew && IsDirty) await _autoSaveService.SaveBackupAsync(Text);
     }
 
     public async Task SaveAsync()
     {
         if (IsDirty && !string.IsNullOrEmpty(FilePath))
         {
-            await File.WriteAllTextAsync(FilePath, Text);
-            OriginalText = Text; // Update OriginalText here
-            UpdateDirtyState();
-            _lastWriteTime = File.GetLastWriteTime(FilePath);
-            IsNew = false;
+            try
+            {
+                await _autoSaveService.SaveAsync(Text);
+                OriginalText = Text;
+                UpdateDirtyState();
+                IsNew = false;
+                // Start auto-save timer when file is saved
+                _autoSaveTimer.Start();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error saving file: {ex.Message}");
+                throw;
+            }
         }
     }
+
+    public async Task RestoreFromBackupAsync()
+    {
+        var backupContent = await _autoSaveService.RestoreFromBackupAsync();
+        if (backupContent != null)
+        {
+            Text = backupContent;
+            UpdateTextEditorBuffer();
+            UpdateDirtyState();
+        }
+    }
+
+    public async Task RestoreFromBackupAsync(string? backupId)
+    {
+        try
+        {
+            var backupContent = await _autoSaveService.RestoreFromBackupAsync(backupId);
+            if (backupContent != null)
+            {
+                Text = backupContent;
+                UpdateTextEditorBuffer();
+                UpdateDirtyState();
+            }
+            else
+            {
+                // Handle case where no backup is found
+                throw new InvalidOperationException("No backup found to restore.");
+            }
+        }
+        catch (Exception ex)
+        {
+            // Log the error
+            Console.WriteLine($"Error restoring from backup: {ex.Message}");
+            throw; // Rethrow to allow the caller to handle the error
+        }
+    }
+
+    public bool HasBackup => _autoSaveService.HasBackup;
 
     private void SetupFileWatcher(string filePath)
     {
@@ -344,15 +413,21 @@ public class TabViewModel : ViewModelBase, IDisposable
         ScrollableTextEditorViewModel.GutterViewModel.OnInvalidateRequired();
     }
 
-    public void CloseTab()
+    public async Task CleanupBackupsAsync()
     {
-        Dispose();
-        TabClosed?.Invoke(this, EventArgs.Empty);
+        try
+        {
+            await _autoSaveService.CleanupAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error cleaning up backups: {ex.Message}");
+        }
     }
 
     public void Dispose()
     {
-        _scrollableTextEditorViewModel.TextEditorViewModel.TextBuffer.LinesUpdated -= OnTextBufferLinesUpdated;
+        ScrollableTextEditorViewModel.TextEditorViewModel.TextBuffer.LinesUpdated -= OnTextBufferLinesUpdated;
         _autoSaveTimer.Dispose();
         _fileWatcher?.Dispose();
     }

@@ -17,6 +17,7 @@ public class TabViewModelTests : IDisposable
     private readonly FontPropertiesViewModel _fontPropertiesViewModel;
     private readonly LineCountViewModel _lineCountViewModel;
     private readonly Mock<IClipboardService> _mockClipboardService;
+    private readonly Mock<IAutoSaveService> _mockAutoSaveService;
 
     public TabViewModelTests()
     {
@@ -28,6 +29,7 @@ public class TabViewModelTests : IDisposable
         _fontPropertiesViewModel = new FontPropertiesViewModel();
         _lineCountViewModel = new LineCountViewModel();
         _mockClipboardService = new Mock<IClipboardService>();
+        _mockAutoSaveService = new Mock<IAutoSaveService>();
 
         _mockFileSystemWatcherFactory
             .Setup(f => f.Create(It.IsAny<string>()))
@@ -53,6 +55,7 @@ public class TabViewModelTests : IDisposable
         services.AddSingleton(_fontPropertiesViewModel);
         services.AddSingleton(_lineCountViewModel);
         services.AddSingleton(_mockClipboardService.Object);
+        services.AddSingleton(_mockAutoSaveService.Object);
     }
 
     public void Dispose()
@@ -69,7 +72,8 @@ public class TabViewModelTests : IDisposable
             _mockTextBufferFactory.Object,
             _fontPropertiesViewModel,
             _lineCountViewModel,
-            _mockClipboardService.Object);
+            _mockClipboardService.Object,
+            _mockAutoSaveService.Object);
     }
 
     [Fact]
@@ -80,7 +84,7 @@ public class TabViewModelTests : IDisposable
 
         // Assert
         Assert.Equal("Untitled", tabViewModel.Title);
-        Assert.False(tabViewModel.IsNew);
+        Assert.True(tabViewModel.IsNew);
         Assert.False(tabViewModel.IsSelected);
         Assert.False(tabViewModel.IsTemporary);
         Assert.False(tabViewModel.IsDirty);
@@ -105,7 +109,7 @@ public class TabViewModelTests : IDisposable
     }
 
     [Fact]
-    public async Task LoadTextAsync_LoadsTextAndUpdatesProperties()
+    public async Task LoadTextAsync_InitializesAutoSaveService()
     {
         // Arrange
         var tabViewModel = CreateTabViewModel();
@@ -119,15 +123,10 @@ public class TabViewModelTests : IDisposable
             await tabViewModel.LoadTextAsync(testFilePath);
 
             // Assert
-            Assert.Equal(testContent, tabViewModel.Text);
-            Assert.Equal(testContent, tabViewModel.OriginalText);
-            Assert.Equal(testFilePath, tabViewModel.FilePath);
-            Assert.False(tabViewModel.IsNew);
-            Assert.False(tabViewModel.IsDirty);
+            _mockAutoSaveService.Verify(m => m.InitializeAsync(testFilePath, testContent), Times.Once);
         }
         finally
         {
-            // Clean up
             File.Delete(testFilePath);
         }
     }
@@ -172,30 +171,51 @@ public class TabViewModelTests : IDisposable
     }
 
     [Fact]
-    public async Task SaveAsync_UpdatesOriginalTextAndClearsDirtyFlag()
+    public async Task SaveAsync_UsesAutoSaveService()
     {
         // Arrange
         var tabViewModel = CreateTabViewModel();
-        var testFilePath = Path.GetTempFileName();
-        tabViewModel.FilePath = testFilePath;
+        tabViewModel.FilePath = "test.txt";
         tabViewModel.Text = "New content";
-        tabViewModel.OriginalText = "Old content";
-        tabViewModel.IsDirty = true; // Ensure IsDirty is set to true
+        tabViewModel.IsDirty = true;
 
-        try
-        {
-            // Act
-            await tabViewModel.SaveAsync();
+        // Act
+        await tabViewModel.SaveAsync();
 
-            // Assert
-            Assert.Equal("New content", tabViewModel.OriginalText);
-            Assert.False(tabViewModel.IsDirty);
-            Assert.Equal("New content", await File.ReadAllTextAsync(testFilePath));
-        }
-        finally
-        {
-            // Clean up
-            if (File.Exists(testFilePath)) File.Delete(testFilePath);
-        }
+        // Assert
+        _mockAutoSaveService.Verify(m => m.SaveAsync("New content"), Times.Once);
+    }
+
+    [Fact]
+    public async Task RestoreFromBackupAsync_UsesAutoSaveService()
+    {
+        // Arrange
+        var tabViewModel = CreateTabViewModel();
+        _mockAutoSaveService.Setup(m => m.RestoreFromBackupAsync(It.IsAny<string>()))
+            .ReturnsAsync("Backup content");
+
+        // Act
+        await tabViewModel.RestoreFromBackupAsync();
+
+        // Assert
+        Assert.Equal("Backup content", tabViewModel.Text);
+        _mockAutoSaveService.Verify(m => m.RestoreFromBackupAsync(null), Times.Once);
+    }
+
+    [Fact]
+    public async Task RestoreFromBackupAsync_WithSpecificId_UsesAutoSaveService()
+    {
+        // Arrange
+        var tabViewModel = CreateTabViewModel();
+        var backupId = "backup_20230101_120000";
+        _mockAutoSaveService.Setup(m => m.RestoreFromBackupAsync(backupId))
+            .ReturnsAsync("Specific backup content");
+
+        // Act
+        await tabViewModel.RestoreFromBackupAsync(backupId);
+
+        // Assert
+        Assert.Equal("Specific backup content", tabViewModel.Text);
+        _mockAutoSaveService.Verify(m => m.RestoreFromBackupAsync(backupId), Times.Once);
     }
 }

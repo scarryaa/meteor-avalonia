@@ -13,7 +13,8 @@ public class DesignTabViewModel : TabViewModel
             ServiceLocator.GetService<ITextBufferFactory>(),
             ServiceLocator.GetService<FontPropertiesViewModel>(),
             ServiceLocator.GetService<LineCountViewModel>(),
-            ServiceLocator.GetService<IClipboardService>())
+            ServiceLocator.GetService<IClipboardService>(),
+            ServiceLocator.GetService<IAutoSaveService>())
     {
         Title = "Tab 1";
         IsTemporary = false;

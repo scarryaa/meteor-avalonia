@@ -8,9 +8,8 @@
              HorizontalAlignment="Stretch"
              VerticalAlignment="Stretch"
              d:DesignHeight="400"
-             x:Name="LeftSidebarz"
              d:DesignWidth="200">
-
+    
     <UserControl.Resources>
         <converters:InverseBooleanConverter x:Key="InverseBooleanConverter" />
     </UserControl.Resources>
@@ -22,12 +21,10 @@
                     HorizontalAlignment="Center"
                     VerticalAlignment="Top"
                     Margin="0 10"
-                    IsEnabled="True"
                     FontSize="13"
                     ZIndex="999"
-                    Background="Transparent"
-                    Foreground="Black"
                     Focusable="True"
+                    Classes="noBg"
                     IsVisible="{Binding IsPathSelected, Converter={StaticResource InverseBooleanConverter}}" />
 
             <ScrollViewer HorizontalAlignment="Stretch"

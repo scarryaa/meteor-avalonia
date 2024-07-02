@@ -1,14 +1,6 @@
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <Style Selector="Button.flat">
-        <Setter Property="Background" Value="Transparent" />
-        <Setter Property="BorderBrush" Value="Transparent" />
-        <Setter Property="BorderThickness" Value="0" />
-        <Setter Property="Padding" Value="10" />
-        <Setter Property="Foreground" Value="Black" />
-    </Style>
-
     <Style Selector="ScrollBar:vertical">
         <Setter Property="Template">
             <ControlTemplate>
@@ -91,4 +83,5 @@
             </ControlTemplate>
         </Setter>
     </Style>
+
 </Styles>

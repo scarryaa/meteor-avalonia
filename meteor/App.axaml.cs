@@ -52,6 +52,8 @@ public partial class App : Application
         services.AddTransient<TitleBarViewModel>();
         services.AddSingleton<ITextBufferFactory, TextBufferFactory>();
         services.AddTransient<ScrollableTextEditorViewModel>();
+        services.AddSingleton<IAutoSaveService, AutoSaveService>();
+        services.AddSingleton<IDialogService, DialogService>();
 
         services.AddSingleton<IRope, Rope>();
         services.AddSingleton<ITextBuffer, TextBuffer>();
@@ -70,6 +72,9 @@ public partial class App : Application
             var mainWindow = provider.GetRequiredService<MainWindow>();
             return new ClipboardService(mainWindow);
         });
+
+        // Register IMainWindowProvider
+        services.AddSingleton<IMainWindowProvider, MainWindowProvider>();
     }
 
     internal static void SetServiceProviderForTesting(IServiceProvider serviceProvider)

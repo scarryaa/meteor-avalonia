@@ -1,0 +1,41 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:viewModels="clr-namespace:meteor.ViewModels"
+        mc:Ignorable="d" d:DesignWidth="400" d:DesignHeight="250"
+        x:Class="meteor.Windows.ContentDialog"
+        x:DataType="viewModels:ContentDialogViewModel"
+        Title="{Binding Title}"
+        Width="400" SizeToContent="Height"
+        CanResize="False" WindowStartupLocation="CenterOwner"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaTitleBarHeightHint="0"
+        FontFamily="{StaticResource SanFrancisco}"
+        SystemDecorations="None"
+        ZIndex="99999"
+        Background="Transparent">
+
+    <Border CornerRadius="10" Background="LightGray"
+            BorderBrush="#a6a6a6" BorderThickness="1">
+        <Grid Name="MainGrid" RowDefinitions="Auto,*,Auto" Margin="20">
+            <TextBlock Grid.Row="0" Name="TitleTextBlock"
+                       Text="{Binding Title}"
+                       FontSize="20"
+                       Margin="0,0,0,10"
+                       Foreground="Black" />
+
+            <ContentPresenter Grid.Row="1" Name="ContentPresenter"
+                              Content="{Binding Content}"
+                              Margin="0,0,0,20"
+                              Foreground="Black" />
+
+            <StackPanel Grid.Row="2" Name="ButtonStack"
+                        Orientation="Horizontal"
+                        HorizontalAlignment="Right"
+                        Spacing="10">
+                <!-- Content will be added here programmatically -->
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>

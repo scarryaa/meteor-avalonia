@@ -14,7 +14,7 @@
 
     <Border BorderBrush="#a6a6a6" BorderThickness="0 0 0 1">
         <Grid Height="30" ColumnDefinitions="Auto, Auto, *">
-            <Button CornerRadius="0" Classes="flat" i:Attached.Icon="fa-solid fa-bars" HorizontalAlignment="Left">
+            <Button Classes="noBg" CornerRadius="0" i:Attached.Icon="fa-solid fa-bars" HorizontalAlignment="Left">
                 <Button.Flyout>
                     <MenuFlyout Placement="BottomEdgeAlignedLeft">
                         <MenuItem FontSize="15" FontFamily="{StaticResource SanFrancisco}" Header="Settings"
@@ -22,9 +22,9 @@
                     </MenuFlyout>
                 </Button.Flyout>
             </Button>
-            <Button HorizontalAlignment="Left" Grid.Column="2" FontSize="13" Foreground="Black"
+            <Button Classes="noBg" HorizontalAlignment="Left" Grid.Column="2" FontSize="13"
                     FontFamily="{StaticResource SanFrancisco}" Margin="0 0 0 0" VerticalAlignment="Center"
-                    Background="Transparent" Height="20" Padding="3 2"
+                    Height="20" Padding="3 2"
                     Click="OpenFolderButton_Click"
                     Content="{Binding OpenProjectName, Converter={StaticResource EscapeUnderscoreConverter}}"
                     IsVisible="{Binding OpenProjectName, Converter={StaticResource StringBoolToVisibilityConverter}}" />

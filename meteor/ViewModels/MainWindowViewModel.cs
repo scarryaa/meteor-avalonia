@@ -10,9 +10,9 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Threading;
+using meteor.Enums;
 using meteor.Interfaces;
 using meteor.Models;
-using meteor.Views;
 using Microsoft.Extensions.DependencyInjection;
 using ReactiveUI;
 using File = System.IO.File;
@@ -21,7 +21,8 @@ namespace meteor.ViewModels;
 
 public class MainWindowViewModel : ViewModelBase
 {
-    private readonly Stack<TabViewModel> _tabSelectionHistory;
+    private readonly IDialogService _dialogService;
+    private Stack<TabViewModel> _tabSelectionHistory;
     private TabViewModel? _selectedTab;
     private double _windowWidth;
     private double _windowHeight;
@@ -30,6 +31,7 @@ public class MainWindowViewModel : ViewModelBase
     private bool _suppressHistoryTracking;
     private TabViewModel _temporaryTab;
     private readonly ITextBufferFactory _textBufferFactory;
+    private IAutoSaveService _autoSaveService;
 
     public MainWindowViewModel(
         TitleBarViewModel titleBarViewModel,
@@ -38,8 +40,13 @@ public class MainWindowViewModel : ViewModelBase
         LineCountViewModel lineCountViewModel,
         ICursorPositionService cursorPositionService,
         FileExplorerViewModel fileExplorerViewModel,
-        ITextBufferFactory textBufferFactory)
+        ITextBufferFactory textBufferFactory,
+        IAutoSaveService autoSaveService,
+        IDialogService dialogService)
     {
+        _autoSaveService = autoSaveService;
+        _dialogService = dialogService;
+        
         _textBufferFactory = textBufferFactory;
         StatusPaneViewModel = statusPaneViewModel;
         FileExplorerViewModel = fileExplorerViewModel;
@@ -183,18 +190,11 @@ public class MainWindowViewModel : ViewModelBase
         }
     }
 
-    private async Task<bool?> ShowSaveConfirmationDialogAsync()
-    {
-        var dialog = new SaveConfirmationDialog(this);
-        var result = await dialog.ShowDialog<bool?>(GetMainWindow());
-        return result;
-    }
-
     private Window GetMainWindow()
     {
-        return Application.Current.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop
-            ? desktop.MainWindow
-            : null;
+        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+            return desktop.MainWindow;
+        return null;
     }
 
     private void NewTab()
@@ -206,6 +206,7 @@ public class MainWindowViewModel : ViewModelBase
         var fontPropertiesViewModel = App.ServiceProvider.GetRequiredService<FontPropertiesViewModel>();
         var lineCountViewModel = App.ServiceProvider.GetRequiredService<LineCountViewModel>();
         var clipboardService = App.ServiceProvider.GetRequiredService<IClipboardService>();
+        var autoSaveService = App.ServiceProvider.GetRequiredService<IAutoSaveService>();
 
         var newTab = new TabViewModel(
             cursorPositionService,
@@ -214,7 +215,8 @@ public class MainWindowViewModel : ViewModelBase
             _textBufferFactory,
             fontPropertiesViewModel,
             lineCountViewModel,
-            clipboardService)
+            clipboardService,
+            autoSaveService)
         {
             Title = $"Untitled {Tabs.Count + 1}",
             ScrollableTextEditorViewModel = new ScrollableTextEditorViewModel(
@@ -238,48 +240,82 @@ public class MainWindowViewModel : ViewModelBase
         if (tab == null || !Tabs.Contains(tab))
             return;
 
-        if (tab.IsDirty)
+        try
         {
-            ShowSaveDialogCommand.Execute().Subscribe();
-
-            var result = await ShowSaveConfirmationDialogAsync();
-            HideSaveDialogCommand.Execute().Subscribe();
-
-            if (result == true)
-                SaveFile(tab);
-            else if (result == null) return;
-        }
-
-        Tabs.Remove(tab);
-
-        if (tab == _temporaryTab)
-            _temporaryTab = null;
-
-        if (tab == SelectedTab)
-        {
-            // Remove the closed tab from the selection history
-            var tempStack = new Stack<TabViewModel>();
-            while (_tabSelectionHistory.Count > 0)
+            if (tab.IsDirty)
             {
-                var topTab = _tabSelectionHistory.Pop();
-                if (topTab != tab)
-                    tempStack.Push(topTab);
+                var saveResult = await ShowSaveConfirmationDialogAsync(tab);
+                switch (saveResult)
+                {
+                    case SaveConfirmationResult.Save:
+                        await tab.SaveAsync();
+                        break;
+                    case SaveConfirmationResult.DontSave:
+                        // Proceed without saving
+                        break;
+                    case SaveConfirmationResult.Cancel:
+                        return; // Exit without closing the tab
+                }
             }
 
-            while (tempStack.Count > 0)
-                _tabSelectionHistory.Push(tempStack.Pop());
+            // Cleanup auto-save backups
+            await tab.CleanupBackupsAsync();
 
-            // Temporarily suppress history tracking for auto-selection
-            _suppressHistoryTracking = true;
+            Tabs.Remove(tab);
 
-            // Set the last selected tab if available
-            if (_tabSelectionHistory.Count > 0)
-                SelectedTab = _tabSelectionHistory.Pop();
-            else if (Tabs.Count > 0)
-                SelectedTab = Tabs[0];
+            if (tab == _temporaryTab)
+                _temporaryTab = null;
 
-            _suppressHistoryTracking = false;
+            UpdateTabSelectionAfterClose(tab);
         }
+        catch (Exception ex)
+        {
+            // Log the error
+            Console.WriteLine($"Error closing tab: {ex.Message}");
+            await ShowErrorDialogAsync("Failed to close the tab. Please try again.");
+        }
+    }
+
+    private void UpdateTabSelectionAfterClose(TabViewModel closedTab)
+    {
+        if (closedTab != SelectedTab)
+            return;
+
+        // Remove the closed tab from the selection history
+        _tabSelectionHistory = new Stack<TabViewModel>(
+            _tabSelectionHistory.Where(t => t != closedTab && Tabs.Contains(t)));
+
+        // Temporarily suppress history tracking for auto-selection
+        _suppressHistoryTracking = true;
+
+        // Set the last selected tab if available
+        if (_tabSelectionHistory.Count > 0)
+            SelectedTab = _tabSelectionHistory.Pop();
+        else if (Tabs.Count > 0)
+            SelectedTab = Tabs[0];
+        else
+            SelectedTab = null;
+
+        _suppressHistoryTracking = false;
+    }
+
+    private async Task<SaveConfirmationResult> ShowSaveConfirmationDialogAsync(TabViewModel tab)
+    {
+        var result = await _dialogService.ShowContentDialogAsync(
+            this, // Pass the MainWindowViewModel instance
+            "Save Changes",
+            $"Do you want to save changes to {tab.Title}?",
+            "Save",
+            "Don't Save",
+            "Cancel"
+        );
+
+        return result switch
+        {
+            ContentDialogResult.Primary => SaveConfirmationResult.Save,
+            ContentDialogResult.Secondary => SaveConfirmationResult.DontSave,
+            _ => SaveConfirmationResult.Cancel
+        };
     }
 
     public void OnFileClicked(string filePath)
@@ -300,7 +336,8 @@ public class MainWindowViewModel : ViewModelBase
                 _textBufferFactory,
                 App.ServiceProvider.GetRequiredService<FontPropertiesViewModel>(),
                 App.ServiceProvider.GetRequiredService<LineCountViewModel>(),
-                App.ServiceProvider.GetRequiredService<IClipboardService>())
+                App.ServiceProvider.GetRequiredService<IClipboardService>(),
+                App.ServiceProvider.GetRequiredService<IAutoSaveService>())
             {
                 Title = Path.GetFileName(filePath),
                 CloseTabCommand = CloseTabCommand,
@@ -343,6 +380,7 @@ public class MainWindowViewModel : ViewModelBase
             return;
         }
         
+
         var permanentTab = new TabViewModel(
             App.ServiceProvider.GetRequiredService<ICursorPositionService>(),
             App.ServiceProvider.GetRequiredService<IUndoRedoManager<TextState>>(),
@@ -350,7 +388,8 @@ public class MainWindowViewModel : ViewModelBase
             _textBufferFactory,
             App.ServiceProvider.GetRequiredService<FontPropertiesViewModel>(),
             App.ServiceProvider.GetRequiredService<LineCountViewModel>(),
-            App.ServiceProvider.GetRequiredService<IClipboardService>())
+            App.ServiceProvider.GetRequiredService<IClipboardService>(),
+            App.ServiceProvider.GetRequiredService<IAutoSaveService>())
         {
             Title = Path.GetFileName(filePath),
             CloseTabCommand = CloseTabCommand,
@@ -370,15 +409,39 @@ public class MainWindowViewModel : ViewModelBase
         SelectedTab = permanentTab;
     }
 
-    private void SaveFile(TabViewModel tab)
+    private async Task SaveFileAsync(TabViewModel tab)
     {
-        if (tab != null && !string.IsNullOrEmpty(tab.FilePath))
+        try
         {
-            File.WriteAllText(tab.FilePath, tab.ScrollableTextEditorViewModel.TextEditorViewModel.TextBuffer.Text);
-            tab.IsDirty = false;
+            await tab.SaveAsync();
+        }
+        catch (Exception ex)
+        {
+            // Log the error
+            Console.WriteLine($"Error saving file: {ex.Message}");
+            await ShowErrorDialogAsync("Failed to save the file. Please try again.");
         }
     }
 
+    private async Task ShowErrorDialogAsync(string message)
+    {
+        await _dialogService.ShowErrorDialogAsync(this, message);
+    }
+
+    public async Task RestoreSpecificBackup(string backupId)
+    {
+        if (SelectedTab != null)
+            try
+            {
+                await SelectedTab.RestoreFromBackupAsync(backupId);
+                // Update UI or show success message
+            }
+            catch (Exception ex)
+            {
+                await ShowErrorDialogAsync($"Failed to restore backup: {ex.Message}");
+            }
+    }
+    
     private void SaveCurrentFile()
     {
         if (SelectedTab != null && !string.IsNullOrEmpty(SelectedTab.FilePath))

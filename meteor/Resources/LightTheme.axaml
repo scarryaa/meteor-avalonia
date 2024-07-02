@@ -1,0 +1,13 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Color x:Key="ButtonBackground">#E0E0E0</Color>
+    <Color x:Key="ButtonForeground">#333333</Color>
+    <Color x:Key="ButtonBorder">#B0B0B0</Color>
+    <Color x:Key="ButtonBackgroundPointerOver">#BEBEBE</Color>
+    <Color x:Key="ButtonBorderPointerOver">#BEBEBE</Color>
+    <Color x:Key="ButtonBackgroundPressed">#C0C0C0</Color>
+    <Color x:Key="ButtonBackgroundDisabled">#F0F0F0</Color>
+    <Color x:Key="ButtonBorderDisabled">#F0F0F0</Color>
+
+</ResourceDictionary>
