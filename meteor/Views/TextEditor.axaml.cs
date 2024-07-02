@@ -12,6 +12,7 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using meteor.ViewModels;
 using ReactiveUI;
+using SelectionChangedEventArgs = meteor.Models.SelectionChangedEventArgs;
 
 [assembly: InternalsVisibleTo("tests")]
 
@@ -233,6 +234,7 @@ public partial class TextEditor : UserControl
             viewModel.LineHeight = LineHeight;
             viewModel.PropertyChanged += ViewModel_PropertyChanged;
             _scrollableViewModel.TextEditorViewModel.RequestFocus += OnRequestFocus;
+            _scrollableViewModel.TextEditorViewModel.SelectionChanged += OnSelectionChanged;
 
             viewModel.InvalidateRequired += OnInvalidateRequired;
             Bind(LineHeightProperty, viewModel.WhenAnyValue(vm => vm.LineHeight));
@@ -241,6 +243,15 @@ public partial class TextEditor : UserControl
         }
     }
 
+    private void OnSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (e.SelectionStart.HasValue && e.SelectionEnd.HasValue)
+            _lastKnownSelection = (e.SelectionStart.Value, e.SelectionEnd.Value);
+        else if (e.SelectionStart.HasValue)
+            _lastKnownSelection = (e.SelectionStart.Value, _lastKnownSelection.End);
+        else if (e.SelectionEnd.HasValue) _lastKnownSelection = (_lastKnownSelection.Start, e.SelectionEnd.Value);
+    }
+    
     private void OnRequestFocus(object? sender, EventArgs e)
     {
         Focus();
@@ -423,7 +434,6 @@ public partial class TextEditor : UserControl
         }
     }
 
-
     protected override void OnPointerMoved(PointerEventArgs e)
     {
         base.OnPointerMoved(e);
@@ -439,7 +449,6 @@ public partial class TextEditor : UserControl
                 _lastKnownSelection = (viewModel.SelectionStart, viewModel.SelectionEnd);
                 e.Handled = true;
 
-                // Only start or continue auto-scrolling if not manually scrolling
                 if (!_isManualScrolling) _scrollTimer.Start();
 
                 InvalidateVisual();
@@ -457,6 +466,8 @@ public partial class TextEditor : UserControl
         base.OnPointerReleased(e);
         if (_scrollableViewModel != null)
         {
+            var viewModel = _scrollableViewModel.TextEditorViewModel;
+        
             _scrollableViewModel.TextEditorViewModel.IsSelecting = false;
             _scrollableViewModel.DisableHorizontalScrollToCursor = false;
             _scrollableViewModel.DisableVerticalScrollToCursor = false;
@@ -468,12 +479,9 @@ public partial class TextEditor : UserControl
 
     private void UpdateSelection(TextEditorViewModel viewModel)
     {
-        if (_selectionAnchor != -1)
-        {
             viewModel.SelectionStart = Math.Min(_selectionAnchor, viewModel.CursorPosition);
             viewModel.SelectionEnd = Math.Max(_selectionAnchor, viewModel.CursorPosition);
             _lastKnownSelection = (viewModel.SelectionStart, viewModel.SelectionEnd);
-        }
     }
 
     private void EnsureCursorVisible()
@@ -575,17 +583,25 @@ public partial class TextEditor : UserControl
             var viewModel = _scrollableViewModel.TextEditorViewModel;
             var insertPosition = viewModel.CursorPosition;
 
-            if (_lastKnownSelection.Start != _lastKnownSelection.End)
-            {
-                var start = Math.Min(_lastKnownSelection.Start, _lastKnownSelection.End);
-                var end = Math.Max(_lastKnownSelection.Start, _lastKnownSelection.End);
-                var length = end - start;
+            // Use _lastKnownSelection if ViewModel's selection is cleared
+            var selectionStart = viewModel.SelectionStart != viewModel.SelectionEnd
+                ? viewModel.SelectionStart
+                : _lastKnownSelection.Start;
+            var selectionEnd = viewModel.SelectionStart != viewModel.SelectionEnd
+                ? viewModel.SelectionEnd
+                : _lastKnownSelection.End;
 
+            if (selectionStart != selectionEnd)
+            {
+                var start = Math.Min(selectionStart, selectionEnd);
+                var end = Math.Max(selectionStart, selectionEnd);
+                var length = end - start;
+                
                 viewModel.DeleteText(start, length);
+                HandleTextDeletion(start, length);
                 insertPosition = start;
             }
-
-            var currentLineIndex = GetLineIndex(viewModel, insertPosition);
+            
             viewModel.InsertText(insertPosition, e.Text);
             HandleTextInsertion(insertPosition, e.Text);
 

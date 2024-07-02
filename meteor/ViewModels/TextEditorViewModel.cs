@@ -54,7 +54,7 @@ public class TextEditorViewModel : ViewModelBase
         UpdateLineStarts();
     }
 
-    public event EventHandler SelectionChanged;
+    public event EventHandler<SelectionChangedEventArgs> SelectionChanged;
     public event EventHandler LineChanged;
     public event EventHandler? InvalidateRequired;
     public event EventHandler? RequestFocus;
@@ -128,7 +128,6 @@ public class TextEditorViewModel : ViewModelBase
             {
                 _cursorPosition = value;
                 _cursorPositionService.UpdateCursorPosition(_cursorPosition, _textBuffer.LineStarts);
-                NotifySelectionChanged();
                 this.RaisePropertyChanged();
             }
         }
@@ -142,7 +141,6 @@ public class TextEditorViewModel : ViewModelBase
             if (_selectionStart != value)
             {
                 this.RaiseAndSetIfChanged(ref _selectionStart, value);
-                NotifySelectionChanged();
             }
         }
     }
@@ -155,7 +153,6 @@ public class TextEditorViewModel : ViewModelBase
             if (_selectionEnd != value)
             {
                 this.RaiseAndSetIfChanged(ref _selectionEnd, value);
-                NotifySelectionChanged();
             }
         }
     }
@@ -169,11 +166,11 @@ public class TextEditorViewModel : ViewModelBase
         }
     }
 
-    private void NotifySelectionChanged()
+    public void NotifySelectionChanged(long? selectionStart = null, long? selectionEnd = null)
     {
-        SelectionChanged?.Invoke(this, EventArgs.Empty);
+        SelectionChanged?.Invoke(this, new SelectionChangedEventArgs(selectionStart, selectionEnd));
     }
-
+    
     public long LineCount => _textBuffer.LineCount;
 
     public double TotalHeight => _textBuffer.TotalHeight;
