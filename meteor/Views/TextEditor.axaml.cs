@@ -17,7 +17,6 @@ using ReactiveUI;
 
 namespace meteor.Views;
 
-
 public partial class TextEditor : UserControl
 {
     private const double DefaultFontSize = 13;
@@ -38,28 +37,73 @@ public partial class TextEditor : UserControl
     private ScrollableTextEditorViewModel? _scrollableViewModel;
     private (long Start, long End) _lastKnownSelection = (-1, -1);
 
-    public static readonly StyledProperty<FontFamily> FontFamilyProperty =
-        AvaloniaProperty.Register<TextEditor, FontFamily>(nameof(FontFamily),
-            new FontFamily("avares://meteor/Assets/Fonts/SanFrancisco/SF-Mono-Medium.otf#SF Mono"));
-
-    public static readonly StyledProperty<double> FontSizeProperty =
-        AvaloniaProperty.Register<TextEditor, double>(nameof(FontSize), DefaultFontSize);
-
     public static readonly StyledProperty<double> LineHeightProperty =
         AvaloniaProperty.Register<TextEditor, double>(nameof(LineHeight), BaseLineHeight);
 
-    public FontFamily FontFamily
+    public static readonly StyledProperty<IBrush> BackgroundBrushProperty =
+        AvaloniaProperty.Register<TextEditor, IBrush>(nameof(BackgroundBrush), Brushes.White);
+
+    public static readonly StyledProperty<IBrush> CursorBrushProperty =
+        AvaloniaProperty.Register<TextEditor, IBrush>(nameof(CursorBrush), Brushes.Black);
+
+    public static readonly StyledProperty<IBrush> SelectionBrushProperty =
+        AvaloniaProperty.Register<TextEditor, IBrush>(nameof(SelectionBrush),
+            new SolidColorBrush(Color.FromArgb(100, 139, 205, 192)));
+
+    public static readonly StyledProperty<IBrush> LineHighlightBrushProperty =
+        AvaloniaProperty.Register<TextEditor, IBrush>(nameof(LineHighlightBrush),
+            new SolidColorBrush(Color.Parse("#ededed")));
+
+    public new static readonly StyledProperty<FontFamily> FontFamilyProperty =
+        AvaloniaProperty.Register<TextEditor, FontFamily>(
+            nameof(FontFamily),
+            new FontFamily("avares://meteor/Assets/Fonts/SanFrancisco/SF-Mono-Medium.otf#SF Mono"));
+
+    public new static readonly StyledProperty<double> FontSizeProperty =
+        AvaloniaProperty.Register<TextEditor, double>(
+            nameof(FontSize),
+            13);
+
+    public new FontFamily FontFamily
     {
         get => GetValue(FontFamilyProperty);
-        init => SetValue(FontFamilyProperty, value);
+        set => SetValue(FontFamilyProperty, value);
     }
 
-    public double FontSize => GetValue(FontSizeProperty);
+    public new double FontSize
+    {
+        get => GetValue(FontSizeProperty);
+        set => SetValue(FontSizeProperty, value);
+    }
 
     public double LineHeight
     {
         get => GetValue(LineHeightProperty);
         set => SetValue(LineHeightProperty, value);
+    }
+
+    public IBrush BackgroundBrush
+    {
+        get => GetValue(BackgroundBrushProperty);
+        set => SetValue(BackgroundBrushProperty, value);
+    }
+
+    public IBrush CursorBrush
+    {
+        get => GetValue(CursorBrushProperty);
+        set => SetValue(CursorBrushProperty, value);
+    }
+
+    public IBrush SelectionBrush
+    {
+        get => GetValue(SelectionBrushProperty);
+        set => SetValue(SelectionBrushProperty, value);
+    }
+
+    public IBrush LineHighlightBrush
+    {
+        get => GetValue(LineHighlightBrushProperty);
+        set => SetValue(LineHighlightBrushProperty, value);
     }
 
     public TextEditor()
@@ -68,12 +112,14 @@ public partial class TextEditor : UserControl
         DataContextChanged += OnDataContextChanged;
         Focusable = true;
 
-        FontFamily = new FontFamily("avares://meteor/Assets/Fonts/SanFrancisco/SF-Mono-Medium.otf#SF Mono");
-
         this.GetObservable(FontFamilyProperty).Subscribe(OnFontFamilyChanged);
         this.GetObservable(FontSizeProperty).Subscribe(OnFontSizeChanged);
         this.GetObservable(LineHeightProperty).Subscribe(OnLineHeightChanged);
-        
+        this.GetObservable(BackgroundBrushProperty).Subscribe(_ => InvalidateVisual());
+        this.GetObservable(CursorBrushProperty).Subscribe(_ => InvalidateVisual());
+        this.GetObservable(SelectionBrushProperty).Subscribe(_ => InvalidateVisual());
+        this.GetObservable(LineHighlightBrushProperty).Subscribe(_ => InvalidateVisual());
+
         MeasureCharWidth();
         UpdateLineCache(-1);
     }
@@ -331,7 +377,6 @@ public partial class TextEditor : UserControl
 
         return lineStart + column;
     }
-
 
     private void HandleTextInsertion(long position, string text)
     {
@@ -1053,7 +1098,7 @@ public partial class TextEditor : UserControl
     {
         if (_scrollableViewModel == null) return;
 
-        context.FillRectangle(Brushes.White, new Rect(Bounds.Size));
+        context.FillRectangle(BackgroundBrush, new Rect(Bounds.Size));
 
         var lineCount = GetLineCount();
         if (lineCount == 0) return;
@@ -1080,14 +1125,12 @@ public partial class TextEditor : UserControl
         var selectionStartLine = GetLineIndexFromPosition(viewModel.SelectionStart);
         var selectionEndLine = GetLineIndexFromPosition(viewModel.SelectionEnd);
 
-        // Calculate the total width including horizontal offset
         var totalWidth = Math.Max(viewModel.WindowWidth, viewableAreaWidth + _scrollableViewModel!.HorizontalOffset);
 
-        // Check if the cursor line is outside the selection range
         if (cursorLine < selectionStartLine || cursorLine > selectionEndLine)
         {
             var rect = new Rect(0, y, totalWidth, LineHeight);
-            context.FillRectangle(new SolidColorBrush(Color.Parse("#ededed")), rect);
+            context.FillRectangle(LineHighlightBrush, rect);
         }
         else
         {
@@ -1104,16 +1147,14 @@ public partial class TextEditor : UserControl
             var xStart = lineStartOffset * viewModel.CharWidth;
             var xEnd = lineEndOffset * viewModel.CharWidth;
 
-            // Highlight the area before the selection
             if (xStart > 0)
             {
                 var beforeSelectionRect = new Rect(0, y, xStart, LineHeight);
-                context.FillRectangle(new SolidColorBrush(Color.Parse("#ededed")), beforeSelectionRect);
+                context.FillRectangle(LineHighlightBrush, beforeSelectionRect);
             }
 
-            // Highlight the area after the selection
             var afterSelectionRect = new Rect(xEnd, y, totalWidth - xEnd, LineHeight);
-            context.FillRectangle(new SolidColorBrush(Color.Parse("#ededed")), afterSelectionRect);
+            context.FillRectangle(LineHighlightBrush, afterSelectionRect);
         }
     }
 
@@ -1150,7 +1191,7 @@ public partial class TextEditor : UserControl
                 FlowDirection.LeftToRight,
                 new Typeface(FontFamily),
                 FontSize,
-                Brushes.Black);
+                Foreground);
 
             var verticalOffset = (LineHeight - formattedText.Height) / 2;
 
@@ -1171,7 +1212,7 @@ public partial class TextEditor : UserControl
 
         var selectionStart = Math.Min(viewModel.SelectionStart, viewModel.SelectionEnd);
         var selectionEnd = Math.Max(viewModel.SelectionStart, viewModel.SelectionEnd);
-        
+
         var cursorPosition = viewModel.CursorPosition;
 
         var startLine = GetLineIndexFromPosition(selectionStart);
@@ -1214,13 +1255,13 @@ public partial class TextEditor : UserControl
             }
             else if (!isLastSelectionLine)
             {
-                selectionWidth += SelectionEndPadding;
+                selectionWidth += 2;
             }
 
             selectionWidth = Math.Max(selectionWidth, viewModel.CharWidth);
 
             var selectionRect = new Rect(xStart, y, selectionWidth, LineHeight);
-            context.FillRectangle(new SolidColorBrush(Color.FromArgb(100, 139, 205, 192)), selectionRect);
+            context.FillRectangle(SelectionBrush, selectionRect);
         }
     }
 
@@ -1238,7 +1279,7 @@ public partial class TextEditor : UserControl
 
         if (cursorXRelative >= 0)
             context.DrawLine(
-                new Pen(Brushes.Black),
+                new Pen(CursorBrush),
                 new Point(cursorXRelative, cursorY),
                 new Point(cursorXRelative, cursorY + LineHeight)
             );

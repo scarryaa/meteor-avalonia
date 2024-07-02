@@ -32,7 +32,10 @@ public class MainWindowViewModel : ViewModelBase
     private TabViewModel _temporaryTab;
     private readonly ITextBufferFactory _textBufferFactory;
     private IAutoSaveService _autoSaveService;
+    private readonly IThemeService _themeService;
 
+    public IResourceProvider CurrentTheme => _themeService.GetCurrentTheme();
+    
     public MainWindowViewModel(
         TitleBarViewModel titleBarViewModel,
         StatusPaneViewModel statusPaneViewModel,
@@ -42,8 +45,10 @@ public class MainWindowViewModel : ViewModelBase
         FileExplorerViewModel fileExplorerViewModel,
         ITextBufferFactory textBufferFactory,
         IAutoSaveService autoSaveService,
-        IDialogService dialogService)
+        IDialogService dialogService,
+        IThemeService themeService)
     {
+        _themeService = themeService;
         _autoSaveService = autoSaveService;
         _dialogService = dialogService;
         
@@ -60,7 +65,9 @@ public class MainWindowViewModel : ViewModelBase
         OpenFolderCommand = ReactiveCommand.CreateFromTask(OpenFolderAsync);
         ShowSaveDialogCommand = ReactiveCommand.Create(() => IsDialogOpen = true);
         HideSaveDialogCommand = ReactiveCommand.Create(() => IsDialogOpen = false);
-
+        SetLightThemeCommand = ReactiveCommand.Create(SetLightTheme);
+        SetDarkThemeCommand = ReactiveCommand.Create(SetDarkTheme);
+        
         _tabSelectionHistory = new Stack<TabViewModel>();
 
         SelectedTab = Tabs.FirstOrDefault();
@@ -121,19 +128,23 @@ public class MainWindowViewModel : ViewModelBase
             {
                 _selectedTab.SavedVerticalOffset = _selectedTab.ScrollableTextEditorViewModel.VerticalOffset;
                 _selectedTab.SavedHorizontalOffset = _selectedTab.ScrollableTextEditorViewModel.HorizontalOffset;
+                _selectedTab.IsSelected = false;
             }
 
             this.RaiseAndSetIfChanged(ref _selectedTab, value);
 
             if (_selectedTab != null)
+            {
+                _selectedTab.IsSelected = true;
                 Dispatcher.UIThread.Post(() =>
                 {
                     _selectedTab.ScrollableTextEditorViewModel.TextEditorViewModel.Focus();
                     _selectedTab.ScrollableTextEditorViewModel.VerticalOffset = _selectedTab.SavedVerticalOffset;
                     _selectedTab.ScrollableTextEditorViewModel.HorizontalOffset = _selectedTab.SavedHorizontalOffset;
-
+                    
                     _selectedTab.ScrollableTextEditorViewModel.UpdateLongestLineWidth();
                 }, DispatcherPriority.Render);
+            }
         }
     }
 
@@ -163,11 +174,24 @@ public class MainWindowViewModel : ViewModelBase
     public ICommand NewTabCommand { get; }
     public ICommand CloseTabCommand { get; }
 
+    public ReactiveCommand<Unit, Unit> SetLightThemeCommand { get; }
+    public ReactiveCommand<Unit, Unit> SetDarkThemeCommand { get; }
+    
     public ReactiveCommand<Unit, Unit> OpenFolderCommand { get; }
     public ReactiveCommand<Unit, Unit> SaveCommand { get; }
     public ReactiveCommand<Unit, bool> ShowSaveDialogCommand { get; }
     public ReactiveCommand<Unit, bool> HideSaveDialogCommand { get; }
 
+    private void SetLightTheme()
+    {
+        _themeService.SetTheme("avares://meteor/Resources/LightTheme.axaml");
+    }
+
+    private void SetDarkTheme()
+    {
+        _themeService.SetTheme("avares://meteor/Resources/DarkTheme.axaml");
+    }
+    
     private async Task OpenFolderAsync()
     {
         var dialog = new OpenFolderDialog
@@ -190,13 +214,6 @@ public class MainWindowViewModel : ViewModelBase
         }
     }
 
-    private Window GetMainWindow()
-    {
-        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
-            return desktop.MainWindow;
-        return null;
-    }
-
     private void NewTab()
     {
         var cursorPositionService = App.ServiceProvider.GetRequiredService<ICursorPositionService>();
@@ -216,7 +233,8 @@ public class MainWindowViewModel : ViewModelBase
             fontPropertiesViewModel,
             lineCountViewModel,
             clipboardService,
-            autoSaveService)
+            autoSaveService,
+            _themeService)
         {
             Title = $"Untitled {Tabs.Count + 1}",
             ScrollableTextEditorViewModel = new ScrollableTextEditorViewModel(
@@ -224,7 +242,8 @@ public class MainWindowViewModel : ViewModelBase
                 fontPropertiesViewModel,
                 lineCountViewModel,
                 textBuffer,
-                clipboardService),
+                clipboardService,
+                _themeService),
             CloseTabCommand = CloseTabCommand
         };
 
@@ -337,7 +356,8 @@ public class MainWindowViewModel : ViewModelBase
                 App.ServiceProvider.GetRequiredService<FontPropertiesViewModel>(),
                 App.ServiceProvider.GetRequiredService<LineCountViewModel>(),
                 App.ServiceProvider.GetRequiredService<IClipboardService>(),
-                App.ServiceProvider.GetRequiredService<IAutoSaveService>())
+                App.ServiceProvider.GetRequiredService<IAutoSaveService>(),
+                App.ServiceProvider.GetRequiredService<IThemeService>())
             {
                 Title = Path.GetFileName(filePath),
                 CloseTabCommand = CloseTabCommand,
@@ -349,7 +369,8 @@ public class MainWindowViewModel : ViewModelBase
                     App.ServiceProvider.GetRequiredService<FontPropertiesViewModel>(),
                     App.ServiceProvider.GetRequiredService<LineCountViewModel>(),
                     _textBufferFactory.Create(),
-                    App.ServiceProvider.GetRequiredService<IClipboardService>()
+                    App.ServiceProvider.GetRequiredService<IClipboardService>(),
+                    App.ServiceProvider.GetRequiredService<IThemeService>()
                 )
             };
 
@@ -389,7 +410,8 @@ public class MainWindowViewModel : ViewModelBase
             App.ServiceProvider.GetRequiredService<FontPropertiesViewModel>(),
             App.ServiceProvider.GetRequiredService<LineCountViewModel>(),
             App.ServiceProvider.GetRequiredService<IClipboardService>(),
-            App.ServiceProvider.GetRequiredService<IAutoSaveService>())
+            App.ServiceProvider.GetRequiredService<IAutoSaveService>(),
+            App.ServiceProvider.GetRequiredService<IThemeService>())
         {
             Title = Path.GetFileName(filePath),
             CloseTabCommand = CloseTabCommand,
@@ -399,7 +421,8 @@ public class MainWindowViewModel : ViewModelBase
                 App.ServiceProvider.GetRequiredService<FontPropertiesViewModel>(),
                 App.ServiceProvider.GetRequiredService<LineCountViewModel>(),
                 _textBufferFactory.Create(),
-                App.ServiceProvider.GetRequiredService<IClipboardService>()
+                App.ServiceProvider.GetRequiredService<IClipboardService>(),
+                App.ServiceProvider.GetRequiredService<IThemeService>()
             )
         };
 

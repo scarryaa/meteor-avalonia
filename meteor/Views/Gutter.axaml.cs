@@ -19,25 +19,38 @@ public partial class Gutter : UserControl
     private const double ScrollSpeed = 1;
     private readonly Dictionary<long, FormattedText> formattedTextCache = new();
     private (long start, long end) _lastKnownSelection = (-1, -1);
-    private int _lastRenderedLine = -1;
-    private double _lastRenderedOffset = -1;
-
-    public static readonly StyledProperty<FontFamily> FontFamilyProperty =
-        AvaloniaProperty.Register<Gutter, FontFamily>(nameof(FontFamily));
-
-    public static readonly StyledProperty<double> FontSizeProperty =
-        AvaloniaProperty.Register<Gutter, double>(nameof(FontSize));
 
     public static readonly StyledProperty<double> LineHeightProperty =
         AvaloniaProperty.Register<Gutter, double>(nameof(LineHeight), 20);
 
-    public FontFamily FontFamily
+    public static readonly StyledProperty<IBrush> BackgroundBrushProperty =
+        AvaloniaProperty.Register<Gutter, IBrush>(nameof(BackgroundBrush), Brushes.White);
+
+    public static readonly StyledProperty<IBrush> ForegroundBrushProperty =
+        AvaloniaProperty.Register<Gutter, IBrush>(nameof(ForegroundBrush));
+
+    public static readonly StyledProperty<IBrush> LineHighlightBrushProperty =
+        AvaloniaProperty.Register<Gutter, IBrush>(nameof(LineHighlightBrush));
+
+    public static readonly StyledProperty<IBrush> SelectedBrushProperty =
+        AvaloniaProperty.Register<Gutter, IBrush>(nameof(SelectedBrush),
+            new SolidColorBrush(Color.FromArgb(100, 139, 205, 192)));
+
+    public new static readonly StyledProperty<FontFamily> FontFamilyProperty =
+        AvaloniaProperty.Register<Gutter, FontFamily>(
+            nameof(FontFamily),
+            new FontFamily("avares://meteor/Assets/Fonts/SanFrancisco/SF-Mono-Medium.otf#SF Mono"));
+
+    public new static readonly StyledProperty<double> FontSizeProperty =
+        AvaloniaProperty.Register<Gutter, double>(nameof(FontSize), 13);
+
+    public new FontFamily FontFamily
     {
         get => GetValue(FontFamilyProperty);
         set => SetValue(FontFamilyProperty, value);
     }
 
-    public double FontSize
+    public new double FontSize
     {
         get => GetValue(FontSizeProperty);
         set => SetValue(FontSizeProperty, value);
@@ -49,11 +62,77 @@ public partial class Gutter : UserControl
         set => SetValue(LineHeightProperty, value);
     }
 
+    public IBrush ForegroundBrush
+    {
+        get => GetValue(ForegroundProperty);
+        set
+        {
+            SetValue(ForegroundProperty, value);
+            InvalidateVisual();
+        }
+    }
+
+    public IBrush BackgroundBrush
+    {
+        get => GetValue(BackgroundBrushProperty);
+        set
+        {
+            SetValue(BackgroundBrushProperty, value);
+            InvalidateVisual();
+        }
+    }
+
+    public IBrush LineHighlightBrush
+    {
+        get => GetValue(LineHighlightBrushProperty);
+        set => SetValue(LineHighlightBrushProperty, value);
+    }
+
+    public IBrush SelectedBrush
+    {
+        get => GetValue(SelectedBrushProperty);
+        set => SetValue(SelectedBrushProperty, value);
+    }
+
     public Gutter()
     {
         InitializeComponent();
         DataContextChanged += OnDataContextChanged;
+
+        this.GetObservable(ForegroundBrushProperty).Subscribe(_ => InvalidateVisual());
+        this.GetObservable(SelectedBrushProperty).Subscribe(_ => InvalidateVisual());
+        this.GetObservable(FontFamilyProperty).Subscribe(_ => InvalidateVisual());
+        this.GetObservable(FontSizeProperty).Subscribe(_ => InvalidateVisual());
+        this.GetObservable(BackgroundBrushProperty).Subscribe(_ => InvalidateVisual());
+        this.GetObservable(LineHighlightBrushProperty).Subscribe(_ => { InvalidateVisual(); });
+        
         AddHandler(PointerWheelChangedEvent, OnPointerWheelChanged, RoutingStrategies.Tunnel);
+    }
+
+    private void OnDataContextChanged(object? sender, EventArgs e)
+    {
+        if (DataContext is GutterViewModel oldViewModel) oldViewModel.InvalidateRequired -= OnInvalidateRequired;
+
+        if (DataContext is GutterViewModel newViewModel)
+        {
+            newViewModel.InvalidateRequired += OnInvalidateRequired;
+            Bind(LineHeightProperty, newViewModel.WhenAnyValue(vm => vm.LineHeight));
+            Bind(FontFamilyProperty, newViewModel.WhenAnyValue(vm => vm.FontFamily));
+            Bind(FontSizeProperty, newViewModel.WhenAnyValue(vm => vm.FontSize));
+
+            UpdateGutterWidth(newViewModel);
+
+            newViewModel.TextEditorViewModel.WhenAnyValue(lvm => lvm.LineCount)
+                .Subscribe(_ => UpdateGutterWidth(newViewModel));
+            newViewModel.WhenAnyValue(vm => vm.FontSize).Subscribe(_ => UpdateGutterWidth(newViewModel));
+        }
+    }
+
+    private void OnInvalidateRequired(object? sender, EventArgs e)
+    {
+        InvalidateVisual();
+        InvalidateMeasure();
+        InvalidateArrange();
     }
 
     private void OnPointerWheelChanged(object? sender, PointerWheelEventArgs e)
@@ -81,6 +160,17 @@ public partial class Gutter : UserControl
             e.Handled = true;
             InvalidateVisual();
         }
+    }
+
+    private long GetLineNumberFromY(double y)
+    {
+        if (DataContext is GutterViewModel viewModel)
+        {
+            var lineNumber = (long)Math.Floor((y + viewModel.VerticalOffset) / LineHeight);
+            return long.Max(0, long.Min(lineNumber, viewModel.TextEditorViewModel.TextBuffer.LineCount - 1));
+        }
+
+        return 0;
     }
 
     private void HandleAutoScroll(GutterViewModel viewModel, double y)
@@ -117,18 +207,7 @@ public partial class Gutter : UserControl
         _isDragging = false;
         InvalidateVisual();
     }
-
-    private long GetLineNumberFromY(double y)
-    {
-        if (DataContext is GutterViewModel viewModel)
-        {
-            var lineNumber = (long)Math.Floor((y + viewModel.VerticalOffset) / LineHeight);
-            return long.Max(0, long.Min(lineNumber, viewModel.TextEditorViewModel.TextBuffer.LineCount - 1));
-        }
-
-        return 0;
-    }
-
+    
     private void UpdateSelection(GutterViewModel viewModel, long startLine, long endLine)
     {
         var textEditorViewModel = viewModel.TextEditorViewModel;
@@ -154,27 +233,7 @@ public partial class Gutter : UserControl
             textEditorViewModel.CursorPosition = selectionStart;
         textEditorViewModel.ShouldScrollToCursor = true;
 
-        
         InvalidateVisual();
-    }
-
-
-    private void OnDataContextChanged(object? sender, EventArgs e)
-    {
-        if (DataContext is GutterViewModel oldViewModel) oldViewModel.InvalidateRequired -= OnInvalidateRequired;
-
-        if (DataContext is GutterViewModel newViewModel)
-        {
-            newViewModel.InvalidateRequired += OnInvalidateRequired;
-            Bind(LineHeightProperty, newViewModel.WhenAnyValue(vm => vm.LineHeight));
-            Bind(FontFamilyProperty, newViewModel.WhenAnyValue(vm => vm.FontFamily));
-            Bind(FontSizeProperty, newViewModel.WhenAnyValue(vm => vm.FontSize));
-            UpdateGutterWidth(newViewModel);
-
-            newViewModel.TextEditorViewModel.WhenAnyValue(lvm => lvm.LineCount)
-                .Subscribe(_ => UpdateGutterWidth(newViewModel));
-            newViewModel.WhenAnyValue(vm => vm.FontSize).Subscribe(_ => UpdateGutterWidth(newViewModel));
-        }
     }
 
     private void UpdateGutterWidth(GutterViewModel viewModel)
@@ -199,18 +258,11 @@ public partial class Gutter : UserControl
         Width = Math.Max(formattedTextMaxLine.Width, formattedText9999.Width) + 40;
     }
 
-    private void OnInvalidateRequired(object? sender, EventArgs e)
-    {
-        InvalidateVisual();
-        InvalidateMeasure();
-        InvalidateArrange();
-    }
-
     public override void Render(DrawingContext context)
     {
         base.Render(context);
 
-        context.FillRectangle(Brushes.White, new Rect(Bounds.Size));
+        context.FillRectangle(BackgroundBrush, new Rect(Bounds.Size));
 
         if (DataContext is not GutterViewModel viewModel) return;
 
@@ -224,7 +276,6 @@ public partial class Gutter : UserControl
         var cursorLine = GetLineIndexFromPosition(viewModel.TextEditorViewModel.CursorPosition);
         var textBuffer = viewModel.TextEditorViewModel.TextBuffer;
 
-        // Invalidate the cache if the selection has changed
         if (selectionStart != _lastKnownSelection.start || selectionEnd != _lastKnownSelection.end)
         {
             formattedTextCache.Clear();
@@ -251,16 +302,16 @@ public partial class Gutter : UserControl
             var isCurrentLine = i == cursorLine;
 
             var brush = (isSelected && _lastKnownSelection.start != _lastKnownSelection.end) || isCurrentLine
-                ? new SolidColorBrush(Brushes.Black.Color)
-                : new SolidColorBrush(Color.Parse("#bbbbbb"));
+                ? SelectedBrush
+                : ForegroundBrush;
 
             var formattedText = new FormattedText(
-                    lineNumber.ToString(),
-                    CultureInfo.CurrentCulture,
-                    FlowDirection.LeftToRight,
-                    new Typeface(FontFamily),
-                    FontSize,
-                    brush);
+                lineNumber.ToString(),
+                CultureInfo.CurrentCulture,
+                FlowDirection.LeftToRight,
+                new Typeface(FontFamily),
+                FontSize,
+                brush);
             formattedTextCache[i] = formattedText;
 
             var verticalOffset = (LineHeight - formattedText.Height) / 2;
@@ -269,7 +320,7 @@ public partial class Gutter : UserControl
             if (i == cursorLine)
             {
                 var highlightRect = new Rect(0, yPosition - verticalOffset, Bounds.Width, LineHeight);
-                context.FillRectangle(new SolidColorBrush(Color.Parse("#ededed")), highlightRect);
+                context.FillRectangle(LineHighlightBrush, highlightRect);
             }
 
             context.DrawText(formattedText, new Point(Bounds.Width - formattedText.Width - 20, yPosition));
@@ -285,7 +336,7 @@ public partial class Gutter : UserControl
         var lineIndex = textBuffer.GetLineIndexFromPosition((int)position);
         return (int)lineIndex;
     }
-    
+
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnDetachedFromVisualTree(e);

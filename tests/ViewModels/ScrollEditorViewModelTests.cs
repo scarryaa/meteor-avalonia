@@ -15,6 +15,7 @@ public class ScrollableTextEditorViewModelTests
     private readonly LineCountViewModel _lineCountViewModel;
     private readonly ScrollableTextEditorViewModel _viewModel;
     private readonly Mock<IClipboardService> _mockClipboardService;
+    private readonly Mock<IThemeService> _mockThemeService;
 
     public ScrollableTextEditorViewModelTests()
     {
@@ -23,13 +24,17 @@ public class ScrollableTextEditorViewModelTests
         _fontPropertiesViewModel = new FontPropertiesViewModel();
         _lineCountViewModel = new LineCountViewModel();
         _mockClipboardService = new Mock<IClipboardService>();
+        ;
+        _mockThemeService = new Mock<IThemeService>();
+        ;
 
         _viewModel = new ScrollableTextEditorViewModel(
             _mockCursorPositionService.Object,
             _fontPropertiesViewModel,
             _lineCountViewModel,
             _mockTextBuffer.Object,
-            _mockClipboardService.Object
+            _mockClipboardService.Object,
+            _mockThemeService.Object
         );
     }
 

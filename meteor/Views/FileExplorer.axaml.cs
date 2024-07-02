@@ -6,7 +6,6 @@ using System.Globalization;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
-using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using meteor.Models;
 using meteor.ViewModels;
@@ -26,15 +25,6 @@ public partial class FileExplorer : UserControl
     public static readonly StyledProperty<File> SelectedItemProperty =
         AvaloniaProperty.Register<FileExplorer, File>(nameof(SelectedItem));
 
-    public static readonly StyledProperty<IBrush> SelectedBrushProperty =
-        AvaloniaProperty.Register<FileExplorer, IBrush>(nameof(SelectedBrush));
-
-    public static readonly StyledProperty<IBrush> IconBrushProperty =
-        AvaloniaProperty.Register<FileExplorer, IBrush>(nameof(IconBrush));
-
-    public static readonly StyledProperty<IBrush> OutlineBrushProperty =
-        AvaloniaProperty.Register<FileExplorer, IBrush>(nameof(OutlineBrush));
-
     private bool _isDoubleClick;
     private DateTime _lastClickTime = DateTime.MinValue;
 
@@ -45,8 +35,14 @@ public partial class FileExplorer : UserControl
         InitializeComponent();
         Focusable = true;
 
+        DataContextChanged += OnDataContextChanged;
         PointerPressed += OnPointerPressed;
         KeyDown += OnKeyDown;
+    }
+
+    private void OnInvalidateRequired(object? sender, EventArgs e)
+    {
+        InvalidateVisual();
     }
 
     public FileExplorerViewModel ViewModel
@@ -67,32 +63,8 @@ public partial class FileExplorer : UserControl
         set => SetValue(SelectedItemProperty, value);
     }
 
-    public IBrush SelectedBrush
-    {
-        get => GetValue(SelectedBrushProperty);
-        set => SetValue(SelectedBrushProperty, value);
-    }
-
-    public IBrush IconBrush
-    {
-        get => GetValue(IconBrushProperty);
-        set => SetValue(IconBrushProperty, value);
-    }
-
-    public IBrush OutlineBrush
-    {
-        get => GetValue(OutlineBrushProperty);
-        set => SetValue(OutlineBrushProperty, value);
-    }
-
     public event EventHandler<string> FileClicked;
     public event EventHandler<string> FileDoubleClicked;
-
-    private void InitializeComponent()
-    {
-        AvaloniaXamlLoader.Load(this);
-        DataContextChanged += OnDataContextChanged;
-    }
 
     private void OnDataContextChanged(object sender, EventArgs e)
     {
@@ -100,7 +72,9 @@ public partial class FileExplorer : UserControl
         {
             ViewModel = viewModel;
             Items = viewModel.Items;
+
             viewModel.PropertyChanged += ViewModel_PropertyChanged;
+            ViewModel.InvalidateRequired += OnInvalidateRequired;
         }
     }
 
@@ -243,8 +217,8 @@ public partial class FileExplorer : UserControl
 
     private double RenderItem(DrawingContext context, File item, double x, double y)
     {
-        var iconBrush = IconBrush;
-        var backgroundBrush = item == SelectedItem ? SelectedBrush : Brushes.Transparent;
+        var iconBrush = ViewModel.IconBrush;
+        var backgroundBrush = item == SelectedItem ? ViewModel.SelectedBrush : Brushes.Transparent;
 
         context.FillRectangle(backgroundBrush, new Rect(0, y, Bounds.Width, 20));
 
@@ -261,13 +235,13 @@ public partial class FileExplorer : UserControl
         if (item.IsExpanded || !item.IsDirectory)
         {
             // Draw the outline and fill the icon
-            context.DrawGeometry(null, new Pen(OutlineBrush), textGeometry);
+            context.DrawGeometry(null, new Pen(ViewModel.OutlineBrush), textGeometry);
             context.DrawGeometry(iconBrush, null, textGeometry);
         }
         else
         {
             // Draw only the outline of the icon
-            context.DrawGeometry(null, new Pen(OutlineBrush), textGeometry);
+            context.DrawGeometry(null, new Pen(ViewModel.OutlineBrush), textGeometry);
         }
 
         context.DrawText(
@@ -277,7 +251,7 @@ public partial class FileExplorer : UserControl
                 FlowDirection.LeftToRight,
                 new Typeface(FontFamily),
                 FontSize,
-                Brushes.Black),
+                Foreground),
             new Point(x + 20, y + 2));
 
         y += 20;

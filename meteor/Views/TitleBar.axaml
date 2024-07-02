@@ -4,7 +4,8 @@
              xmlns:i="https://github.com/projektanker/icons.avalonia"
              xmlns:viewmodels="clr-namespace:meteor.ViewModels"
              xmlns:converters="clr-namespace:meteor.Converters"
-             Background="#dcdcdc" FontFamily="{StaticResource SanFrancisco}"
+             Background="{Binding Background, RelativeSource={RelativeSource AncestorType=UserControl}}"
+             FontFamily="{StaticResource SanFrancisco}"
              x:DataType="viewmodels:TitleBarViewModel">
 
     <UserControl.Resources>
@@ -12,7 +13,8 @@
         <converters:EscapeUnderscoreConverter x:Key="EscapeUnderscoreConverter" />
     </UserControl.Resources>
 
-    <Border BorderBrush="#a6a6a6" BorderThickness="0 0 0 1">
+    <Border BorderBrush="{Binding BorderBrush, RelativeSource={RelativeSource AncestorType=UserControl}}"
+            BorderThickness="0 0 0 1">
         <Grid Height="30" ColumnDefinitions="Auto, Auto, *">
             <Button Classes="noBg" CornerRadius="0" i:Attached.Icon="fa-solid fa-bars" HorizontalAlignment="Left">
                 <Button.Flyout>

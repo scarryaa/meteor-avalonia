@@ -4,8 +4,13 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:viewModels="clr-namespace:meteor.ViewModels"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
-             x:DataType="viewModels:TextEditorViewModel"
              x:Class="meteor.Views.TextEditor"
-             FontFamily="{Binding FontFamily}">
+             Foreground="{Binding Foreground, RelativeSource={RelativeSource Self}}"
+             FontFamily="{Binding FontFamily, RelativeSource={RelativeSource Self}}"
+             FontSize="{Binding FontSize, RelativeSource={RelativeSource Self}}"
+             BackgroundBrush="{Binding BackgroundBrush, RelativeSource={RelativeSource Self}}"
+             CursorBrush="{Binding CursorBrush, RelativeSource={RelativeSource Self}}"
+             SelectionBrush="{Binding SelectionBrush, RelativeSource={RelativeSource Self}}"
+             LineHighlightBrush="{Binding LineHighlightBrush, RelativeSource={RelativeSource Self}}">
 
 </UserControl>

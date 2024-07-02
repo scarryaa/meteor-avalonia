@@ -35,7 +35,8 @@ public class ScrollableTextEditorViewModel : ViewModelBase
         FontPropertiesViewModel fontPropertiesViewModel,
         LineCountViewModel lineCountViewModel,
         ITextBuffer textBuffer,
-        IClipboardService clipboardService)
+        IClipboardService clipboardService,
+        IThemeService themeService)
     {
         ClipboardService = clipboardService;
         
@@ -50,7 +51,7 @@ public class ScrollableTextEditorViewModel : ViewModelBase
             textBuffer,
             clipboardService);
         GutterViewModel = new GutterViewModel(cursorPositionService, fontPropertiesViewModel, lineCountViewModel, this,
-            TextEditorViewModel);
+            TextEditorViewModel, themeService);
 
         LineHeight = FontSize * 1.5;
 

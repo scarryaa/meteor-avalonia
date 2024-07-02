@@ -9,12 +9,14 @@
              VerticalAlignment="Stretch"
              d:DesignHeight="400"
              d:DesignWidth="200">
-    
+
     <UserControl.Resources>
         <converters:InverseBooleanConverter x:Key="InverseBooleanConverter" />
     </UserControl.Resources>
 
-    <Border BorderBrush="#a6a6a6" BorderThickness="0 0 1 0">
+    <Border BorderBrush="{Binding BorderBrush, RelativeSource={RelativeSource AncestorType=UserControl}}"
+            Background="{Binding Background, RelativeSource={RelativeSource AncestorType=UserControl}}"
+            BorderThickness="0 0 1 0">
         <Grid x:DataType="viewModels:FileExplorerViewModel">
             <Button Content="Open Folder"
                     Command="{Binding SelectPathCommand}"
@@ -33,9 +35,6 @@
                           BringIntoViewOnFocusChange="False">
                 <views:FileExplorer HorizontalAlignment="Left"
                                     FontSize="13"
-                                    IconBrush="#a5a5a5"
-                                    OutlineBrush="#878787"
-                                    SelectedBrush="#e6e6e6"
                                     VerticalAlignment="Top"
                                     x:Name="FileExplorer"
                                     Items="{Binding Items}"

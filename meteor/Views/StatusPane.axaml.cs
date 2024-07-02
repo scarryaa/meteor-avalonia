@@ -1,18 +1,20 @@
+using Avalonia;
 using Avalonia.Controls;
-using meteor.ViewModels;
-using Microsoft.Extensions.DependencyInjection;
+using Avalonia.Media;
 
 namespace meteor.Views;
 
 public partial class StatusPane : UserControl
 {
+    static StatusPane()
+    {
+        BackgroundProperty.OverrideMetadata<StatusPane>(new StyledPropertyMetadata<IBrush?>());
+        BorderBrushProperty.OverrideMetadata<StatusPane>(new StyledPropertyMetadata<IBrush?>());
+        ForegroundProperty.OverrideMetadata<StatusPane>(new StyledPropertyMetadata<IBrush?>());
+    }
+
     public StatusPane()
     {
         InitializeComponent();
-
-        AttachedToVisualTree += (sender, e) =>
-        {
-            DataContext = App.ServiceProvider.GetRequiredService<StatusPaneViewModel>();
-        };
     }
 }

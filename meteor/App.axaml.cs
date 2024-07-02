@@ -75,6 +75,9 @@ public partial class App : Application
 
         // Register IMainWindowProvider
         services.AddSingleton<IMainWindowProvider, MainWindowProvider>();
+
+        // Register ThemeService with the application instance
+        services.AddSingleton<IThemeService>(provider => new ThemeService(this));
     }
 
     internal static void SetServiceProviderForTesting(IServiceProvider serviceProvider)

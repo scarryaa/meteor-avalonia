@@ -18,7 +18,8 @@ public class TabViewModelTests : IDisposable
     private readonly LineCountViewModel _lineCountViewModel;
     private readonly Mock<IClipboardService> _mockClipboardService;
     private readonly Mock<IAutoSaveService> _mockAutoSaveService;
-
+    private readonly Mock<IThemeService> _mockThemeService;
+    
     public TabViewModelTests()
     {
         _mockCursorPositionService = new Mock<ICursorPositionService>();
@@ -30,6 +31,7 @@ public class TabViewModelTests : IDisposable
         _lineCountViewModel = new LineCountViewModel();
         _mockClipboardService = new Mock<IClipboardService>();
         _mockAutoSaveService = new Mock<IAutoSaveService>();
+        _mockThemeService = new Mock<IThemeService>();
 
         _mockFileSystemWatcherFactory
             .Setup(f => f.Create(It.IsAny<string>()))
@@ -73,7 +75,8 @@ public class TabViewModelTests : IDisposable
             _fontPropertiesViewModel,
             _lineCountViewModel,
             _mockClipboardService.Object,
-            _mockAutoSaveService.Object);
+            _mockAutoSaveService.Object,
+            _mockThemeService.Object);
     }
 
     [Fact]

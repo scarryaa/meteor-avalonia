@@ -18,6 +18,7 @@ public class TextEditorTests
     private readonly TextEditor _textEditor;
     private readonly Mock<IClipboardService> _mockClipboardService;
     private readonly Mock<IClipboard> _mockClipboard;
+    private readonly Mock<IThemeService> _mockThemeService;
     private readonly MockTopLevel _mockTopLevel;
 
     public TextEditorTests()
@@ -30,6 +31,7 @@ public class TextEditorTests
         var fontPropertiesViewModel = new FontPropertiesViewModel();
         var lineCountViewModel = new LineCountViewModel();
         _mockTextBuffer = new Mock<ITextBuffer>();
+        _mockThemeService = new Mock<IThemeService>();
 
         _mockTextBuffer.Setup(tb => tb.Rope).Returns(new Mock<IRope>().Object);
         _mockTextBuffer.Setup(tb => tb.Length).Returns(18); // Total length of "Line 1\nLine 2\nLine 3"
@@ -51,7 +53,8 @@ public class TextEditorTests
             fontPropertiesViewModel,
             lineCountViewModel,
             _mockTextBuffer.Object,
-            _mockClipboardService.Object);
+            _mockClipboardService.Object,
+            _mockThemeService.Object);
 
         _textEditor = new TextEditor
         {

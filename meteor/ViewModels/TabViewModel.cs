@@ -4,6 +4,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Timers;
 using System.Windows.Input;
+using Avalonia.Media;
 using DiffPlex.DiffBuilder;
 using meteor.Interfaces;
 using meteor.Models;
@@ -39,10 +40,18 @@ public class TabViewModel : ViewModelBase, IDisposable
     private FileSystemWatcher? _fileWatcher;
     private readonly IAutoSaveService _autoSaveService;
     private bool _isClosing;
+    private readonly IThemeService _themeService;
+    private IBrush _foreground;
+    private IBrush _background;
+    private IBrush _borderBrush;
+    private IBrush _closeButtonBackground;
+    private IBrush _closeButtonForeground;
+    private IBrush _dirtyIndicatorBrush;
     
     public event EventHandler? TextChanged;
     public event EventHandler? FileChangedExternally;
     public event EventHandler? TabClosed;
+    public event EventHandler? InvalidateRequired;
 
     public ICommand CloseTabCommand { get; set; }
     public ICommand UndoCommand { get; set; }
@@ -57,8 +66,10 @@ public class TabViewModel : ViewModelBase, IDisposable
         FontPropertiesViewModel fontPropertiesViewModel,
         LineCountViewModel lineCountViewModel,
         IClipboardService clipboardService,
-        IAutoSaveService autoSaveService)
+        IAutoSaveService autoSaveService,
+        IThemeService themeService)
     {
+        _themeService = themeService;
         _cursorPositionService = cursorPositionService;
         _undoRedoManager = undoRedoManager;
         _fileSystemWatcherFactory = fileSystemWatcherFactory;
@@ -71,6 +82,9 @@ public class TabViewModel : ViewModelBase, IDisposable
         InitializeCommands();
         InitializeScrollableTextEditor();
         InitializeAutoSaveTimer();
+
+        _themeService.ThemeChanged += OnThemeChanged;
+        UpdateBrushes();
     }
 
     private void InitializeCommands()
@@ -80,6 +94,38 @@ public class TabViewModel : ViewModelBase, IDisposable
         SaveCommand = ReactiveCommand.CreateFromTask(SaveAsync, this.WhenAnyValue(x => x.IsDirty));
     }
 
+    private void OnThemeChanged(object sender, EventArgs e)
+    {
+        UpdateBrushes();
+    }
+
+    private void UpdateBrushes()
+    {
+        Foreground = GetResourceBrush("Text");
+        BorderBrush = GetResourceBrush("MainBorder");
+        CloseButtonBackground = GetResourceBrush("TabCloseButtonBackground");
+        CloseButtonForeground = GetResourceBrush("Text");
+
+        UpdateDirtyIndicatorBrush(IsDirty);
+        UpdateBackgroundBrush(IsSelected);
+        OnInvalidateRequired();
+    }
+
+    private void UpdateBackgroundBrush(bool isSelected)
+    {
+        Background = isSelected ? GetResourceBrush("TextEditorBackground") : Brushes.Transparent;
+    }
+
+    private void UpdateDirtyIndicatorBrush(bool isDirty)
+    {
+        DirtyIndicatorBrush = isDirty ? GetResourceBrush("TabDirtyIndicator") : Brushes.Transparent;
+    }
+
+    private IBrush GetResourceBrush(string resourceKey)
+    {
+        return _themeService.GetResourceBrush(resourceKey);
+    }
+
     private void InitializeScrollableTextEditor()
     {
         ScrollableTextEditorViewModel = new ScrollableTextEditorViewModel(
@@ -87,7 +133,8 @@ public class TabViewModel : ViewModelBase, IDisposable
             _fontPropertiesViewModel,
             _lineCountViewModel,
             _textBuffer,
-            _clipboardService);
+            _clipboardService,
+            _themeService);
         ScrollableTextEditorViewModel.TextEditorViewModel.TextBuffer.LinesUpdated += OnTextBufferLinesUpdated;
         ScrollableTextEditorViewModel.TabViewModel = this;
     }
@@ -100,10 +147,50 @@ public class TabViewModel : ViewModelBase, IDisposable
 
     public bool IsNew { get; set; } = true;
 
+    public IBrush DirtyIndicatorBrush
+    {
+        get => _dirtyIndicatorBrush;
+        set => this.RaiseAndSetIfChanged(ref _dirtyIndicatorBrush, value);
+    }
+
+    public IBrush Foreground
+    {
+        get => _foreground;
+        set => this.RaiseAndSetIfChanged(ref _foreground, value);
+    }
+
+    public IBrush CloseButtonForeground
+    {
+        get => _closeButtonForeground;
+        set => this.RaiseAndSetIfChanged(ref _closeButtonForeground, value);
+    }
+
+    public IBrush CloseButtonBackground
+    {
+        get => _closeButtonBackground;
+        set => this.RaiseAndSetIfChanged(ref _closeButtonBackground, value);
+    }
+
+    public IBrush Background
+    {
+        get => _background;
+        set => this.RaiseAndSetIfChanged(ref _background, value);
+    }
+
+    public IBrush BorderBrush
+    {
+        get => _borderBrush;
+        set => this.RaiseAndSetIfChanged(ref _borderBrush, value);
+    }
+    
     public bool IsSelected
     {
         get => _isSelected;
-        set => this.RaiseAndSetIfChanged(ref _isSelected, value);
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _isSelected, value);
+            UpdateBackgroundBrush(value);
+        }
     }
 
     public bool IsTemporary
@@ -154,7 +241,11 @@ public class TabViewModel : ViewModelBase, IDisposable
     public bool IsDirty
     {
         get => _isDirty;
-        set => this.RaiseAndSetIfChanged(ref _isDirty, value);
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _isDirty, value);
+            UpdateDirtyIndicatorBrush(value);
+        }
     }
 
     public double SavedVerticalOffset
@@ -383,6 +474,11 @@ public class TabViewModel : ViewModelBase, IDisposable
         }
 
         TextChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    public virtual void OnInvalidateRequired()
+    {
+        InvalidateRequired?.Invoke(this, EventArgs.Empty);
     }
 
     private void ApplyTextChange(TextState newState)

@@ -20,10 +20,11 @@ public class DialogServiceTests
         var lineCountViewModel = new Mock<LineCountViewModel>(MockBehavior.Loose);
         var cursorPositionService = new Mock<ICursorPositionService>(MockBehavior.Loose);
         var statusPaneViewModel = new StatusPaneViewModel(cursorPositionService.Object);
-        var fileExplorerViewModel = new Mock<FileExplorerViewModel>(MockBehavior.Loose);
         var textBufferFactory = new Mock<ITextBufferFactory>(MockBehavior.Loose);
         var autoSaveService = new Mock<IAutoSaveService>(MockBehavior.Loose);
         var dialogService = new Mock<IDialogService>(MockBehavior.Loose);
+        var themeService = new Mock<IThemeService>(MockBehavior.Loose);
+        var fileExplorerViewModel = new FileExplorerViewModel(themeService.Object);
 
         // Creating MainWindowViewModel instance
         _mainWindowViewModel = new MainWindowViewModel(
@@ -32,10 +33,11 @@ public class DialogServiceTests
             fontPropertiesViewModel.Object,
             lineCountViewModel.Object,
             cursorPositionService.Object,
-            fileExplorerViewModel.Object,
+            fileExplorerViewModel,
             textBufferFactory.Object,
             autoSaveService.Object,
-            dialogService.Object
+            dialogService.Object,
+            themeService.Object
         );
 
         _mockMainWindowProvider = new Mock<IMainWindowProvider>();

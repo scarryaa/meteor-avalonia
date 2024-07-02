@@ -19,6 +19,11 @@
         <views:TextEditor x:Name="TextEditor"
                           FontFamily="{Binding FontPropertiesViewModel.FontFamily}"
                           FontSize="{Binding FontPropertiesViewModel.FontSize}"
+                          Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=views:ScrollableTextEditor}}"
+                          BackgroundBrush="{Binding BackgroundBrush, RelativeSource={RelativeSource AncestorType=views:ScrollableTextEditor}}"
+                          CursorBrush="{Binding CursorBrush, RelativeSource={RelativeSource AncestorType=views:ScrollableTextEditor}}"
+                          SelectionBrush="{Binding SelectionBrush, RelativeSource={RelativeSource AncestorType=views:ScrollableTextEditor}}"
+                          LineHighlightBrush="{Binding LineHighlightBrush, RelativeSource={RelativeSource AncestorType=views:ScrollableTextEditor}}"
                           Width="{Binding LongestLineWidth}"
                           Height="{Binding TotalHeight}" />
     </views:ButtonlessScrollViewer>

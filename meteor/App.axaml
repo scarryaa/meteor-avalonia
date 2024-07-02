@@ -11,10 +11,8 @@
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <ResourceInclude Source="/Resources/ScrollViewer.axaml" />
-                <ResourceInclude Source="/Resources/DarkTheme.axaml" />
+                <ResourceInclude Source="/Resources/BaseResources.axaml" />
                 <ResourceInclude Source="/Resources/LightTheme.axaml" />
-                <ResourceInclude Source="/Resources/Fonts.axaml" />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Application.Resources>

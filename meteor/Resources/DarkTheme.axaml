@@ -1,13 +1,56 @@
 <ResourceDictionary xmlns="https://github.com/avaloniaui"
-                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:system="clr-namespace:System;assembly=System.Runtime">
 
-    <Color x:Key="ButtonBackground">#333333</Color>
-    <Color x:Key="ButtonForeground">#FFFFFF</Color>
-    <Color x:Key="ButtonBorder">#333333</Color>
-    <Color x:Key="ButtonBackgroundPointerOver">#444444</Color>
-    <Color x:Key="ButtonBorderPointerOver">#444444</Color>
-    <Color x:Key="ButtonBackgroundPressed">#555555</Color>
-    <Color x:Key="ButtonBackgroundDisabled">#2C2C2C</Color>
-    <Color x:Key="ButtonBorderDisabled">#2C2C2C</Color>
+    <!-- Buttons -->
+    <Color x:Key="ButtonBackground">#2C2C2C</Color>
+    <Color x:Key="ButtonForeground">#E0E0E0</Color>
+    <Color x:Key="ButtonBorder">#1E1E1E</Color>
+    <Color x:Key="ButtonBackgroundPointerOver">#3A3A3A</Color>
+    <Color x:Key="ButtonBorderPointerOver">#3A3A3A</Color>
+    <Color x:Key="ButtonBackgroundPressed">#444444</Color>
+    <Color x:Key="ButtonBackgroundDisabled">#1F1F1F</Color>
+    <Color x:Key="ButtonBorderDisabled">#1F1F1F</Color>
 
+    <!-- Text -->
+    <Color x:Key="Text">#E0E0E0</Color>
+
+    <!-- General UI -->
+    <Color x:Key="WindowBackground">#151515</Color>
+    <Color x:Key="MainBorder">#464646</Color>
+    <Color x:Key="LightGray">#101010</Color>
+
+    <!-- TextEditor Colors -->
+    <FontFamily x:Key="TextEditorFontFamily">avares://meteor/Assets/Fonts/SanFrancisco/SF-Mono-Medium.otf#SF Mono</FontFamily>
+    <system:Double x:Key="TextEditorFontSize">13</system:Double>
+    <Color x:Key="TextEditorBackground">#212121</Color>
+    <Color x:Key="TextEditorCursor">#FFFFFF</Color>
+    <Color x:Key="TextEditorSelection">#648BCDCD</Color>
+    <Color x:Key="TextEditorLineHighlight">#323232</Color>
+
+    <!-- Gutter Colors -->
+    <FontFamily x:Key="GutterFontFamily">avares://meteor/Assets/Fonts/SanFrancisco/SF-Mono-Medium.otf#SF Mono</FontFamily>
+    <system:Double x:Key="GutterFontSize">13</system:Double>
+    <system:Double x:Key="GutterLineHeight">20</system:Double>
+    <Color x:Key="GutterBackground">#1E1E1E</Color>
+    <Color x:Key="GutterHighlight">#323232</Color>
+    <Color x:Key="GutterSelected">#FFFFFF</Color>
+    <Color x:Key="GutterDefault">#5F5F5F</Color>
+
+    <!-- Tab Colors -->
+    <Color x:Key="TabCloseButtonBackground">#4B4B4B</Color>
+    <Color x:Key="TabDirtyIndicator">#8BCDC0</Color>
+
+    <!-- File Explorer -->
+    <Color x:Key="FileExplorerIcon">#5A5A5A</Color>
+    <Color x:Key="FileExplorerOutline">#646464</Color>
+    <Color x:Key="FileExplorerSelected">#2E2E2E</Color>
+
+    <!-- Syntax Highlighting -->
+    <Color x:Key="KeywordColor">#569CD6</Color>
+    <Color x:Key="CommentColor">#608B4E</Color>
+    <Color x:Key="StringColor">#CE9178</Color>
+    <Color x:Key="TypeColor">#4EC9B0</Color>
+    <Color x:Key="NumberColor">#B5CEA8</Color>
+    
 </ResourceDictionary>

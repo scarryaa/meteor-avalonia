@@ -1,5 +1,7 @@
 using System;
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Media;
 using meteor.Interfaces;
 
 namespace meteor.Views;
@@ -8,6 +10,13 @@ public partial class LeftSidebar : UserControl
 {
     private readonly IEventAggregator _eventAggregator;
 
+    static LeftSidebar()
+    {
+        BackgroundProperty.OverrideMetadata<LeftSidebar>(new StyledPropertyMetadata<IBrush?>());
+        BorderBrushProperty.OverrideMetadata<LeftSidebar>(new StyledPropertyMetadata<IBrush?>());
+        ForegroundProperty.OverrideMetadata<LeftSidebar>(new StyledPropertyMetadata<IBrush?>());
+    }
+    
     public LeftSidebar()
     {
         InitializeComponent();

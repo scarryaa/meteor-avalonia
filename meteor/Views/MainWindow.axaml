@@ -11,7 +11,7 @@
         MinWidth="500"
         MinHeight="500"
         WindowStartupLocation="CenterScreen"
-        Background="LightGray"
+        Background="{DynamicResource WindowBackground}"
         Title="meteor"
         FontFamily="{StaticResource SanFrancisco}"
         FontWeight="Normal"
@@ -24,21 +24,27 @@
                    Fill="Black" Opacity="0.5" IsVisible="{Binding IsDialogOpen}" />
 
         <!-- Title Bar -->
-        <views:TitleBar DataContext="{Binding TitleBarViewModel}" VerticalAlignment="Stretch"
-                        HorizontalAlignment="Stretch" Grid.Row="0" Grid.ColumnSpan="3" />
+        <views:TitleBar Grid.Column="0" DataContext="{Binding TitleBarViewModel}" VerticalAlignment="Stretch"
+                        HorizontalAlignment="Stretch" Grid.Row="0" Grid.ColumnSpan="3"
+                        Background="{DynamicResource LightGray}"
+                        BorderBrush="{DynamicResource MainBorder}"
+                        Foreground="{DynamicResource Text}" />
 
         <!-- Left Sidebar -->
         <views:LeftSidebar HorizontalAlignment="Stretch"
                            x:Name="LeftSidebar"
                            VerticalAlignment="Stretch" DataContext="{Binding FileExplorerViewModel}"
-                           Grid.Row="1" Grid.Column="0" />
+                           Grid.Row="1" Grid.Column="0"
+                           Background="{DynamicResource WindowBackground}"
+                           BorderBrush="{DynamicResource MainBorder}"
+                           Foreground="{DynamicResource Text}" />
 
         <!-- Grid Splitter -->
-        <GridSplitter Grid.Column="1" Width="1" Background="#a6a6a6" HorizontalAlignment="Stretch"
+        <GridSplitter Grid.Column="1" Width="1" Background="{DynamicResource MainBorder}" HorizontalAlignment="Stretch"
                       Cursor="SizeWestEast" Grid.Row="1">
             <GridSplitter.Template>
                 <ControlTemplate>
-                    <Border Width="1" BorderBrush="#a6a6a6" BorderThickness="1" Padding="0,0" />
+                    <Border Width="1" BorderBrush="{DynamicResource MainBorder}" BorderThickness="1" Padding="0,0" />
                 </ControlTemplate>
             </GridSplitter.Template>
         </GridSplitter>
@@ -47,13 +53,15 @@
         <views:HorizontalScrollableTabControl
             SelectedItem="{Binding SelectedTab, Mode=TwoWay}"
             x:Name="HorizontalScrollableTabControl"
-            Background="#dcdcdc"
+            Background="{DynamicResource LightGray}"
             ItemsSource="{Binding Tabs}"
             TabStripPlacement="Top"
             Grid.Column="2" Grid.Row="1">
             <views:HorizontalScrollableTabControl.ItemTemplate>
                 <DataTemplate DataType="{x:Type viewModels:TabViewModel}">
-                    <views:TabView />
+                    <views:TabView Background="{DynamicResource TextEditorBackground}"
+                                   BorderBrush="{DynamicResource MainBorder}"
+                                   Foreground="{DynamicResource Text}" />
                 </DataTemplate>
             </views:HorizontalScrollableTabControl.ItemTemplate>
             <views:HorizontalScrollableTabControl.ContentTemplate>
@@ -61,18 +69,36 @@
                     <Grid ColumnDefinitions="Auto, *">
                         <views:Gutter Grid.Column="0"
                                       ZIndex="99"
-                                      DataContext="{Binding ScrollableTextEditorViewModel.GutterViewModel}" />
+                                      DataContext="{Binding ScrollableTextEditorViewModel.GutterViewModel}"
+                                      FontFamily="{Binding FontFamily}"
+                                      FontSize="{Binding FontSize}"
+                                      LineHeight="{Binding LineHeight}"
+                                      BackgroundBrush="{DynamicResource TextEditorBackground}"
+                                      LineHighlightBrush="{DynamicResource GutterHighlight}"
+                                      SelectedBrush="{DynamicResource GutterSelected}"
+                                      Foreground="{DynamicResource GutterDefault}" />
                         <views:ScrollableTextEditor Grid.Column="1"
                                                     ZIndex="99"
-                                                    DataContext="{Binding ScrollableTextEditorViewModel}" />
+                                                    DataContext="{Binding ScrollableTextEditorViewModel}"
+                                                    FontFamily="{DynamicResource TextEditorFontFamily}"
+                                                    FontSize="{DynamicResource TextEditorFontSize}"
+                                                    Foreground="{DynamicResource Text}"
+                                                    BackgroundBrush="{DynamicResource TextEditorBackground}"
+                                                    CursorBrush="{DynamicResource TextEditorCursor}"
+                                                    SelectionBrush="{DynamicResource TextEditorSelection}"
+                                                    LineHighlightBrush="{DynamicResource TextEditorLineHighlight}" />
                     </Grid>
                 </DataTemplate>
             </views:HorizontalScrollableTabControl.ContentTemplate>
         </views:HorizontalScrollableTabControl>
 
         <!-- Status Pane -->
-        <views:StatusPane x:Name="StatusPane" DataContext="{Binding StatusPaneViewModel}" Grid.Row="2"
-                          Grid.ColumnSpan="3" />
+        <views:StatusPane Grid.Column="0" x:Name="StatusPane"
+                          DataContext="{Binding StatusPaneViewModel}"
+                          Grid.Row="2" Grid.ColumnSpan="3"
+                          Background="{DynamicResource LightGray}"
+                          BorderBrush="{DynamicResource MainBorder}"
+                          Foreground="{DynamicResource Text}" />
     </Grid>
 
     <Window.KeyBindings>
