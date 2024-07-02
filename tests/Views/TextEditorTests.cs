@@ -2,6 +2,7 @@ using System.Reflection;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
+using Avalonia.Media;
 using meteor.Interfaces;
 using meteor.ViewModels;
 using meteor.Views;
@@ -32,7 +33,7 @@ public class TextEditorTests
         var lineCountViewModel = new LineCountViewModel();
         _mockTextBuffer = new Mock<ITextBuffer>();
         _mockThemeService = new Mock<IThemeService>();
-
+        
         _mockTextBuffer.Setup(tb => tb.Rope).Returns(new Mock<IRope>().Object);
         _mockTextBuffer.Setup(tb => tb.Length).Returns(18); // Total length of "Line 1\nLine 2\nLine 3"
         _mockTextBuffer.Setup(tb => tb.LineCount).Returns(3);
@@ -48,6 +49,8 @@ public class TextEditorTests
         _mockTopLevel = new MockTopLevel();
         _mockTopLevel.MockClipboard = _mockClipboard.Object;
 
+
+        fontPropertiesViewModel.FontFamily = FontFamily.Default;
         _scrollableViewModel = new ScrollableTextEditorViewModel(
             mockCursorPositionService.Object,
             fontPropertiesViewModel,
@@ -55,7 +58,8 @@ public class TextEditorTests
             _mockTextBuffer.Object,
             _mockClipboardService.Object,
             _mockThemeService.Object);
-
+        _scrollableViewModel.FontFamily = FontFamily.Default;
+        
         _textEditor = new TextEditor
         {
             DataContext = _scrollableViewModel

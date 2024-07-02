@@ -194,7 +194,7 @@ public class TextEditorViewModel : ViewModelBase
         }
     }
 
-    private void UpdateLongestLineWidth()
+    public void UpdateLongestLineWidth()
     {
         double maxWidth = 0;
         for (var i = 0; i < TextBuffer.LineCount; i++)

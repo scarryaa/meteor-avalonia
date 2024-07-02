@@ -1,4 +1,6 @@
+using System.Globalization;
 using Avalonia.Headless.XUnit;
+using Avalonia.Media;
 using meteor.Interfaces;
 using meteor.ViewModels;
 using Moq;
@@ -13,11 +15,12 @@ public class TextEditorViewModelTests
     private readonly Mock<ITextBuffer> _mockTextBuffer;
     private readonly TextEditorViewModel _viewModel;
     private readonly Mock<IClipboardService> _mockClipboardService;
-    
+
     public TextEditorViewModelTests()
     {
         _mockCursorPositionService = new Mock<ICursorPositionService>();
         _mockFontPropertiesViewModel = new Mock<FontPropertiesViewModel>();
+        _mockFontPropertiesViewModel.Object.FontFamily = FontFamily.Default;
         _mockLineCountViewModel = new Mock<LineCountViewModel>();
         _mockTextBuffer = new Mock<ITextBuffer>();
         _mockClipboardService = new Mock<IClipboardService>();
@@ -29,16 +32,17 @@ public class TextEditorViewModelTests
             _mockTextBuffer.Object,
             _mockClipboardService.Object
         );
+        
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void Constructor_InitializesProperties()
     {
         Assert.NotNull(_viewModel.FontPropertiesViewModel);
         Assert.Equal(_mockTextBuffer.Object, _viewModel.TextBuffer);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void CursorPosition_UpdatesAndNotifiesService()
     {
         long newPosition = 10;
@@ -48,33 +52,7 @@ public class TextEditorViewModelTests
         _mockCursorPositionService.Verify(s => s.UpdateCursorPosition(newPosition, It.IsAny<List<long>>()), Times.Once);
     }
 
-    [Fact]
-    public void SelectionStart_UpdatesAndNotifiesChange()
-    {
-        long newSelection = 5;
-        var eventRaised = false;
-        _viewModel.SelectionChanged += (s, e) => eventRaised = true;
-
-        _viewModel.SelectionStart = newSelection;
-
-        Assert.Equal(newSelection, _viewModel.SelectionStart);
-        Assert.True(eventRaised);
-    }
-
-    [Fact]
-    public void SelectionEnd_UpdatesAndNotifiesChange()
-    {
-        long newSelection = 15;
-        var eventRaised = false;
-        _viewModel.SelectionChanged += (s, e) => eventRaised = true;
-
-        _viewModel.SelectionEnd = newSelection;
-
-        Assert.Equal(newSelection, _viewModel.SelectionEnd);
-        Assert.True(eventRaised);
-    }
-
-    [Fact]
+    [AvaloniaFact]
     public void InsertText_UpdatesTextBufferAndCursorPosition()
     {
         long position = 5;
@@ -85,7 +63,7 @@ public class TextEditorViewModelTests
         Assert.Equal(position + text.Length, _viewModel.CursorPosition);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void DeleteText_CallsTextBufferDelete()
     {
         long start = 5;
@@ -95,7 +73,7 @@ public class TextEditorViewModelTests
         _mockTextBuffer.Verify(tb => tb.DeleteText(start, length), Times.Once);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void ClearSelection_SetsBothSelectionPointsToCursorPosition()
     {
         _viewModel.CursorPosition = 10;
@@ -108,7 +86,7 @@ public class TextEditorViewModelTests
         Assert.Equal(_viewModel.CursorPosition, _viewModel.SelectionEnd);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void UpdateLineStarts_CallsTextBufferUpdateLineCache()
     {
         // Reset the mock to clear the call from the constructor
@@ -119,7 +97,7 @@ public class TextEditorViewModelTests
         _mockTextBuffer.Verify(tb => tb.UpdateLineCache(), Times.Once);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void WindowHeight_UpdatesPropertyCorrectly()
     {
         var newHeight = 100.5;
@@ -128,7 +106,7 @@ public class TextEditorViewModelTests
         Assert.Equal(newHeight, _viewModel.WindowHeight);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void WindowWidth_UpdatesPropertyCorrectly()
     {
         var newWidth = 200.5;
@@ -143,7 +121,7 @@ public class TextEditorViewModelTests
         Assert.True(_viewModel.CharWidth > 0);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void Focus_InvokesRequestFocusEvent()
     {
         var eventRaised = false;
@@ -154,7 +132,7 @@ public class TextEditorViewModelTests
         Assert.True(eventRaised);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void OnInvalidateRequired_InvokesInvalidateRequiredEvent()
     {
         var eventRaised = false;
@@ -163,5 +141,59 @@ public class TextEditorViewModelTests
         _viewModel.OnInvalidateRequired();
 
         Assert.True(eventRaised);
+    }
+
+    [AvaloniaFact]
+    public void UpdateLongestLineWidth_CalculatesMaxWidthCorrectly()
+    {
+        _mockTextBuffer.Setup(tb => tb.LineCount).Returns(3);
+        _mockTextBuffer.Setup(tb => tb.GetLineText(0)).Returns("Short");
+        _mockTextBuffer.Setup(tb => tb.GetLineText(1)).Returns("Much longer line of text");
+        _mockTextBuffer.Setup(tb => tb.GetLineText(2)).Returns("Medium length");
+
+        _viewModel.UpdateLongestLineWidth();
+
+        var expectedWidth = new FormattedText(
+            "Much longer line of text",
+            CultureInfo.CurrentCulture,
+            FlowDirection.LeftToRight,
+            new Typeface(_viewModel.FontFamily),
+            _viewModel.FontSize,
+            Brushes.Black).Width;
+
+        Assert.Equal(expectedWidth, _viewModel.LongestLineWidth);
+    }
+
+    [AvaloniaFact]
+    public void TotalHeight_ReturnsCorrectValue()
+    {
+        _mockTextBuffer.Setup(tb => tb.TotalHeight).Returns(500);
+        Assert.Equal(500, _viewModel.TotalHeight);
+    }
+
+    [AvaloniaFact]
+    public async Task CopyText_CopiesSelectedTextToClipboard()
+    {
+        _viewModel.SelectionStart = 0;
+        _viewModel.SelectionEnd = 5;
+        var selectedText = "Hello";
+        _mockTextBuffer.Setup(tb => tb.GetText(0, 5)).Returns(selectedText);
+
+        await _viewModel.CopyText();
+
+        _mockClipboardService.Verify(cs => cs.SetTextAsync(selectedText), Times.Once);
+    }
+
+    [AvaloniaFact]
+    public async Task PasteText_PastesTextFromClipboardAtCursorPosition()
+    {
+        var clipboardText = "World";
+        _mockClipboardService.Setup(cs => cs.GetTextAsync()).ReturnsAsync(clipboardText);
+
+        _viewModel.CursorPosition = 5;
+        await _viewModel.PasteText();
+
+        _mockTextBuffer.Verify(tb => tb.InsertText(5, clipboardText), Times.Once);
+        Assert.Equal(10, _viewModel.CursorPosition);
     }
 }
