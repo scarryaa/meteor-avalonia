@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using meteor.Interfaces;
 using ReactiveUI;
 
@@ -93,7 +94,7 @@ public class TextBuffer : ReactiveObject, ITextBuffer
         if (string.IsNullOrEmpty(text) || position < 0 || position > _rope.Length) return;
 
         _rope.Insert((int)position, text);
-        UpdateLineCache();
+        UpdateLineCacheAfterInsertion(position, text);
         TextChanged?.Invoke(this, EventArgs.Empty);
         LinesUpdated?.Invoke(this, EventArgs.Empty);
     }
@@ -103,7 +104,7 @@ public class TextBuffer : ReactiveObject, ITextBuffer
         if (length > 0)
         {
             _rope.Delete((int)start, (int)length);
-            UpdateLineCache();
+            UpdateLineCacheAfterDeletion(start, length);
             LinesUpdated?.Invoke(this, EventArgs.Empty);
         }
     }
@@ -141,6 +142,77 @@ public class TextBuffer : ReactiveObject, ITextBuffer
     public long GetLineLength(long lineIndex)
     {
         return _lineLengths.GetValueOrDefault(lineIndex, 0);
+    }
+
+    private void UpdateLineCacheAfterInsertion(long position, string text)
+    {
+        var insertionLine = GetLineIndexFromPosition(position);
+        var newLineCount = text.Count(c => c == '\n');
+
+        if (newLineCount == 0)
+        {
+            // Update the length of the affected line
+            _lineLengths[insertionLine] += text.Length;
+            LongestLineLength = Math.Max(LongestLineLength, _lineLengths[insertionLine]);
+        }
+        else
+        {
+            // Shift existing line starts after the insertion point
+            for (var i = LineStarts.Count - 1; i > insertionLine; i--) LineStarts[i] += text.Length;
+
+            // Insert new line starts
+            var lastNewLineIndex = text.LastIndexOf('\n');
+            var remainingChars = text.Length - lastNewLineIndex - 1;
+            var newLineStart = position + lastNewLineIndex + 1;
+
+            for (var i = 0; i < newLineCount; i++)
+            {
+                var lineStartInText = text.IndexOf('\n', i == 0 ? 0 : text.IndexOf('\n', i - 1) + 1);
+                LineStarts.Insert((int)insertionLine + i + 1, position + lineStartInText + 1);
+            }
+
+            // Update line lengths
+            for (var i = 0; i <= newLineCount; i++)
+            {
+                var lineLength = i < newLineCount
+                    ? LineStarts[(int)insertionLine + i + 1] - LineStarts[(int)insertionLine + i]
+                    : remainingChars;
+                _lineLengths[insertionLine + i] = lineLength;
+                LongestLineLength = Math.Max(LongestLineLength, lineLength);
+            }
+        }
+
+        UpdateTotalHeight();
+    }
+
+    private void UpdateLineCacheAfterDeletion(long start, long length)
+    {
+        var startLine = GetLineIndexFromPosition(start);
+        var endLine = GetLineIndexFromPosition(start + length);
+
+        if (startLine == endLine)
+        {
+            // Update the length of the affected line
+            _lineLengths[startLine] -= length;
+        }
+        else
+        {
+            // Remove line starts for deleted lines
+            LineStarts.RemoveRange((int)startLine + 1, (int)(endLine - startLine));
+
+            // Update remaining line starts
+            for (var i = (int)startLine + 1; i < LineStarts.Count; i++) LineStarts[i] -= length;
+
+            // Recalculate line lengths for affected lines
+            _lineLengths[startLine] =
+                (startLine + 1 < LineStarts.Count ? LineStarts[(int)startLine + 1] : _rope.Length) -
+                LineStarts[(int)startLine];
+        }
+
+        // Recalculate longest line length
+        LongestLineLength = _lineLengths.Values.Max();
+
+        UpdateTotalHeight();
     }
 
     public void UpdateLineCache()

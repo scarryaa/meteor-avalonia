@@ -19,6 +19,7 @@ namespace meteor.Views;
 
 public partial class TextEditor : UserControl
 {
+    private const double HorizontalScrollThreshold = 10;
     private const double DefaultFontSize = 13;
     private const double BaseLineHeight = 20;
     private const double SelectionEndPadding = 2;
@@ -252,18 +253,46 @@ public partial class TextEditor : UserControl
         }
     }
 
+    private double CalculateScrollAmount(double distanceFromEdge)
+    {
+        var scrollSpeed = 0.05;
+        return scrollSpeed * (1 - distanceFromEdge / HorizontalScrollThreshold);
+    }
+
+    private void CheckAndScrollHorizontally(double pointerX)
+    {
+        if (_scrollableViewModel == null) return;
+
+        var viewportWidth = _scrollableViewModel.Viewport.Width;
+        var currentOffset = _scrollableViewModel.HorizontalOffset;
+
+        if (pointerX < HorizontalScrollThreshold)
+        {
+            // Scroll left
+            var newOffset = Math.Max(0, currentOffset - CalculateScrollAmount(pointerX));
+            _scrollableViewModel.HorizontalOffset = newOffset;
+        }
+        else if (pointerX > viewportWidth - HorizontalScrollThreshold)
+        {
+            // Scroll right
+            var newOffset = currentOffset + CalculateScrollAmount(viewportWidth - pointerX);
+            _scrollableViewModel.HorizontalOffset = newOffset;
+        }
+    }
+
     protected override void OnPointerPressed(PointerPressedEventArgs e)
     {
         base.OnPointerPressed(e);
 
         if (_scrollableViewModel != null)
         {
+            _scrollableViewModel.DisableHorizontalScrollToCursor = true;
             var viewModel = _scrollableViewModel.TextEditorViewModel;
             var position = GetPositionFromPoint(e.GetPosition(this));
             viewModel.CursorPosition = position;
             _selectionAnchor = position;
             UpdateSelection(viewModel);
-            _isSelecting = true;
+            viewModel.IsSelecting = true;
             _lastKnownSelection = (viewModel.SelectionStart, viewModel.SelectionEnd);
             e.Handled = true;
             InvalidateVisual();
@@ -274,22 +303,36 @@ public partial class TextEditor : UserControl
     {
         base.OnPointerMoved(e);
 
-        if (_isSelecting && _scrollableViewModel != null)
+        if (_scrollableViewModel != null)
         {
             var viewModel = _scrollableViewModel.TextEditorViewModel;
-            var position = GetPositionFromPoint(e.GetPosition(this));
-            viewModel.CursorPosition = position;
-            UpdateSelection(viewModel);
-            _lastKnownSelection = (viewModel.SelectionStart, viewModel.SelectionEnd);
-            e.Handled = true;
-            InvalidateVisual();
+            if (viewModel.IsSelecting)
+            {
+                var position = GetPositionFromPoint(e.GetPosition(this));
+                viewModel.CursorPosition = position;
+                UpdateSelection(viewModel);
+                _lastKnownSelection = (viewModel.SelectionStart, viewModel.SelectionEnd);
+                e.Handled = true;
+
+                // Check if we need to scroll horizontally
+                CheckAndScrollHorizontally(e.GetPosition(this).X);
+
+                // Ensure vertical scrolling still works during selection
+                EnsureVerticalCursorVisible();
+
+                InvalidateVisual();
+            }
         }
     }
 
     protected override void OnPointerReleased(PointerReleasedEventArgs e)
     {
         base.OnPointerReleased(e);
-        _isSelecting = false;
+        if (_scrollableViewModel != null)
+        {
+            _scrollableViewModel.TextEditorViewModel.IsSelecting = false;
+            _scrollableViewModel.DisableHorizontalScrollToCursor = false;
+        }
         e.Handled = true;
     }
 
@@ -311,20 +354,30 @@ public partial class TextEditor : UserControl
         var cursorLine = GetLineIndexFromPosition(viewModel.CursorPosition);
 
         if (cursorLine < 0 || cursorLine >= viewModel.TextBuffer.LineStarts.Count)
-            // Invalid cursor line index, return to avoid out-of-range access
             return;
 
         var cursorColumn = viewModel.CursorPosition - viewModel.TextBuffer.LineStarts[(int)cursorLine];
 
-        if (!_suppressScrollOnNextCursorMove)
-        {
-            AdjustVerticalScroll(cursorLine);
-            AdjustHorizontalScroll(cursorColumn);
-        }
+        AdjustVerticalScroll(cursorLine);
+        AdjustHorizontalScroll(cursorColumn);
 
-        _suppressScrollOnNextCursorMove = false;
         InvalidateVisual();
     }
+
+    private void EnsureVerticalCursorVisible()
+    {
+        if (_scrollableViewModel?.TextEditorViewModel == null) return;
+
+        var viewModel = _scrollableViewModel.TextEditorViewModel;
+        var cursorLine = GetLineIndexFromPosition(viewModel.CursorPosition);
+
+        if (cursorLine < 0 || cursorLine >= viewModel.TextBuffer.LineStarts.Count)
+            return;
+
+        AdjustVerticalScroll(cursorLine);
+        InvalidateVisual();
+    }
+
 
     private void AdjustVerticalScroll(long cursorLine)
     {
@@ -343,12 +396,7 @@ public partial class TextEditor : UserControl
 
     private void AdjustHorizontalScroll(long cursorColumn)
     {
-        if (_scrollableViewModel!.DisableHorizontalScrollToCursor)
-        {
-            _lastKnownSelection = (_scrollableViewModel.TextEditorViewModel.SelectionStart,
-                _scrollableViewModel.TextEditorViewModel.SelectionEnd);
-            return;
-        }
+        if (_scrollableViewModel == null) return;
 
         var cursorX = cursorColumn * _scrollableViewModel.TextEditorViewModel.CharWidth;
         var viewportWidth = _scrollableViewModel.Viewport.Width;
@@ -368,12 +416,15 @@ public partial class TextEditor : UserControl
             return 0;
 
         var lineIndex = (long)(point.Y / LineHeight);
-        var column = (long)(point.X / _scrollableViewModel.TextEditorViewModel.CharWidth);
+        var column = (long)(point.X /
+                            _scrollableViewModel.TextEditorViewModel.CharWidth);
 
         lineIndex = Math.Max(0, Math.Min(lineIndex, GetLineCount() - 1));
         var lineStart = _scrollableViewModel.TextEditorViewModel.TextBuffer.LineStarts[(int)lineIndex];
         var lineLength = GetVisualLineLength(_scrollableViewModel.TextEditorViewModel, lineIndex);
-        column = Math.Max(0, Math.Min(column, lineLength));
+
+        // If the click is beyond the end of the line text, set the column to the line length
+        if (column > lineLength) column = lineLength;
 
         return lineStart + column;
     }
@@ -1086,7 +1137,8 @@ public partial class TextEditor : UserControl
     
     private long GetVisualLineLength(TextEditorViewModel viewModel, long lineIndex)
     {
-        return viewModel.TextBuffer.GetLineLength(lineIndex);
+        var lineText = viewModel.TextBuffer.GetLineText((int)lineIndex);
+        return lineText.TrimEnd('\n', '\r').Length; // Exclude line ending characters
     }
 
     private long GetLineIndex(TextEditorViewModel viewModel, long position)
@@ -1166,7 +1218,7 @@ public partial class TextEditor : UserControl
 
         for (var i = firstVisibleLine; i < lastVisibleLine; i++)
         {
-            var lineText = GetLineText((int)i);
+            var lineText = scrollableViewModel.TextEditorViewModel.TextBuffer.GetLineText((int)i);
             if (string.IsNullOrEmpty(lineText))
             {
                 yOffset += LineHeight;

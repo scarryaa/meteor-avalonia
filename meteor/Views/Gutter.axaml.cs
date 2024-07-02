@@ -107,6 +107,10 @@ public partial class Gutter : UserControl
         this.GetObservable(LineHighlightBrushProperty).Subscribe(_ => { InvalidateVisual(); });
         
         AddHandler(PointerWheelChangedEvent, OnPointerWheelChanged, RoutingStrategies.Tunnel);
+        AddHandler(PointerPressedEvent, OnPointerPressed, RoutingStrategies.Tunnel);
+        AddHandler(PointerMovedEvent, OnPointerMoved, RoutingStrategies.Tunnel);
+        AddHandler(PointerReleasedEvent, OnPointerReleased, RoutingStrategies.Tunnel);
+        AddHandler(PointerEnteredEvent, OnPointerEntered, RoutingStrategies.Tunnel);
     }
 
     private void OnDataContextChanged(object? sender, EventArgs e)
@@ -149,25 +153,12 @@ public partial class Gutter : UserControl
         }
     }
 
-    private void OnPointerMoved(object? sender, PointerEventArgs e)
-    {
-        if (_isDragging && DataContext is GutterViewModel viewModel)
-        {
-            var position = e.GetPosition(this);
-            var currentLine = GetLineNumberFromY(position.Y);
-            UpdateSelection(viewModel, _dragStartLine, currentLine);
-            HandleAutoScroll(viewModel, position.Y);
-            e.Handled = true;
-            InvalidateVisual();
-        }
-    }
-
     private long GetLineNumberFromY(double y)
     {
         if (DataContext is GutterViewModel viewModel)
         {
             var lineNumber = (long)Math.Floor((y + viewModel.VerticalOffset) / LineHeight);
-            return long.Max(0, long.Min(lineNumber, viewModel.TextEditorViewModel.TextBuffer.LineCount - 1));
+            return Math.Max(0, Math.Min(lineNumber, viewModel.TextEditorViewModel.TextBuffer.LineCount - 1));
         }
 
         return 0;
@@ -186,26 +177,84 @@ public partial class Gutter : UserControl
         }
     }
 
+    private void OnPointerEntered(object? sender, PointerEventArgs e)
+    {
+        if (DataContext is GutterViewModel viewModel)
+        {
+            var textEditorViewModel = viewModel.TextEditorViewModel;
+            if (textEditorViewModel.IsSelecting)
+            {
+                _isDragging = true;
+                _dragStartLine = GetLineIndexFromPosition(textEditorViewModel.SelectionStart);
+                e.Handled = true;
+            }
+        }
+    }
+
     private void OnPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         if (DataContext is GutterViewModel viewModel)
         {
             if (viewModel.ScrollableTextEditorViewModel is ScrollableTextEditorViewModel scrollableViewModel)
                 scrollableViewModel.DisableHorizontalScrollToCursor = true;
+            
             _isDragging = true;
             _dragStartLine = GetLineNumberFromY(e.GetPosition(this).Y);
+
+            // Update selection for single click
             UpdateSelection(viewModel, _dragStartLine, _dragStartLine);
+
+            // Set cursor position to the start of the clicked line
+            var lineStartPosition = viewModel.TextEditorViewModel.TextBuffer.GetLineStartPosition((int)_dragStartLine);
+            viewModel.TextEditorViewModel.CursorPosition = lineStartPosition;
+
+            e.Handled = true;
             InvalidateVisual();
         }
     }
 
+    private void OnPointerMoved(object? sender, PointerEventArgs e)
+    {
+        if (DataContext is GutterViewModel viewModel)
+        {
+            var position = e.GetPosition(this);
+            var currentLine = GetLineNumberFromY(position.Y);
+
+            if (_isDragging)
+            {
+                UpdateSelection(viewModel, _dragStartLine, currentLine);
+                HandleAutoScroll(viewModel, position.Y);
+            }
+            else if (viewModel.TextEditorViewModel.IsSelecting)
+            {
+                // Continue selection from text editor
+                _isDragging = true;
+                _dragStartLine = GetLineIndexFromPosition(viewModel.TextEditorViewModel.SelectionStart);
+                UpdateSelection(viewModel, _dragStartLine, currentLine);
+                HandleAutoScroll(viewModel, position.Y);
+            }
+
+            e.Handled = true;
+            InvalidateVisual();
+        }
+    }
+    
     private void OnPointerReleased(object? sender, PointerReleasedEventArgs e)
     {
         if (DataContext is GutterViewModel viewModel)
+        {
             if (viewModel.ScrollableTextEditorViewModel is ScrollableTextEditorViewModel scrollableViewModel)
                 scrollableViewModel.DisableHorizontalScrollToCursor = false;
-        _isDragging = false;
-        InvalidateVisual();
+
+            _isDragging = false;
+
+            // Ensure the cursor is at the end of the selection
+            var textEditorViewModel = viewModel.TextEditorViewModel;
+            textEditorViewModel.CursorPosition =
+                Math.Max(textEditorViewModel.SelectionStart, textEditorViewModel.SelectionEnd);
+
+            InvalidateVisual();
+        }
     }
     
     private void UpdateSelection(GutterViewModel viewModel, long startLine, long endLine)
@@ -213,24 +262,25 @@ public partial class Gutter : UserControl
         var textEditorViewModel = viewModel.TextEditorViewModel;
         var textBuffer = textEditorViewModel.TextBuffer;
 
-        startLine = long.Max(0, long.Min(startLine, viewModel.TextEditorViewModel.TextBuffer.LineCount - 1));
-        endLine = long.Max(0, long.Min(endLine, viewModel.TextEditorViewModel.TextBuffer.LineCount - 1));
+        startLine = Math.Max(0, Math.Min(startLine, textBuffer.LineCount - 1));
+        endLine = Math.Max(0, Math.Min(endLine, textBuffer.LineCount - 1));
 
-        var selectionStartLine = long.Min(startLine, endLine);
-        var selectionEndLine = long.Max(startLine, endLine);
+        var selectionStartLine = Math.Min(startLine, endLine);
+        var selectionEndLine = Math.Max(startLine, endLine);
 
         var selectionStart = textBuffer.GetLineStartPosition((int)selectionStartLine);
         var selectionEnd = textBuffer.GetLineEndPosition((int)selectionEndLine);
+
+        // Preserve the original selection start if we're continuing from the text editor
+        if (textEditorViewModel.IsSelecting && !_isDragging)
+            selectionStart = Math.Min(textEditorViewModel.SelectionStart, selectionStart);
 
         textEditorViewModel.SelectionStart = selectionStart;
         textEditorViewModel.SelectionEnd = selectionEnd;
 
         // Set the cursor position based on the selection direction
         textEditorViewModel.ShouldScrollToCursor = false;
-        if (startLine <= endLine)
-            textEditorViewModel.CursorPosition = selectionEnd;
-        else
-            textEditorViewModel.CursorPosition = selectionStart;
+        textEditorViewModel.CursorPosition = startLine <= endLine ? selectionEnd : selectionStart;
         textEditorViewModel.ShouldScrollToCursor = true;
 
         InvalidateVisual();

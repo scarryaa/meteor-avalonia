@@ -17,9 +17,5 @@
 
     <Border BorderBrush="Transparent"
             BorderThickness="0,0,1,0"
-            Background="Transparent"
-            PointerWheelChanged="OnPointerWheelChanged"
-            PointerPressed="OnPointerPressed"
-            PointerMoved="OnPointerMoved"
-            PointerReleased="OnPointerReleased" />
+            Background="Transparent" />
 </UserControl>
