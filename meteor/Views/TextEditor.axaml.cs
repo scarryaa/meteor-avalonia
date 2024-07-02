@@ -27,7 +27,11 @@ public partial class TextEditor : UserControl
     private double _currentScrollSpeed = ScrollSpeed;
     private readonly DispatcherTimer _scrollTimer;
     private bool _isManualScrolling;
-    
+
+    private const int DoubleClickTimeThreshold = 500;
+    private const double DoubleClickDistanceThreshold = 5;
+    private Point _lastClickPosition;
+    private DateTime _lastClickTime;
     private const double DefaultFontSize = 13;
     private const double BaseLineHeight = 20;
     private const double SelectionEndPadding = 2;
@@ -130,13 +134,15 @@ public partial class TextEditor : UserControl
         this.GetObservable(LineHighlightBrushProperty).Subscribe(_ => InvalidateVisual());
 
         AddHandler(PointerWheelChangedEvent, OnPointerWheelChanged, RoutingStrategies.Tunnel);
+        AddHandler(PointerPressedEvent, OnPointerPressed, RoutingStrategies.Tunnel);
+
         MeasureCharWidth();
         UpdateLineCache(-1);
 
-        _scrollTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) }; // ~60 fps
+        _scrollTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
         _scrollTimer.Tick += ScrollTimer_Tick;
     }
-
+    
     private void OnPointerWheelChanged(object? sender, PointerWheelEventArgs e)
     {
         if (_scrollableViewModel == null) return;
@@ -195,6 +201,45 @@ public partial class TextEditor : UserControl
         InvalidateVisual();
     }
 
+    private (long start, long end) FindWordBoundaries(TextEditorViewModel viewModel, long position)
+    {
+        var lineIndex = GetLineIndex(viewModel, position);
+        var lineText = viewModel.TextBuffer.GetLineText(lineIndex);
+        var lineStart = viewModel.TextBuffer.GetLineStartPosition((int)lineIndex);
+        var localPos = position - lineStart;
+
+        if (string.IsNullOrEmpty(lineText) || localPos >= lineText.Length)
+            return (position, position);
+
+        var start = (int)localPos;
+        var end = (int)localPos;
+
+        // Determine the type of character at the click position (whitespace or not)
+        var isWhitespace = char.IsWhiteSpace(lineText[start]);
+
+        // Find start of the selection
+        while (start > 0 && char.IsWhiteSpace(lineText[start - 1]) == isWhitespace) start--;
+
+        // Find end of the selection
+        while (end < lineText.Length && char.IsWhiteSpace(lineText[end]) == isWhitespace) end++;
+
+        // Check if the selected sequence is whitespace and its length is more than 1
+        if (isWhitespace && end - start == 1)
+        {
+            // If the selected sequence is a single whitespace character, find word boundaries instead
+            start = (int)localPos;
+            end = (int)localPos;
+
+            // Find start of the word
+            while (start > 0 && !char.IsWhiteSpace(lineText[start - 1])) start--;
+
+            // Find end of the word
+            while (end < lineText.Length && !char.IsWhiteSpace(lineText[end])) end++;
+        }
+
+        return (lineStart + start, lineStart + end);
+    }
+    
     private Point GetPointFromPosition(long position)
     {
         if (_scrollableViewModel == null)
@@ -414,22 +459,60 @@ public partial class TextEditor : UserControl
         }
     }
 
-    protected override void OnPointerPressed(PointerPressedEventArgs e)
+    private void OnPointerPressed(object sender, PointerPressedEventArgs e)
     {
-        base.OnPointerPressed(e);
+        var currentPosition = e.GetPosition(this);
+        var currentTime = DateTime.Now;
 
+        // Check for double-click
+        if ((currentTime - _lastClickTime).TotalMilliseconds <= DoubleClickTimeThreshold &&
+            DistanceBetweenPoints(currentPosition, _lastClickPosition) <= DoubleClickDistanceThreshold)
+        {
+            OnDoubleClicked(currentPosition);
+            e.Handled = true;
+        }
+        else
+        {
+            // Update last click info
+            _lastClickPosition = currentPosition;
+            _lastClickTime = currentTime;
+
+            if (_scrollableViewModel != null)
+            {
+                _scrollableViewModel.DisableHorizontalScrollToCursor = true;
+                _scrollableViewModel.DisableVerticalScrollToCursor = true;
+                var viewModel = _scrollableViewModel.TextEditorViewModel;
+                var position = GetPositionFromPoint(e.GetPosition(this));
+                viewModel.CursorPosition = position;
+                _selectionAnchor = position;
+                UpdateSelection(viewModel);
+                viewModel.IsSelecting = true;
+                _lastKnownSelection = (viewModel.SelectionStart, viewModel.SelectionEnd);
+                e.Handled = true;
+                InvalidateVisual();
+            }
+        }
+    }
+
+    private double DistanceBetweenPoints(Point p1, Point p2)
+    {
+        return Math.Sqrt(Math.Pow(p1.X - p2.X, 2) + Math.Pow(p1.Y - p2.Y, 2));
+    }
+
+    private void OnDoubleClicked(Point position)
+    {
         if (_scrollableViewModel != null)
         {
-            _scrollableViewModel.DisableHorizontalScrollToCursor = true;
-            _scrollableViewModel.DisableVerticalScrollToCursor = true;
             var viewModel = _scrollableViewModel.TextEditorViewModel;
-            var position = GetPositionFromPoint(e.GetPosition(this));
-            viewModel.CursorPosition = position;
-            _selectionAnchor = position;
-            UpdateSelection(viewModel);
-            viewModel.IsSelecting = true;
-            _lastKnownSelection = (viewModel.SelectionStart, viewModel.SelectionEnd);
-            e.Handled = true;
+            var cursorPosition = GetPositionFromPoint(position);
+
+            // Find word boundaries
+            var (start, end) = FindWordBoundaries(viewModel, cursorPosition);
+
+            // Update selection
+            viewModel.SelectionStart = start;
+            viewModel.SelectionEnd = end;
+            viewModel.CursorPosition = end;
             InvalidateVisual();
         }
     }
