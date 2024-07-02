@@ -16,7 +16,8 @@ public partial class Gutter : UserControl
 {
     private bool _isDragging;
     private long _dragStartLine;
-    private const double ScrollThreshold = 10;
+    private const double VerticalScrollThreshold = 20;
+    private const double HorizontalScrollThreshold = 20;
     private const double ScrollSpeed = 1;
     private readonly Dictionary<long, FormattedText> formattedTextCache = new();
     private (long start, long end) _lastKnownSelection = (-1, -1);
@@ -165,19 +166,42 @@ public partial class Gutter : UserControl
         return 0;
     }
 
-    private void HandleAutoScroll(GutterViewModel viewModel, double y)
+    private void HandleAutoScroll(GutterViewModel viewModel, double x, double y)
     {
-        if (y < ScrollThreshold)
+        var scrollableViewModel = viewModel.ScrollableTextEditorViewModel;
+        var viewportWidth = scrollableViewModel.Viewport.Width;
+        var viewportHeight = scrollableViewModel.Viewport.Height;
+
+        // Vertical scrolling
+        if (y < VerticalScrollThreshold)
         {
             viewModel.VerticalOffset = Math.Max(0, viewModel.VerticalOffset - ScrollSpeed * LineHeight);
         }
-        else if (y > Bounds.Height - ScrollThreshold)
+        else if (y > viewportHeight - VerticalScrollThreshold)
         {
-            var maxOffset = Math.Max(0, (double)viewModel.TextEditorViewModel.TextBuffer.LineCount * LineHeight - Bounds.Height);
+            var maxOffset = Math.Max(0,
+                viewModel.TextEditorViewModel.TextBuffer.LineCount * LineHeight - viewportHeight);
             viewModel.VerticalOffset = Math.Min(maxOffset, viewModel.VerticalOffset + ScrollSpeed * LineHeight);
         }
-    }
 
+        // Horizontal scrolling
+        if (x < HorizontalScrollThreshold)
+        {
+            viewModel.ScrollableTextEditorViewModel.HorizontalOffset = Math.Max(0,
+                viewModel.ScrollableTextEditorViewModel.HorizontalOffset -
+                ScrollSpeed * viewModel.TextEditorViewModel.CharWidth);
+        }
+        else if (x > viewportWidth - HorizontalScrollThreshold)
+        {
+            var maxHorizontalOffset = Math.Max(0,
+                viewModel.ScrollableTextEditorViewModel.LongestLineWidth -
+                viewportWidth);
+            viewModel.ScrollableTextEditorViewModel.HorizontalOffset = Math.Min(maxHorizontalOffset,
+                viewModel.ScrollableTextEditorViewModel.HorizontalOffset +
+                ScrollSpeed * viewModel.TextEditorViewModel.CharWidth);
+        }
+    }
+    
     private void OnPointerEntered(object? sender, PointerEventArgs e)
     {
         if (DataContext is GutterViewModel viewModel)
@@ -196,17 +220,18 @@ public partial class Gutter : UserControl
     {
         if (DataContext is GutterViewModel viewModel)
         {
-            if (viewModel.ScrollableTextEditorViewModel is ScrollableTextEditorViewModel scrollableViewModel)
+            if (viewModel.ScrollableTextEditorViewModel is { } scrollableViewModel)
             {
                 scrollableViewModel.DisableVerticalScrollToCursor = true;
                 scrollableViewModel.DisableHorizontalScrollToCursor = true;
+                scrollableViewModel.HorizontalOffset = 0;
             }
-            
+        
             _isDragging = true;
             _dragStartLine = GetLineNumberFromY(e.GetPosition(this).Y);
 
             UpdateSelection(viewModel, _dragStartLine, _dragStartLine);
-            
+        
             var lineStartPosition = viewModel.TextEditorViewModel.TextBuffer.GetLineStartPosition((int)_dragStartLine);
             viewModel.TextEditorViewModel.CursorPosition = lineStartPosition;
             viewModel.TextEditorViewModel.OnInvalidateRequired();
@@ -227,7 +252,7 @@ public partial class Gutter : UserControl
             if (_isDragging)
             {
                 UpdateSelection(viewModel, _dragStartLine, currentLine);
-                HandleAutoScroll(viewModel, position.Y);
+                HandleAutoScroll(viewModel, position.X, position.Y);
             }
             else if (viewModel.TextEditorViewModel.IsSelecting)
             {
@@ -235,7 +260,7 @@ public partial class Gutter : UserControl
                 _isDragging = true;
                 _dragStartLine = GetLineIndexFromPosition(viewModel.TextEditorViewModel.SelectionStart);
                 UpdateSelection(viewModel, _dragStartLine, currentLine);
-                HandleAutoScroll(viewModel, position.Y);
+                HandleAutoScroll(viewModel, position.X, position.Y);
             }
 
             e.Handled = true;

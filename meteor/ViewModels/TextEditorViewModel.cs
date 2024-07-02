@@ -26,6 +26,7 @@ public class TextEditorViewModel : ViewModelBase
     private double _fontSize;
     private FontFamily _fontFamily;
     private readonly IClipboardService _clipboardService;
+    private double _longestLineWidth;
     
     public FontPropertiesViewModel FontPropertiesViewModel { get; }
 
@@ -59,6 +60,12 @@ public class TextEditorViewModel : ViewModelBase
     public event EventHandler? InvalidateRequired;
     public event EventHandler? RequestFocus;
 
+    public double LongestLineWidth
+    {
+        get => _longestLineWidth;
+        set => this.RaiseAndSetIfChanged(ref _longestLineWidth, value);
+    }
+    
     public virtual void OnInvalidateRequired()
     {
         InvalidateRequired?.Invoke(this, EventArgs.Empty);
@@ -187,6 +194,26 @@ public class TextEditorViewModel : ViewModelBase
         }
     }
 
+    private void UpdateLongestLineWidth()
+    {
+        double maxWidth = 0;
+        for (var i = 0; i < TextBuffer.LineCount; i++)
+        {
+            var lineText = TextBuffer.GetLineText(i);
+            var formattedText = new FormattedText(
+                lineText,
+                CultureInfo.CurrentCulture,
+                FlowDirection.LeftToRight,
+                new Typeface(FontFamily),
+                FontSize,
+                Brushes.Black);
+
+            if (formattedText.Width > maxWidth) maxWidth = formattedText.Width;
+        }
+
+        LongestLineWidth = maxWidth;
+    }
+
     public double CharWidth
     {
         get
@@ -232,6 +259,7 @@ public class TextEditorViewModel : ViewModelBase
         this.RaisePropertyChanged(nameof(LineCount));
         this.RaisePropertyChanged(nameof(TotalHeight));
         OnInvalidateRequired();
+        UpdateLongestLineWidth();
     }
 
     public void DeleteText(long start, long length)
@@ -241,6 +269,7 @@ public class TextEditorViewModel : ViewModelBase
         this.RaisePropertyChanged(nameof(LineCount));
         this.RaisePropertyChanged(nameof(TotalHeight));
         OnInvalidateRequired();
+        UpdateLongestLineWidth();
     }
 
     public void ClearSelection()

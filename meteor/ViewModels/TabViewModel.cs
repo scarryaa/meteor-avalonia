@@ -210,8 +210,13 @@ public class TabViewModel : ViewModelBase, IDisposable
         get => _scrollableTextEditorViewModel;
         set
         {
-            OnScrollableTextEditorViewModelChanged(_scrollableTextEditorViewModel, value);
             this.RaiseAndSetIfChanged(ref _scrollableTextEditorViewModel, value);
+            if (_scrollableTextEditorViewModel != null)
+                _scrollableTextEditorViewModel.PropertyChanged += (sender, args) =>
+                {
+                    if (args.PropertyName == nameof(ScrollableTextEditorViewModel.HorizontalOffset))
+                        OnInvalidateRequired();
+                };
         }
     }
 

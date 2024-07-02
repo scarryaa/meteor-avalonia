@@ -40,7 +40,16 @@ public class GutterViewModel : ViewModelBase, IDisposable
     public ScrollableTextEditorViewModel ScrollableTextEditorViewModel
     {
         get => _scrollableTextEditorViewModel;
-        set => this.RaiseAndSetIfChanged(ref _scrollableTextEditorViewModel, value);
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _scrollableTextEditorViewModel, value);
+            if (_scrollableTextEditorViewModel != null)
+                _scrollableTextEditorViewModel.PropertyChanged += (sender, args) =>
+                {
+                    if (args.PropertyName == nameof(ScrollableTextEditorViewModel.HorizontalOffset))
+                        OnInvalidateRequired();
+                };
+        }
     }
 
     private void OnTextEditorSelectionChanged(object sender, EventArgs e)

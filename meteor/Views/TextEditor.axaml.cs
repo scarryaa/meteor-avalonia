@@ -20,7 +20,7 @@ namespace meteor.Views;
 
 public partial class TextEditor : UserControl
 {
-    private const double HorizontalScrollThreshold = 50;
+    private const double HorizontalScrollThreshold = 20;
     private const double VerticalScrollThreshold = 20;
     private const double ScrollSpeed = 1;
     private const double ScrollAcceleration = 1.05;
@@ -449,6 +449,9 @@ public partial class TextEditor : UserControl
                 _lastKnownSelection = (viewModel.SelectionStart, viewModel.SelectionEnd);
                 e.Handled = true;
 
+                var cursorPoint = GetPointFromPosition(viewModel.CursorPosition);
+                HandleAutoScrollDuringSelection(cursorPoint);
+
                 if (!_isManualScrolling) _scrollTimer.Start();
 
                 InvalidateVisual();
@@ -477,6 +480,12 @@ public partial class TextEditor : UserControl
         e.Handled = true;
     }
 
+    private void HandleAutoScrollDuringSelection(Point cursorPoint)
+    {
+        CheckAndScrollHorizontally(cursorPoint.X);
+        CheckAndScrollVertically(cursorPoint.Y);
+    }
+    
     private void UpdateSelection(TextEditorViewModel viewModel)
     {
             viewModel.SelectionStart = Math.Min(_selectionAnchor, viewModel.CursorPosition);
