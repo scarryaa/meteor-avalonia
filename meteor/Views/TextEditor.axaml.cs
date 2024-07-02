@@ -28,7 +28,7 @@ public partial class TextEditor : UserControl
     private readonly DispatcherTimer _scrollTimer;
     private bool _isManualScrolling;
 
-    private const int DoubleClickTimeThreshold = 500;
+    private const int DoubleClickTimeThreshold = 300;
     private const double DoubleClickDistanceThreshold = 5;
     private Point _lastClickPosition;
     private DateTime _lastClickTime;
@@ -209,32 +209,52 @@ public partial class TextEditor : UserControl
         var localPos = position - lineStart;
 
         if (string.IsNullOrEmpty(lineText) || localPos >= lineText.Length)
-            return (position, position);
+        {
+            // Start from the end of the line and move backwards
+            var lastNonWhitespaceIndex = lineText.TrimEnd().Length - 1;
+            if (lastNonWhitespaceIndex < 0)
+                return (lineStart, lineStart); // Empty line
+
+            localPos = lastNonWhitespaceIndex;
+        }
 
         var start = (int)localPos;
         var end = (int)localPos;
 
-        // Determine the type of character at the click position (whitespace or not)
         var isWhitespace = char.IsWhiteSpace(lineText[start]);
+        var isSymbol = _commonCodingSymbols.Contains(lineText[start]);
 
-        // Find start of the selection
-        while (start > 0 && char.IsWhiteSpace(lineText[start - 1]) == isWhitespace) start--;
-
-        // Find end of the selection
-        while (end < lineText.Length && char.IsWhiteSpace(lineText[end]) == isWhitespace) end++;
-
-        // Check if the selected sequence is whitespace and its length is more than 1
-        if (isWhitespace && end - start == 1)
+        if (isWhitespace)
         {
-            // If the selected sequence is a single whitespace character, find word boundaries instead
-            start = (int)localPos;
-            end = (int)localPos;
+            var whitespaceStart = start;
+            var whitespaceEnd = start;
 
-            // Find start of the word
-            while (start > 0 && !char.IsWhiteSpace(lineText[start - 1])) start--;
+            while (whitespaceStart > 0 && char.IsWhiteSpace(lineText[whitespaceStart - 1])) whitespaceStart--;
+            while (whitespaceEnd < lineText.Length && char.IsWhiteSpace(lineText[whitespaceEnd])) whitespaceEnd++;
 
-            // Find end of the word
-            while (end < lineText.Length && !char.IsWhiteSpace(lineText[end])) end++;
+            if (whitespaceEnd - whitespaceStart > 1)
+            {
+                start = whitespaceStart;
+                end = whitespaceEnd;
+                return (lineStart + start, lineStart + end);
+            }
+
+            // If it's a single whitespace character, fall back to word or symbol selection
+            isWhitespace = false;
+        }
+
+        if (!isWhitespace && !isSymbol)
+        {
+            while (start > 0 && !char.IsWhiteSpace(lineText[start - 1]) &&
+                   !_commonCodingSymbols.Contains(lineText[start - 1])) start--;
+            while (end < lineText.Length && !char.IsWhiteSpace(lineText[end]) &&
+                   !_commonCodingSymbols.Contains(lineText[end])) end++;
+        }
+
+        if (isSymbol)
+        {
+            while (start > 0 && _commonCodingSymbols.Contains(lineText[start - 1])) start--;
+            while (end < lineText.Length && _commonCodingSymbols.Contains(lineText[end])) end++;
         }
 
         return (lineStart + start, lineStart + end);
@@ -470,30 +490,54 @@ public partial class TextEditor : UserControl
         {
             OnDoubleClicked(currentPosition);
             e.Handled = true;
+            return;
         }
-        else
-        {
-            // Update last click info
-            _lastClickPosition = currentPosition;
-            _lastClickTime = currentTime;
 
-            if (_scrollableViewModel != null)
+        // Update last click info
+        _lastClickPosition = currentPosition;
+        _lastClickTime = currentTime;
+
+        if (_scrollableViewModel != null)
+        {
+            var viewModel = _scrollableViewModel.TextEditorViewModel;
+            var position = GetPositionFromPoint(currentPosition);
+
+            // Prevent single click logic if clicking past the last line
+            if (position >= _scrollableViewModel.TextEditorViewModel.TextBuffer.Length)
             {
-                _scrollableViewModel.DisableHorizontalScrollToCursor = true;
-                _scrollableViewModel.DisableVerticalScrollToCursor = true;
-                var viewModel = _scrollableViewModel.TextEditorViewModel;
-                var position = GetPositionFromPoint(e.GetPosition(this));
+                // Set the cursor position to the end of the text
+                position = _scrollableViewModel.TextEditorViewModel.TextBuffer.Length;
+
+                // Clear selection and update cursor position
+                viewModel.SelectionStart = viewModel.SelectionEnd = position;
                 viewModel.CursorPosition = position;
+                viewModel.IsSelecting = false;
                 _selectionAnchor = position;
-                UpdateSelection(viewModel);
-                viewModel.IsSelecting = true;
                 _lastKnownSelection = (viewModel.SelectionStart, viewModel.SelectionEnd);
+                UpdateSelection(viewModel);
+
                 e.Handled = true;
                 InvalidateVisual();
+                return;
             }
+
+            _scrollableViewModel.DisableHorizontalScrollToCursor = true;
+            _scrollableViewModel.DisableVerticalScrollToCursor = true;
+
+            // Update cursor position and start selection
+            viewModel.CursorPosition = position;
+            _selectionAnchor = position;
+
+            // Update selection boundaries
+            UpdateSelection(viewModel);
+            viewModel.IsSelecting = true;
+            _lastKnownSelection = (viewModel.SelectionStart, viewModel.SelectionEnd);
+
+            e.Handled = true;
+            InvalidateVisual();
         }
     }
-
+    
     private double DistanceBetweenPoints(Point p1, Point p2)
     {
         return Math.Sqrt(Math.Pow(p1.X - p2.X, 2) + Math.Pow(p1.Y - p2.Y, 2));
@@ -506,17 +550,84 @@ public partial class TextEditor : UserControl
             var viewModel = _scrollableViewModel.TextEditorViewModel;
             var cursorPosition = GetPositionFromPoint(position);
 
-            // Find word boundaries
-            var (start, end) = FindWordBoundaries(viewModel, cursorPosition);
+            // Adjust cursorPosition if it is beyond the line length
+            var lineIndex = GetLineIndex(viewModel, cursorPosition);
+            var lineStart = viewModel.TextBuffer.GetLineStartPosition((int)lineIndex);
+            var lineText = viewModel.TextBuffer.GetLineText(lineIndex);
+            var lineLength = lineText.Length;
 
-            // Update selection
+            if (cursorPosition >= lineStart + lineLength)
+            {
+                // Set cursorPosition to the end of the line
+                cursorPosition = lineStart + lineLength;
+
+                // Find the last word or symbol on the line
+                var (start, end) = FindLastWordOrSymbol(lineText, lineStart, lineLength);
+
+                // Ensure the end position does not exceed the length of the text buffer
+                end = Math.Min(end, viewModel.TextBuffer.Length);
+
+                // Update selection to encompass the entire word or symbol
             viewModel.SelectionStart = start;
             viewModel.SelectionEnd = end;
             viewModel.CursorPosition = end;
+            _selectionAnchor = start;
+
+            UpdateSelection(viewModel);
+
+            var lineEndIndex = GetLineIndex(viewModel, end);
+            if (lineEndIndex < viewModel.TextBuffer.LineCount - 1 &&
+                end == viewModel.TextBuffer.GetLineStartPosition((int)lineEndIndex + 1))
+                viewModel.CursorPosition = end - 1;
+
+            InvalidateVisual();
+            return;
+            }
+
+            var (wordStart, wordEnd) = FindWordBoundaries(viewModel, cursorPosition);
+
+            // Ensure the end position does not exceed the length of the text buffer
+            wordEnd = Math.Min(wordEnd, viewModel.TextBuffer.Length);
+
+            // Update selection to encompass the entire word
+            viewModel.SelectionStart = wordStart;
+            viewModel.SelectionEnd = wordEnd;
+            viewModel.CursorPosition = wordEnd;
+            _selectionAnchor = wordStart;
+
+            UpdateSelection(viewModel);
+
+            var wordEndLineIndex = GetLineIndex(viewModel, wordEnd);
+            if (wordEndLineIndex < viewModel.TextBuffer.LineCount - 1 &&
+                wordEnd == viewModel.TextBuffer.GetLineStartPosition((int)wordEndLineIndex + 1))
+                viewModel.CursorPosition = wordEnd - 1;
+
             InvalidateVisual();
         }
     }
 
+    private (long start, long end) FindLastWordOrSymbol(string lineText, long lineStart, int lineLength)
+    {
+        var lastNonWhitespaceIndex = lineText.TrimEnd().Length - 1;
+        if (lastNonWhitespaceIndex < 0)
+            return (lineStart, lineStart); // Empty line
+
+        var start = lastNonWhitespaceIndex;
+        var end = lastNonWhitespaceIndex + 1;
+
+        if (_commonCodingSymbols.Contains(lineText[start]))
+            // Handle symbols at the end of the line
+            while (start > 0 && _commonCodingSymbols.Contains(lineText[start - 1]))
+                start--;
+        else
+            // Handle words at the end of the line
+            while (start > 0 && !char.IsWhiteSpace(lineText[start - 1]) &&
+                   !_commonCodingSymbols.Contains(lineText[start - 1]))
+                start--;
+
+        return (lineStart + start, lineStart + end);
+    }
+    
     protected override void OnPointerMoved(PointerEventArgs e)
     {
         base.OnPointerMoved(e);
@@ -633,8 +744,11 @@ public partial class TextEditor : UserControl
             return 0;
 
         var lineIndex = (long)(point.Y / LineHeight);
-        var column = (long)(point.X /
-                            _scrollableViewModel.TextEditorViewModel.CharWidth);
+
+        // Check if the lineIndex is beyond the last line
+        if (lineIndex >= GetLineCount()) return _scrollableViewModel.TextEditorViewModel.TextBuffer.Length;
+
+        var column = (long)(point.X / _scrollableViewModel.TextEditorViewModel.CharWidth);
 
         lineIndex = Math.Max(0, Math.Min(lineIndex, GetLineCount() - 1));
         var lineStart = _scrollableViewModel.TextEditorViewModel.TextBuffer.GetLineStartPosition((int)lineIndex);
