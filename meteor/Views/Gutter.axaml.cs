@@ -122,6 +122,7 @@ public partial class Gutter : UserControl
         if (DataContext is GutterViewModel newViewModel)
         {
             newViewModel.InvalidateRequired += OnInvalidateRequired;
+            newViewModel.WidthRecalculationRequired += OnWidthRecalculationRequired;
             Bind(LineHeightProperty, newViewModel.WhenAnyValue(vm => vm.LineHeight));
             Bind(FontFamilyProperty, newViewModel.WhenAnyValue(vm => vm.FontFamily));
             Bind(FontSizeProperty, newViewModel.WhenAnyValue(vm => vm.FontSize));
@@ -132,6 +133,12 @@ public partial class Gutter : UserControl
                 .Subscribe(_ => UpdateGutterWidth(newViewModel));
             newViewModel.WhenAnyValue(vm => vm.FontSize).Subscribe(_ => UpdateGutterWidth(newViewModel));
         }
+    }
+
+    private void OnWidthRecalculationRequired(object? sender, EventArgs e)
+    {
+        if (sender is GutterViewModel viewModel)
+            UpdateGutterWidth(viewModel);
     }
 
     private void OnInvalidateRequired(object? sender, EventArgs e)

@@ -57,6 +57,7 @@ public class TextEditorViewModel : ViewModelBase
 
     public event EventHandler<SelectionChangedEventArgs> SelectionChanged;
     public event EventHandler LineChanged;
+    public event EventHandler WidthChanged;
     public event EventHandler? InvalidateRequired;
     public event EventHandler? RequestFocus;
 
@@ -296,6 +297,11 @@ public class TextEditorViewModel : ViewModelBase
     public void NotifyGutterOfLineChange()
     {
         LineChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void UpdateGutterWidth()
+    {
+        WidthChanged?.Invoke(this, EventArgs.Empty);
     }
 
     public void InsertText(long position, string text)

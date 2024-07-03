@@ -193,9 +193,74 @@ public partial class TextEditor : UserControl
     private void UpdateSelectionDuringManualScroll(long position)
     {
         var viewModel = _scrollableViewModel.TextEditorViewModel;
-        viewModel.CursorPosition = position;
-        UpdateSelection(viewModel);
+
+        if (_isTripleClickDrag)
+            UpdateTripleClickSelection(viewModel, position);
+        else if (_isDoubleClickDrag)
+            UpdateDoubleClickSelection(viewModel, position);
+        else
+            UpdateNormalSelection(viewModel, position);
+
         _lastKnownSelection = (viewModel.SelectionStart, viewModel.SelectionEnd);
+    }
+
+    private void UpdateTripleClickSelection(TextEditorViewModel viewModel, long position)
+    {
+        var currentLineIndex = GetLineIndex(viewModel, position);
+        var anchorLineIndex = GetLineIndex(viewModel, _selectionAnchor);
+
+        var currentLineStart = viewModel.TextBuffer.GetLineStartPosition((int)currentLineIndex);
+        var currentLineEnd = currentLineStart + GetVisualLineLength(viewModel, currentLineIndex);
+
+        var anchorLineStart = viewModel.TextBuffer.GetLineStartPosition((int)anchorLineIndex);
+        var anchorLineEnd = anchorLineStart + GetVisualLineLength(viewModel, anchorLineIndex);
+
+        if (currentLineIndex < anchorLineIndex)
+        {
+            viewModel.SelectionStart = currentLineStart;
+            viewModel.SelectionEnd = anchorLineEnd;
+            viewModel.CursorPosition = currentLineStart;
+        }
+        else
+        {
+            viewModel.SelectionStart = anchorLineStart;
+            viewModel.SelectionEnd = currentLineEnd;
+            viewModel.CursorPosition = currentLineEnd;
+        }
+    }
+
+    private void UpdateDoubleClickSelection(TextEditorViewModel viewModel, long position)
+    {
+        var (currentWordStart, currentWordEnd) = FindWordOrSymbolBoundaries(viewModel, position);
+        var (anchorWordStart, anchorWordEnd) = FindWordOrSymbolBoundaries(viewModel, _selectionAnchor);
+
+        if (position < _selectionAnchor)
+        {
+            viewModel.SelectionStart = Math.Min(currentWordStart, anchorWordStart);
+            viewModel.SelectionEnd = Math.Max(anchorWordEnd, _selectionAnchor);
+            viewModel.CursorPosition = currentWordStart;
+        }
+        else
+        {
+            viewModel.SelectionStart = Math.Min(anchorWordStart, _selectionAnchor);
+            viewModel.SelectionEnd = Math.Max(currentWordEnd, anchorWordEnd);
+            viewModel.CursorPosition = currentWordEnd;
+        }
+    }
+
+    private void UpdateNormalSelection(TextEditorViewModel viewModel, long position)
+    {
+        viewModel.CursorPosition = position;
+        if (position < _selectionAnchor)
+        {
+            viewModel.SelectionStart = position;
+            viewModel.SelectionEnd = _selectionAnchor;
+        }
+        else
+        {
+            viewModel.SelectionStart = _selectionAnchor;
+            viewModel.SelectionEnd = position;
+        }
     }
 
     private void ScrollTimer_Tick(object sender, EventArgs e)
@@ -475,7 +540,7 @@ public partial class TextEditor : UserControl
                     viewModel.SelectionStart = newCursorPosition;
                     viewModel.CursorPosition = newCursorPosition;
                 }
-        }
+            }
         }
         else if (cursorY > viewportHeight - threshold)
         {
@@ -672,59 +737,11 @@ public partial class TextEditor : UserControl
                 var position = GetPositionFromPoint(e.GetPosition(this));
 
                 if (_isTripleClickDrag)
-                {
-                    viewModel.ShouldScrollToCursor = false;
-                    var currentLineIndex = GetLineIndex(viewModel, position);
-                    var anchorLineIndex = GetLineIndex(viewModel, _selectionAnchor);
-
-                    var currentLineStart = viewModel.TextBuffer.GetLineStartPosition((int)currentLineIndex);
-                    var currentLineEnd = currentLineStart + GetVisualLineLength(viewModel, currentLineIndex);
-
-                    var anchorLineStart = viewModel.TextBuffer.GetLineStartPosition((int)anchorLineIndex);
-                    var anchorLineEnd = anchorLineStart + GetVisualLineLength(viewModel, anchorLineIndex);
-
-                    if (currentLineIndex < anchorLineIndex)
-                    {
-                        viewModel.SelectionStart = currentLineStart;
-                        viewModel.SelectionEnd = anchorLineEnd;
-                        viewModel.CursorPosition = currentLineStart;
-                    }
-                    else
-                    {
-                        viewModel.SelectionStart = anchorLineStart;
-                        viewModel.SelectionEnd = currentLineEnd;
-                        viewModel.CursorPosition = Math.Min(currentLineEnd + 1, viewModel.TextBuffer.Length);
-                    }
-
-                    // Implement gradual scrolling
-                    var cursorPoint = GetPointFromPosition(viewModel.CursorPosition);
-                    HandleAutoScrollDuringSelection(cursorPoint, true);
-                }
+                    HandleTripleClickDrag(viewModel, position);
                 else if (_isDoubleClickDrag)
-                {
-                    // Extend word selection
-                    var (currentWordStart, currentWordEnd) = FindWordOrSymbolBoundaries(viewModel, position);
-                    var (anchorWordStart, anchorWordEnd) = FindWordOrSymbolBoundaries(viewModel, _selectionAnchor);
-
-                    if (position < _selectionAnchor)
-                    {
-                        viewModel.SelectionStart = Math.Min(currentWordStart, anchorWordStart);
-                        viewModel.SelectionEnd = Math.Max(anchorWordEnd, _selectionAnchor);
-                    }
-                    else
-                    {
-                        viewModel.SelectionStart = Math.Min(anchorWordStart, _selectionAnchor);
-                        viewModel.SelectionEnd = Math.Max(currentWordEnd, anchorWordEnd);
-                    }
-
-                    viewModel.CursorPosition = position < _selectionAnchor ? currentWordStart : currentWordEnd;
-                }
+                    HandleDoubleClickDrag(viewModel, position);
                 else
-                {
-                    viewModel.CursorPosition = position;
-                    viewModel.SelectionEnd = position;
-                    HandleAutoScrollDuringSelection(GetPointFromPosition(viewModel.CursorPosition));
-                }
+                    HandleNormalDrag(viewModel, position);
 
                 _lastKnownSelection = (viewModel.SelectionStart, viewModel.SelectionEnd);
                 e.Handled = true;
@@ -740,6 +757,75 @@ public partial class TextEditor : UserControl
             }
         }
     }
+
+    private void HandleTripleClickDrag(TextEditorViewModel viewModel, long position)
+    {
+        viewModel.ShouldScrollToCursor = false;
+        var currentLineIndex = GetLineIndex(viewModel, position);
+        var anchorLineIndex = GetLineIndex(viewModel, _selectionAnchor);
+
+        var currentLineStart = viewModel.TextBuffer.GetLineStartPosition((int)currentLineIndex);
+        var currentLineEnd = currentLineStart + GetVisualLineLength(viewModel, currentLineIndex);
+
+        var anchorLineStart = viewModel.TextBuffer.GetLineStartPosition((int)anchorLineIndex);
+        var anchorLineEnd = anchorLineStart + GetVisualLineLength(viewModel, anchorLineIndex);
+
+        if (currentLineIndex < anchorLineIndex)
+        {
+            viewModel.SelectionStart = currentLineStart;
+            viewModel.SelectionEnd = anchorLineEnd;
+            viewModel.CursorPosition = currentLineStart;
+        }
+        else
+        {
+            viewModel.SelectionStart = anchorLineStart;
+            viewModel.SelectionEnd = currentLineEnd;
+            viewModel.CursorPosition = currentLineEnd + 1;
+        }
+
+        var cursorPoint = GetPointFromPosition(viewModel.CursorPosition);
+        HandleAutoScrollDuringSelection(cursorPoint, true);
+    }
+
+
+    private void HandleDoubleClickDrag(TextEditorViewModel viewModel, long position)
+    {
+        var (currentWordStart, currentWordEnd) = FindWordOrSymbolBoundaries(viewModel, position);
+        var (anchorWordStart, anchorWordEnd) = FindWordOrSymbolBoundaries(viewModel, _selectionAnchor);
+
+        if (position < _selectionAnchor)
+        {
+            viewModel.SelectionStart = Math.Min(currentWordStart, anchorWordStart);
+            viewModel.SelectionEnd = Math.Max(anchorWordEnd, _selectionAnchor);
+            viewModel.CursorPosition = currentWordStart;
+        }
+        else
+        {
+            viewModel.SelectionStart = Math.Min(anchorWordStart, _selectionAnchor);
+            viewModel.SelectionEnd = Math.Max(currentWordEnd, anchorWordEnd);
+            viewModel.CursorPosition = currentWordEnd;
+        }
+
+        HandleAutoScrollDuringSelection(GetPointFromPosition(viewModel.CursorPosition));
+    }
+
+
+    private void HandleNormalDrag(TextEditorViewModel viewModel, long position)
+    {
+        if (position < _selectionAnchor)
+        {
+            viewModel.SelectionStart = position;
+            viewModel.SelectionEnd = _selectionAnchor;
+        }
+        else
+        {
+            viewModel.SelectionStart = _selectionAnchor;
+            viewModel.SelectionEnd = position;
+        }
+
+        viewModel.CursorPosition = position;
+        HandleAutoScrollDuringSelection(GetPointFromPosition(viewModel.CursorPosition));
+    }
     
     protected override void OnPointerReleased(PointerReleasedEventArgs e)
     {
@@ -748,11 +834,14 @@ public partial class TextEditor : UserControl
         {
             var viewModel = _scrollableViewModel.TextEditorViewModel;
 
-            _scrollableViewModel.TextEditorViewModel.IsSelecting = false;
+            viewModel.IsSelecting = false;
             _scrollableViewModel.DisableHorizontalScrollToCursor = false;
             _scrollableViewModel.DisableVerticalScrollToCursor = false;
             _scrollTimer.Stop();
             _currentScrollSpeed = ScrollSpeed;
+
+            // Ensure the selection is finalized
+            UpdateSelection(viewModel);
         }
 
         _isDoubleClickDrag = false;
@@ -2135,6 +2224,8 @@ public partial class TextEditor : UserControl
             Dispatcher.UIThread.Post(InvalidateVisual, DispatcherPriority.Background);
             Dispatcher.UIThread.Post(UpdateHorizontalScrollPosition, DispatcherPriority.Background);
             Dispatcher.UIThread.Post(EnsureCursorVisible, DispatcherPriority.Background);
+            Dispatcher.UIThread.Post(_scrollableViewModel.TextEditorViewModel.UpdateGutterWidth,
+                DispatcherPriority.Background);
         }, DispatcherPriority.Background);
     }
 

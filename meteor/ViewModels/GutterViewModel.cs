@@ -185,6 +185,8 @@ public class GutterViewModel : ViewModelBase, IDisposable
         LineCountViewModel.WhenAnyValue(x => x.LineCount)
             .Subscribe(count => OnInvalidateRequired());
 
+        TextEditorViewModel.WidthChanged += (sender, args) => { OnWidthRecalculationRequired(); };
+        
         TextEditorViewModel.LineChanged += (sender, args) =>
         {
             CursorPosition = TextEditorViewModel.CursorPosition;
@@ -215,10 +217,16 @@ public class GutterViewModel : ViewModelBase, IDisposable
     }
 
     public event EventHandler? InvalidateRequired;
+    public event EventHandler? WidthRecalculationRequired;
 
     public virtual void OnInvalidateRequired()
     {
         InvalidateRequired?.Invoke(this, EventArgs.Empty);
+    }
+
+    public virtual void OnWidthRecalculationRequired()
+    {
+        WidthRecalculationRequired?.Invoke(this, EventArgs.Empty);
     }
 
     private IBrush GetResourceBrush(string key)
