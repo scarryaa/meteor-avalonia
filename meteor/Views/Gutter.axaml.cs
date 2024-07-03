@@ -230,8 +230,8 @@ public partial class Gutter : UserControl
         {
             if (viewModel.ScrollableTextEditorViewModel is { } scrollableViewModel)
             {
-                scrollableViewModel.DisableVerticalScrollToCursor = true;
-                scrollableViewModel.DisableHorizontalScrollToCursor = true;
+                scrollableViewModel.TextEditorViewModel.ScrollManager.DisableVerticalScrollToCursor = true;
+                scrollableViewModel.TextEditorViewModel.ScrollManager.DisableHorizontalScrollToCursor = true;
                 scrollableViewModel.HorizontalOffset = 0;
             }
 
@@ -291,8 +291,8 @@ public partial class Gutter : UserControl
 
             if (viewModel.ScrollableTextEditorViewModel is ScrollableTextEditorViewModel scrollableViewModel)
             {
-                scrollableViewModel.DisableHorizontalScrollToCursor = false;
-                scrollableViewModel.DisableVerticalScrollToCursor = false;
+                scrollableViewModel.TextEditorViewModel.ScrollManager.DisableHorizontalScrollToCursor = false;
+                scrollableViewModel.TextEditorViewModel.ScrollManager.DisableVerticalScrollToCursor = false;
             }
 
             // Delay re-enabling scroll to cursor
@@ -327,8 +327,10 @@ public partial class Gutter : UserControl
 
         // Set the cursor position based on the selection direction
         textEditorViewModel.ShouldScrollToCursor = false;
+        textEditorViewModel.ScrollManager.DisableHorizontalScrollToCursor = true;
         textEditorViewModel.CursorPosition = startLine <= endLine ? selectionEnd : selectionStart;
         textEditorViewModel.ShouldScrollToCursor = true;
+        textEditorViewModel.ScrollManager.DisableHorizontalScrollToCursor = false;
 
         textEditorViewModel.NotifySelectionChanged(textEditorViewModel.SelectionStart,
             textEditorViewModel.SelectionEnd);

@@ -24,6 +24,7 @@ public interface ITextBuffer
     string GetLineText(long lineIndex);
     bool IsLineSelected(int lineIndex, long selectionStart, long selectionEnd);
     long GetLineStartPosition(int lineIndex);
+    long GetVisualLineLength(int lineIndex);
     long GetLineEndPosition(int lineIndex);
     long GetLineLength(long lineIndex);
     long GetLineIndexFromPosition(long position);

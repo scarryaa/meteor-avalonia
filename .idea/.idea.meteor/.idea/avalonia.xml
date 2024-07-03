@@ -25,6 +25,7 @@
         <entry key="meteor/Views/TabItemView.axaml" value="meteor/meteor.csproj" />
         <entry key="meteor/Views/TabView.axaml" value="meteor/meteor.csproj" />
         <entry key="meteor/Views/TextEditor.axaml" value="meteor/meteor.csproj" />
+        <entry key="meteor/Views/TextEditor/TextEditor.axaml" value="meteor/meteor.csproj" />
         <entry key="meteor/Views/TitleBar.axaml" value="meteor/meteor.csproj" />
         <entry key="meteor/Windows/ContentDialog.axaml" value="meteor/meteor.csproj" />
       </map>

@@ -13,6 +13,7 @@ using Avalonia.Threading;
 using meteor.Enums;
 using meteor.Interfaces;
 using meteor.Models;
+using meteor.Views.Services;
 using Microsoft.Extensions.DependencyInjection;
 using ReactiveUI;
 using File = System.IO.File;
@@ -224,6 +225,26 @@ public class MainWindowViewModel : ViewModelBase
         var lineCountViewModel = App.ServiceProvider.GetRequiredService<LineCountViewModel>();
         var clipboardService = App.ServiceProvider.GetRequiredService<IClipboardService>();
         var autoSaveService = App.ServiceProvider.GetRequiredService<IAutoSaveService>();
+        var themeService = App.ServiceProvider.GetRequiredService<IThemeService>();
+
+        var textEditorViewModel = new TextEditorViewModel(
+            cursorPositionService,
+            fontPropertiesViewModel,
+            lineCountViewModel,
+            textBuffer,
+            clipboardService,
+            this);
+
+        var scrollManager = new ScrollManager(textEditorViewModel);
+        var scrollableTextEditorViewModel = new ScrollableTextEditorViewModel(
+            cursorPositionService,
+            fontPropertiesViewModel,
+            lineCountViewModel,
+            textBuffer,
+            clipboardService,
+            themeService,
+            textEditorViewModel,
+            scrollManager);
 
         var newTab = new TabViewModel(
             cursorPositionService,
@@ -234,17 +255,10 @@ public class MainWindowViewModel : ViewModelBase
             lineCountViewModel,
             clipboardService,
             autoSaveService,
-            _themeService)
+            themeService)
         {
             Title = $"Untitled {Tabs.Count + 1}",
-            ScrollableTextEditorViewModel = new ScrollableTextEditorViewModel(
-                cursorPositionService,
-                fontPropertiesViewModel,
-                lineCountViewModel,
-                textBuffer,
-                clipboardService,
-                _themeService),
-            CloseTabCommand = CloseTabCommand
+            ScrollableTextEditorViewModel = scrollableTextEditorViewModel
         };
 
         Tabs.Add(newTab);
@@ -370,10 +384,14 @@ public class MainWindowViewModel : ViewModelBase
                     App.ServiceProvider.GetRequiredService<LineCountViewModel>(),
                     _textBufferFactory.Create(),
                     App.ServiceProvider.GetRequiredService<IClipboardService>(),
-                    App.ServiceProvider.GetRequiredService<IThemeService>()
+                    App.ServiceProvider.GetRequiredService<IThemeService>(),
+                    App.ServiceProvider.GetRequiredService<TextEditorViewModel>(),
+                    App.ServiceProvider.GetRequiredService<ScrollManager>()
                 )
             };
 
+            _temporaryTab.ScrollableTextEditorViewModel.TextEditorViewModel.UpdateServices(_temporaryTab
+                .ScrollableTextEditorViewModel.TextEditorViewModel);
             Tabs.Add(_temporaryTab);
         }
 
@@ -422,10 +440,14 @@ public class MainWindowViewModel : ViewModelBase
                 App.ServiceProvider.GetRequiredService<LineCountViewModel>(),
                 _textBufferFactory.Create(),
                 App.ServiceProvider.GetRequiredService<IClipboardService>(),
-                App.ServiceProvider.GetRequiredService<IThemeService>()
+                App.ServiceProvider.GetRequiredService<IThemeService>(),
+                App.ServiceProvider.GetRequiredService<TextEditorViewModel>(),
+                App.ServiceProvider.GetRequiredService<ScrollManager>()
             )
         };
 
+        permanentTab.ScrollableTextEditorViewModel.TextEditorViewModel.UpdateServices(permanentTab
+            .ScrollableTextEditorViewModel.TextEditorViewModel);
         permanentTab.LoadTextAsync(filePath);
         permanentTab.FilePath = Path.GetFullPath(filePath);
         Tabs.Add(permanentTab);

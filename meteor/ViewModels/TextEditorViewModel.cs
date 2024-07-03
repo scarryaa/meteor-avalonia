@@ -1,10 +1,14 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Threading.Tasks;
 using Avalonia.Media;
 using meteor.Interfaces;
 using meteor.Models;
+using meteor.Views.Services;
+using meteor.Views.Utils;
 using ReactiveUI;
+using SelectionChangedEventArgs = meteor.Models.SelectionChangedEventArgs;
 
 namespace meteor.ViewModels;
 
@@ -17,24 +21,47 @@ public class TextEditorViewModel : ViewModelBase
     private long _selectionEnd = -1;
     private bool _isSelecting;
     private double _windowHeight;
-    private double _lineHeight;
     private double _windowWidth;
     private long _desiredColumn;
     private readonly LineCountViewModel _lineCountViewModel;
     private double _charWidth;
     private bool _charWidthNeedsUpdate = true;
-    private double _fontSize;
     private FontFamily _fontFamily;
     private readonly IClipboardService _clipboardService;
     private double _longestLineWidth;
-    
+    private readonly double _lineSpacingFactor = BaseLineHeight / DefaultFontSize;
+    private double _fontSize = DefaultFontSize;
+    private double _lineHeight = BaseLineHeight;
+    private const double DefaultFontSize = 13;
+    private ViewModelBase? _parentViewModel;
+
+    public const double BaseLineHeight = 20;
+
+    public CursorManager CursorManager { get; }
+    public SelectionManager SelectionManager { get; }
+    public TextManipulator TextManipulator { get; set; }
+    public ClipboardManager ClipboardManager { get; }
+    public LineManager LineManager { get; }
+    public TextEditorUtils TextEditorUtils { get; }
+    public UndoRedoManager<TextState> UndoRedoManager { get; }
+    public ScrollableTextEditorViewModel? _scrollableViewModel;
+    public InputManager InputManager { get; }
+    public ScrollManager ScrollManager { get; }
+
+    public ViewModelBase? ParentViewModel
+    {
+        get => _parentViewModel;
+        set => this.RaiseAndSetIfChanged(ref _parentViewModel, value);
+    }
     public FontPropertiesViewModel FontPropertiesViewModel { get; }
 
-    public TextEditorViewModel(ICursorPositionService cursorPositionService,
+    public TextEditorViewModel(
+        ICursorPositionService cursorPositionService,
         FontPropertiesViewModel fontPropertiesViewModel,
         LineCountViewModel lineCountViewModel,
         ITextBuffer textBuffer,
-        IClipboardService clipboardService)
+        IClipboardService clipboardService,
+        ViewModelBase parentViewModel)
     {
         _cursorPositionService = cursorPositionService;
         FontPropertiesViewModel = fontPropertiesViewModel;
@@ -42,8 +69,21 @@ public class TextEditorViewModel : ViewModelBase
         _lineCountViewModel = lineCountViewModel;
         _textBuffer = textBuffer ?? throw new ArgumentNullException(nameof(textBuffer));
         _clipboardService = clipboardService ?? throw new ArgumentNullException(nameof(clipboardService));
+        ParentViewModel = parentViewModel;
 
         _textBuffer.TextChanged += OnLinesUpdated;
+
+        CursorManager = new CursorManager(this);
+        SelectionManager = new SelectionManager(this);
+        ScrollManager = new ScrollManager(this);
+        TextManipulator = new TextManipulator();
+
+        ClipboardManager = new ClipboardManager(this, clipboardService);
+        LineManager = new LineManager();
+        TextEditorUtils = new TextEditorUtils(this);
+        UndoRedoManager = new UndoRedoManager<TextState>(new TextState("", 0));
+
+        InputManager = new InputManager();
 
         this.WhenAnyValue(x => x.FontPropertiesViewModel.FontFamily)
             .Subscribe(font => FontFamily = font);
@@ -66,7 +106,7 @@ public class TextEditorViewModel : ViewModelBase
         get => _longestLineWidth;
         set => this.RaiseAndSetIfChanged(ref _longestLineWidth, value);
     }
-    
+
     public virtual void OnInvalidateRequired()
     {
         InvalidateRequired?.Invoke(this, EventArgs.Empty);
@@ -76,9 +116,9 @@ public class TextEditorViewModel : ViewModelBase
     {
         RequestFocus?.Invoke(this, EventArgs.Empty);
     }
-    
+
     public bool ShouldScrollToCursor { get; set; } = true;
-    
+
     public LineCache LineCache { get; } = new();
 
     public FontFamily FontFamily
@@ -112,19 +152,13 @@ public class TextEditorViewModel : ViewModelBase
     public double WindowHeight
     {
         get => _windowHeight;
-        set
-        {
-            if (_windowHeight != value) this.RaiseAndSetIfChanged(ref _windowHeight, value);
-        }
+        set => this.RaiseAndSetIfChanged(ref _windowHeight, value);
     }
 
     public double WindowWidth
     {
         get => _windowWidth;
-        set
-        {
-            if (_windowWidth != value) this.RaiseAndSetIfChanged(ref _windowWidth, value);
-        }
+        set => this.RaiseAndSetIfChanged(ref _windowWidth, value);
     }
 
     public long CursorPosition
@@ -149,6 +183,7 @@ public class TextEditorViewModel : ViewModelBase
             if (_selectionStart != value)
             {
                 this.RaiseAndSetIfChanged(ref _selectionStart, value);
+                NotifySelectionChanged(_selectionStart);
             }
         }
     }
@@ -161,6 +196,7 @@ public class TextEditorViewModel : ViewModelBase
             if (_selectionEnd != value)
             {
                 this.RaiseAndSetIfChanged(ref _selectionEnd, value);
+                NotifySelectionChanged(null, _selectionEnd);
             }
         }
     }
@@ -168,17 +204,14 @@ public class TextEditorViewModel : ViewModelBase
     public bool IsSelecting
     {
         get => _isSelecting;
-        set
-        {
-            if (_isSelecting != value) this.RaiseAndSetIfChanged(ref _isSelecting, value);
-        }
+        set => this.RaiseAndSetIfChanged(ref _isSelecting, value);
     }
 
     public void NotifySelectionChanged(long? selectionStart = null, long? selectionEnd = null)
     {
         SelectionChanged?.Invoke(this, new SelectionChangedEventArgs(selectionStart, selectionEnd));
     }
-    
+
     public long LineCount => _textBuffer.LineCount;
 
     public double TotalHeight => _textBuffer.TotalHeight;
@@ -195,6 +228,45 @@ public class TextEditorViewModel : ViewModelBase
         }
     }
 
+    public double CharWidth
+    {
+        get
+        {
+            if (_charWidthNeedsUpdate) UpdateCharWidth();
+
+            return _charWidth;
+        }
+        set
+        {
+            if (_charWidth != value)
+            {
+                this.RaiseAndSetIfChanged(ref _charWidth, value);
+                _charWidthNeedsUpdate = false;
+            }
+        }
+    }
+
+    public void UpdateServices(TextEditorViewModel viewModel)
+    {
+        var services = new Dictionary<string, Action<TextEditorViewModel>>
+        {
+            { nameof(ScrollManager), vm => ScrollManager?.UpdateViewModel(viewModel) },
+            { nameof(TextEditorUtils), vm => TextEditorUtils?.UpdateViewModel(viewModel) },
+            { nameof(InputManager), vm => InputManager?.UpdateViewModel(viewModel) },
+            { nameof(ClipboardManager), vm => ClipboardManager?.UpdateViewModel(viewModel) },
+            { nameof(CursorManager), vm => CursorManager?.UpdateViewModel(viewModel) },
+            { nameof(SelectionManager), vm => SelectionManager?.UpdateViewModel(viewModel) },
+            { nameof(TextManipulator), vm => TextManipulator?.UpdateViewModel(viewModel) },
+            { nameof(LineManager), vm => LineManager?.UpdateViewModel(viewModel) }
+        };
+
+        foreach (var service in services)
+            if (service.Value == null)
+                Console.WriteLine($"{service.Key} is null");
+            else
+                service.Value(viewModel);
+    }
+    
     public async Task InsertLargeTextAsync(long position, string text)
     {
         await Task.Run(() =>
@@ -226,19 +298,26 @@ public class TextEditorViewModel : ViewModelBase
         await Task.Run(UpdateLongestLineWidth);
     }
 
-    private void UpdateLineCache(long position, string insertedText)
+    public void UpdateLineCache(long position, string insertedText)
     {
         var startLine = _textBuffer.GetLineIndexFromPosition(position);
         var endLine = _textBuffer.GetLineIndexFromPosition(position + insertedText.Length);
 
-        for (var i = startLine; i <= endLine; i++) LineCache.InvalidateLine(i);
+        // Batch invalidate the range of lines
+        InvalidateLineRange((int)startLine, (int)endLine);
     }
 
-    private void UpdateLineCacheAfterDeletion(long start, long length)
+    public void UpdateLineCacheAfterDeletion(long start, long length)
     {
         var startLine = _textBuffer.GetLineIndexFromPosition(start);
         var endLine = _textBuffer.GetLineIndexFromPosition(start + length);
 
+        // Batch invalidate the range of lines
+        InvalidateLineRange((int)startLine, (int)endLine);
+    }
+
+    private void InvalidateLineRange(int startLine, int endLine)
+    {
         for (var i = startLine; i <= endLine; i++) LineCache.InvalidateLine(i);
     }
 
@@ -260,23 +339,6 @@ public class TextEditorViewModel : ViewModelBase
         }
 
         LongestLineWidth = maxWidth;
-    }
-
-    public double CharWidth
-    {
-        get
-        {
-            if (_charWidthNeedsUpdate) UpdateCharWidth();
-            return _charWidth;
-        }
-        set
-        {
-            if (_charWidth != value)
-            {
-                this.RaiseAndSetIfChanged(ref _charWidth, value);
-                _charWidthNeedsUpdate = false;
-            }
-        }
     }
 
     public async Task CopyText()
@@ -353,13 +415,24 @@ public class TextEditorViewModel : ViewModelBase
                 new Typeface(FontFamily),
                 FontSize,
                 Brushes.Black);
-            _charWidth = formattedText.Width;
-            _charWidthNeedsUpdate = false;
+            CharWidth = formattedText.Width;
         }
         catch (Exception ex)
         {
-            _charWidth = 10;
-            _charWidthNeedsUpdate = false;
+            CharWidth = 10;
         }
+    }
+
+    public T? GetParentViewModel<T>() where T : ViewModelBase
+    {
+        var current = ParentViewModel;
+        while (current != null)
+        {
+            if (current is T targetViewModel)
+                return targetViewModel;
+            if (current is TextEditorViewModel textEditorViewModel) current = textEditorViewModel.ParentViewModel;
+        }
+
+        return null;
     }
 }

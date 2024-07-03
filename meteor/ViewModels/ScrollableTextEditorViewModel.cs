@@ -2,12 +2,16 @@ using System;
 using Avalonia;
 using Avalonia.Media;
 using meteor.Interfaces;
+using meteor.Views.Services;
 using ReactiveUI;
 
 namespace meteor.ViewModels;
 
 public class ScrollableTextEditorViewModel : ViewModelBase
 {
+    private const double ScrollThreshold = 20;
+    private const double ScrollSpeed = 1;
+    
     private double _verticalOffset;
     private double _horizontalOffset;
     private Size _viewport;
@@ -15,8 +19,6 @@ public class ScrollableTextEditorViewModel : ViewModelBase
     private double _totalHeight;
     private Vector _offset;
     private double _lineHeight;
-    private bool _disableHorizontalScrollToCursor;
-    private bool _disableVerticalScrollToCursor;
     private double _windowHeight;
     private double _windowWidth;
 
@@ -24,18 +26,9 @@ public class ScrollableTextEditorViewModel : ViewModelBase
     public LineCountViewModel LineCountViewModel { get; }
     public GutterViewModel GutterViewModel { get; }
     public TabViewModel TabViewModel { get; set; }
+    public RenderManager ParentRenderManager { get; set; }
 
-    public bool DisableHorizontalScrollToCursor
-    {
-        get => _disableHorizontalScrollToCursor;
-        set => this.RaiseAndSetIfChanged(ref _disableHorizontalScrollToCursor, value);
-    }
-
-    public bool DisableVerticalScrollToCursor
-    {
-        get => _disableVerticalScrollToCursor;
-        set => this.RaiseAndSetIfChanged(ref _disableHorizontalScrollToCursor, value);
-    }
+    public ScrollManager ScrollManager { get; set; }
 
     public ScrollableTextEditorViewModel(
         ICursorPositionService cursorPositionService,
@@ -43,20 +36,19 @@ public class ScrollableTextEditorViewModel : ViewModelBase
         LineCountViewModel lineCountViewModel,
         ITextBuffer textBuffer,
         IClipboardService clipboardService,
-        IThemeService themeService)
+        IThemeService themeService,
+        TextEditorViewModel textEditorViewModel,
+        ScrollManager scrollManager)
     {
         ClipboardService = clipboardService;
-        
+        ScrollManager = scrollManager;
+    
         if (textBuffer == null) throw new ArgumentNullException(nameof(textBuffer));
 
         FontPropertiesViewModel = fontPropertiesViewModel;
         LineCountViewModel = lineCountViewModel;
-        TextEditorViewModel = new TextEditorViewModel(
-            cursorPositionService,
-            fontPropertiesViewModel,
-            lineCountViewModel,
-            textBuffer,
-            clipboardService);
+        TextEditorViewModel = textEditorViewModel;
+        TextEditorViewModel.ParentViewModel = this;
         GutterViewModel = new GutterViewModel(cursorPositionService, fontPropertiesViewModel, lineCountViewModel, this,
             TextEditorViewModel, themeService);
 
@@ -73,6 +65,30 @@ public class ScrollableTextEditorViewModel : ViewModelBase
             });
 
         textBuffer.TextChanged += (sender, args) => UpdateDimensions();
+
+        // Subscribe to property changes
+        this.WhenAnyValue(
+                x => x.VerticalOffset,
+                x => x.HorizontalOffset,
+                x => x.Viewport,
+                x => x.Offset,
+                x => x.LineHeight)
+            .Subscribe(_ => UpdateContext());
+
+        this.WhenAnyValue(
+                x => x.LongestLineWidth,
+                x => x.TotalHeight,
+                x => x.WindowHeight,
+                x => x.WindowWidth,
+                x => x.FontFamily,
+                x => x.FontSize)
+            .Subscribe(_ => UpdateContext());
+    }
+
+    private void UpdateContext()
+    {
+        // TODO evaluate if this is necessary
+        if (ParentRenderManager != null) ParentRenderManager.UpdateContextViewModel(this);
     }
 
     public FontPropertiesViewModel FontPropertiesViewModel { get; }
@@ -191,6 +207,22 @@ public class ScrollableTextEditorViewModel : ViewModelBase
                 UpdateTotalHeight();
             }
         }
+    }
+
+    public void HandleAutoScroll(Point cursorPoint)
+    {
+        var viewportHeight = Viewport.Height;
+        var viewportWidth = Viewport.Width;
+
+        if (cursorPoint.Y < ScrollThreshold)
+            VerticalOffset = Math.Max(0, VerticalOffset - ScrollSpeed);
+        else if (cursorPoint.Y > viewportHeight - ScrollThreshold)
+            VerticalOffset = Math.Min(VerticalOffset + ScrollSpeed, TotalHeight - viewportHeight);
+
+        if (cursorPoint.X < ScrollThreshold)
+            HorizontalOffset = Math.Max(0, HorizontalOffset - ScrollSpeed);
+        else if (cursorPoint.X > viewportWidth - ScrollThreshold)
+            HorizontalOffset = Math.Min(HorizontalOffset + ScrollSpeed, LongestLineWidth - viewportWidth);
     }
 
     public void UpdateLongestLineWidth()

@@ -8,6 +8,7 @@ using Avalonia.Media;
 using DiffPlex.DiffBuilder;
 using meteor.Interfaces;
 using meteor.Models;
+using meteor.Views.Services;
 using ReactiveUI;
 using File = System.IO.File;
 
@@ -128,13 +129,31 @@ public class TabViewModel : ViewModelBase, IDisposable
 
     private void InitializeScrollableTextEditor()
     {
+        var textEditorViewModel = new TextEditorViewModel(
+            _cursorPositionService,
+            _fontPropertiesViewModel,
+            _lineCountViewModel,
+            _textBuffer,
+            _clipboardService,
+            this);
+
+        var scrollManager = new ScrollManager(textEditorViewModel);
+
         ScrollableTextEditorViewModel = new ScrollableTextEditorViewModel(
             _cursorPositionService,
             _fontPropertiesViewModel,
             _lineCountViewModel,
             _textBuffer,
             _clipboardService,
-            _themeService);
+            _themeService,
+            textEditorViewModel,
+            scrollManager);
+
+        textEditorViewModel.ParentViewModel = ScrollableTextEditorViewModel;
+
+        textEditorViewModel.TextManipulator = new TextManipulator();
+        textEditorViewModel.TextManipulator.UpdateViewModel(textEditorViewModel);
+
         ScrollableTextEditorViewModel.TextEditorViewModel.TextBuffer.LinesUpdated += OnTextBufferLinesUpdated;
         ScrollableTextEditorViewModel.TabViewModel = this;
     }
