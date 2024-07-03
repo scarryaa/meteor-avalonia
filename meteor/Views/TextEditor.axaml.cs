@@ -415,7 +415,8 @@ public partial class TextEditor : UserControl
         if (e.PropertyName == nameof(TextEditorViewModel.TextBuffer))
             Dispatcher.UIThread.Post(InvalidateVisual);
         else if (e.PropertyName == nameof(TextEditorViewModel.CursorPosition))
-            Dispatcher.UIThread.Post(EnsureCursorVisible);
+            if (_scrollableViewModel.TextEditorViewModel.ShouldScrollToCursor)
+                Dispatcher.UIThread.Post(EnsureCursorVisible);
     }
 
     private double CalculateScrollAmount(double distanceFromEdge, double threshold)
@@ -429,7 +430,7 @@ public partial class TextEditor : UserControl
 
         var viewportWidth = _scrollableViewModel.Viewport.Width;
         var currentOffset = _scrollableViewModel.HorizontalOffset;
-
+        
         if (cursorX < HorizontalScrollThreshold)
         {
             // Scroll left
@@ -551,12 +552,38 @@ public partial class TextEditor : UserControl
             var viewModel = _scrollableViewModel.TextEditorViewModel;
             var cursorPosition = GetPositionFromPoint(position);
 
+            // Adjust cursorPosition if it is beyond the line length
+            var lineIndex = GetLineIndex(viewModel, cursorPosition);
+            var lineStart = viewModel.TextBuffer.GetLineStartPosition((int)lineIndex);
+            var lineText = viewModel.TextBuffer.GetLineText(lineIndex);
+            var lineLength = GetVisualLineLength(viewModel, lineIndex);
+
+            if (cursorPosition >= lineStart + lineLength)
+            {
+                // If clicking beyond the end of the line, select the entire line
+                SelectTrailingWhitespace(viewModel, lineIndex, lineText, lineStart);
+                return;
+            }
+
             var (wordStart, wordEnd) = FindWordOrSymbolBoundaries(viewModel, cursorPosition);
 
+            // Ensure the end position does not exceed the length of the text buffer
+            wordEnd = Math.Min(wordEnd, viewModel.TextBuffer.Length);
+
+            // Update selection to encompass the entire word
             viewModel.SelectionStart = wordStart;
             viewModel.SelectionEnd = wordEnd;
             _selectionAnchor = wordStart;
             viewModel.CursorPosition = wordEnd;
+
+            // Check for word end line index to handle edge cases
+            var wordEndLineIndex = GetLineIndex(viewModel, wordEnd);
+            if (wordEnd == viewModel.TextBuffer.GetLineStartPosition((int)wordEndLineIndex))
+            {
+                var (_wordStart, _wordEnd) = FindWordOrSymbolBoundaries(viewModel, cursorPosition);
+                viewModel.SelectionEnd = _wordEnd - 1;
+                viewModel.CursorPosition = _wordEnd - 1;
+            }
 
             viewModel.IsSelecting = true;
             UpdateSelection(viewModel);
@@ -576,6 +603,7 @@ public partial class TextEditor : UserControl
             var lineLength = GetVisualLineLength(viewModel, lineIndex);
             var lineEnd = lineStart + lineLength;
 
+            viewModel.ShouldScrollToCursor = false;
             viewModel.SelectionStart = lineStart;
             viewModel.SelectionEnd = lineEnd;
             _selectionAnchor = lineStart;
@@ -583,6 +611,7 @@ public partial class TextEditor : UserControl
 
             viewModel.IsSelecting = true;
             UpdateSelection(viewModel);
+            _lastKnownSelection = (viewModel.SelectionStart, viewModel.SelectionEnd);
             InvalidateVisual();
         }
     }
@@ -626,50 +655,57 @@ public partial class TextEditor : UserControl
             {
                 var position = GetPositionFromPoint(e.GetPosition(this));
 
-                if (_isDoubleClickDrag)
-                {
-                    // Extend word selection
-                    var (wordStart, wordEnd) = FindWordOrSymbolBoundaries(viewModel, position);
-                    if (position < _selectionAnchor)
-                    {
-                        viewModel.SelectionStart = wordStart;
-                        viewModel.SelectionEnd = _selectionAnchor;
-                    }
-                    else
-                    {
-                        viewModel.SelectionStart = _selectionAnchor;
-                        viewModel.SelectionEnd = wordEnd;
-                    }
-
-                    viewModel.CursorPosition = position < _selectionAnchor ? wordStart : wordEnd;
-                }
-                else if (_isTripleClickDrag)
+                if (_isTripleClickDrag)
                 {
                     // Extend line selection
-                    var lineIndex = GetLineIndex(viewModel, position);
-                    var lineStart = viewModel.TextBuffer.GetLineStartPosition((int)lineIndex);
-                    var lineEnd = lineStart + GetVisualLineLength(viewModel, lineIndex);
+                    viewModel.ShouldScrollToCursor = false;
+                    var currentLineIndex = GetLineIndex(viewModel, position);
+                    var anchorLineIndex = GetLineIndex(viewModel, _selectionAnchor);
+
+                    var currentLineStart = viewModel.TextBuffer.GetLineStartPosition((int)currentLineIndex);
+                    var currentLineEnd = currentLineStart + GetVisualLineLength(viewModel, currentLineIndex);
+
+                    var anchorLineStart = viewModel.TextBuffer.GetLineStartPosition((int)anchorLineIndex);
+                    var anchorLineEnd = anchorLineStart + GetVisualLineLength(viewModel, anchorLineIndex);
+
                     if (position < _selectionAnchor)
                     {
-                        viewModel.SelectionStart = lineStart;
-                        viewModel.SelectionEnd = _selectionAnchor;
+                        viewModel.SelectionStart = currentLineStart;
+                        viewModel.SelectionEnd = anchorLineEnd;
                     }
                     else
                     {
-                        viewModel.SelectionStart = _selectionAnchor;
-                        viewModel.SelectionEnd = lineEnd;
+                        viewModel.SelectionStart = anchorLineStart;
+                        viewModel.SelectionEnd = currentLineEnd;
                     }
 
-                    viewModel.CursorPosition = position < _selectionAnchor ? lineStart : lineEnd;
+                    viewModel.CursorPosition = position < _selectionAnchor ? currentLineStart : currentLineEnd + 1;
+                }
+                else if (_isDoubleClickDrag)
+                {
+                    // Extend word selection
+                    var (currentWordStart, currentWordEnd) = FindWordOrSymbolBoundaries(viewModel, position);
+                    var (anchorWordStart, anchorWordEnd) = FindWordOrSymbolBoundaries(viewModel, _selectionAnchor);
+
+                    if (position < _selectionAnchor)
+                    {
+                        viewModel.SelectionStart = Math.Min(currentWordStart, anchorWordStart);
+                        viewModel.SelectionEnd = Math.Max(anchorWordEnd, _selectionAnchor);
+                    }
+                    else
+                    {
+                        viewModel.SelectionStart = Math.Min(anchorWordStart, _selectionAnchor);
+                        viewModel.SelectionEnd = Math.Max(currentWordEnd, anchorWordEnd);
+                    }
+
+                    viewModel.CursorPosition = position < _selectionAnchor ? currentWordStart : currentWordEnd;
                 }
                 else
                 {
-                    // Normal selection
-                viewModel.CursorPosition = position;
-                viewModel.SelectionEnd = position;
+                    viewModel.CursorPosition = position;
+                    viewModel.SelectionEnd = position;
                 }
-
-                UpdateSelection(viewModel);
+                
                 _lastKnownSelection = (viewModel.SelectionStart, viewModel.SelectionEnd);
                 e.Handled = true;
 
@@ -687,6 +723,7 @@ public partial class TextEditor : UserControl
             }
         }
     }
+
 
     protected override void OnPointerReleased(PointerReleasedEventArgs e)
     {
@@ -710,8 +747,11 @@ public partial class TextEditor : UserControl
 
     private void HandleAutoScrollDuringSelection(Point cursorPoint)
     {
-        CheckAndScrollHorizontally(cursorPoint.X);
-        CheckAndScrollVertically(cursorPoint.Y);
+        if (_scrollableViewModel.TextEditorViewModel.ShouldScrollToCursor)
+        {
+            CheckAndScrollHorizontally(cursorPoint.X);
+            CheckAndScrollVertically(cursorPoint.Y);
+        }
     }
 
     private void UpdateSelection(TextEditorViewModel viewModel)
@@ -736,7 +776,8 @@ public partial class TextEditor : UserControl
 
         if (!_scrollableViewModel.DisableVerticalScrollToCursor) AdjustVerticalScroll(cursorLine);
 
-        if (!_scrollableViewModel.DisableHorizontalScrollToCursor) AdjustHorizontalScroll(cursorColumn);
+        if (!_scrollableViewModel.DisableHorizontalScrollToCursor || viewModel.ShouldScrollToCursor)
+            AdjustHorizontalScroll(cursorColumn);
 
         InvalidateVisual();
     }
