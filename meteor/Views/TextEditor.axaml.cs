@@ -32,6 +32,7 @@ public partial class TextEditor : UserControl
     private const double ScrollAcceleration = 1.05;
 
     private const int DoubleClickTimeThreshold = 300;
+    private const int TripleClickTimeThreshold = 600;
     private const double DoubleClickDistanceThreshold = 5;
     private const double DefaultFontSize = 13;
     private const double BaseLineHeight = 20;
@@ -87,6 +88,7 @@ public partial class TextEditor : UserControl
     public TextEditor()
     {
         InitializeComponent();
+        Cursor = new Cursor(StandardCursorType.Ibeam);
         DataContextChanged += OnDataContextChanged;
         Focusable = true;
 
@@ -208,7 +210,7 @@ public partial class TextEditor : UserControl
         InvalidateVisual();
     }
 
-    private (long start, long end) FindWordBoundaries(TextEditorViewModel viewModel, long position)
+    private (long start, long end) FindWordOrSymbolBoundaries(TextEditorViewModel viewModel, long position)
     {
         var lineIndex = GetLineIndex(viewModel, position);
         var lineText = viewModel.TextBuffer.GetLineText(lineIndex);
@@ -259,10 +261,8 @@ public partial class TextEditor : UserControl
         }
 
         if (isSymbol)
-        {
-            while (start > 0 && _commonCodingSymbols.Contains(lineText[start - 1])) start--;
-            while (end < lineText.Length && _commonCodingSymbols.Contains(lineText[end])) end++;
-        }
+            // Ensure only one symbol is selected
+            end = start + 1;
 
         return (lineStart + start, lineStart + end);
     }
@@ -487,6 +487,16 @@ public partial class TextEditor : UserControl
         var currentPosition = e.GetPosition(this);
         var currentTime = DateTime.Now;
 
+        // Check for triple-click
+        if ((currentTime - _lastClickTime).TotalMilliseconds <= TripleClickTimeThreshold &&
+            DistanceBetweenPoints(currentPosition, _lastClickPosition) <= DoubleClickDistanceThreshold &&
+            (currentTime - _lastClickTime).TotalMilliseconds > DoubleClickTimeThreshold)
+        {
+            OnTripleClicked(currentPosition);
+            e.Handled = true;
+            return;
+        }
+
         // Check for double-click
         if ((currentTime - _lastClickTime).TotalMilliseconds <= DoubleClickTimeThreshold &&
             DistanceBetweenPoints(currentPosition, _lastClickPosition) <= DoubleClickDistanceThreshold)
@@ -505,36 +515,13 @@ public partial class TextEditor : UserControl
             var viewModel = _scrollableViewModel.TextEditorViewModel;
             var position = GetPositionFromPoint(currentPosition);
 
-            // Prevent single click logic if clicking past the last line
             if (position >= _scrollableViewModel.TextEditorViewModel.TextBuffer.Length)
-            {
-                // Set the cursor position to the end of the text
                 position = _scrollableViewModel.TextEditorViewModel.TextBuffer.Length;
-
-                // Update cursor position without clearing selection
-                viewModel.CursorPosition = position;
-                if (!viewModel.IsSelecting)
-                {
-                    viewModel.SelectionStart = viewModel.SelectionEnd = position;
-                    _selectionAnchor = position;
-                }
-
-                _lastKnownSelection = (viewModel.SelectionStart, viewModel.SelectionEnd);
-                UpdateSelection(viewModel);
-
-                e.Handled = true;
-                InvalidateVisual();
-                return;
-            }
-
-            _scrollableViewModel.DisableHorizontalScrollToCursor = true;
-            _scrollableViewModel.DisableVerticalScrollToCursor = true;
 
             // Update cursor position and start selection
             viewModel.CursorPosition = position;
             _selectionAnchor = position;
 
-            // Update selection boundaries
             if (!viewModel.IsSelecting)
                 viewModel.SelectionStart = viewModel.SelectionEnd = position;
             else
@@ -544,6 +531,30 @@ public partial class TextEditor : UserControl
             _lastKnownSelection = (viewModel.SelectionStart, viewModel.SelectionEnd);
 
             e.Handled = true;
+            InvalidateVisual();
+        }
+    }
+
+    private void OnTripleClicked(Point position)
+    {
+        if (_scrollableViewModel != null)
+        {
+            var viewModel = _scrollableViewModel.TextEditorViewModel;
+            var cursorPosition = GetPositionFromPoint(position);
+
+            // Get the line index and line start position
+            var lineIndex = GetLineIndex(viewModel, cursorPosition);
+            var lineStart = viewModel.TextBuffer.GetLineStartPosition((int)lineIndex);
+            var lineLength = GetVisualLineLength(viewModel, lineIndex);
+            var lineEnd = lineStart + lineLength;
+
+            // Select the entire line
+            viewModel.SelectionStart = lineStart;
+            viewModel.SelectionEnd = lineEnd;
+            _selectionAnchor = lineStart;
+            viewModel.CursorPosition = lineEnd;
+
+            UpdateSelection(viewModel);
             InvalidateVisual();
         }
     }
@@ -568,11 +579,12 @@ public partial class TextEditor : UserControl
 
             if (cursorPosition >= lineStart + lineLength)
             {
+                // If clicking beyond the end of the line, select the entire line
                 SelectTrailingWhitespace(viewModel, lineIndex, lineText, lineStart);
                 return;
             }
 
-            var (wordStart, wordEnd) = FindWordBoundaries(viewModel, cursorPosition);
+            var (wordStart, wordEnd) = FindWordOrSymbolBoundaries(viewModel, cursorPosition);
 
             // Ensure the end position does not exceed the length of the text buffer
             wordEnd = Math.Min(wordEnd, viewModel.TextBuffer.Length);
@@ -584,11 +596,10 @@ public partial class TextEditor : UserControl
             viewModel.CursorPosition = wordEnd;
 
             // Check for word end line index to handle edge cases
-            var wordEndLineIndex = GetLineIndex(viewModel, wordEnd + 1);
-            if (wordEnd + 1 == viewModel.TextBuffer.GetLineStartPosition((int)wordEndLineIndex) ||
-                wordEnd == viewModel.TextBuffer.GetLineStartPosition((int)wordEndLineIndex))
+            var wordEndLineIndex = GetLineIndex(viewModel, wordEnd);
+            if (wordEnd == viewModel.TextBuffer.GetLineStartPosition((int)wordEndLineIndex))
             {
-                var (_wordStart, _wordEnd) = FindWordBoundaries(viewModel, cursorPosition);
+                var (_wordStart, _wordEnd) = FindWordOrSymbolBoundaries(viewModel, cursorPosition);
                 viewModel.CursorPosition = _wordEnd - 1;
                 viewModel.SelectionEnd = _wordEnd - 1;
             }
@@ -608,9 +619,14 @@ public partial class TextEditor : UserControl
         var trailingWhitespaceStart = lineStart + lastNonWhitespaceIndex + 1;
         var trailingWhitespaceEnd = lineStart + GetVisualLineLength(viewModel, lineIndex);
 
-        // If there's no trailing whitespace, select the last character of the line
+        // If there's no trailing whitespace, select the word or symbol at the end of the line
         if (trailingWhitespaceStart == trailingWhitespaceEnd && lastNonWhitespaceIndex >= 0)
-            trailingWhitespaceStart = lineStart + lastNonWhitespaceIndex;
+        {
+            // Find the boundaries of the word or symbol at the end of the line
+            var (wordStart, wordEnd) = FindWordOrSymbolBoundaries(viewModel, lineStart + lastNonWhitespaceIndex);
+            trailingWhitespaceStart = wordStart;
+            trailingWhitespaceEnd = wordEnd;
+        }
 
         viewModel.SelectionStart = trailingWhitespaceStart;
         viewModel.SelectionEnd = trailingWhitespaceEnd;
