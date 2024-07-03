@@ -205,8 +205,8 @@ public partial class TextEditor : UserControl
         var cursorPosition = _scrollableViewModel.TextEditorViewModel.CursorPosition;
         var cursorPoint = GetPointFromPosition(cursorPosition);
 
-        CheckAndScrollHorizontally(cursorPoint.X);
-        CheckAndScrollVertically(cursorPoint.Y);
+        CheckAndScrollHorizontally(cursorPoint.X, HorizontalScrollThreshold);
+        CheckAndScrollVertically(cursorPoint.Y, VerticalScrollThreshold);
 
         _currentScrollSpeed *= ScrollAcceleration;
         InvalidateVisual();
@@ -421,26 +421,26 @@ public partial class TextEditor : UserControl
 
     private double CalculateScrollAmount(double distanceFromEdge, double threshold)
     {
-        return _currentScrollSpeed * (1 - distanceFromEdge / threshold);
+        return Math.Min(_currentScrollSpeed * (1 - distanceFromEdge / threshold), LineHeight);
     }
 
-    private void CheckAndScrollHorizontally(double cursorX)
+    private void CheckAndScrollHorizontally(double cursorX, double threshold)
     {
         if (_scrollableViewModel == null) return;
 
         var viewportWidth = _scrollableViewModel.Viewport.Width;
         var currentOffset = _scrollableViewModel.HorizontalOffset;
-        
-        if (cursorX < HorizontalScrollThreshold)
+
+        if (cursorX < threshold)
         {
             // Scroll left
-            var newOffset = Math.Max(0, currentOffset - CalculateScrollAmount(cursorX, HorizontalScrollThreshold));
+            var newOffset = Math.Max(0, currentOffset - CalculateScrollAmount(cursorX, threshold));
             _scrollableViewModel.HorizontalOffset = newOffset;
         }
-        else if (cursorX > viewportWidth - HorizontalScrollThreshold)
+        else if (cursorX > viewportWidth - threshold)
         {
             // Scroll right
-            var newOffset = currentOffset + CalculateScrollAmount(viewportWidth - cursorX, HorizontalScrollThreshold);
+            var newOffset = currentOffset + CalculateScrollAmount(viewportWidth - cursorX, threshold);
             _scrollableViewModel.HorizontalOffset = newOffset;
         }
         else
@@ -449,7 +449,7 @@ public partial class TextEditor : UserControl
         }
     }
 
-    private void CheckAndScrollVertically(double cursorY)
+    private void CheckAndScrollVertically(double cursorY, double threshold)
     {
         if (_scrollableViewModel == null) return;
 
@@ -457,31 +457,47 @@ public partial class TextEditor : UserControl
         var currentOffset = _scrollableViewModel.VerticalOffset;
         var lineCount = GetLineCount();
 
-        if (cursorY < VerticalScrollThreshold)
+        if (cursorY < threshold)
         {
             // Scroll up
-            var newOffset = Math.Max(0, currentOffset - CalculateScrollAmount(cursorY, VerticalScrollThreshold));
+            var scrollAmount = CalculateScrollAmount(cursorY, threshold);
+            var newOffset = Math.Max(0, currentOffset - scrollAmount);
             _scrollableViewModel.VerticalOffset = newOffset;
 
-            // Ensure cursor doesn't go above the first line
+            // Adjust cursor position if necessary
             var viewModel = _scrollableViewModel.TextEditorViewModel;
             var firstVisibleLine = (long)(newOffset / LineHeight);
             if (GetLineIndex(viewModel, viewModel.CursorPosition) < firstVisibleLine)
-                viewModel.CursorPosition = viewModel.TextBuffer.GetLineStartPosition((int)firstVisibleLine);
+            {
+                var newCursorPosition = viewModel.TextBuffer.GetLineStartPosition((int)firstVisibleLine);
+                if (newCursorPosition < viewModel.SelectionStart)
+                {
+                    viewModel.SelectionStart = newCursorPosition;
+                    viewModel.CursorPosition = newCursorPosition;
+                }
         }
-        else if (cursorY > viewportHeight - VerticalScrollThreshold)
+        }
+        else if (cursorY > viewportHeight - threshold)
         {
             // Scroll down
-            var newOffset = currentOffset + CalculateScrollAmount(viewportHeight - cursorY, VerticalScrollThreshold);
+            var scrollAmount = CalculateScrollAmount(viewportHeight - cursorY, threshold);
+            var newOffset = currentOffset + scrollAmount;
             var maxOffset = Math.Max(0, lineCount * LineHeight - viewportHeight);
             _scrollableViewModel.VerticalOffset = Math.Min(newOffset, maxOffset);
 
-            // Ensure cursor doesn't go below the last line
+            // Adjust cursor position if necessary
             var viewModel = _scrollableViewModel.TextEditorViewModel;
             var lastVisibleLine = (long)((newOffset + viewportHeight) / LineHeight);
             if (GetLineIndex(viewModel, viewModel.CursorPosition) > lastVisibleLine)
-                viewModel.CursorPosition =
+            {
+                var newCursorPosition =
                     viewModel.TextBuffer.GetLineEndPosition((int)Math.Min(lastVisibleLine, lineCount - 1));
+                if (newCursorPosition > viewModel.SelectionEnd)
+                {
+                    viewModel.SelectionEnd = newCursorPosition;
+                    viewModel.CursorPosition = newCursorPosition;
+                }
+            }
         }
     }
 
@@ -657,7 +673,6 @@ public partial class TextEditor : UserControl
 
                 if (_isTripleClickDrag)
                 {
-                    // Extend line selection
                     viewModel.ShouldScrollToCursor = false;
                     var currentLineIndex = GetLineIndex(viewModel, position);
                     var anchorLineIndex = GetLineIndex(viewModel, _selectionAnchor);
@@ -668,18 +683,22 @@ public partial class TextEditor : UserControl
                     var anchorLineStart = viewModel.TextBuffer.GetLineStartPosition((int)anchorLineIndex);
                     var anchorLineEnd = anchorLineStart + GetVisualLineLength(viewModel, anchorLineIndex);
 
-                    if (position < _selectionAnchor)
+                    if (currentLineIndex < anchorLineIndex)
                     {
                         viewModel.SelectionStart = currentLineStart;
                         viewModel.SelectionEnd = anchorLineEnd;
+                        viewModel.CursorPosition = currentLineStart;
                     }
                     else
                     {
                         viewModel.SelectionStart = anchorLineStart;
                         viewModel.SelectionEnd = currentLineEnd;
+                        viewModel.CursorPosition = Math.Min(currentLineEnd + 1, viewModel.TextBuffer.Length);
                     }
 
-                    viewModel.CursorPosition = position < _selectionAnchor ? currentLineStart : currentLineEnd + 1;
+                    // Implement gradual scrolling
+                    var cursorPoint = GetPointFromPosition(viewModel.CursorPosition);
+                    HandleAutoScrollDuringSelection(cursorPoint, true);
                 }
                 else if (_isDoubleClickDrag)
                 {
@@ -704,13 +723,11 @@ public partial class TextEditor : UserControl
                 {
                     viewModel.CursorPosition = position;
                     viewModel.SelectionEnd = position;
+                    HandleAutoScrollDuringSelection(GetPointFromPosition(viewModel.CursorPosition));
                 }
-                
+
                 _lastKnownSelection = (viewModel.SelectionStart, viewModel.SelectionEnd);
                 e.Handled = true;
-
-                var cursorPoint = GetPointFromPosition(viewModel.CursorPosition);
-                HandleAutoScrollDuringSelection(cursorPoint);
 
                 if (!_isManualScrolling) _scrollTimer.Start();
 
@@ -723,8 +740,7 @@ public partial class TextEditor : UserControl
             }
         }
     }
-
-
+    
     protected override void OnPointerReleased(PointerReleasedEventArgs e)
     {
         base.OnPointerReleased(e);
@@ -745,12 +761,15 @@ public partial class TextEditor : UserControl
         e.Handled = true;
     }
 
-    private void HandleAutoScrollDuringSelection(Point cursorPoint)
+    private void HandleAutoScrollDuringSelection(Point cursorPoint, bool isTripleClickDrag = false)
     {
         if (_scrollableViewModel.TextEditorViewModel.ShouldScrollToCursor)
         {
-            CheckAndScrollHorizontally(cursorPoint.X);
-            CheckAndScrollVertically(cursorPoint.Y);
+            var horizontalThreshold = isTripleClickDrag ? HorizontalScrollThreshold * 1.5 : HorizontalScrollThreshold;
+            var verticalThreshold = isTripleClickDrag ? VerticalScrollThreshold * 1.5 : VerticalScrollThreshold;
+
+            CheckAndScrollHorizontally(cursorPoint.X, horizontalThreshold);
+            CheckAndScrollVertically(cursorPoint.Y, verticalThreshold);
         }
     }
 
