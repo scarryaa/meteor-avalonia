@@ -389,6 +389,7 @@ public partial class TextEditor : UserControl
         else if (e.SelectionStart.HasValue)
             _lastKnownSelection = (e.SelectionStart.Value, _lastKnownSelection.End);
         else if (e.SelectionEnd.HasValue) _lastKnownSelection = (_lastKnownSelection.Start, e.SelectionEnd.Value);
+        InvalidateVisual();
     }
 
     private void OnRequestFocus(object? sender, EventArgs e)
@@ -2158,7 +2159,11 @@ public partial class TextEditor : UserControl
             var viewModel = _scrollableViewModel.TextEditorViewModel;
             viewModel.SelectionStart = 0;
             viewModel.SelectionEnd = viewModel.TextBuffer.Length;
+
+            viewModel.ShouldScrollToCursor = false;
             viewModel.CursorPosition = viewModel.TextBuffer.Length;
+            viewModel.ShouldScrollToCursor = true;
+
             _selectionAnchor = 0;
             _lastKnownSelection = (0, viewModel.TextBuffer.Length);
             InvalidateVisual();

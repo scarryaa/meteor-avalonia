@@ -56,8 +56,8 @@ public class TextEditorViewModel : ViewModelBase
     }
 
     public event EventHandler<SelectionChangedEventArgs> SelectionChanged;
-    public event EventHandler LineChanged;
     public event EventHandler WidthChanged;
+    public event EventHandler LineChanged;
     public event EventHandler? InvalidateRequired;
     public event EventHandler? RequestFocus;
 
