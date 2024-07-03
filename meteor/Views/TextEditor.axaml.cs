@@ -942,7 +942,6 @@ public partial class TextEditor : UserControl
         return viewModel.SelectionStart == 0 && viewModel.SelectionEnd == viewModel.TextBuffer.Length;
     }
 
-
     private List<(long position, int deleteLength, string insertText)> PrepareModifications(
         TextEditorViewModel viewModel, int startLine, int endLine, string tabString, bool isShiftTab)
     {
@@ -1954,24 +1953,29 @@ public partial class TextEditor : UserControl
         var text = await clipboard.GetTextAsync();
         if (string.IsNullOrEmpty(text)) return;
 
-        await Dispatcher.UIThread.InvokeAsync(async () =>
+        await Dispatcher.UIThread.InvokeAsync(() =>
         {
             var insertPosition = viewModel.CursorPosition;
+
+            // Use StringBuilder for efficient text manipulation
+            var sb = new StringBuilder(viewModel.TextBuffer.Text);
 
             // Handle selection deletion in a single operation
             if (viewModel.SelectionStart != -1 && viewModel.SelectionEnd != -1)
             {
                 var start = Math.Min(viewModel.SelectionStart, viewModel.SelectionEnd);
                 var length = Math.Abs(viewModel.SelectionEnd - viewModel.SelectionStart);
-                viewModel.DeleteText(start, length);
+                sb.Remove((int)start, (int)length);
                 insertPosition = start;
             }
 
             // Perform text insertion as a single operation
-            viewModel.InsertText(insertPosition, text);
-            HandleTextInsertion(insertPosition, text);
+            sb.Insert((int)insertPosition, text);
 
-            // Update only affected lines
+            // Set the modified text back to the text buffer
+            viewModel.TextBuffer.SetText(sb.ToString());
+
+            // Update line starts only once
             viewModel.UpdateLineStarts();
 
             viewModel.CursorPosition = insertPosition + text.Length;
@@ -1981,12 +1985,9 @@ public partial class TextEditor : UserControl
             _lastKnownSelection = (viewModel.CursorPosition, viewModel.CursorPosition);
 
             // Defer UI updates
-            await Task.Delay(10);
-            InvalidateVisual();
-
-            await Task.Delay(50);
-            UpdateHorizontalScrollPosition();
-            EnsureCursorVisible();
+            Dispatcher.UIThread.Post(InvalidateVisual, DispatcherPriority.Background);
+            Dispatcher.UIThread.Post(UpdateHorizontalScrollPosition, DispatcherPriority.Background);
+            Dispatcher.UIThread.Post(EnsureCursorVisible, DispatcherPriority.Background);
         }, DispatcherPriority.Background);
     }
 
