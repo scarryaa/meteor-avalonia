@@ -194,6 +194,53 @@ public class TextEditorViewModel : ViewModelBase
         }
     }
 
+    public async Task InsertLargeTextAsync(long position, string text)
+    {
+        await Task.Run(() =>
+        {
+            _textBuffer.InsertText(position, text);
+            UpdateLineCache(position, text);
+        });
+
+        CursorPosition = position + text.Length;
+        NotifyGutterOfLineChange();
+        this.RaisePropertyChanged(nameof(LineCount));
+        this.RaisePropertyChanged(nameof(TotalHeight));
+        OnInvalidateRequired();
+        await Task.Run(UpdateLongestLineWidth);
+    }
+
+    public async Task DeleteLargeTextAsync(long start, long length)
+    {
+        await Task.Run(() =>
+        {
+            _textBuffer.DeleteText(start, length);
+            UpdateLineCacheAfterDeletion(start, length);
+        });
+
+        NotifyGutterOfLineChange();
+        this.RaisePropertyChanged(nameof(LineCount));
+        this.RaisePropertyChanged(nameof(TotalHeight));
+        OnInvalidateRequired();
+        await Task.Run(UpdateLongestLineWidth);
+    }
+
+    private void UpdateLineCache(long position, string insertedText)
+    {
+        var startLine = _textBuffer.GetLineIndexFromPosition(position);
+        var endLine = _textBuffer.GetLineIndexFromPosition(position + insertedText.Length);
+
+        for (var i = startLine; i <= endLine; i++) LineCache.InvalidateLine(i);
+    }
+
+    private void UpdateLineCacheAfterDeletion(long start, long length)
+    {
+        var startLine = _textBuffer.GetLineIndexFromPosition(start);
+        var endLine = _textBuffer.GetLineIndexFromPosition(start + length);
+
+        for (var i = startLine; i <= endLine; i++) LineCache.InvalidateLine(i);
+    }
+
     public void UpdateLongestLineWidth()
     {
         double maxWidth = 0;

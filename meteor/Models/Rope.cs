@@ -6,13 +6,15 @@ using meteor.Interfaces;
 
 public class Rope : IRope
 {
-    private const int SPLIT_LENGTH = 1024;
-    private const int MAX_NODE_LENGTH = 2048;
-    private Node root;
+    // Cache variables
     private int _cachedLineCount = -1;
     private int _cachedLongestLineLength = -1;
     private int _cachedLongestLineIndex = -1;
     private long _changeCounter;
+
+    private const int SPLIT_LENGTH = 1024;
+    private const int MAX_NODE_LENGTH = 2048;
+    private Node root;
 
     public Rope(string text)
     {

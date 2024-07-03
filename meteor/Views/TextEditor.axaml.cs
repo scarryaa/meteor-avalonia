@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
+using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -11,8 +13,8 @@ using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
 using meteor.ViewModels;
-using ReactiveUI;
 using SelectionChangedEventArgs = meteor.Models.SelectionChangedEventArgs;
+using WhenAnyMixin = ReactiveUI.WhenAnyMixin;
 
 [assembly: InternalsVisibleTo("tests")]
 
@@ -20,6 +22,10 @@ namespace meteor.Views;
 
 public partial class TextEditor : UserControl
 {
+    private readonly object _tabOperationLock = new();
+    private bool _isTabOperationInProgress;
+    private const int TabSize = 4;
+    private readonly bool UseTabCharacter = false;
     private const double HorizontalScrollThreshold = 20;
     private const double VerticalScrollThreshold = 20;
     private const double ScrollSpeed = 1;
@@ -303,7 +309,7 @@ public partial class TextEditor : UserControl
             _scrollableViewModel.TextEditorViewModel.SelectionChanged += OnSelectionChanged;
 
             viewModel.InvalidateRequired += OnInvalidateRequired;
-            Bind(LineHeightProperty, viewModel.WhenAnyValue(vm => vm.LineHeight));
+            Bind(LineHeightProperty, WhenAnyMixin.WhenAnyValue(viewModel, vm => vm.LineHeight));
 
             UpdateLineCache(-1);
         }
@@ -510,7 +516,7 @@ public partial class TextEditor : UserControl
                 if (!viewModel.IsSelecting)
                 {
                     viewModel.SelectionStart = viewModel.SelectionEnd = position;
-                _selectionAnchor = position;
+                    _selectionAnchor = position;
                 }
 
                 _lastKnownSelection = (viewModel.SelectionStart, viewModel.SelectionEnd);
@@ -750,10 +756,11 @@ public partial class TextEditor : UserControl
 
     private void HandleTextInsertion(long position, string text)
     {
+        if (_scrollableViewModel == null) throw new InvalidOperationException("_scrollableViewModel cannot be null.");
+
         var lineIndex = GetLineIndex(_scrollableViewModel.TextEditorViewModel, position);
         OnTextChanged(lineIndex);
 
-        // If the inserted text contains newlines, invalidate all subsequent lines
         if (text.Contains('\n'))
             for (var i = lineIndex + 1; i < GetLineCount(); i++)
                 OnTextChanged(i);
@@ -761,15 +768,22 @@ public partial class TextEditor : UserControl
 
     private void HandleTextDeletion(long position, long length)
     {
+        if (_scrollableViewModel == null) throw new InvalidOperationException("_scrollableViewModel cannot be null.");
+
         var startLineIndex = GetLineIndex(_scrollableViewModel.TextEditorViewModel, position);
         var endLineIndex = GetLineIndex(_scrollableViewModel.TextEditorViewModel, position + length);
 
         for (var i = startLineIndex; i <= endLineIndex; i++) OnTextChanged(i);
     }
 
-
     protected override void OnTextInput(TextInputEventArgs e)
     {
+        if (e.Text == "\t")
+        {
+            e.Handled = true;
+            return;
+        }
+
         base.OnTextInput(e);
 
         if (_scrollableViewModel != null && !string.IsNullOrEmpty(e.Text))
@@ -810,7 +824,7 @@ public partial class TextEditor : UserControl
 
         InvalidateVisual();
     }
-
+    
     private void OnTextDeleted(long lineIndex, long length)
     {
         UpdateLineCache(lineIndex);
@@ -848,12 +862,222 @@ public partial class TextEditor : UserControl
                 return;
             }
 
+            // Prevent default Tab behavior
+            if (e.Key == Key.Tab)
+            {
+                HandleTab(viewModel, e.KeyModifiers.HasFlag(KeyModifiers.Shift));
+                e.Handled = true;
+                return;
+            }
+
             HandleKeyDown(e, viewModel);
 
             var insertPosition = viewModel.CursorPosition;
             HandleTextInsertion(insertPosition, e.ToString());
             InvalidateVisual();
         }
+    }
+
+    private async void HandleTab(TextEditorViewModel viewModel, bool isShiftTab)
+    {
+        if (viewModel.SelectionStart != viewModel.SelectionEnd)
+            await HandleTabForSelectionAsync(viewModel, isShiftTab);
+        else
+            InsertTabAtCursor(viewModel);
+        InvalidateVisual();
+    }
+
+    private async Task HandleTabForSelectionAsync(TextEditorViewModel viewModel, bool isShiftTab)
+    {
+        if (_isTabOperationInProgress)
+            return;
+
+        lock (_tabOperationLock)
+        {
+            if (_isTabOperationInProgress)
+                return;
+            _isTabOperationInProgress = true;
+        }
+
+        try
+        {
+            var startLine = GetLineIndex(viewModel, Math.Min(viewModel.SelectionStart, viewModel.SelectionEnd));
+            var endLine = GetLineIndex(viewModel, Math.Max(viewModel.SelectionStart, viewModel.SelectionEnd));
+
+            var tabString = UseTabCharacter ? "\t" : new string(' ', TabSize);
+
+            // Get modifications
+            var entireTextSelected = IsEntireTextSelected(viewModel);
+            var modifications = await Task.Run(() =>
+                PrepareModifications(viewModel, (int)startLine, (int)endLine, tabString, isShiftTab));
+
+            // Apply modifications directly on the UI thread
+            await Dispatcher.UIThread.InvokeAsync(async () =>
+            {
+                await ApplyModificationsAsync(viewModel, modifications);
+                
+                // Update selection based on modifications
+                if (!entireTextSelected)
+                    UpdateSelectionAfterTabbing(viewModel, startLine, endLine, isShiftTab, modifications);
+                else if (isShiftTab)
+                    // Ensure selection end is within the new buffer length after shift tab
+                    viewModel.SelectionEnd = Math.Min(viewModel.SelectionEnd, viewModel.TextBuffer.Length);
+                else 
+                    viewModel.SelectionEnd = viewModel.TextBuffer.Length;
+                viewModel.NotifyGutterOfLineChange();
+                viewModel.OnInvalidateRequired();
+            });
+        }
+        finally
+        {
+            lock (_tabOperationLock)
+            {
+                _isTabOperationInProgress = false;
+            }
+        }
+    }
+
+    private bool IsEntireTextSelected(TextEditorViewModel viewModel)
+    {
+        return viewModel.SelectionStart == 0 && viewModel.SelectionEnd == viewModel.TextBuffer.Length;
+    }
+
+
+    private List<(long position, int deleteLength, string insertText)> PrepareModifications(
+        TextEditorViewModel viewModel, int startLine, int endLine, string tabString, bool isShiftTab)
+    {
+        var modifications = new List<(long position, int deleteLength, string insertText)>();
+
+        for (var lineIndex = startLine; lineIndex <= endLine; lineIndex++)
+        {
+            if (lineIndex < 0 || lineIndex >= viewModel.TextBuffer.LineCount)
+            {
+                Console.WriteLine(
+                    $"Invalid lineIndex: {lineIndex}, LineStarts.Count: {viewModel.TextBuffer.LineStarts.Count}");
+                continue;
+            }
+
+            var lineStart = viewModel.TextBuffer.GetLineStartPosition(lineIndex);
+            var lineText = viewModel.TextBuffer.GetLineText(lineIndex);
+
+            if (isShiftTab)
+            {
+                var positionToDelete = lineText.StartsWith(tabString) ? 0 : -1;
+                if (positionToDelete >= 0)
+                    modifications.Add((lineStart + positionToDelete, tabString.Length, string.Empty));
+            }
+            else
+            {
+                modifications.Add((lineStart, 0, tabString));
+            }
+        }
+
+        return modifications;
+    }
+
+    private async Task<int> ApplyModificationsAsync(TextEditorViewModel viewModel,
+        List<(long position, int deleteLength, string insertText)> modifications)
+    {
+        var actualTabLength = 0;
+
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            long offset = 0;
+            var sb = new StringBuilder(viewModel.TextBuffer.Text);
+
+            foreach (var (position, originalDeleteLength, insertText) in modifications)
+            {
+                // Create a local variable to hold the modified delete length value
+                var deleteLength = originalDeleteLength;
+
+                if (position + offset < 0 || position + offset >= sb.Length)
+                {
+                    Console.WriteLine($"Position {position + offset} is out of bounds. Skipping modification.");
+                    continue;
+                }
+
+                if (deleteLength > 0)
+                {
+                    if (position + offset + deleteLength > sb.Length)
+                    {
+                        Console.WriteLine(
+                            $"Delete length {deleteLength} from position {position + offset} exceeds string bounds. Adjusting length.");
+                        deleteLength = sb.Length - (int)(position + offset);
+                    }
+
+                    sb.Remove((int)(position + offset), deleteLength);
+                    offset -= deleteLength;
+                    actualTabLength = deleteLength;
+                }
+
+                if (!string.IsNullOrEmpty(insertText))
+                {
+                    sb.Insert((int)(position + offset), insertText);
+                    offset += insertText.Length;
+                    actualTabLength = insertText.Length;
+                }
+            }
+
+            // Final update of text buffer and line starts
+            viewModel.TextBuffer.SetText(sb.ToString());
+        });
+
+        return actualTabLength;
+    }
+
+    private void InsertTabAtCursor(TextEditorViewModel viewModel)
+    {
+        var tabString = UseTabCharacter ? "\t" : new string(' ', TabSize);
+        viewModel.InsertText(viewModel.CursorPosition, tabString);
+        HandleTextInsertion(viewModel.CursorPosition, tabString);
+        viewModel.CursorPosition += tabString.Length;
+        viewModel.ClearSelection();
+    }
+
+    private void UpdateSelectionAfterTabbing(TextEditorViewModel viewModel, long startLine, long endLine,
+        bool isShiftTab, List<(long position, int deleteLength, string insertText)> modifications)
+    {
+        if (isShiftTab)
+        {
+            var anyTabsRemoved = modifications.Any(m => m.deleteLength > 0);
+
+            if (anyTabsRemoved)
+            {
+                var lineStartPos = viewModel.TextBuffer.GetLineStartPosition((int)startLine);
+                var totalShift = modifications.Sum(m => m.deleteLength);
+                viewModel.SelectionStart = Math.Max(viewModel.SelectionStart - totalShift, lineStartPos);
+
+                var selectionEndOffset = 0;
+                var lastLineIndex = -1.0;
+                for (var lineIndex = startLine; lineIndex <= endLine; lineIndex++)
+                {
+                    var modificationsOnLine = modifications
+                        .Where(m => GetLineIndex(viewModel, m.position) == lineIndex)
+                        .Sum(m => m.deleteLength);
+                    selectionEndOffset += modificationsOnLine;
+
+                    lastLineIndex = lineIndex;
+                }
+
+                if (lastLineIndex < 0 || lastLineIndex >= viewModel.TextBuffer.LineCount)
+                {
+                    Console.WriteLine(
+                        $"Invalid lastLineIndex: {lastLineIndex}, LineCount: {viewModel.TextBuffer.LineCount}");
+                    lastLineIndex = viewModel.TextBuffer.LineCount - 1;
+                }
+
+                var lastLineEndPos = viewModel.TextBuffer.GetLineEndPosition((int)lastLineIndex);
+                viewModel.SelectionEnd = Math.Min(viewModel.SelectionEnd - selectionEndOffset, lastLineEndPos);
+            }
+        }
+        else
+        {
+            var totalShift = modifications.Sum(m => m.insertText.Length);
+            viewModel.SelectionStart = Math.Min(viewModel.SelectionStart, viewModel.TextBuffer.Length + 1);
+            viewModel.SelectionEnd = Math.Min(viewModel.SelectionEnd + totalShift, viewModel.TextBuffer.Length);
+        }
+
+        viewModel.SelectionEnd = Math.Min(viewModel.SelectionEnd, viewModel.TextBuffer.Length);
     }
 
     private void HandleKeyDown(KeyEventArgs e, TextEditorViewModel viewModel)
@@ -873,7 +1097,6 @@ public partial class TextEditor : UserControl
         }
 
         if (shiftFlag && _selectionAnchor == -1)
-        {
             _selectionAnchor = viewModel.SelectionStart == 0 && viewModel.SelectionEnd == viewModel.TextBuffer.Length
                 ? e.Key switch
                 {
@@ -884,7 +1107,6 @@ public partial class TextEditor : UserControl
                     _ => viewModel.CursorPosition
                 }
                 : viewModel.CursorPosition;
-        }
 
         switch (e.Key)
         {
@@ -921,6 +1143,11 @@ public partial class TextEditor : UserControl
             case Key.PageDown:
                 HandlePageDown(viewModel, shiftFlag);
                 break;
+            case Key.Tab:
+            {
+                e.Handled = true;
+                return;
+            }
         }
 
         if (shiftFlag)
@@ -939,11 +1166,11 @@ public partial class TextEditor : UserControl
 
     private bool IsNonPrintableKey(Key key)
     {
-        return key is Key.Left or Key.Right or Key.Up or Key.Down or Key.Home or Key.End 
-            or Key.PageUp or Key.PageDown or Key.Insert or Key.Delete or Key.Back 
+        return key is Key.Left or Key.Right or Key.Up or Key.Down or Key.Home or Key.End
+            or Key.PageUp or Key.PageDown or Key.Insert or Key.Delete or Key.Back
             or Key.Tab or Key.Enter or Key.Escape;
     }
-    
+
     private void HandleControlKeyDown(KeyEventArgs e, TextEditorViewModel viewModel)
     {
         var shiftFlag = (e.KeyModifiers & KeyModifiers.Shift) != 0;
@@ -1393,15 +1620,29 @@ public partial class TextEditor : UserControl
         if (viewModel.SelectionStart != viewModel.SelectionEnd)
         {
             // Handle deletion of selected text
-            var start = long.Min(viewModel.SelectionStart, viewModel.SelectionEnd);
-            var end = long.Max(viewModel.SelectionStart, viewModel.SelectionEnd);
+            var start = Math.Min(viewModel.SelectionStart, viewModel.SelectionEnd);
+            var end = Math.Max(viewModel.SelectionStart, viewModel.SelectionEnd);
             var length = end - start;
 
-            viewModel.DeleteText(start, length);
-            viewModel.CursorPosition = start;
+            if (start >= 0 && end <= viewModel.TextBuffer.Length)
+            {
+                viewModel.DeleteText(start, length);
+                viewModel.CursorPosition = start;
+            }
+            else
+            {
+                Console.WriteLine($"Start {start} or end {end} is out of bounds for deletion.");
+                return;
+            }
         }
 
         var insertPosition = viewModel.CursorPosition;
+        if (insertPosition < 0 || insertPosition > viewModel.TextBuffer.Length)
+        {
+            Console.WriteLine($"Insert position {insertPosition} is out of bounds.");
+            return;
+        }
+
         viewModel.InsertText(insertPosition, "\n");
         HandleTextInsertion(insertPosition, "\n");
 
@@ -1474,6 +1715,8 @@ public partial class TextEditor : UserControl
 
     private long GetLineIndex(TextEditorViewModel viewModel, long position)
     {
+        if (viewModel?.TextBuffer?.Rope == null)
+            throw new ArgumentNullException(nameof(viewModel), "TextEditorViewModel or its properties cannot be null.");
         return viewModel.TextBuffer.Rope.GetLineIndexFromPosition((int)position);
     }
 

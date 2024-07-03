@@ -11,6 +11,10 @@ public class TextBuffer : ReactiveObject, ITextBuffer
     private long _longestLineLength;
     private double _lineHeight;
 
+    // Cache for line start positions and line indices
+    private readonly Dictionary<int, long> _lineStartCache = new();
+    private readonly Dictionary<long, int> _lineIndexCache = new();
+
     public TextBuffer()
     {
         _rope = new Rope(string.Empty);
@@ -127,10 +131,14 @@ public class TextBuffer : ReactiveObject, ITextBuffer
 
     public long GetLineStartPosition(int lineIndex)
     {
+        if (_lineStartCache.TryGetValue(lineIndex, out var cachedPosition)) return cachedPosition;
+
         if (lineIndex < 0 || lineIndex >= LineStarts.Count)
             throw new ArgumentOutOfRangeException(nameof(lineIndex), "Invalid line index");
 
-        return LineStarts[lineIndex];
+        var position = LineStarts[lineIndex];
+        _lineStartCache[lineIndex] = position;
+        return position;
     }
 
     public long GetLineEndPosition(int lineIndex)
@@ -151,6 +159,8 @@ public class TextBuffer : ReactiveObject, ITextBuffer
 
     private void UpdateLineCacheAfterInsertion(long position, string text)
     {
+        ClearCache();
+
         var insertionLine = GetLineIndexFromPosition(position);
         var newLineCount = text.Count(c => c == '\n');
 
@@ -197,6 +207,8 @@ public class TextBuffer : ReactiveObject, ITextBuffer
 
     private void UpdateLineCacheAfterDeletion(long start, long length)
     {
+        ClearCache();
+
         var startLine = GetLineIndexFromPosition(start);
         var endLine = GetLineIndexFromPosition(start + length);
 
@@ -240,6 +252,8 @@ public class TextBuffer : ReactiveObject, ITextBuffer
 
     public void UpdateLineCache()
     {
+        ClearCache();
+
         LineStarts.Clear();
         _lineLengths.Clear();
         LineStarts.Add(0);
@@ -275,6 +289,8 @@ public class TextBuffer : ReactiveObject, ITextBuffer
 
     public long GetLineIndexFromPosition(long position)
     {
+        if (_lineIndexCache.TryGetValue(position, out var cachedIndex)) return cachedIndex;
+
         var index = LineStarts.BinarySearch(position);
         if (index < 0)
         {
@@ -282,7 +298,14 @@ public class TextBuffer : ReactiveObject, ITextBuffer
             index = Math.Max(0, index - 1);
         }
 
+        _lineIndexCache[position] = index;
         return index;
+    }
+
+    private void ClearCache()
+    {
+        _lineStartCache.Clear();
+        _lineIndexCache.Clear();
     }
 
     private void UpdateTotalHeight()
