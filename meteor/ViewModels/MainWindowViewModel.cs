@@ -278,7 +278,8 @@ public class MainWindowViewModel : ViewModelBase
             themeService)
         {
             Title = $"Untitled {Tabs.Count + 1}",
-            ScrollableTextEditorViewModel = scrollableTextEditorViewModel
+            ScrollableTextEditorViewModel = scrollableTextEditorViewModel,
+            CloseTabCommand = CloseTabCommand
         };
 
         Tabs.Add(newTab);

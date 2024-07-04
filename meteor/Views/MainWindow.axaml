@@ -19,10 +19,10 @@
         x:DataType="viewModels:MainWindowViewModel">
 
     <Grid ColumnDefinitions="125, 0, *" RowDefinitions="Auto, *, Auto">
-        <Rectangle Grid.Column="0" Name="DialogOverlay" Grid.RowSpan="3"
+        <Rectangle Grid.Row="0" Grid.Column="0" Name="DialogOverlay" Grid.RowSpan="3"
                    Grid.ColumnSpan="3" ZIndex="9999"
                    Fill="Black" Opacity="0.5" IsVisible="{Binding IsDialogOpen}" />
-        <Rectangle Grid.Column="0" Name="CommandPaletteOverlay" Grid.RowSpan="3"
+        <Rectangle Grid.Row="0" Grid.Column="0" Name="CommandPaletteOverlay" Grid.RowSpan="3"
                    Grid.ColumnSpan="3" ZIndex="9999"
                    Fill="Transparent"
                    IsVisible="{Binding IsCommandPaletteVisible}"

@@ -65,7 +65,7 @@
     <Color x:Key="CommandPaletteListBoxBackground">#FFFFFF</Color>
     <Color x:Key="CommandPaletteListBoxItemHover">#EDEDED</Color>
     <Color x:Key="CommandPaletteListBoxItemSelected">#E0E0E0</Color>
-    <Color x:Key="CommandPaletteBoxShadowColor">#20000000</Color>
+    <Color x:Key="CommandPaletteBoxShadowColor">#30000000</Color>
     <Color x:Key="CommandPaletteTextBoxCaret">#000000</Color>
     
 </ResourceDictionary>

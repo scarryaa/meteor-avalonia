@@ -152,9 +152,6 @@ public class InputManager
             _viewModel.ScrollManager.DisableVerticalScrollToCursor = false;
             _viewModel.ScrollManager.ScrollTimer.Stop();
             _viewModel.ScrollManager.CurrentScrollSpeed = ScrollManager.ScrollSpeed;
-
-            // Ensure the selection is finalized
-            _viewModel.SelectionManager.UpdateSelection();
         }
 
         IsTripleClickDrag = false;
@@ -424,6 +421,7 @@ public class InputManager
             _viewModel.SelectionStart = anchorLineStart;
             _viewModel.SelectionEnd = currentLineEnd;
             _viewModel.CursorPosition = currentLineEnd + 1;
+            _viewModel.OnInvalidateRequired();
         }
 
         var cursorPoint = _viewModel.TextEditorUtils.GetPointFromPosition(_viewModel.CursorPosition);
