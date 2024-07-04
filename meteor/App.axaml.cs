@@ -10,12 +10,13 @@ using meteor.ViewModels;
 using meteor.Views;
 using meteor.Views.Services;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 [assembly: InternalsVisibleTo("tests")]
 
 namespace meteor;
 
-public partial class App : Application
+public class App : Application
 {
     public static IServiceProvider ServiceProvider { get; private set; }
 
@@ -43,7 +44,17 @@ public partial class App : Application
 
     private void ConfigureServices(IServiceCollection services)
     {
-        // Register services
+        // Configure logging
+        services.AddLogging(configure =>
+        {
+            configure.SetMinimumLevel(LogLevel.Information);
+            configure.AddProvider(new ConsoleLoggerProvider());
+        });
+
+        services.AddSingleton<IErrorLoggingService, ErrorLoggingService>();
+
+        services.AddTransient<ITabFactory, TabFactory>();
+        
         services.AddSingleton<ViewModelBase>();
         services.AddSingleton<ICursorPositionService, CursorPositionService>();
         services.AddSingleton<FontPropertiesViewModel>();

@@ -12,10 +12,12 @@ namespace meteor.Services;
 public class DialogService : IDialogService
 {
     private readonly IMainWindowProvider _mainWindowProvider;
+    private readonly IErrorLoggingService _errorLoggingService;
 
-    public DialogService(IMainWindowProvider mainWindowProvider)
+    public DialogService(IMainWindowProvider mainWindowProvider, IErrorLoggingService errorLoggingService)
     {
         _mainWindowProvider = mainWindowProvider;
+        _errorLoggingService = errorLoggingService;
     }
 
     public async Task<ContentDialogResult> ShowContentDialogAsync(
@@ -50,7 +52,6 @@ public class DialogService : IDialogService
             return result;
         }
 
-        // Use a separate method for console fallback logic
         var fallbackResult = ShowConsoleFallbackDialog(title, content);
         SetDialogOpenState(mainWindowViewModel, false);
         return fallbackResult;
@@ -69,6 +70,7 @@ public class DialogService : IDialogService
         else
         {
             SetDialogOpenState(mainWindowViewModel, false);
+            await _errorLoggingService.LogErrorAsync("Error dialog fallback", new Exception(message));
             Console.WriteLine($"Error: {message}");
         }
     }
@@ -80,7 +82,6 @@ public class DialogService : IDialogService
 
     protected virtual ContentDialogResult ShowConsoleFallbackDialog(string title, string content)
     {
-        // Console fallback logic
         Console.WriteLine($"{title}\n{content}");
         Console.WriteLine("Press P for Primary, S for Secondary, or any other key to close.");
         var key = Console.ReadKey(true).Key;
