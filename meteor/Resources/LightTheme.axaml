@@ -2,6 +2,15 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:system="clr-namespace:System;assembly=System.Runtime">
 
+    <!-- Override SystemAccentColor -->
+    <Color x:Key="SystemAccentColor">#FF0078D7</Color> <!-- Example color -->
+    <Color x:Key="SystemAccentColorDark1">#FF0063B1</Color> <!-- Adjust as needed -->
+    <Color x:Key="SystemAccentColorDark2">#FF004E8C</Color> <!-- Adjust as needed -->
+    <Color x:Key="SystemAccentColorDark3">#FF003966</Color> <!-- Adjust as needed -->
+    <Color x:Key="SystemAccentColorLight1">#FF60AFFF</Color> <!-- Adjust as needed -->
+    <Color x:Key="SystemAccentColorLight2">#FF8BC8FF</Color> <!-- Adjust as needed -->
+    <Color x:Key="SystemAccentColorLight3">#FFB7E0FF</Color> <!-- Adjust as needed -->
+    
     <!-- Buttons -->
     <Color x:Key="ButtonBackground">#E0E0E0</Color>
     <Color x:Key="ButtonForeground">#333333</Color>
@@ -44,5 +53,19 @@
     <Color x:Key="FileExplorerIcon">#A5A5A5</Color>
     <Color x:Key="FileExplorerOutline">#878787</Color>
     <Color x:Key="FileExplorerSelected">#E6E6E6</Color>
+
+    <!-- Command Palette -->
+    <Color x:Key="CommandPaletteBackground">#FFFFFF</Color>
+    <Color x:Key="CommandPaletteBorder">Transparent</Color>
+    <Color x:Key="CommandPaletteText">#333333</Color>
+    <Color x:Key="CommandPaletteWatermarkForeground">#000000</Color>
+    <Color x:Key="CommandPaletteTextBoxBackground">#F0F0F0</Color>
+    <Color x:Key="CommandPaletteTextBoxForeground">#333333</Color>
+    <Color x:Key="CommandPaletteTextBoxBorder">LightGray</Color>
+    <Color x:Key="CommandPaletteListBoxBackground">#FFFFFF</Color>
+    <Color x:Key="CommandPaletteListBoxItemHover">#EDEDED</Color>
+    <Color x:Key="CommandPaletteListBoxItemSelected">#E0E0E0</Color>
+    <Color x:Key="CommandPaletteBoxShadowColor">#20000000</Color>
+    <Color x:Key="CommandPaletteTextBoxCaret">#000000</Color>
     
 </ResourceDictionary>

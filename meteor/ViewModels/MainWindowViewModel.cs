@@ -33,9 +33,10 @@ public class MainWindowViewModel : ViewModelBase
     private TabViewModel _temporaryTab;
     private readonly ITextBufferFactory _textBufferFactory;
     private IAutoSaveService _autoSaveService;
-    private readonly IThemeService _themeService;
+    private bool _isCommandPaletteVisible;
 
-    public IResourceProvider CurrentTheme => _themeService.GetCurrentTheme();
+    public IResourceProvider CurrentTheme => ThemeService.GetCurrentTheme();
+    public CommandPaletteViewModel CommandPaletteViewModel { get; }
     
     public MainWindowViewModel(
         TitleBarViewModel titleBarViewModel,
@@ -49,17 +50,6 @@ public class MainWindowViewModel : ViewModelBase
         IDialogService dialogService,
         IThemeService themeService)
     {
-        _themeService = themeService;
-        _autoSaveService = autoSaveService;
-        _dialogService = dialogService;
-        
-        _textBufferFactory = textBufferFactory;
-        StatusPaneViewModel = statusPaneViewModel;
-        FileExplorerViewModel = fileExplorerViewModel;
-        TitleBarViewModel = titleBarViewModel;
-
-        Tabs = new ObservableCollection<TabViewModel>();
-
         NewTabCommand = ReactiveCommand.Create(NewTab);
         CloseTabCommand = ReactiveCommand.Create<TabViewModel>(async tab => await CloseTabAsync(tab));
         SaveCommand = ReactiveCommand.Create(SaveCurrentFile);
@@ -68,6 +58,20 @@ public class MainWindowViewModel : ViewModelBase
         HideSaveDialogCommand = ReactiveCommand.Create(() => IsDialogOpen = false);
         SetLightThemeCommand = ReactiveCommand.Create(SetLightTheme);
         SetDarkThemeCommand = ReactiveCommand.Create(SetDarkTheme);
+        ToggleCommandPaletteCommand = ReactiveCommand.Create(ToggleCommandPalette);
+        
+        ThemeService = themeService;
+        _autoSaveService = autoSaveService;
+        _dialogService = dialogService;
+        
+        _textBufferFactory = textBufferFactory;
+        StatusPaneViewModel = statusPaneViewModel;
+        FileExplorerViewModel = fileExplorerViewModel;
+        TitleBarViewModel = titleBarViewModel;
+        CommandPaletteViewModel = new CommandPaletteViewModel(this);
+        _isCommandPaletteVisible = false;
+
+        Tabs = new ObservableCollection<TabViewModel>();
         
         _tabSelectionHistory = new Stack<TabViewModel>();
 
@@ -119,6 +123,18 @@ public class MainWindowViewModel : ViewModelBase
         get => _selectedPath;
         set => this.RaiseAndSetIfChanged(ref _selectedPath, value);
     }
+
+    public bool IsCommandPaletteVisible
+    {
+        get => _isCommandPaletteVisible;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _isCommandPaletteVisible, value);
+            CommandPaletteViewModel.IsVisible = value;
+        }
+    }
+
+    public IThemeService ThemeService { get; }
 
     public TabViewModel SelectedTab
     {
@@ -174,23 +190,27 @@ public class MainWindowViewModel : ViewModelBase
 
     public ICommand NewTabCommand { get; }
     public ICommand CloseTabCommand { get; }
-
+    public ReactiveCommand<Unit, Unit> ToggleCommandPaletteCommand { get; }
     public ReactiveCommand<Unit, Unit> SetLightThemeCommand { get; }
     public ReactiveCommand<Unit, Unit> SetDarkThemeCommand { get; }
-    
     public ReactiveCommand<Unit, Unit> OpenFolderCommand { get; }
     public ReactiveCommand<Unit, Unit> SaveCommand { get; }
     public ReactiveCommand<Unit, bool> ShowSaveDialogCommand { get; }
     public ReactiveCommand<Unit, bool> HideSaveDialogCommand { get; }
 
+    private void ToggleCommandPalette()
+    {
+        IsCommandPaletteVisible = !IsCommandPaletteVisible;
+    }
+    
     private void SetLightTheme()
     {
-        _themeService.SetTheme("avares://meteor/Resources/LightTheme.axaml");
+        ThemeService.SetTheme("avares://meteor/Resources/LightTheme.axaml");
     }
 
     private void SetDarkTheme()
     {
-        _themeService.SetTheme("avares://meteor/Resources/DarkTheme.axaml");
+        ThemeService.SetTheme("avares://meteor/Resources/DarkTheme.axaml");
     }
     
     private async Task OpenFolderAsync()

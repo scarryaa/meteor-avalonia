@@ -117,7 +117,7 @@ public partial class TextEditor : UserControl
     {
         TextEditorUtils = new TextEditorUtils(null);
         InputManager = new InputManager();
-        ScrollManager = new ScrollManager(null); // Initialize ScrollManager here
+        ScrollManager = new ScrollManager(null);
         ClipboardManager = new ClipboardManager(null, new ClipboardService(TopLevel.GetTopLevel(this)));
         CursorManager = new CursorManager(null);
         SelectionManager = new SelectionManager(null);
@@ -128,6 +128,7 @@ public partial class TextEditor : UserControl
     private void AssignServices(ScrollableTextEditorViewModel viewModel)
     {
         viewModel.TextEditorViewModel._scrollableViewModel = viewModel;
+        _scrollableViewModel = viewModel;
 
         TextEditorUtils = viewModel.TextEditorViewModel.TextEditorUtils;
         InputManager = viewModel.TextEditorViewModel.InputManager;
@@ -163,13 +164,21 @@ public partial class TextEditor : UserControl
 
     private void SubscribeToProperties()
     {
-        this.GetObservable(FontFamilyProperty).Subscribe(OnFontFamilyChanged);
-        this.GetObservable(FontSizeProperty).Subscribe(OnFontSizeChanged);
-        this.GetObservable(LineHeightProperty).Subscribe(OnLineHeightChanged);
-        this.GetObservable(BackgroundBrushProperty).Subscribe(_ => InvalidateVisual());
-        this.GetObservable(CursorBrushProperty).Subscribe(_ => InvalidateVisual());
-        this.GetObservable(SelectionBrushProperty).Subscribe(_ => InvalidateVisual());
-        this.GetObservable(LineHighlightBrushProperty).Subscribe(_ => InvalidateVisual());
+        this.GetObservable(FontFamilyProperty).Subscribe(_ => OnVisualPropertyChanged());
+        this.GetObservable(FontSizeProperty).Subscribe(_ =>
+        {
+            OnFontSizeChanged();
+            OnVisualPropertyChanged();
+        });
+        this.GetObservable(LineHeightProperty).Subscribe(_ =>
+        {
+            OnLineHeightChanged();
+            OnVisualPropertyChanged();
+        });
+        this.GetObservable(BackgroundBrushProperty).Subscribe(_ => OnVisualPropertyChanged());
+        this.GetObservable(CursorBrushProperty).Subscribe(_ => OnVisualPropertyChanged());
+        this.GetObservable(SelectionBrushProperty).Subscribe(_ => OnVisualPropertyChanged());
+        this.GetObservable(LineHighlightBrushProperty).Subscribe(_ => OnVisualPropertyChanged());
     }
 
     private void OnDataContextChanged(object? sender, EventArgs e)
@@ -263,12 +272,25 @@ public partial class TextEditor : UserControl
             _scrollableViewModel.TextEditorViewModel.PropertyChanged -= ViewModel_PropertyChanged;
     }
 
-    private void OnLineHeightChanged(double newLineHeight)
+    private void OnVisualPropertyChanged()
+    {
+        InvalidateVisual();
+
+        if (_scrollableViewModel != null)
+        {
+            Console.WriteLine("Creating new context");
+            var context = CreateContext();
+            RenderManager = new RenderManager(context);
+            RenderManager.AttachToViewModel(_scrollableViewModel);
+        }
+    }
+
+    private void OnLineHeightChanged()
     {
         InvalidateVisual();
     }
 
-    private void OnFontSizeChanged(double newFontSize)
+    private void OnFontSizeChanged()
     {
         if (_scrollableViewModel?.TextEditorViewModel != null) TextEditorUtils.MeasureCharWidth();
         InvalidateVisual();

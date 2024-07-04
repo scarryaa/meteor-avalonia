@@ -1,0 +1,106 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:viewModels="clr-namespace:meteor.ViewModels"
+             xmlns:local="clr-namespace:meteor.Views"
+             xmlns:behaviors="clr-namespace:meteor.Behaviors"
+             mc:Ignorable="d" d:DesignWidth="400" d:DesignHeight="300"
+             x:Class="meteor.Views.CommandPalette"
+             x:DataType="viewModels:CommandPaletteViewModel"
+             FontFamily="{StaticResource SanFrancisco}"
+             Background="Transparent">
+
+    <UserControl.Styles>
+        <StyleInclude Source="/Styles/CommandPalette.axaml" />
+    </UserControl.Styles>
+
+    <Border
+        Background="{DynamicResource CommandPaletteBackground}"
+        BorderBrush="{DynamicResource CommandPaletteBorder}"
+        BorderThickness="1"
+        CornerRadius="8"
+        Padding="12"
+        Margin="20"
+        BoxShadow="{Binding $parent[UserControl].(local:CommandPalette.DynamicBoxShadow)}">
+        <Grid RowDefinitions="Auto,*">
+            <TextBox Grid.Row="0"
+                     behaviors:TextBoxKeyBehavior.HandleTab="True"
+                     x:Name="CommandTextBox"
+                     Watermark="Type a command..."
+                     Text="{Binding SearchText, Mode=TwoWay}"
+                     Margin="0,0,0,8"
+                     Background="{DynamicResource CommandPaletteTextBoxBackground}"
+                     Foreground="{DynamicResource CommandPaletteTextBoxForeground}"
+                     BorderBrush="{DynamicResource CommandPaletteTextBoxBorder}"
+                     FontSize="13"
+                     FontFamily="{StaticResource SanFrancisco}" />
+
+            <ListBox x:Name="CommandsListBox"
+                     Grid.Row="1"
+                     ItemsSource="{Binding FilteredCommands}"
+                     SelectedItem="{Binding SelectedCommand, Mode=TwoWay}"
+                     SelectedIndex="{Binding SelectedIndex}"
+                     Background="{DynamicResource CommandPaletteListBoxBackground}"
+                     BorderThickness="0">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <Button
+                            Command="{Binding $parent[UserControl].((viewModels:CommandPaletteViewModel)DataContext).ExecuteCommand}"
+                            CommandParameter="{Binding}"
+                            Background="Transparent"
+                            BorderBrush="Transparent"
+                            Padding="0"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Left"
+                            Focusable="False">
+                            <Button.Styles>
+                                <Style Selector="Button">
+                                    <Setter Property="Template">
+                                        <ControlTemplate>
+                                            <ContentPresenter Content="{TemplateBinding Content}"
+                                                              ContentTemplate="{TemplateBinding ContentTemplate}"
+                                                              Padding="{TemplateBinding Padding}"
+                                                              HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                              VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
+                                                              Background="{TemplateBinding Background}"
+                                                              BorderBrush="{TemplateBinding BorderBrush}"
+                                                              BorderThickness="0" />
+                                        </ControlTemplate>
+                                    </Setter>
+                                </Style>
+                                <Style Selector="Button:pressed">
+                                    <Setter Property="RenderTransform" Value="none" />
+                                </Style>
+                            </Button.Styles>
+                            <TextBlock Text="{Binding Name}"
+                                       Foreground="{DynamicResource CommandPaletteText}"
+                                       FontSize="14"
+                                       FontFamily="{StaticResource SanFrancisco}" />
+                        </Button>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+                <ListBox.Styles>
+                    <Style Selector="ListBoxItem">
+                        <Setter Property="Padding" Value="8,6" />
+                        <Setter Property="CornerRadius" Value="4" />
+                        <Setter Property="Margin" Value="0,0" />
+                    </Style>
+                    <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
+                        <Setter Property="Background" Value="{DynamicResource CommandPaletteListBoxItemHover}" />
+                    </Style>
+                    <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
+                        <Setter Property="Background" Value="{DynamicResource CommandPaletteListBoxItemSelected}" />
+                    </Style>
+                </ListBox.Styles>
+            </ListBox>
+        </Grid>
+    </Border>
+
+    <UserControl.KeyBindings>
+        <KeyBinding Gesture="Escape" Command="{Binding CloseCommand}" />
+        <KeyBinding Gesture="Down" Command="{Binding SelectNextCommand}" />
+        <KeyBinding Gesture="Up" Command="{Binding SelectPreviousCommand}" />
+        <KeyBinding Gesture="Enter" Command="{Binding ExecuteSelectedCommand}" />
+    </UserControl.KeyBindings>
+</UserControl>

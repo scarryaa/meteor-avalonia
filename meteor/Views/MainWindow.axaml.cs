@@ -1,6 +1,7 @@
 using System.Reactive;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using meteor.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -39,4 +40,10 @@ public partial class MainWindow : Window
     {
         if (DataContext is MainWindowViewModel viewModel) viewModel.OnFileDoubleClicked(filePath);
     }
+
+    private void OnOverlayPointerPressed(object sender, PointerPressedEventArgs e)
+    {
+        if (DataContext is MainWindowViewModel viewModel) viewModel.CommandPaletteViewModel.Close();
+    }
+
 }
