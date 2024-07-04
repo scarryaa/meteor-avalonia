@@ -22,6 +22,7 @@ public interface ITextBuffer
     void Clear();
     void UpdateLineCache();
     string GetLineText(long lineIndex);
+    public void RaiseLinesUpdated();
     bool IsLineSelected(int lineIndex, long selectionStart, long selectionEnd);
     long GetLineStartPosition(int lineIndex);
     long GetVisualLineLength(int lineIndex);

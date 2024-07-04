@@ -15,7 +15,10 @@ public class DesignTabViewModel : TabViewModel
             ServiceLocator.GetService<LineCountViewModel>(),
             ServiceLocator.GetService<IClipboardService>(),
             ServiceLocator.GetService<IAutoSaveService>(),
-            ServiceLocator.GetService<IThemeService>())
+            ServiceLocator.GetService<IThemeService>(),
+            null,
+            null,
+            null)
     {
         Title = "Tab 1";
         IsTemporary = false;

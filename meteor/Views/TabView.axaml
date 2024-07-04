@@ -17,6 +17,12 @@
                                                         SanFrancisco="{StaticResource SanFrancisco}"
                                                         SanFranciscoItalic="{StaticResource SanFranciscoItalic}" />
         <converters:BoolToBrushConverter x:Key="BoolToBrushConverter" />
+
+        <ContextMenu x:Key="TabContextMenu">
+            <MenuItem Header="Close Tab" Command="{Binding CloseTabCommand}" CommandParameter="{Binding}" />
+            <MenuItem Header="Close Other Tabs" Command="{Binding CloseOtherTabsCommand}" CommandParameter="{Binding}" />
+            <MenuItem Header="Close All Tabs" Command="{Binding CloseAllTabsCommand}" CommandParameter="{Binding}" />
+        </ContextMenu>
     </UserControl.Resources>
 
     <UserControl.Styles>
@@ -44,7 +50,8 @@
             BorderThickness="0 0 1 0"
             Padding="14 4 2 4"
             local:MiddleTabClickBehavior.CloseCommand="{Binding CloseTabCommand}"
-            local:MiddleTabClickBehavior.CloseCommandParameter="{Binding}">
+            local:MiddleTabClickBehavior.CloseCommandParameter="{Binding}"
+            ContextMenu="{StaticResource TabContextMenu}">
         <Grid x:Name="TabGrid" ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center" HorizontalAlignment="Center">
             <Ellipse Grid.Column="0" Width="8" Height="8"
                      Fill="{Binding DirtyIndicatorBrush}"

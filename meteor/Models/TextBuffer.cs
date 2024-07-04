@@ -93,6 +93,11 @@ public class TextBuffer : ReactiveObject, ITextBuffer
         return Text.Substring((int)start, (int)(end - start));
     }
 
+    public void RaiseLinesUpdated()
+    {
+        LinesUpdated?.Invoke(this, EventArgs.Empty);
+    }
+
     public void InsertText(long position, string text)
     {
         if (string.IsNullOrEmpty(text) || position < 0 || position > _rope.Length) return;

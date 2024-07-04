@@ -48,13 +48,15 @@ public class TabViewModel : ViewModelBase, IDisposable
     private IBrush _closeButtonBackground;
     private IBrush _closeButtonForeground;
     private IBrush _dirtyIndicatorBrush;
-    
+
     public event EventHandler? TextChanged;
     public event EventHandler? FileChangedExternally;
     public event EventHandler? TabClosed;
     public event EventHandler? InvalidateRequired;
 
     public ICommand CloseTabCommand { get; set; }
+    public ICommand CloseOtherTabsCommand { get; set; }
+    public ICommand CloseAllTabsCommand { get; set; }
     public ICommand UndoCommand { get; set; }
     public ICommand RedoCommand { get; set; }
     public ICommand SaveCommand { get; set; }
@@ -68,7 +70,10 @@ public class TabViewModel : ViewModelBase, IDisposable
         LineCountViewModel lineCountViewModel,
         IClipboardService clipboardService,
         IAutoSaveService autoSaveService,
-        IThemeService themeService)
+        IThemeService themeService,
+        ICommand closeTabCommand,
+        ICommand closeOtherTabsCommand,
+        ICommand closeAllTabsCommand)
     {
         _themeService = themeService;
         _cursorPositionService = cursorPositionService;
@@ -79,6 +84,10 @@ public class TabViewModel : ViewModelBase, IDisposable
         _lineCountViewModel = lineCountViewModel;
         _clipboardService = clipboardService;
         _autoSaveService = autoSaveService;
+
+        CloseTabCommand = ReactiveCommand.Create<TabViewModel>(tab => closeTabCommand.Execute(tab));
+        CloseOtherTabsCommand = ReactiveCommand.Create<TabViewModel>(tab => closeOtherTabsCommand.Execute(tab));
+        CloseAllTabsCommand = ReactiveCommand.Create<TabViewModel>(tab => closeAllTabsCommand.Execute(tab));
 
         InitializeCommands();
         InitializeScrollableTextEditor();
@@ -201,7 +210,7 @@ public class TabViewModel : ViewModelBase, IDisposable
         get => _borderBrush;
         set => this.RaiseAndSetIfChanged(ref _borderBrush, value);
     }
-    
+
     public bool IsSelected
     {
         get => _isSelected;
@@ -369,7 +378,6 @@ public class TabViewModel : ViewModelBase, IDisposable
     public async Task SaveAsync()
     {
         if (IsDirty && !string.IsNullOrEmpty(FilePath))
-        {
             try
             {
                 await _autoSaveService.SaveAsync(Text);
@@ -384,7 +392,6 @@ public class TabViewModel : ViewModelBase, IDisposable
                 Console.WriteLine($"Error saving file: {ex.Message}");
                 throw;
             }
-        }
     }
 
     public async Task RestoreFromBackupAsync()

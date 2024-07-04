@@ -44,6 +44,7 @@
 
     <!-- Tooltip -->
     <Color x:Key="TooltipBackground">#141414</Color>
+    <Color x:Key="TooltipBorder">#323232</Color>
 
     <!-- File Explorer -->
     <Color x:Key="FileExplorerIcon">#5A5A5A</Color>

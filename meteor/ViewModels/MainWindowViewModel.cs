@@ -37,7 +37,7 @@ public class MainWindowViewModel : ViewModelBase
 
     public IResourceProvider CurrentTheme => ThemeService.GetCurrentTheme();
     public CommandPaletteViewModel CommandPaletteViewModel { get; }
-    
+
     public MainWindowViewModel(
         TitleBarViewModel titleBarViewModel,
         StatusPaneViewModel statusPaneViewModel,
@@ -52,6 +52,8 @@ public class MainWindowViewModel : ViewModelBase
     {
         NewTabCommand = ReactiveCommand.Create(NewTab);
         CloseTabCommand = ReactiveCommand.Create<TabViewModel>(async tab => await CloseTabAsync(tab));
+        CloseOtherTabsCommand = ReactiveCommand.Create<TabViewModel>(CloseOtherTabs);
+        CloseAllTabsCommand = ReactiveCommand.Create<TabViewModel>(CloseAllTabs);
         SaveCommand = ReactiveCommand.Create(SaveCurrentFile);
         OpenFolderCommand = ReactiveCommand.CreateFromTask(OpenFolderAsync);
         ShowSaveDialogCommand = ReactiveCommand.Create(() => IsDialogOpen = true);
@@ -59,11 +61,11 @@ public class MainWindowViewModel : ViewModelBase
         SetLightThemeCommand = ReactiveCommand.Create(SetLightTheme);
         SetDarkThemeCommand = ReactiveCommand.Create(SetDarkTheme);
         ToggleCommandPaletteCommand = ReactiveCommand.Create(ToggleCommandPalette);
-        
+
         ThemeService = themeService;
         _autoSaveService = autoSaveService;
         _dialogService = dialogService;
-        
+
         _textBufferFactory = textBufferFactory;
         StatusPaneViewModel = statusPaneViewModel;
         FileExplorerViewModel = fileExplorerViewModel;
@@ -72,7 +74,7 @@ public class MainWindowViewModel : ViewModelBase
         _isCommandPaletteVisible = false;
 
         Tabs = new ObservableCollection<TabViewModel>();
-        
+
         _tabSelectionHistory = new Stack<TabViewModel>();
 
         SelectedTab = Tabs.FirstOrDefault();
@@ -190,6 +192,8 @@ public class MainWindowViewModel : ViewModelBase
 
     public ICommand NewTabCommand { get; }
     public ICommand CloseTabCommand { get; }
+    public ICommand CloseOtherTabsCommand { get; }
+    public ICommand CloseAllTabsCommand { get; }
     public ReactiveCommand<Unit, Unit> ToggleCommandPaletteCommand { get; }
     public ReactiveCommand<Unit, Unit> SetLightThemeCommand { get; }
     public ReactiveCommand<Unit, Unit> SetDarkThemeCommand { get; }
@@ -230,7 +234,7 @@ public class MainWindowViewModel : ViewModelBase
             if (result != null)
             {
                 SelectedPath = result;
-                FileExplorerViewModel.SelectedPath = result; // Update FileExplorerViewModel
+                FileExplorerViewModel.SelectedPath = result;
             }
         }
     }
@@ -275,7 +279,10 @@ public class MainWindowViewModel : ViewModelBase
             lineCountViewModel,
             clipboardService,
             autoSaveService,
-            themeService)
+            themeService,
+            CloseTabCommand,
+            CloseOtherTabsCommand,
+            CloseAllTabsCommand)
         {
             Title = $"Untitled {Tabs.Count + 1}",
             ScrollableTextEditorViewModel = scrollableTextEditorViewModel,
@@ -287,6 +294,18 @@ public class MainWindowViewModel : ViewModelBase
 
         if (SelectedTab != null)
             SelectedTab.ScrollableTextEditorViewModel.Viewport = new Size(WindowWidth, WindowHeight);
+    }
+
+    private void CloseOtherTabs(TabViewModel tab)
+    {
+        var tabsToClose = Tabs.Where(t => t != tab).ToList();
+        foreach (var t in tabsToClose) Tabs.Remove(t);
+    }
+
+    private void CloseAllTabs(TabViewModel tab)
+    {
+        Tabs.Clear();
+        _temporaryTab = null;
     }
 
     private async Task CloseTabAsync(TabViewModel tab)
@@ -392,7 +411,10 @@ public class MainWindowViewModel : ViewModelBase
                 App.ServiceProvider.GetRequiredService<LineCountViewModel>(),
                 App.ServiceProvider.GetRequiredService<IClipboardService>(),
                 App.ServiceProvider.GetRequiredService<IAutoSaveService>(),
-                App.ServiceProvider.GetRequiredService<IThemeService>())
+                App.ServiceProvider.GetRequiredService<IThemeService>(),
+                CloseTabCommand,
+                CloseOtherTabsCommand,
+                CloseAllTabsCommand)
             {
                 Title = Path.GetFileName(filePath),
                 CloseTabCommand = CloseTabCommand,
@@ -450,7 +472,10 @@ public class MainWindowViewModel : ViewModelBase
             App.ServiceProvider.GetRequiredService<LineCountViewModel>(),
             App.ServiceProvider.GetRequiredService<IClipboardService>(),
             App.ServiceProvider.GetRequiredService<IAutoSaveService>(),
-            App.ServiceProvider.GetRequiredService<IThemeService>())
+            App.ServiceProvider.GetRequiredService<IThemeService>(),
+            CloseTabCommand,
+            CloseOtherTabsCommand,
+            CloseAllTabsCommand)
         {
             Title = Path.GetFileName(filePath),
             CloseTabCommand = CloseTabCommand,

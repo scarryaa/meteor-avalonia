@@ -51,7 +51,8 @@
     <Color x:Key="TabDirtyIndicator">#8BCDC0</Color>
 
     <!-- Tooltip -->
-    <Color x:Key="TooltipBackground">#FFFFFF</Color>
+    <Color x:Key="TooltipBackground">White</Color>
+    <Color x:Key="TooltipBorder">#CDCDCD</Color>
 
     <!-- File Explorer -->
     <Color x:Key="FileExplorerIcon">#A5A5A5</Color>
@@ -60,7 +61,7 @@
 
     <!-- Command Palette -->
     <Color x:Key="CommandPaletteBackground">#FFFFFF</Color>
-    <Color x:Key="CommandPaletteBorder">Transparent</Color>
+    <Color x:Key="CommandPaletteBorder">#CDCDCD</Color>
     <Color x:Key="CommandPaletteText">#333333</Color>
     <Color x:Key="CommandPaletteWatermarkForeground">#000000</Color>
     <Color x:Key="CommandPaletteTextBoxBackground">#F0F0F0</Color>
