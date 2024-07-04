@@ -73,6 +73,7 @@ public class InputManager
             _viewModel.IsSelecting = true;
 
             e.Handled = true;
+            _viewModel.ShouldScrollToCursor = true;
         }
     }
 
@@ -92,7 +93,7 @@ public class InputManager
                     HandleNormalDrag(position);
 
                 e.Handled = true;
-
+                
                 if (!_viewModel.ScrollManager.IsManualScrolling) _viewModel.ScrollManager.ScrollTimer.Start();
             }
             else

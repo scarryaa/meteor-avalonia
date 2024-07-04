@@ -117,7 +117,7 @@ public class TextEditorViewModel : ViewModelBase
         RequestFocus?.Invoke(this, EventArgs.Empty);
     }
 
-    public bool ShouldScrollToCursor { get; set; } = true;
+    public bool  ShouldScrollToCursor { get; set; } = true;
 
     public LineCache LineCache { get; } = new();
 
