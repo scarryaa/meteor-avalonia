@@ -44,6 +44,7 @@ public partial class App : Application
     private void ConfigureServices(IServiceCollection services)
     {
         // Register services
+        services.AddSingleton<ViewModelBase>();
         services.AddSingleton<ICursorPositionService, CursorPositionService>();
         services.AddSingleton<FontPropertiesViewModel>();
         services.AddSingleton<LineCountViewModel>();

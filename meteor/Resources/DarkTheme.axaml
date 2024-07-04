@@ -19,6 +19,7 @@
     <Color x:Key="WindowBackground">#151515</Color>
     <Color x:Key="MainBorder">#464646</Color>
     <Color x:Key="LightGray">#101010</Color>
+    <Color x:Key="TextInverse">#000000</Color>
 
     <!-- TextEditor Colors -->
     <FontFamily x:Key="TextEditorFontFamily">avares://meteor/Assets/Fonts/SanFrancisco/SF-Mono-Medium.otf#SF Mono</FontFamily>
@@ -40,6 +41,9 @@
     <!-- Tab Colors -->
     <Color x:Key="TabCloseButtonBackground">#4B4B4B</Color>
     <Color x:Key="TabDirtyIndicator">#8BCDC0</Color>
+
+    <!-- Tooltip -->
+    <Color x:Key="TooltipBackground">#141414</Color>
 
     <!-- File Explorer -->
     <Color x:Key="FileExplorerIcon">#5A5A5A</Color>

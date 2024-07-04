@@ -23,6 +23,7 @@
 
     <!-- Text -->
     <Color x:Key="Text">#000000</Color>
+    <Color x:Key="TextInverse">#FFFFFF</Color>
 
     <!-- General UI -->
     <Color x:Key="WindowBackground">#E6E6E6</Color>
@@ -48,6 +49,9 @@
     <!-- Tab Colors -->
     <Color x:Key="TabCloseButtonBackground">#B4B4B4</Color>
     <Color x:Key="TabDirtyIndicator">#8BCDC0</Color>
+
+    <!-- Tooltip -->
+    <Color x:Key="TooltipBackground">#FFFFFF</Color>
 
     <!-- File Explorer -->
     <Color x:Key="FileExplorerIcon">#A5A5A5</Color>
