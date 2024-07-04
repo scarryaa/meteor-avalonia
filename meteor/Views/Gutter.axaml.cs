@@ -107,17 +107,16 @@ public partial class Gutter : UserControl
         this.GetObservable(FontSizeProperty).Subscribe(_ => InvalidateVisual());
         this.GetObservable(BackgroundBrushProperty).Subscribe(_ => InvalidateVisual());
         this.GetObservable(LineHighlightBrushProperty).Subscribe(_ => { InvalidateVisual(); });
-        
-        AddHandler(PointerWheelChangedEvent, OnPointerWheelChanged, RoutingStrategies.Tunnel);
-        AddHandler(PointerPressedEvent, OnPointerPressed, RoutingStrategies.Tunnel);
-        AddHandler(PointerMovedEvent, OnPointerMoved, RoutingStrategies.Tunnel);
-        AddHandler(PointerReleasedEvent, OnPointerReleased, RoutingStrategies.Tunnel);
-        AddHandler(PointerEnteredEvent, OnPointerEntered, RoutingStrategies.Tunnel);
     }
 
     private void OnDataContextChanged(object? sender, EventArgs e)
     {
-        if (DataContext is GutterViewModel oldViewModel) oldViewModel.InvalidateRequired -= OnInvalidateRequired;
+        if (DataContext is GutterViewModel oldViewModel)
+        {
+            oldViewModel.InvalidateRequired -= OnInvalidateRequired;
+            oldViewModel.ScrollManagerChanged -= OnScrollManagerChanged;
+            UnregisterEventHandlers();
+        }
 
         if (DataContext is GutterViewModel newViewModel)
         {
@@ -129,10 +128,39 @@ public partial class Gutter : UserControl
 
             UpdateGutterWidth(newViewModel);
 
+            newViewModel.ScrollManagerChanged += OnScrollManagerChanged;
             newViewModel.TextEditorViewModel.WhenAnyValue(lvm => lvm.LineCount)
                 .Subscribe(_ => UpdateGutterWidth(newViewModel));
             newViewModel.WhenAnyValue(vm => vm.FontSize).Subscribe(_ => UpdateGutterWidth(newViewModel));
         }
+        
+        OnScrollManagerChanged(this, EventArgs.Empty);
+    }
+
+    private void OnScrollManagerChanged(object? sender, EventArgs e)
+    {
+        UnregisterEventHandlers();
+        RegisterEventHandlers();
+    }
+
+    private void RegisterEventHandlers()
+    {
+        Console.WriteLine("Gutter - Registering event handlers");
+        AddHandler(PointerWheelChangedEvent, OnPointerWheelChanged, RoutingStrategies.Tunnel);
+        AddHandler(PointerPressedEvent, OnPointerPressed, RoutingStrategies.Tunnel);
+        AddHandler(PointerMovedEvent, OnPointerMoved, RoutingStrategies.Tunnel);
+        AddHandler(PointerReleasedEvent, OnPointerReleased, RoutingStrategies.Tunnel);
+        AddHandler(PointerEnteredEvent, OnPointerEntered, RoutingStrategies.Tunnel);
+    }
+
+    private void UnregisterEventHandlers()
+    {
+        Console.WriteLine("Gutter - Unregistering event handlers");
+        RemoveHandler(PointerWheelChangedEvent, OnPointerWheelChanged);
+        RemoveHandler(PointerPressedEvent, OnPointerPressed);
+        RemoveHandler(PointerMovedEvent, OnPointerMoved);
+        RemoveHandler(PointerReleasedEvent, OnPointerReleased);
+        RemoveHandler(PointerEnteredEvent, OnPointerEntered);
     }
 
     private void OnWidthRecalculationRequired(object? sender, EventArgs e)
@@ -152,13 +180,14 @@ public partial class Gutter : UserControl
     {
         if (DataContext is GutterViewModel viewModel)
         {
-            var delta = e.Delta.Y * 3 * viewModel.LineHeight;
-            var newOffset = viewModel.VerticalOffset - delta;
-            var maxOffset = Math.Max(0, (double)viewModel.TextEditorViewModel.TextBuffer.LineCount * viewModel.LineHeight - Bounds.Height + 6);
+            var scrollManager = viewModel.TextEditorViewModel.ScrollManager;
 
-            viewModel.VerticalOffset = Math.Max(0, Math.Min(newOffset, maxOffset));
-            viewModel.LineCountViewModel.VerticalOffset = viewModel.VerticalOffset;
-            e.Handled = true;
+            if (scrollManager != null)
+            {
+                var delta = e.Delta.Y * 3 * viewModel.LineHeight;
+                scrollManager.ScrollViewport(-delta);
+                e.Handled = true;
+            }
         }
     }
 
@@ -209,7 +238,7 @@ public partial class Gutter : UserControl
                 ScrollSpeed * viewModel.TextEditorViewModel.CharWidth);
         }
     }
-    
+
     private void OnPointerEntered(object? sender, PointerEventArgs e)
     {
         if (DataContext is GutterViewModel viewModel)
@@ -280,7 +309,7 @@ public partial class Gutter : UserControl
             InvalidateVisual();
         }
     }
-    
+
     private void OnPointerReleased(object? sender, PointerReleasedEventArgs e)
     {
         if (DataContext is GutterViewModel viewModel)
@@ -299,11 +328,11 @@ public partial class Gutter : UserControl
             textEditorViewModel.ShouldScrollToCursor = false;
             Dispatcher.UIThread.Post(() => textEditorViewModel.ShouldScrollToCursor = true,
                 DispatcherPriority.Background);
-            
+
             InvalidateVisual();
         }
     }
-    
+
     private void UpdateSelection(GutterViewModel viewModel, long startLine, long endLine)
     {
         var textEditorViewModel = viewModel.TextEditorViewModel;
@@ -336,7 +365,7 @@ public partial class Gutter : UserControl
             textEditorViewModel.SelectionEnd);
         InvalidateVisual();
     }
-    
+
     private void UpdateGutterWidth(GutterViewModel viewModel)
     {
         var maxLineNumber = viewModel.TextEditorViewModel.LineCount;
@@ -441,6 +470,11 @@ public partial class Gutter : UserControl
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnDetachedFromVisualTree(e);
-        if (DataContext is GutterViewModel viewModel) viewModel.InvalidateRequired -= OnInvalidateRequired;
+        if (DataContext is GutterViewModel viewModel)
+        {
+            viewModel.InvalidateRequired -= OnInvalidateRequired;
+            viewModel.ScrollManagerChanged -= OnScrollManagerChanged;
+            UnregisterEventHandlers();
+        }
     }
 }

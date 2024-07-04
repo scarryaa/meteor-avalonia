@@ -117,7 +117,7 @@ public partial class TextEditor : UserControl
     {
         TextEditorUtils = new TextEditorUtils(null);
         InputManager = new InputManager();
-        ScrollManager = new ScrollManager(null);
+        ScrollManager = new ScrollManager(null); // Initialize ScrollManager here
         ClipboardManager = new ClipboardManager(null, new ClipboardService(TopLevel.GetTopLevel(this)));
         CursorManager = new CursorManager(null);
         SelectionManager = new SelectionManager(null);
@@ -141,13 +141,24 @@ public partial class TextEditor : UserControl
 
     private void RegisterEventHandlers()
     {
-        Console.WriteLine("Registering event handlers");
+        Console.WriteLine("TextEditor - Registering event handlers");
         AddHandler(PointerWheelChangedEvent, InputManager.OnPointerWheelChanged, RoutingStrategies.Tunnel);
         AddHandler(PointerPressedEvent, InputManager.OnPointerPressed, RoutingStrategies.Tunnel);
         AddHandler(PointerMovedEvent, InputManager.OnPointerMoved, RoutingStrategies.Tunnel);
         AddHandler(PointerReleasedEvent, InputManager.OnPointerReleased, RoutingStrategies.Tunnel);
         AddHandler(KeyDownEvent, InputManager.OnKeyDown, RoutingStrategies.Tunnel);
         AddHandler(TextInputEvent, InputManager.OnTextInput, RoutingStrategies.Tunnel);
+    }
+
+    private void UnregisterEventHandlers()
+    {
+        Console.WriteLine("TextEditor - Unregistering event handlers");
+        RemoveHandler(PointerWheelChangedEvent, InputManager.OnPointerWheelChanged);
+        RemoveHandler(PointerPressedEvent, InputManager.OnPointerPressed);
+        RemoveHandler(PointerMovedEvent, InputManager.OnPointerMoved);
+        RemoveHandler(PointerReleasedEvent, InputManager.OnPointerReleased);
+        RemoveHandler(KeyDownEvent, InputManager.OnKeyDown);
+        RemoveHandler(TextInputEvent, InputManager.OnTextInput);
     }
 
     private void SubscribeToProperties()
@@ -167,13 +178,14 @@ public partial class TextEditor : UserControl
         {
             _scrollableViewModel.TextEditorViewModel.PropertyChanged -= ViewModel_PropertyChanged;
             _scrollableViewModel.TextEditorViewModel.SelectionChanged -= SelectionManager.OnSelectionChanged;
+            UnregisterEventHandlers();
         }
 
         if (DataContext is ScrollableTextEditorViewModel scrollableViewModel)
         {
             _scrollableViewModel = scrollableViewModel;
             var viewModel = scrollableViewModel.TextEditorViewModel;
-            
+
             viewModel.PropertyChanged += ViewModel_PropertyChanged;
             viewModel.RequestFocus += OnRequestFocus;
             viewModel.SelectionChanged += SelectionManager.OnSelectionChanged;
@@ -182,6 +194,8 @@ public partial class TextEditor : UserControl
             var context = CreateContext();
             RenderManager = new RenderManager(context);
             RenderManager.AttachToViewModel(scrollableViewModel);
+
+            scrollableViewModel.ScrollManager = ScrollManager;
 
             // Measure char width after view model is set
             TextEditorUtils.UpdateViewModel(viewModel);

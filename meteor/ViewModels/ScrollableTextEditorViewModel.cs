@@ -11,7 +11,7 @@ public class ScrollableTextEditorViewModel : ViewModelBase
 {
     private const double ScrollThreshold = 20;
     private const double ScrollSpeed = 1;
-    
+
     private double _verticalOffset;
     private double _horizontalOffset;
     private Size _viewport;
@@ -21,6 +21,7 @@ public class ScrollableTextEditorViewModel : ViewModelBase
     private double _lineHeight;
     private double _windowHeight;
     private double _windowWidth;
+    private ScrollManager _scrollManager;
 
     public TextEditorViewModel TextEditorViewModel { get; }
     public LineCountViewModel LineCountViewModel { get; }
@@ -28,7 +29,15 @@ public class ScrollableTextEditorViewModel : ViewModelBase
     public TabViewModel TabViewModel { get; set; }
     public RenderManager ParentRenderManager { get; set; }
 
-    public ScrollManager ScrollManager { get; set; }
+    public ScrollManager ScrollManager
+    {
+        get => _scrollManager;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _scrollManager, value);
+            GutterViewModel.ScrollManager = value;
+        }
+    }
 
     public ScrollableTextEditorViewModel(
         ICursorPositionService cursorPositionService,
@@ -41,16 +50,17 @@ public class ScrollableTextEditorViewModel : ViewModelBase
         ScrollManager scrollManager)
     {
         ClipboardService = clipboardService;
-        ScrollManager = scrollManager;
-    
-        if (textBuffer == null) throw new ArgumentNullException(nameof(textBuffer));
-
-        FontPropertiesViewModel = fontPropertiesViewModel;
-        LineCountViewModel = lineCountViewModel;
         TextEditorViewModel = textEditorViewModel;
         TextEditorViewModel.ParentViewModel = this;
         GutterViewModel = new GutterViewModel(cursorPositionService, fontPropertiesViewModel, lineCountViewModel, this,
             TextEditorViewModel, themeService);
+        ScrollManager = scrollManager;
+        GutterViewModel.ScrollManager = ScrollManager;
+
+        if (textBuffer == null) throw new ArgumentNullException(nameof(textBuffer));
+
+        FontPropertiesViewModel = fontPropertiesViewModel;
+        LineCountViewModel = lineCountViewModel;
 
         LineHeight = FontSize * 1.5;
 
@@ -209,22 +219,6 @@ public class ScrollableTextEditorViewModel : ViewModelBase
         }
     }
 
-    public void HandleAutoScroll(Point cursorPoint)
-    {
-        var viewportHeight = Viewport.Height;
-        var viewportWidth = Viewport.Width;
-
-        if (cursorPoint.Y < ScrollThreshold)
-            VerticalOffset = Math.Max(0, VerticalOffset - ScrollSpeed);
-        else if (cursorPoint.Y > viewportHeight - ScrollThreshold)
-            VerticalOffset = Math.Min(VerticalOffset + ScrollSpeed, TotalHeight - viewportHeight);
-
-        if (cursorPoint.X < ScrollThreshold)
-            HorizontalOffset = Math.Max(0, HorizontalOffset - ScrollSpeed);
-        else if (cursorPoint.X > viewportWidth - ScrollThreshold)
-            HorizontalOffset = Math.Min(HorizontalOffset + ScrollSpeed, LongestLineWidth - viewportWidth);
-    }
-
     public void UpdateLongestLineWidth()
     {
         var longestLineLength = TextEditorViewModel.TextBuffer.LongestLineLength;
@@ -246,7 +240,7 @@ public class ScrollableTextEditorViewModel : ViewModelBase
         this.RaisePropertyChanged(nameof(Offset));
         this.RaisePropertyChanged(nameof(VerticalOffset));
         this.RaisePropertyChanged(nameof(HorizontalOffset));
-        
+
         UpdateLongestLineWidth();
         UpdateTotalHeight();
     }

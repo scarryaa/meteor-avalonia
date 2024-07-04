@@ -1,6 +1,7 @@
 using System;
 using Avalonia.Media;
 using meteor.Interfaces;
+using meteor.Views.Services;
 using ReactiveUI;
 
 namespace meteor.ViewModels;
@@ -18,6 +19,7 @@ public class GutterViewModel : ViewModelBase, IDisposable
     private IBrush _selectedBrush;
     private TextEditorViewModel _textEditorViewModel;
     private ScrollableTextEditorViewModel _scrollableTextEditorViewModel;
+    private ScrollManager _scrollManager;
 
     public TextEditorViewModel TextEditorViewModel
     {
@@ -30,13 +32,23 @@ public class GutterViewModel : ViewModelBase, IDisposable
                     .Subscribe(cursorPosition =>
                     {
                         CursorPosition = cursorPosition;
-                        InvalidateRequired.Invoke(this, EventArgs.Empty);
+                        InvalidateRequired?.Invoke(this, EventArgs.Empty);
                     });
         }
     }
 
+    public ScrollManager ScrollManager
+    {
+        get => _scrollManager;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _scrollManager, value);
+            OnScrollManagerChanged();
+        }
+    }
+
     public LineCountViewModel LineCountViewModel { get; }
-    
+
     public ScrollableTextEditorViewModel ScrollableTextEditorViewModel
     {
         get => _scrollableTextEditorViewModel;
@@ -144,7 +156,8 @@ public class GutterViewModel : ViewModelBase, IDisposable
     public GutterViewModel(
         ICursorPositionService cursorPositionService,
         FontPropertiesViewModel fontPropertiesViewModel,
-        LineCountViewModel lineCountViewModel, ScrollableTextEditorViewModel scrollableTextEditorViewModel,
+        LineCountViewModel lineCountViewModel,
+        ScrollableTextEditorViewModel scrollableTextEditorViewModel,
         TextEditorViewModel textEditorViewModel,
         IThemeService themeService)
     {
@@ -186,7 +199,7 @@ public class GutterViewModel : ViewModelBase, IDisposable
             .Subscribe(count => OnInvalidateRequired());
 
         TextEditorViewModel.WidthChanged += (sender, args) => { OnWidthRecalculationRequired(); };
-        
+
         TextEditorViewModel.LineChanged += (sender, args) =>
         {
             CursorPosition = TextEditorViewModel.CursorPosition;
@@ -217,11 +230,17 @@ public class GutterViewModel : ViewModelBase, IDisposable
     }
 
     public event EventHandler? InvalidateRequired;
+    public event EventHandler? ScrollManagerChanged;
     public event EventHandler? WidthRecalculationRequired;
 
     public virtual void OnInvalidateRequired()
     {
         InvalidateRequired?.Invoke(this, EventArgs.Empty);
+    }
+
+    public virtual void OnScrollManagerChanged()
+    {
+        ScrollManagerChanged?.Invoke(this, EventArgs.Empty);
     }
 
     public virtual void OnWidthRecalculationRequired()
