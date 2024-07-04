@@ -157,11 +157,14 @@ public class MainWindowViewModel : ViewModelBase
                 _selectedTab.IsSelected = true;
                 Dispatcher.UIThread.Post(() =>
                 {
-                    _selectedTab.ScrollableTextEditorViewModel.TextEditorViewModel.Focus();
-                    _selectedTab.ScrollableTextEditorViewModel.VerticalOffset = _selectedTab.SavedVerticalOffset;
-                    _selectedTab.ScrollableTextEditorViewModel.HorizontalOffset = _selectedTab.SavedHorizontalOffset;
-                    
-                    _selectedTab.ScrollableTextEditorViewModel.UpdateLongestLineWidth();
+                    var scrollableTextEditorVm = _selectedTab.ScrollableTextEditorViewModel;
+                    scrollableTextEditorVm.UpdateViewProperties();
+                    scrollableTextEditorVm.WindowHeight = WindowHeight;
+                    scrollableTextEditorVm.WindowWidth = WindowWidth;
+                    scrollableTextEditorVm.UpdateLongestLineWidth();
+                    scrollableTextEditorVm.UpdateScrollOffsets();
+                    scrollableTextEditorVm.TextEditorViewModel.OnInvalidateRequired();
+                    scrollableTextEditorVm.TextEditorViewModel.Focus();
                 }, DispatcherPriority.Render);
             }
         }
@@ -260,6 +263,7 @@ public class MainWindowViewModel : ViewModelBase
             this);
 
         var scrollManager = new ScrollManager(textEditorViewModel);
+        textEditorViewModel.ScrollManager = scrollManager;
         var scrollableTextEditorViewModel = new ScrollableTextEditorViewModel(
             cursorPositionService,
             fontPropertiesViewModel,
@@ -269,6 +273,9 @@ public class MainWindowViewModel : ViewModelBase
             themeService,
             textEditorViewModel,
             scrollManager);
+
+        // Ensure the TextEditorViewModel knows about its parent ScrollableTextEditorViewModel
+        textEditorViewModel.ParentViewModel = scrollableTextEditorViewModel;
 
         var newTab = new TabViewModel(
             cursorPositionService,
@@ -292,8 +299,7 @@ public class MainWindowViewModel : ViewModelBase
         Tabs.Add(newTab);
         SelectedTab = newTab;
 
-        if (SelectedTab != null)
-            SelectedTab.ScrollableTextEditorViewModel.Viewport = new Size(WindowWidth, WindowHeight);
+        if (SelectedTab != null) SelectedTab.ScrollableTextEditorViewModel.Viewport = new Size(WindowWidth, WindowHeight);
     }
 
     private void CloseOtherTabs(TabViewModel tab)
@@ -391,7 +397,7 @@ public class MainWindowViewModel : ViewModelBase
         };
     }
 
-    public void OnFileClicked(string filePath)
+    public async void OnFileClicked(string filePath)
     {
         var existingTab = Tabs.FirstOrDefault(tab => tab.Title == Path.GetFileName(filePath));
         if (existingTab != null)
@@ -438,7 +444,7 @@ public class MainWindowViewModel : ViewModelBase
             Tabs.Add(_temporaryTab);
         }
 
-        _temporaryTab.LoadTextAsync(filePath);
+        await _temporaryTab.LoadTextAsync(filePath);
         if (_temporaryTab.ScrollableTextEditorViewModel != null)
         {
             _temporaryTab.ScrollableTextEditorViewModel.TextEditorViewModel.CursorPosition = 0;

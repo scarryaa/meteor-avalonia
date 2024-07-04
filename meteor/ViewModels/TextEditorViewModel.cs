@@ -46,7 +46,7 @@ public class TextEditorViewModel : ViewModelBase
     public UndoRedoManager<TextState> UndoRedoManager { get; }
     public ScrollableTextEditorViewModel? _scrollableViewModel;
     public InputManager InputManager { get; }
-    public ScrollManager ScrollManager { get; }
+    public ScrollManager ScrollManager { get; set; }
 
     public ViewModelBase? ParentViewModel
     {

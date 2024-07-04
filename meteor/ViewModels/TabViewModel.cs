@@ -319,6 +319,10 @@ public class TabViewModel : ViewModelBase, IDisposable
             await _autoSaveService.InitializeAsync(filePath, Text);
             // Start auto-save timer when file is loaded
             _autoSaveTimer.Start();
+
+            ScrollableTextEditorViewModel.TextEditorViewModel.TextBuffer.UpdateLineCache();
+            ScrollableTextEditorViewModel.TextEditorViewModel.TextBuffer.RaiseLinesUpdated();
+            ScrollableTextEditorViewModel.TextEditorViewModel.NotifyGutterOfLineChange();
         }
         finally
         {

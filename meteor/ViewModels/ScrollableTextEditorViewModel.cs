@@ -22,6 +22,8 @@ public class ScrollableTextEditorViewModel : ViewModelBase
     private double _windowHeight;
     private double _windowWidth;
     private ScrollManager _scrollManager;
+    private double _savedVerticalOffset;
+    private double _savedHorizontalOffset;
 
     public TextEditorViewModel TextEditorViewModel { get; }
     public LineCountViewModel LineCountViewModel { get; }
@@ -70,8 +72,7 @@ public class ScrollableTextEditorViewModel : ViewModelBase
         this.WhenAnyValue(fp => fp.FontPropertiesViewModel.LineHeight)
             .Subscribe(lineHeight =>
             {
-                textBuffer.LineHeight = TextEditorViewModel.FontPropertiesViewModel.CalculateLineHeight(FontSize);
-                TextEditorViewModel.LineHeight = lineHeight;
+                LineHeight = lineHeight;
             });
 
         textBuffer.TextChanged += (sender, args) => UpdateDimensions();
@@ -97,8 +98,28 @@ public class ScrollableTextEditorViewModel : ViewModelBase
 
     private void UpdateContext()
     {
-        // TODO evaluate if this is necessary
-        if (ParentRenderManager != null) ParentRenderManager.UpdateContextViewModel(this);
+        ParentRenderManager?.UpdateContextViewModel(this);
+    }
+
+    public void UpdateViewProperties()
+    {
+        TextEditorViewModel.UpdateLineStarts();
+        UpdateLongestLineWidth();
+        UpdateTotalHeight();
+        UpdateScrollOffsets();
+    }
+
+    public void UpdateScrollOffsets()
+    {
+        VerticalOffset = SavedVerticalOffset;
+        HorizontalOffset = SavedHorizontalOffset;
+    }
+
+    public void UpdateLineStarts()
+    {
+        TextEditorViewModel.TextBuffer.UpdateLineCache();
+        this.RaisePropertyChanged(nameof(LineCountViewModel));
+        this.RaisePropertyChanged(nameof(TotalHeight));
     }
 
     public FontPropertiesViewModel FontPropertiesViewModel { get; }
@@ -124,6 +145,8 @@ public class ScrollableTextEditorViewModel : ViewModelBase
             {
                 this.RaiseAndSetIfChanged(ref _lineHeight, value);
                 TextEditorViewModel.TextBuffer.LineHeight = value;
+                TextEditorViewModel.LineHeight = value;
+                UpdateTotalHeight();
             }
         }
     }
@@ -196,6 +219,18 @@ public class ScrollableTextEditorViewModel : ViewModelBase
         }
     }
 
+    public double SavedVerticalOffset
+    {
+        get => _savedVerticalOffset;
+        set => this.RaiseAndSetIfChanged(ref _savedVerticalOffset, value);
+    }
+
+    public double SavedHorizontalOffset
+    {
+        get => _savedHorizontalOffset;
+        set => this.RaiseAndSetIfChanged(ref _savedHorizontalOffset, value);
+    }
+
     public Vector Offset
     {
         get => _offset;
@@ -230,24 +265,18 @@ public class ScrollableTextEditorViewModel : ViewModelBase
 
     public void UpdateTotalHeight()
     {
-        var totalHeight = TextEditorViewModel.TextBuffer.TotalHeight;
-        TotalHeight = totalHeight;
+        var totalHeight = Math.Ceiling(TextEditorViewModel.TextBuffer.TotalHeight);
+        TotalHeight = Math.Max(totalHeight, WindowHeight);
     }
 
     public void UpdateDimensions()
     {
+        UpdateLongestLineWidth();
+        UpdateTotalHeight();
         this.RaisePropertyChanged(nameof(Viewport));
         this.RaisePropertyChanged(nameof(Offset));
         this.RaisePropertyChanged(nameof(VerticalOffset));
         this.RaisePropertyChanged(nameof(HorizontalOffset));
-
-        UpdateLongestLineWidth();
-        UpdateTotalHeight();
-    }
-
-    public void UpdateViewProperties()
-    {
-        UpdateProperties();
     }
 
     private void UpdateProperties()
