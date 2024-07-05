@@ -78,5 +78,12 @@
     <Color x:Key="CommandPaletteListBoxItemSelected">#E0E0E0</Color>
     <Color x:Key="CommandPaletteBoxShadowColor">#30000000</Color>
     <Color x:Key="CommandPaletteTextBoxCaret">#000000</Color>
+
+    <!-- Syntax Highlighting -->
+    <Color x:Key="KeywordColor">#007ACC</Color>
+    <Color x:Key="CommentColor">#60A561</Color>
+    <Color x:Key="StringColor">#D69D85</Color>
+    <Color x:Key="TypeColor">#4ECB9A</Color>
+    <Color x:Key="NumberColor">#B7E4A0</Color>
     
 </ResourceDictionary>

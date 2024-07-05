@@ -160,7 +160,7 @@ public class InputManager
         e.Handled = true;
     }
 
-    public void OnKeyDown(object? sender, KeyEventArgs e)
+    public async void OnKeyDown(object? sender, KeyEventArgs e)
     {
         if (_viewModel == null)
         {
@@ -197,12 +197,12 @@ public class InputManager
                 handled = true;
                 break;
             case Key.Back:
-                _viewModel.TextManipulator.HandleBackspace();
+                await _viewModel.TextManipulator.HandleBackspaceAsync();
                 _viewModel.UpdateLineCacheAfterDeletion(_viewModel.CursorPosition + 1, 1);
                 handled = true;
                 break;
             case Key.Delete:
-                _viewModel.TextManipulator.HandleDelete();
+                await _viewModel.TextManipulator.HandleDeleteAsync();
                 _viewModel.UpdateLineCacheAfterDeletion(_viewModel.CursorPosition, 1);
                 handled = true;
                 break;
@@ -230,7 +230,7 @@ public class InputManager
         e.Handled = handled;
     }
 
-    public void OnTextInput(object? sender, TextInputEventArgs e)
+    public async void OnTextInput(object? sender, TextInputEventArgs e)
     {
         if (_viewModel == null)
         {
@@ -240,7 +240,7 @@ public class InputManager
 
         if (!string.IsNullOrEmpty(e.Text))
         {
-            _viewModel.TextManipulator.InsertText(e.Text);
+            await _viewModel.TextManipulator.InsertTextAsync(e.Text);
             _viewModel.UpdateLineCache(_viewModel.CursorPosition - 1, e.Text);
             e.Handled = true;
         }

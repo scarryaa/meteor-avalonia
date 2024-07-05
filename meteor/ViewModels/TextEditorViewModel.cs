@@ -8,13 +8,12 @@ using meteor.Models;
 using meteor.Views.Services;
 using meteor.Views.Utils;
 using ReactiveUI;
-using SelectionChangedEventArgs = meteor.Models.SelectionChangedEventArgs;
 
 namespace meteor.ViewModels;
 
 public class TextEditorViewModel : ViewModelBase
 {
-    
+    private readonly ISyntaxHighlighter _syntaxHighlighter;
     private readonly ICursorPositionService _cursorPositionService;
     private ITextBuffer _textBuffer;
     private long _cursorPosition;
@@ -64,6 +63,7 @@ public class TextEditorViewModel : ViewModelBase
         LineCountViewModel lineCountViewModel,
         ITextBuffer textBuffer,
         IClipboardService clipboardService,
+        ISyntaxHighlighter syntaxHighlighter,
         ViewModelBase parentViewModel)
     {
         _cursorPositionService = cursorPositionService;
@@ -72,6 +72,7 @@ public class TextEditorViewModel : ViewModelBase
         _lineCountViewModel = lineCountViewModel;
         _textBuffer = textBuffer ?? throw new ArgumentNullException(nameof(textBuffer));
         _clipboardService = clipboardService ?? throw new ArgumentNullException(nameof(clipboardService));
+        _syntaxHighlighter = syntaxHighlighter;
         ParentViewModel = parentViewModel;
 
         _textBuffer.TextChanged += OnLinesUpdated;
@@ -96,6 +97,7 @@ public class TextEditorViewModel : ViewModelBase
             .Subscribe(height => { LineHeight = height; });
 
         UpdateLineStarts();
+        UpdateSyntaxTokens();
     }
 
     public event EventHandler<SelectionChangedEventArgs> SelectionChanged;
@@ -221,6 +223,11 @@ public class TextEditorViewModel : ViewModelBase
         SelectionChanged?.Invoke(this, new SelectionChangedEventArgs(selectionStart, selectionEnd));
     }
 
+    public async Task InitializeAsync()
+    {
+        await UpdateSyntaxHighlightingAsync();
+    }
+
     public long LineCount => _textBuffer.LineCount;
 
     public double TotalHeight => _textBuffer.TotalHeight;
@@ -234,6 +241,7 @@ public class TextEditorViewModel : ViewModelBase
             this.RaisePropertyChanged(nameof(LineCount));
             this.RaisePropertyChanged(nameof(TotalHeight));
             _lineCountViewModel.LineCount = _textBuffer.LineCount;
+            UpdateSyntaxTokens();
         }
     }
 
@@ -255,6 +263,13 @@ public class TextEditorViewModel : ViewModelBase
         }
     }
 
+    private async Task UpdateSyntaxHighlightingAsync()
+    {
+        var fullText = _textBuffer.GetText(0, _textBuffer.Length);
+        if (_scrollableViewModel?.ParentRenderManager != null)
+            await _scrollableViewModel.ParentRenderManager.UpdateSyntaxHighlightingAsync(fullText);
+    }
+    
     public void UpdateServices(TextEditorViewModel viewModel)
     {
         var services = new Dictionary<string, Action<TextEditorViewModel>>
@@ -275,7 +290,7 @@ public class TextEditorViewModel : ViewModelBase
             else
                 service.Value(viewModel);
     }
-    
+
     public async Task InsertLargeTextAsync(long position, string text)
     {
         await Task.Run(() =>
@@ -291,6 +306,7 @@ public class TextEditorViewModel : ViewModelBase
         OnInvalidateRequired();
         await Task.Run(UpdateLongestLineWidth);
         OnWidthRecalculationRequired();
+        await UpdateSyntaxHighlightingAsync();
     }
 
     public async Task DeleteLargeTextAsync(long start, long length)
@@ -307,6 +323,7 @@ public class TextEditorViewModel : ViewModelBase
         OnInvalidateRequired();
         await Task.Run(UpdateLongestLineWidth);
         OnWidthRecalculationRequired();
+        await UpdateSyntaxHighlightingAsync();
     }
 
     public void UpdateLineCache(long position, string insertedText)
@@ -382,6 +399,7 @@ public class TextEditorViewModel : ViewModelBase
         {
             InsertText(CursorPosition, clipboardText);
             UpdateGutterWidth();
+            UpdateSyntaxTokens();
         }
     }
 
@@ -395,34 +413,53 @@ public class TextEditorViewModel : ViewModelBase
         WidthChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    public void InsertText(long position, string text)
+    public async Task InsertText(long position, string text)
     {
+        var startLine = _textBuffer.GetLineIndexFromPosition(position);
+        var endLine = _textBuffer.GetLineIndexFromPosition(position + text.Length);
+        
         _textBuffer.InsertText(position, text);
         CursorPosition = position + text.Length;
         UpdateLongestLineWidthAfterInsertion(position, text);
         NotifyGutterOfLineChange();
         this.RaisePropertyChanged(nameof(LineCount));
         this.RaisePropertyChanged(nameof(TotalHeight));
-        OnInvalidateRequired();
         OnWidthRecalculationRequired();
         UpdateGutterWidth();
+        _scrollableViewModel?.ParentRenderManager?.InvalidateLines((int)startLine, (int)endLine);
+        await UpdateSyntaxHighlightingAsync();
 
         _cursorPositionService.UpdateCursorPosition(CursorPosition, _textBuffer.LineStarts,
             _textBuffer.GetLineLength(_textBuffer.LineCount));
+
+        // Notify RenderManager to update affected lines
+        startLine = _textBuffer.GetLineIndexFromPosition(position);
+        endLine = _textBuffer.GetLineIndexFromPosition(position + text.Length);
+        _scrollableViewModel?.ParentRenderManager?.InvalidateLines((int)startLine, (int)endLine);
+
+        OnInvalidateRequired();
     }
 
-    public void DeleteText(long start, long length)
+    public async Task DeleteText(long start, long length)
     {
+        var startLine = _textBuffer.GetLineIndexFromPosition(start);
+        var endLine = _textBuffer.GetLineIndexFromPosition(start + length);
+
         _textBuffer.DeleteText(start, length);
         UpdateLineStartsAfterDeletion(start, length);
         UpdateLongestLineWidthAfterDeletion(start, length);
         NotifyGutterOfLineChange();
         this.RaisePropertyChanged(nameof(LineCount));
         this.RaisePropertyChanged(nameof(TotalHeight));
-        OnInvalidateRequired();
+        _scrollableViewModel?.ParentRenderManager?.InvalidateLines((int)startLine, (int)endLine);
+        await UpdateSyntaxHighlightingAsync();
 
         _cursorPositionService.UpdateCursorPosition(CursorPosition, _textBuffer.LineStarts,
             _textBuffer.GetLineLength(_textBuffer.LineCount));
+
+        _scrollableViewModel?.ParentRenderManager?.InvalidateLines((int)startLine, (int)endLine);
+
+        OnInvalidateRequired();
     }
 
     private void UpdateLineStartsAfterDeletion(long start, long length)
@@ -491,6 +528,7 @@ public class TextEditorViewModel : ViewModelBase
         this.RaisePropertyChanged(nameof(TotalHeight));
         OnWidthRecalculationRequired();
         UpdateGutterWidth();
+        UpdateSyntaxTokens();
     }
 
     private void UpdateCharWidth()
@@ -524,4 +562,12 @@ public class TextEditorViewModel : ViewModelBase
 
         return null;
     }
+
+    private void UpdateSyntaxTokens()
+    {
+        SyntaxTokens = _syntaxHighlighter.HighlightSyntax(_textBuffer.Text);
+        OnInvalidateRequired();
+    }
+
+    public List<SyntaxToken> SyntaxTokens { get; private set; } = new();
 }

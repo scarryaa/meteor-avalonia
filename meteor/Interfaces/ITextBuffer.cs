@@ -20,6 +20,7 @@ public interface ITextBuffer
     void InsertText(long position, string text);
     void DeleteText(long start, long length);
     void SetText(string newText);
+    string GetTextForLines(int startLine, int endLine);
     void Clear();
     void UpdateLineCache();
     string GetLineText(long lineIndex);

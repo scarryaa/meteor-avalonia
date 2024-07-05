@@ -14,7 +14,7 @@ public class TextManipulator
         _viewModel = viewModel;
     }
 
-    public void InsertText(string text)
+    public async Task InsertTextAsync(string text)
     {
         if (_viewModel == null)
         {
@@ -22,15 +22,13 @@ public class TextManipulator
             return;
         }
 
-        if (_viewModel.SelectionStart != _viewModel.SelectionEnd) DeleteSelectedText();
+        if (_viewModel.SelectionStart != _viewModel.SelectionEnd) await DeleteSelectedTextAsync();
 
-        _viewModel.TextBuffer.InsertText(_viewModel.CursorPosition, text);
-        _viewModel.CursorPosition += text.Length;
+        await _viewModel.InsertText(_viewModel.CursorPosition, text);
         _viewModel.ClearSelection();
-        _viewModel.OnInvalidateRequired();
     }
 
-    public void DeleteSelectedText()
+    public async Task DeleteSelectedTextAsync()
     {
         if (_viewModel == null)
         {
@@ -42,62 +40,56 @@ public class TextManipulator
         {
             var start = Math.Min(_viewModel.SelectionStart, _viewModel.SelectionEnd);
             var length = Math.Abs(_viewModel.SelectionEnd - _viewModel.SelectionStart);
-            _viewModel.TextBuffer.DeleteText(start, length);
+            await _viewModel.DeleteText(start, length);
             _viewModel.CursorPosition = start;
             _viewModel.ClearSelection();
-            _viewModel.OnInvalidateRequired();
         }
     }
 
-    public void HandleBackspace()
+    public async Task HandleBackspaceAsync()
     {
         if (_viewModel.SelectionStart != -1 && _viewModel.SelectionEnd != -1 &&
             _viewModel.SelectionStart != _viewModel.SelectionEnd)
         {
-            // Handle deletion of selected text
             var start = long.Min(_viewModel.SelectionStart, _viewModel.SelectionEnd);
             var end = long.Max(_viewModel.SelectionStart, _viewModel.SelectionEnd);
             var length = end - start;
 
-            _viewModel.DeleteText(start, length);
+            await _viewModel.DeleteText(start, length);
 
             _viewModel.CursorPosition = start;
             _viewModel.ClearSelection();
         }
         else if (_viewModel.CursorPosition > 0)
         {
-            // Handle deletion of a single character before the cursor
-            _viewModel.DeleteText(_viewModel.CursorPosition - 1, 1);
+            await _viewModel.DeleteText(_viewModel.CursorPosition - 1, 1);
             _viewModel.CursorPosition--;
         }
     }
 
-    public void HandleDelete()
+    public async Task HandleDeleteAsync()
     {
         if (_viewModel.SelectionStart != -1 && _viewModel.SelectionEnd != -1 &&
             _viewModel.SelectionStart != _viewModel.SelectionEnd)
         {
-            // Handle deletion of selected text
             var start = long.Min(_viewModel.SelectionStart, _viewModel.SelectionEnd);
             var end = long.Max(_viewModel.SelectionStart, _viewModel.SelectionEnd);
             var length = end - start;
 
-            _viewModel.DeleteText(start, length);
+            await _viewModel.DeleteText(start, length);
 
             _viewModel.CursorPosition = start;
             _viewModel.ClearSelection();
         }
         else if (_viewModel.CursorPosition < _viewModel.TextBuffer.Length)
         {
-            // Handle deletion of a single character
-            var lineIndex = _viewModel.TextBuffer.GetLineIndexFromPosition(_viewModel.CursorPosition);
-            _viewModel.DeleteText(_viewModel.CursorPosition, 1);
+            await _viewModel.DeleteText(_viewModel.CursorPosition, 1);
         }
     }
 
-    public void InsertNewLine()
+    public async void InsertNewLine()
     {
-        InsertText(Environment.NewLine);
+        await InsertTextAsync(Environment.NewLine);
     }
 
     public void InsertTab()

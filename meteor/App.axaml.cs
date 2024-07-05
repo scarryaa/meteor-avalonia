@@ -67,6 +67,7 @@ public class App : Application
         services.AddTransient<ScrollableTextEditorViewModel>();
         services.AddSingleton<IAutoSaveService, AutoSaveService>();
         services.AddSingleton<IDialogService, DialogService>();
+        services.AddSingleton<ISyntaxHighlighter, SyntaxHighlighter>();
 
         // Register text buffer related services
         services.AddSingleton<ITextBufferFactory, TextBufferFactory>();

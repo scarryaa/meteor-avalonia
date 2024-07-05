@@ -37,7 +37,7 @@ public class ClipboardManager
     public async Task CutText()
     {
         await CopyText();
-        _viewModel.TextManipulator.DeleteSelectedText();
+        await _viewModel.TextManipulator.DeleteSelectedTextAsync();
     }
 
     public async Task PasteText()
@@ -45,7 +45,7 @@ public class ClipboardManager
         var text = await _clipboardService.GetTextAsync();
         if (string.IsNullOrEmpty(text)) return;
 
-        await Dispatcher.UIThread.InvokeAsync(() => { _viewModel.TextManipulator.InsertText(text); },
+        await Dispatcher.UIThread.InvokeAsync(async () => { await _viewModel.TextManipulator.InsertTextAsync(text); },
             DispatcherPriority.Background);
     }
 }

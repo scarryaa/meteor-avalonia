@@ -26,13 +26,14 @@ public class ThemeService : IThemeService
         {
             var newTheme = new ResourceDictionary();
 
-            var baseResources = new ResourceInclude(new Uri("avares://meteor/Resources"))
+            var baseUri = new Uri("avares://meteor/Resources/");
+            var baseResources = new ResourceInclude(baseUri)
             {
                 Source = new Uri("avares://meteor/Resources/BaseResources.axaml")
             };
             newTheme.MergedDictionaries.Add(baseResources);
 
-            var themeResources = new ResourceInclude(new Uri("avares://meteor/Resources"))
+            var themeResources = new ResourceInclude(baseUri)
             {
                 Source = new Uri(themeSource)
             };

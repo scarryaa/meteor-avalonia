@@ -108,6 +108,19 @@ public class TextBuffer : ReactiveObject, ITextBuffer
         LinesUpdated?.Invoke(this, EventArgs.Empty);
     }
 
+    public string GetTextForLines(int startLine, int endLine)
+    {
+        if (startLine < 0 || endLine >= LineCount || startLine > endLine)
+            throw new ArgumentException("Invalid line range");
+
+        var startPosition = GetLineStartPosition(startLine);
+        var endPosition = endLine < LineCount - 1
+            ? GetLineStartPosition(endLine + 1)
+            : Length;
+
+        return GetText(startPosition, endPosition);
+    }
+
     public void DeleteText(long start, long length)
     {
         if (length > 0)

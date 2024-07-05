@@ -262,7 +262,10 @@ public class MainWindowViewModel : ViewModelBase
             lineCountViewModel,
             textBuffer,
             clipboardService,
+            App.ServiceProvider.GetRequiredService<ISyntaxHighlighter>(),
             this);
+
+        textEditorViewModel.InitializeAsync();
 
         var scrollManager = new ScrollManager(textEditorViewModel);
         textEditorViewModel.ScrollManager = scrollManager;
@@ -275,8 +278,7 @@ public class MainWindowViewModel : ViewModelBase
             themeService,
             textEditorViewModel,
             scrollManager);
-
-        // Ensure the TextEditorViewModel knows about its parent ScrollableTextEditorViewModel
+        
         textEditorViewModel.ParentViewModel = scrollableTextEditorViewModel;
 
         var newTab = new TabViewModel(
@@ -383,7 +385,7 @@ public class MainWindowViewModel : ViewModelBase
     private async Task<SaveConfirmationResult> ShowSaveConfirmationDialogAsync(TabViewModel tab)
     {
         var result = await _dialogService.ShowContentDialogAsync(
-            this, // Pass the MainWindowViewModel instance
+            this,
             "Save Changes",
             $"Do you want to save changes to {tab.Title}?",
             "Save",

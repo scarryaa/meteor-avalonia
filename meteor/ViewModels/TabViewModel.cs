@@ -9,6 +9,7 @@ using DiffPlex.DiffBuilder;
 using meteor.Interfaces;
 using meteor.Models;
 using meteor.Views.Services;
+using Microsoft.Extensions.DependencyInjection;
 using ReactiveUI;
 using File = System.IO.File;
 
@@ -144,7 +145,9 @@ public class TabViewModel : ViewModelBase, IDisposable
             _lineCountViewModel,
             _textBuffer,
             _clipboardService,
+            App.ServiceProvider.GetRequiredService<ISyntaxHighlighter>(),
             this);
+        textEditorViewModel.InitializeAsync();
 
         var scrollManager = new ScrollManager(textEditorViewModel);
 
@@ -430,7 +433,7 @@ public class TabViewModel : ViewModelBase, IDisposable
         {
             // Log the error
             Console.WriteLine($"Error restoring from backup: {ex.Message}");
-            throw; // Rethrow to allow the caller to handle the error
+            throw;
         }
     }
 

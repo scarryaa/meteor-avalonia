@@ -6,11 +6,13 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
+using meteor.Interfaces;
 using meteor.Services;
 using meteor.ViewModels;
 using meteor.Views.Contexts;
 using meteor.Views.Services;
 using meteor.Views.Utils;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace meteor.Views;
 
@@ -200,7 +202,9 @@ public partial class TextEditor : UserControl
             viewModel.InvalidateRequired += OnInvalidateRequired;
 
             var context = CreateContext();
-            RenderManager = new RenderManager(context);
+            var themeService = App.ServiceProvider.GetRequiredService<IThemeService>();
+            var syntaxHighlighter = App.ServiceProvider.GetRequiredService<ISyntaxHighlighter>();
+            RenderManager = new RenderManager(context, themeService, syntaxHighlighter);
             RenderManager.AttachToViewModel(scrollableViewModel);
 
             scrollableViewModel.ScrollManager = ScrollManager;
@@ -240,7 +244,7 @@ public partial class TextEditor : UserControl
         InvalidateVisual();
     }
 
-    private void ViewModel_PropertyChanged(object sender, PropertyChangedEventArgs e)
+    private async void ViewModel_PropertyChanged(object sender, PropertyChangedEventArgs e)
     {
         switch (e.PropertyName)
         {
@@ -250,6 +254,7 @@ public partial class TextEditor : UserControl
             case nameof(TextEditorViewModel.CursorPosition):
                 if (_scrollableViewModel.TextEditorViewModel.ShouldScrollToCursor)
                     Dispatcher.UIThread.Post(ScrollManager.EnsureCursorVisible);
+                break;
                 break;
         }
     }
@@ -279,7 +284,9 @@ public partial class TextEditor : UserControl
         {
             Console.WriteLine("Creating new context");
             var context = CreateContext();
-            RenderManager = new RenderManager(context);
+            var themeService = App.ServiceProvider.GetRequiredService<IThemeService>();
+            var syntaxHighlighter = App.ServiceProvider.GetRequiredService<ISyntaxHighlighter>();
+            RenderManager = new RenderManager(context, themeService, syntaxHighlighter);
             RenderManager.AttachToViewModel(_scrollableViewModel);
         }
     }
