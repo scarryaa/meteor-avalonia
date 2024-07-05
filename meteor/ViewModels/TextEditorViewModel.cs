@@ -103,6 +103,7 @@ public class TextEditorViewModel : ViewModelBase
     public event EventHandler LineChanged;
     public event EventHandler? InvalidateRequired;
     public event EventHandler? RequestFocus;
+    public event EventHandler? WidthRecalculationRequired;
 
     public double LongestLineWidth
     {
@@ -288,6 +289,7 @@ public class TextEditorViewModel : ViewModelBase
         this.RaisePropertyChanged(nameof(TotalHeight));
         OnInvalidateRequired();
         await Task.Run(UpdateLongestLineWidth);
+        OnWidthRecalculationRequired();
     }
 
     public async Task DeleteLargeTextAsync(long start, long length)
@@ -303,6 +305,7 @@ public class TextEditorViewModel : ViewModelBase
         this.RaisePropertyChanged(nameof(TotalHeight));
         OnInvalidateRequired();
         await Task.Run(UpdateLongestLineWidth);
+        OnWidthRecalculationRequired();
     }
 
     public void UpdateLineCache(long position, string insertedText)
@@ -319,6 +322,12 @@ public class TextEditorViewModel : ViewModelBase
         var endLine = _textBuffer.GetLineIndexFromPosition(start + length);
 
         LineCache.InvalidateRange(startLine, endLine);
+    }
+
+    protected virtual void OnWidthRecalculationRequired()
+    {
+        WidthRecalculationRequired?.Invoke(this, EventArgs.Empty);
+        UpdateGutterWidth();
     }
 
     private void UpdateLongestLineWidth()
@@ -368,7 +377,11 @@ public class TextEditorViewModel : ViewModelBase
     public async Task PasteText()
     {
         var clipboardText = await _clipboardService.GetTextAsync();
-        if (!string.IsNullOrEmpty(clipboardText)) InsertText(CursorPosition, clipboardText);
+        if (!string.IsNullOrEmpty(clipboardText))
+        {
+            InsertText(CursorPosition, clipboardText);
+            UpdateGutterWidth();
+        }
     }
 
     public void NotifyGutterOfLineChange()
@@ -390,8 +403,9 @@ public class TextEditorViewModel : ViewModelBase
         this.RaisePropertyChanged(nameof(LineCount));
         this.RaisePropertyChanged(nameof(TotalHeight));
         OnInvalidateRequired();
+        OnWidthRecalculationRequired();
+        UpdateGutterWidth();
     }
-
 
     public void DeleteText(long start, long length)
     {
@@ -468,6 +482,8 @@ public class TextEditorViewModel : ViewModelBase
     {
         UpdateLineStarts();
         this.RaisePropertyChanged(nameof(TotalHeight));
+        OnWidthRecalculationRequired();
+        UpdateGutterWidth();
     }
 
     private void UpdateCharWidth()

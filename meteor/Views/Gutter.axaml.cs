@@ -129,9 +129,9 @@ public partial class Gutter : UserControl
             UpdateGutterWidth(newViewModel);
 
             newViewModel.ScrollManagerChanged += OnScrollManagerChanged;
-            newViewModel.TextEditorViewModel.WhenAnyValue(lvm => lvm.LineCount)
-                .Subscribe(_ => UpdateGutterWidth(newViewModel));
             newViewModel.WhenAnyValue(vm => vm.FontSize).Subscribe(_ => UpdateGutterWidth(newViewModel));
+            Console.WriteLine(newViewModel.TextEditorViewModel);
+            newViewModel.TextEditorViewModel.LineChanged += (o, args) => UpdateGutterWidth(newViewModel);
         }
         
         OnScrollManagerChanged(this, EventArgs.Empty);
@@ -369,23 +369,17 @@ public partial class Gutter : UserControl
     private void UpdateGutterWidth(GutterViewModel viewModel)
     {
         var maxLineNumber = viewModel.TextEditorViewModel.LineCount;
-        var formattedTextMaxLine = new FormattedText(
-            maxLineNumber.ToString(),
+        var maxLineNumberString = maxLineNumber.ToString();
+
+        var formattedText = new FormattedText(
+            maxLineNumberString,
             CultureInfo.CurrentCulture,
             FlowDirection.LeftToRight,
             new Typeface(FontFamily),
             viewModel.FontSize,
             Brushes.Gray);
 
-        var formattedText9999 = new FormattedText(
-            "9999",
-            CultureInfo.CurrentCulture,
-            FlowDirection.LeftToRight,
-            new Typeface(FontFamily),
-            viewModel.FontSize,
-            Brushes.Gray);
-
-        Width = Math.Max(formattedTextMaxLine.Width, formattedText9999.Width) + 40;
+        Width = formattedText.Width + 40;
     }
 
     public override void Render(DrawingContext context)

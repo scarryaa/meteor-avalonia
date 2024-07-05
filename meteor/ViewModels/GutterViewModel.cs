@@ -204,6 +204,7 @@ public class GutterViewModel : ViewModelBase, IDisposable
         {
             CursorPosition = TextEditorViewModel.CursorPosition;
             OnInvalidateRequired();
+            OnWidthRecalculationRequired();
         };
 
         _themeService.ThemeChanged += OnThemeChanged;
@@ -243,7 +244,7 @@ public class GutterViewModel : ViewModelBase, IDisposable
         ScrollManagerChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    public virtual void OnWidthRecalculationRequired()
+    private void OnWidthRecalculationRequired()
     {
         WidthRecalculationRequired?.Invoke(this, EventArgs.Empty);
     }
