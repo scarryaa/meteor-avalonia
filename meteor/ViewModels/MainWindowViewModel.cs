@@ -95,7 +95,9 @@ public class MainWindowViewModel : ViewModelBase
                     scrollableTextEditorVm.TextEditorViewModel.OnInvalidateRequired();
                     cursorPositionService.UpdateCursorPosition(
                         scrollableTextEditorVm.TextEditorViewModel.CursorPosition,
-                        scrollableTextEditorVm.TextEditorViewModel.TextBuffer.LineStarts);
+                        scrollableTextEditorVm.TextEditorViewModel.TextBuffer.LineStarts,
+                        scrollableTextEditorVm.TextEditorViewModel.TextBuffer.GetLineLength(scrollableTextEditorVm
+                            .TextEditorViewModel.TextBuffer.LineCount));
                 }
             });
 

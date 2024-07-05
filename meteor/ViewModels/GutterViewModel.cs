@@ -167,7 +167,7 @@ public class GutterViewModel : ViewModelBase, IDisposable
         TextEditorViewModel = textEditorViewModel;
         _scrollableTextEditorViewModel = scrollableTextEditorViewModel;
 
-        cursorPositionService.CursorPositionChanged += (cursorPosition, _) =>
+        cursorPositionService.CursorPositionChanged += (cursorPosition, _, _) =>
         {
             CursorPosition = cursorPosition;
             OnInvalidateRequired();

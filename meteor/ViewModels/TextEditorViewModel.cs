@@ -177,7 +177,8 @@ public class TextEditorViewModel : ViewModelBase
             if (_cursorPosition != value)
             {
                 _cursorPosition = value;
-                _cursorPositionService.UpdateCursorPosition(_cursorPosition, _textBuffer.LineStarts);
+                _cursorPositionService.UpdateCursorPosition(_cursorPosition, _textBuffer.LineStarts,
+                    _textBuffer.GetLineLength(_textBuffer.LineCount));
                 this.RaisePropertyChanged();
             }
         }
@@ -405,6 +406,9 @@ public class TextEditorViewModel : ViewModelBase
         OnInvalidateRequired();
         OnWidthRecalculationRequired();
         UpdateGutterWidth();
+
+        _cursorPositionService.UpdateCursorPosition(CursorPosition, _textBuffer.LineStarts,
+            _textBuffer.GetLineLength(_textBuffer.LineCount));
     }
 
     public void DeleteText(long start, long length)
@@ -416,6 +420,9 @@ public class TextEditorViewModel : ViewModelBase
         this.RaisePropertyChanged(nameof(LineCount));
         this.RaisePropertyChanged(nameof(TotalHeight));
         OnInvalidateRequired();
+
+        _cursorPositionService.UpdateCursorPosition(CursorPosition, _textBuffer.LineStarts,
+            _textBuffer.GetLineLength(_textBuffer.LineCount));
     }
 
     private void UpdateLineStartsAfterDeletion(long start, long length)

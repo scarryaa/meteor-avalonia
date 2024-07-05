@@ -6,10 +6,10 @@ namespace meteor.Services;
 
 public class CursorPositionService : ICursorPositionService
 {
-    public event Action<long, List<long>>? CursorPositionChanged;
+    public event Action<long, List<long>, long>? CursorPositionChanged;
 
-    public void UpdateCursorPosition(long position, List<long> lineStarts)
+    public void UpdateCursorPosition(long position, List<long> lineStarts, long lastLineLength)
     {
-        CursorPositionChanged?.Invoke(position, lineStarts);
+        CursorPositionChanged?.Invoke(position, lineStarts, lastLineLength);
     }
 }

@@ -42,7 +42,7 @@
         <Setter Property="Background" Value="{DynamicResource ContextMenuBackground}" />
         <Setter Property="BorderBrush" Value="{DynamicResource ContextMenuBorder}" />
         <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="Padding" Value="8 4" />
+        <Setter Property="Padding" Value=" 4" />
         <Setter Property="FontFamily" Value="SanFrancisco" />
         <Setter Property="FontSize" Value="13" />
         <Setter Property="Foreground" Value="{DynamicResource Text}" />
