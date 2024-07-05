@@ -56,7 +56,6 @@ public class RenderManager
     public void InvalidateLines(int startLine, int endLine)
     {
         for (var i = startLine; i <= endLine; i++) _lineCache.TryRemove(i, out _);
-        _context.ScrollableViewModel?.TextEditorViewModel.OnInvalidateRequired();
     }
 
     public void Render(DrawingContext context)

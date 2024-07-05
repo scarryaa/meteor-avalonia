@@ -97,7 +97,7 @@ public class TextEditorViewModel : ViewModelBase
             .Subscribe(height => { LineHeight = height; });
 
         UpdateLineStarts();
-        UpdateSyntaxTokens();
+        UpdateSyntaxTokens(0, (int)_textBuffer.LineCount - 1);
     }
 
     public event EventHandler<SelectionChangedEventArgs> SelectionChanged;
@@ -241,7 +241,9 @@ public class TextEditorViewModel : ViewModelBase
             this.RaisePropertyChanged(nameof(LineCount));
             this.RaisePropertyChanged(nameof(TotalHeight));
             _lineCountViewModel.LineCount = _textBuffer.LineCount;
-            UpdateSyntaxTokens();
+
+            // Update the entire text buffer's syntax tokens initially
+            UpdateSyntaxTokens(0, (int)_textBuffer.LineCount - 1);
         }
     }
 
@@ -397,9 +399,15 @@ public class TextEditorViewModel : ViewModelBase
         var clipboardText = await _clipboardService.GetTextAsync();
         if (!string.IsNullOrEmpty(clipboardText))
         {
-            InsertText(CursorPosition, clipboardText);
+            var position = CursorPosition;
+            var startLine = _textBuffer.GetLineIndexFromPosition(position);
+            InsertText(position, clipboardText);
+            var endLine = _textBuffer.GetLineIndexFromPosition(position + clipboardText.Length);
+
             UpdateGutterWidth();
-            UpdateSyntaxTokens();
+
+            // Update syntax tokens for the affected range
+            UpdateSyntaxTokens((int)startLine, (int)endLine);
         }
     }
 
@@ -524,11 +532,13 @@ public class TextEditorViewModel : ViewModelBase
 
     private void OnLinesUpdated(object sender, EventArgs e)
     {
+        // Get the range of updated lines
+        var updatedRange = _textBuffer.GetUpdatedRange();
         UpdateLineStarts();
         this.RaisePropertyChanged(nameof(TotalHeight));
         OnWidthRecalculationRequired();
         UpdateGutterWidth();
-        UpdateSyntaxTokens();
+        UpdateSyntaxTokens(updatedRange.StartLine, updatedRange.EndLine);
     }
 
     private void UpdateCharWidth()
@@ -563,9 +573,16 @@ public class TextEditorViewModel : ViewModelBase
         return null;
     }
 
-    private void UpdateSyntaxTokens()
+    public void UpdateSyntaxTokens(int startLine, int endLine)
     {
-        SyntaxTokens = _syntaxHighlighter.HighlightSyntax(_textBuffer.Text);
+        var text = _textBuffer.GetText(0, _textBuffer.Length);
+        var newTokens = _syntaxHighlighter.HighlightSyntax(text, startLine, endLine);
+
+        // Update the syntax tokens for the specified range
+        SyntaxTokens.RemoveAll(token => token.Line >= startLine && token.Line <= endLine);
+        SyntaxTokens.AddRange(newTokens);
+
+        // Notify the view to invalidate and redraw the affected lines
         OnInvalidateRequired();
     }
 

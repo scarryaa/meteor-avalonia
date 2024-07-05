@@ -12,6 +12,8 @@ public class TextBuffer : ReactiveObject, ITextBuffer
     private readonly Dictionary<long, long> _lineLengths;
     private long _longestLineLength;
     private double _lineHeight;
+    private int _updatedStartLine;
+    private int _updatedEndLine;
     
     private readonly Dictionary<int, long> _lineStartCache = new();
     private readonly Dictionary<long, int> _lineIndexCache = new();
@@ -22,6 +24,11 @@ public class TextBuffer : ReactiveObject, ITextBuffer
         LineStarts = new List<long> { 0 };
         _lineLengths = new Dictionary<long, long> { [0] = 0 };
         UpdateLineCache();
+    }
+
+    public (int StartLine, int EndLine) GetUpdatedRange()
+    {
+        return (_updatedStartLine, _updatedEndLine);
     }
 
     public string Text => _rope.GetText();
@@ -104,6 +111,8 @@ public class TextBuffer : ReactiveObject, ITextBuffer
 
         _rope.Insert((int)position, text);
         UpdateLineCacheAfterInsertion(position, text);
+        _updatedStartLine = (int)GetLineIndexFromPosition(position);
+        _updatedEndLine = (int)GetLineIndexFromPosition(position + text.Length);
         TextChanged?.Invoke(this, EventArgs.Empty);
         LinesUpdated?.Invoke(this, EventArgs.Empty);
     }
@@ -127,6 +136,8 @@ public class TextBuffer : ReactiveObject, ITextBuffer
         {
             _rope.Delete((int)start, (int)length);
             UpdateLineCacheAfterDeletion(start, length);
+            _updatedStartLine = (int)GetLineIndexFromPosition(start);
+            _updatedEndLine = (int)GetLineIndexFromPosition(start + length);
             LinesUpdated?.Invoke(this, EventArgs.Empty);
         }
     }

@@ -15,6 +15,7 @@ public interface ITextBuffer
     long LineCount { get; }
     long LongestLineLength { get; }
     double LineHeight { get; set; }
+    (int StartLine, int EndLine) GetUpdatedRange();
     void SetLineStartPosition(int lineIndex, long position);
     string GetText(long start, long length);
     void InsertText(long position, string text);
