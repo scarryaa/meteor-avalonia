@@ -26,6 +26,7 @@ public class RenderManager
     private List<SyntaxToken> _cachedSyntaxTokens;
     private string _lastProcessedText;
     private Task _backgroundHighlightTask;
+    private readonly double _verticalTextOffset;
 
     public RenderManager(TextEditorContext context, IThemeService themeService, ISyntaxHighlighter syntaxHighlighter)
     {
@@ -34,6 +35,8 @@ public class RenderManager
         _syntaxHighlighter = syntaxHighlighter;
         _lineCache = new ConcurrentDictionary<int, RenderedLine>();
         _cachedSyntaxTokens = new List<SyntaxToken>();
+
+        _verticalTextOffset = (_context.LineHeight - _context.FontSize) / 3;
     }
 
     public void UpdateContextViewModel(ScrollableTextEditorViewModel viewModel)
@@ -278,7 +281,10 @@ public class RenderManager
             _context.FontSize,
             brush);
 
-        context.DrawText(formattedText, new Point(x, yOffset));
+        // Adjust the yOffset to center the text vertically
+        var adjustedYOffset = yOffset + _verticalTextOffset;
+
+        context.DrawText(formattedText, new Point(x, adjustedYOffset));
     }
 
     public async Task UpdateSyntaxHighlightingAsync(string text)
