@@ -196,7 +196,6 @@ public partial class TextEditor : UserControl
             var viewModel = scrollableViewModel.TextEditorViewModel;
 
             viewModel.PropertyChanged += ViewModel_PropertyChanged;
-            viewModel.RequestFocus += OnRequestFocus;
             viewModel.SelectionChanged += SelectionManager.OnSelectionChanged;
             viewModel.InvalidateRequired += OnInvalidateRequired;
 
@@ -211,7 +210,7 @@ public partial class TextEditor : UserControl
             TextEditorUtils.MeasureCharWidth();
 
             LineManager.UpdateViewModel(viewModel);
-            LineManager.UpdateLineCache(-1);
+            LineManager.InvalidateAllLines();
 
             viewModel.UpdateServices(viewModel);
             SelectionManager.UpdateViewModel(viewModel);

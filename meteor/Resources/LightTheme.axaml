@@ -57,7 +57,7 @@
     <!-- File Explorer -->
     <Color x:Key="FileExplorerIcon">#A5A5A5</Color>
     <Color x:Key="FileExplorerOutline">#878787</Color>
-    <Color x:Key="FileExplorerSelected">#E6E6E6</Color>
+    <Color x:Key="FileExplorerSelected">#FFFFFF</Color>
 
     <!-- Command Palette -->
     <Color x:Key="CommandPaletteBackground">#FFFFFF</Color>

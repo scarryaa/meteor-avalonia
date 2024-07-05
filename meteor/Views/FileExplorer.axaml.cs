@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Globalization;
+using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -25,9 +26,7 @@ public partial class FileExplorer : UserControl
     public static readonly StyledProperty<File> SelectedItemProperty =
         AvaloniaProperty.Register<FileExplorer, File>(nameof(SelectedItem));
 
-    private bool _isDoubleClick;
     private DateTime _lastClickTime = DateTime.MinValue;
-
     private double _totalHeight;
 
     public FileExplorer()
@@ -38,11 +37,6 @@ public partial class FileExplorer : UserControl
         DataContextChanged += OnDataContextChanged;
         PointerPressed += OnPointerPressed;
         KeyDown += OnKeyDown;
-    }
-
-    private void OnInvalidateRequired(object? sender, EventArgs e)
-    {
-        InvalidateVisual();
     }
 
     public FileExplorerViewModel ViewModel
@@ -74,7 +68,7 @@ public partial class FileExplorer : UserControl
             Items = viewModel.Items;
 
             viewModel.PropertyChanged += ViewModel_PropertyChanged;
-            ViewModel.InvalidateRequired += OnInvalidateRequired;
+            ViewModel.InvalidateRequired += (_, _) => InvalidateVisual();
         }
     }
 
@@ -99,12 +93,10 @@ public partial class FileExplorer : UserControl
 
             if ((now - _lastClickTime).TotalMilliseconds <= DoubleClickThreshold)
             {
-                _isDoubleClick = true;
                 if (!clickedItem.IsDirectory) FileDoubleClicked?.Invoke(this, clickedItem.Path);
             }
             else
             {
-                _isDoubleClick = false;
                 _lastClickTime = now;
 
                 if (!clickedItem.IsDirectory) FileClicked?.Invoke(this, clickedItem.Path);
@@ -124,9 +116,8 @@ public partial class FileExplorer : UserControl
     {
         foreach (var item in items)
         {
-            if (point.Y >= y && point.Y <= y + 20)
-                if (point.X >= 0 && point.X <= Bounds.Width)
-                    return item;
+            if (point.Y >= y && point.Y <= y + 20 && point.X >= 0 && point.X <= Bounds.Width)
+                return item;
 
             y += 20;
 
@@ -145,74 +136,58 @@ public partial class FileExplorer : UserControl
 
     private double MeasureSubItemsHeight(ObservableCollection<File> items, double x)
     {
-        double y = 0;
-
-        foreach (var item in items)
-        {
-            y += 20;
-
-            if (item.IsExpanded) y += MeasureSubItemsHeight(item.Items, x + 20);
-        }
-
-        return y;
+        return items.Sum(item => 20 + (item.IsExpanded ? MeasureSubItemsHeight(item.Items, x + 20) : 0));
     }
 
     protected override Size MeasureOverride(Size availableSize)
     {
-        double y = 0;
-        _totalHeight = 0;
-
-        foreach (var item in Items)
-            y = MeasureItem(item, 10, y);
-
-        _totalHeight = y;
+        _totalHeight = MeasureItems(Items, 10);
         return new Size(availableSize.Width, _totalHeight);
     }
 
     protected override Size ArrangeOverride(Size finalSize)
     {
-        double y = 0;
-
-        foreach (var item in Items)
-            y = ArrangeItem(item, 10, y);
-
+        ArrangeItems(Items, 10, 0);
         return new Size(finalSize.Width, _totalHeight);
     }
 
-    private double MeasureItem(File item, double x, double y)
+    private double MeasureItems(ObservableCollection<File> items, double x)
     {
-        var formattedText = new FormattedText(item.Name, CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
-            Typeface.Default, FontSize, Brushes.Black);
-        var itemWidth = x + 20 + formattedText.Width;
+        return items.Sum(item =>
+        {
+            var formattedText = new FormattedText(item.Name, CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
+                Typeface.Default, FontSize, Brushes.Black);
 
-        y += 20;
-
-        if (item.IsExpanded)
-            foreach (var subItem in item.Items)
-                y = MeasureItem(subItem, x + 20, y);
-
-        return y;
+            return 20 + (item.IsExpanded ? MeasureItems(item.Items, x + 20) : 0);
+        });
     }
 
-    private double ArrangeItem(File item, double x, double y)
+    private double ArrangeItems(ObservableCollection<File> items, double x, double y)
     {
-        y += 20;
-
-        if (item.IsExpanded)
-            foreach (var subItem in item.Items)
-                y = ArrangeItem(subItem, x + 20, y);
-
+        foreach (var item in items)
+        {
+            y += 20;
+            if (item.IsExpanded)
+                y = ArrangeItems(item.Items, x + 20, y);
+        }
         return y;
     }
 
     public override void Render(DrawingContext context)
     {
         base.Render(context);
+        RenderItems(context, Items, 10, 0);
+    }
 
-        double y = 0;
-
-        foreach (var item in Items)
-            y = RenderItem(context, item, 10, y);
+    private double RenderItems(DrawingContext context, ObservableCollection<File> items, double x, double y)
+    {
+        foreach (var item in items)
+        {
+            y = RenderItem(context, item, x, y);
+            if (item.IsExpanded)
+                y = RenderItems(context, item.Items, x + 10, y);
+        }
+        return y;
     }
 
     private double RenderItem(DrawingContext context, File item, double x, double y)
@@ -222,45 +197,27 @@ public partial class FileExplorer : UserControl
 
         context.FillRectangle(backgroundBrush, new Rect(0, y, Bounds.Width, 20));
 
-        var formattedText = new FormattedText(
-            item.IsDirectory ? "\uf07b" : "\uf15b",
-            CultureInfo.InvariantCulture,
-            FlowDirection.LeftToRight,
-            new Typeface("FontAwesome"),
-            FontSize,
-            iconBrush);
+        var iconText = item.IsDirectory ? "\uf07b" : "\uf15b";
+        var formattedIcon = new FormattedText(iconText, CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
+            new Typeface("FontAwesome"), FontSize, iconBrush);
 
-        var textGeometry = formattedText.BuildGeometry(new Point(x, y + 3));
+        var textGeometry = formattedIcon.BuildGeometry(new Point(x, y + 3));
 
         if (item.IsExpanded || !item.IsDirectory)
         {
-            // Draw the outline and fill the icon
             context.DrawGeometry(null, new Pen(ViewModel.OutlineBrush), textGeometry);
             context.DrawGeometry(iconBrush, null, textGeometry);
         }
         else
         {
-            // Draw only the outline of the icon
             context.DrawGeometry(null, new Pen(ViewModel.OutlineBrush), textGeometry);
         }
 
-        context.DrawText(
-            new FormattedText(
-                item.Name,
-                CultureInfo.InvariantCulture,
-                FlowDirection.LeftToRight,
-                new Typeface(FontFamily),
-                FontSize,
-                Foreground),
-            new Point(x + 20, y + 2));
+        var formattedName = new FormattedText(item.Name, CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
+            new Typeface(FontFamily), FontSize, Foreground);
+        context.DrawText(formattedName, new Point(x + 20, y + 2));
 
-        y += 20;
-
-        if (item.IsExpanded)
-            foreach (var subItem in item.Items)
-                y = RenderItem(context, subItem, x + 10, y);
-
-        return y;
+        return y + 20;
     }
 
     private void OnKeyDown(object sender, KeyEventArgs e)
@@ -268,53 +225,87 @@ public partial class FileExplorer : UserControl
         if (ViewModel == null || Items == null || Items.Count == 0)
             return;
 
-        if (e.Key == Key.Up)
-            SelectPreviousItem();
-        else if (e.Key == Key.Down)
-            SelectNextItem();
-        else if (e.Key == Key.Left)
-            CollapseSelectedItem();
-        else if (e.Key == Key.Right) ExpandSelectedItem();
+        switch (e.Key)
+        {
+            case Key.Up:
+            case Key.Left:
+                NavigateUpOrLeft(e);
+                break;
+            case Key.Down:
+            case Key.Right:
+                NavigateDownOrRight(e);
+                break;
+            case Key.Enter:
+                OpenSelectedItem();
+                break;
+        }
 
+        e.Handled = true;
         InvalidateVisual();
     }
 
-    private void SelectPreviousItem()
+    private void NavigateUpOrLeft(KeyEventArgs e)
     {
-        var flatList = FlattenItems(Items);
-        var index = flatList.IndexOf(SelectedItem);
-        if (index > 0) SelectedItem = flatList[index - 1];
-    }
-
-    private void SelectNextItem()
-    {
-        var flatList = FlattenItems(Items);
-        var index = flatList.IndexOf(SelectedItem);
-        if (index < flatList.Count - 1) SelectedItem = flatList[index + 1];
-    }
-
-    private void CollapseSelectedItem()
-    {
-        if (SelectedItem != null && SelectedItem.IsDirectory && SelectedItem.IsExpanded)
+        if (e.Key == Key.Left && SelectedItem?.IsDirectory == true && SelectedItem.IsExpanded)
+            // Collapse the directory if it's expanded
             SelectedItem.IsExpanded = false;
+        else
+            // Move selection up
+            SelectAdjacentItem(-1);
     }
 
-    private void ExpandSelectedItem()
+    private void NavigateDownOrRight(KeyEventArgs e)
     {
-        if (SelectedItem != null && SelectedItem.IsDirectory && !SelectedItem.IsExpanded)
+        if (e.Key == Key.Right && SelectedItem?.IsDirectory == true && !SelectedItem.IsExpanded)
+            // Expand the directory if it's collapsed
             SelectedItem.IsExpanded = true;
+        else
+            // Move selection down
+            SelectAdjacentItem(1);
     }
 
-    private List<File> FlattenItems(ObservableCollection<File> items)
+    private void SelectAdjacentItem(int direction)
     {
-        var flatList = new List<File>();
+        var flatList = FlattenItems(Items);
+        var index = flatList.IndexOf(SelectedItem);
+        var newIndex = index + direction;
+        if (newIndex >= 0 && newIndex < flatList.Count)
+            SelectedItem = flatList[newIndex];
+    }
 
+    private void OpenSelectedItem()
+    {
+        if (SelectedItem != null)
+        {
+            if (SelectedItem.IsDirectory)
+                SelectedItem.IsExpanded = !SelectedItem.IsExpanded;
+            else
+                // Open the file
+                FileDoubleClicked?.Invoke(this, SelectedItem.Path);
+        }
+    }
+
+    private File FindParentItem(ObservableCollection<File> items, File target)
+    {
         foreach (var item in items)
         {
-            flatList.Add(item);
-            if (item.IsDirectory && item.IsExpanded) flatList.AddRange(FlattenItems(item.Items));
+            if (item.Items.Contains(target))
+                return item;
+
+            var result = FindParentItem(item.Items, target);
+            if (result != null)
+                return result;
         }
 
-        return flatList;
+        return null;
+    }
+    
+    private List<File> FlattenItems(ObservableCollection<File> items)
+    {
+        return items.SelectMany(item =>
+            new[] { item }.Concat(item.IsDirectory && item.IsExpanded
+                ? FlattenItems(item.Items)
+                : Enumerable.Empty<File>())
+        ).ToList();
     }
 }

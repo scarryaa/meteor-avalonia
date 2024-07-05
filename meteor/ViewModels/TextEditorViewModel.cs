@@ -14,6 +14,7 @@ namespace meteor.ViewModels;
 
 public class TextEditorViewModel : ViewModelBase
 {
+    
     private readonly ICursorPositionService _cursorPositionService;
     private ITextBuffer _textBuffer;
     private long _cursorPosition;
@@ -29,6 +30,8 @@ public class TextEditorViewModel : ViewModelBase
     private FontFamily _fontFamily;
     private readonly IClipboardService _clipboardService;
     private double _longestLineWidth;
+    private long _longestLineIndex = -1;
+    private bool _longestLineWidthNeedsUpdate = true;
     private readonly double _lineSpacingFactor = BaseLineHeight / DefaultFontSize;
     private double _fontSize = DefaultFontSize;
     private double _lineHeight = BaseLineHeight;
@@ -103,8 +106,12 @@ public class TextEditorViewModel : ViewModelBase
 
     public double LongestLineWidth
     {
-        get => _longestLineWidth;
-        set => this.RaiseAndSetIfChanged(ref _longestLineWidth, value);
+        get
+        {
+            if (_longestLineWidthNeedsUpdate) UpdateLongestLineWidth();
+            return _longestLineWidth;
+        }
+        private set => this.RaiseAndSetIfChanged(ref _longestLineWidth, value);
     }
 
     public virtual void OnInvalidateRequired()
@@ -303,8 +310,7 @@ public class TextEditorViewModel : ViewModelBase
         var startLine = _textBuffer.GetLineIndexFromPosition(position);
         var endLine = _textBuffer.GetLineIndexFromPosition(position + insertedText.Length);
 
-        // Batch invalidate the range of lines
-        InvalidateLineRange((int)startLine, (int)endLine);
+        LineCache.InvalidateRange(startLine, endLine);
     }
 
     public void UpdateLineCacheAfterDeletion(long start, long length)
@@ -312,33 +318,42 @@ public class TextEditorViewModel : ViewModelBase
         var startLine = _textBuffer.GetLineIndexFromPosition(start);
         var endLine = _textBuffer.GetLineIndexFromPosition(start + length);
 
-        // Batch invalidate the range of lines
-        InvalidateLineRange((int)startLine, (int)endLine);
+        LineCache.InvalidateRange(startLine, endLine);
     }
 
-    private void InvalidateLineRange(int startLine, int endLine)
-    {
-        for (var i = startLine; i <= endLine; i++) LineCache.InvalidateLine(i);
-    }
-
-    public void UpdateLongestLineWidth()
+    private void UpdateLongestLineWidth()
     {
         double maxWidth = 0;
+        long maxWidthIndex = -1;
+
         for (var i = 0; i < TextBuffer.LineCount; i++)
         {
             var lineText = TextBuffer.GetLineText(i);
-            var formattedText = new FormattedText(
-                lineText,
-                CultureInfo.CurrentCulture,
-                FlowDirection.LeftToRight,
-                new Typeface(FontFamily),
-                FontSize,
-                Brushes.Black);
+            var lineWidth = MeasureLineWidth(lineText);
 
-            if (formattedText.Width > maxWidth) maxWidth = formattedText.Width;
+            if (lineWidth > maxWidth)
+            {
+                maxWidth = lineWidth;
+                maxWidthIndex = i;
+            }
         }
 
         LongestLineWidth = maxWidth;
+        _longestLineIndex = maxWidthIndex;
+        _longestLineWidthNeedsUpdate = false;
+    }
+
+    private double MeasureLineWidth(string lineText)
+    {
+        var formattedText = new FormattedText(
+            lineText,
+            CultureInfo.CurrentCulture,
+            FlowDirection.LeftToRight,
+            new Typeface(FontFamily),
+            FontSize,
+            Brushes.Black);
+
+        return formattedText.Width;
     }
 
     public async Task CopyText()
@@ -370,21 +385,72 @@ public class TextEditorViewModel : ViewModelBase
     {
         _textBuffer.InsertText(position, text);
         CursorPosition = position + text.Length;
+        UpdateLongestLineWidthAfterInsertion(position, text);
         NotifyGutterOfLineChange();
         this.RaisePropertyChanged(nameof(LineCount));
         this.RaisePropertyChanged(nameof(TotalHeight));
         OnInvalidateRequired();
-        UpdateLongestLineWidth();
     }
+
 
     public void DeleteText(long start, long length)
     {
         _textBuffer.DeleteText(start, length);
+        UpdateLineStartsAfterDeletion(start, length);
+        UpdateLongestLineWidthAfterDeletion(start, length);
         NotifyGutterOfLineChange();
         this.RaisePropertyChanged(nameof(LineCount));
         this.RaisePropertyChanged(nameof(TotalHeight));
         OnInvalidateRequired();
-        UpdateLongestLineWidth();
+    }
+
+    private void UpdateLineStartsAfterDeletion(long start, long length)
+    {
+        var startLine = _textBuffer.GetLineIndexFromPosition(start);
+        var endLine = _textBuffer.GetLineIndexFromPosition(start + length);
+
+        for (var i = startLine; i <= endLine; i++)
+        {
+            var lineStart = _textBuffer.GetLineStartPosition((int)i);
+            _textBuffer.SetLineStartPosition((int)i, lineStart - length);
+        }
+
+        _textBuffer.UpdateLineCache();
+    }
+
+    private void UpdateLongestLineWidthAfterInsertion(long position, string insertedText)
+    {
+        var affectedLineIndex = TextBuffer.GetLineIndexFromPosition(position);
+        var newLineWidth = MeasureLineWidth(TextBuffer.GetLineText(affectedLineIndex));
+
+        if (newLineWidth > LongestLineWidth)
+        {
+            LongestLineWidth = newLineWidth;
+            _longestLineIndex = affectedLineIndex;
+        }
+        else if (affectedLineIndex == _longestLineIndex)
+        {
+            _longestLineWidthNeedsUpdate = true;
+        }
+    }
+
+    private void UpdateLongestLineWidthAfterDeletion(long start, long length)
+    {
+        var startLineIndex = TextBuffer.GetLineIndexFromPosition(start);
+        var endLineIndex = TextBuffer.GetLineIndexFromPosition(start + length);
+
+        if (startLineIndex <= _longestLineIndex && _longestLineIndex <= endLineIndex)
+        {
+            _longestLineWidthNeedsUpdate = true;
+        }
+        else if (startLineIndex == _longestLineIndex)
+        {
+            var newLineWidth = MeasureLineWidth(TextBuffer.GetLineText(startLineIndex));
+            if (newLineWidth < LongestLineWidth)
+                _longestLineWidthNeedsUpdate = true;
+            else
+                LongestLineWidth = newLineWidth;
+        }
     }
 
     public void ClearSelection()

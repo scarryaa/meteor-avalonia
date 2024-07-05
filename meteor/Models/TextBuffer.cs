@@ -118,6 +118,18 @@ public class TextBuffer : ReactiveObject, ITextBuffer
         }
     }
 
+    public void SetLineStartPosition(int lineIndex, long position)
+    {
+        if (lineIndex < 0 || lineIndex >= LineStarts.Count)
+            throw new ArgumentOutOfRangeException(nameof(lineIndex), "Invalid line index");
+
+        LineStarts[lineIndex] = position;
+        _lineStartCache[lineIndex] = position;
+
+        // Invalidate subsequent caches as the line starts might have shifted
+        for (var i = lineIndex + 1; i < LineStarts.Count; i++) _lineStartCache.Remove(i);
+    }
+
     public bool IsLineSelected(int lineIndex, long selectionStart, long selectionEnd)
     {
         if (lineIndex < 0 || lineIndex >= LineStarts.Count)
@@ -144,7 +156,7 @@ public class TextBuffer : ReactiveObject, ITextBuffer
     public long GetVisualLineLength(int lineIndex)
     {
         var lineText = GetLineText(lineIndex);
-        return lineText.TrimEnd('\n', '\r').Length; // Exclude line ending characters
+        return lineText.TrimEnd('\n', '\r').Length;
     }
 
     public long GetLineEndPosition(int lineIndex)
@@ -212,13 +224,8 @@ public class TextBuffer : ReactiveObject, ITextBuffer
 
     private void UpdateLineCacheAfterDeletion(long start, long length)
     {
-        ClearCache();
-
         var startLine = GetLineIndexFromPosition(start);
         var endLine = GetLineIndexFromPosition(start + length);
-
-        // Ensure startLine is always a valid key in the dictionary
-        if (!_lineLengths.ContainsKey(startLine)) _lineLengths[startLine] = 0;
 
         if (startLine == endLine)
         {
@@ -227,19 +234,21 @@ public class TextBuffer : ReactiveObject, ITextBuffer
         }
         else
         {
-            // Remove line starts for deleted lines
-            LineStarts.RemoveRange((int)startLine + 1, (int)(endLine - startLine));
+            // Remove line starts for deleted lines and adjust line starts after the deletion
+            var removedLinesCount = (int)(endLine - startLine);
+            LineStarts.RemoveRange((int)startLine + 1, removedLinesCount);
 
-            // Update remaining line starts
-            for (var i = startLine + 1; i < LineStarts.Count; i++) LineStarts[(int)i] -= length;
+            for (var i = (int)startLine + 1; i < LineStarts.Count; i++)
+                LineStarts[i] -= length;
 
-            // Remove lengths for deleted lines
-            for (var i = startLine + 1; i <= endLine; i++) _lineLengths.Remove(i);
+            // Remove lengths for deleted lines and update the length of the affected line
+            var newEndPosition = start + length;
+            var newLineLength = (startLine + 1 < LineStarts.Count ? LineStarts[(int)startLine + 1] : _rope.Length) -
+                                start;
+            _lineLengths[startLine] = newLineLength;
 
-            // Recalculate line length for the merged line
-            _lineLengths[startLine] =
-                (startLine + 1 < LineStarts.Count ? LineStarts[(int)startLine + 1] : _rope.Length) -
-                LineStarts[(int)startLine];
+            for (var i = (int)startLine + 1; i <= endLine; i++)
+                _lineLengths.Remove(i);
         }
 
         // Ensure we always have at least one line
@@ -250,7 +259,27 @@ public class TextBuffer : ReactiveObject, ITextBuffer
         }
 
         LongestLineLength = _lineLengths.Values.Count > 0 ? _lineLengths.Values.Max() : 0;
+
+        // Invalidate only the relevant cache entries
+        InvalidateCachesAfterDeletion(start, length);
+
         UpdateTotalHeight();
+    }
+
+    private void InvalidateCachesAfterDeletion(long start, long length)
+    {
+        var startLine = GetLineIndexFromPosition(start);
+        var endLine = GetLineIndexFromPosition(start + length);
+
+        // Invalidate line start cache entries
+        foreach (var key in _lineStartCache.Keys.ToList())
+            if (key >= startLine && key <= endLine)
+                _lineStartCache.Remove(key);
+
+        // Invalidate line index cache entries
+        foreach (var key in _lineIndexCache.Keys.ToList())
+            if (key >= start && key <= start + length)
+                _lineIndexCache.Remove(key);
     }
 
     public void UpdateLineCache()
