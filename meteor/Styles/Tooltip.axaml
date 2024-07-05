@@ -21,7 +21,7 @@
         
         <Setter Property="Template">
             <ControlTemplate>
-                <Border BoxShadow="0 -2 10 0 #66000000"
+                <Border BoxShadow="0 2 6 0 #66000000"
                         Background="{TemplateBinding Background}"
                         CornerRadius="4"
                         Margin="10"

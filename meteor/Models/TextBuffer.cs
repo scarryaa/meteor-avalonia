@@ -177,8 +177,6 @@ public class TextBuffer : ReactiveObject, ITextBuffer
 
     private void UpdateLineCacheAfterInsertion(long position, string text)
     {
-        ClearCache();
-
         var insertionLine = GetLineIndexFromPosition(position);
         var newLineCount = text.Count(c => c == '\n');
 
@@ -215,7 +213,11 @@ public class TextBuffer : ReactiveObject, ITextBuffer
 
             // Shift existing line lengths
             for (var i = insertionLine + newLineCount + 1; i < LineStarts.Count; i++)
-                if (_lineLengths.ContainsKey(i - newLineCount)) _lineLengths[i] = _lineLengths[i - newLineCount];
+                if (_lineLengths.ContainsKey(i - newLineCount))
+                {
+                    _lineLengths[i] = _lineLengths[i - newLineCount];
+                    _lineLengths.Remove(i - newLineCount);
+                }
         }
 
         LongestLineLength = _lineLengths.Values.Max();

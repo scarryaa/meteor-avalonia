@@ -22,6 +22,7 @@
         <StyleInclude Source="/Styles/Styles.axaml" />
         <StyleInclude Source="/Styles/Buttons.axaml" />
         <StyleInclude Source="/Styles/Tooltip.axaml" />
+        <StyleInclude Source="/Styles/ContextMenu.axaml" />
         <StyleInclude Source="avares://meteor/Views/HorizontalScrollableTabControl.axaml" />
 
         <Style Selector="ContentPresenter.tabPresenter">

@@ -51,6 +51,12 @@
     <Color x:Key="FileExplorerOutline">#646464</Color>
     <Color x:Key="FileExplorerSelected">#2E2E2E</Color>
 
+    <!-- Context Menu Colors -->
+    <Color x:Key="ContextMenuBackground">#141414</Color>
+    <Color x:Key="ContextMenuBorder">#323232</Color>
+    <SolidColorBrush x:Key="ContextMenuItemHoverBackground" Color="#3A3A3A" />
+    <SolidColorBrush x:Key="ContextMenuItemPressedBackground" Color="#2C2C2C" />
+
     <!-- Command Palette -->
     <Color x:Key="CommandPaletteBackground">#1E1E1E</Color>
     <Color x:Key="CommandPaletteBorder">#323232</Color>

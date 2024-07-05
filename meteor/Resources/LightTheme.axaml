@@ -51,13 +51,19 @@
     <Color x:Key="TabDirtyIndicator">#8BCDC0</Color>
 
     <!-- Tooltip -->
-    <Color x:Key="TooltipBackground">White</Color>
+    <Color x:Key="TooltipBackground">#FFFFFF</Color>
     <Color x:Key="TooltipBorder">#CDCDCD</Color>
 
     <!-- File Explorer -->
     <Color x:Key="FileExplorerIcon">#A5A5A5</Color>
     <Color x:Key="FileExplorerOutline">#878787</Color>
     <Color x:Key="FileExplorerSelected">#FFFFFF</Color>
+
+    <!-- Context Menu Colors -->
+    <Color x:Key="ContextMenuBackground">#FFFFFF</Color>
+    <Color x:Key="ContextMenuBorder">#CDCDCD</Color>
+    <SolidColorBrush x:Key="ContextMenuItemHoverBackground" Color="#E5E5E5" />
+    <SolidColorBrush x:Key="ContextMenuItemPressedBackground" Color="#D0D0D0" />
 
     <!-- Command Palette -->
     <Color x:Key="CommandPaletteBackground">#FFFFFF</Color>
