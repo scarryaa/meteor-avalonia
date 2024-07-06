@@ -75,8 +75,12 @@ public class ScrollableTextEditorViewModel : ViewModelBase
                 LineHeight = lineHeight;
             });
 
-        textBuffer.TextChanged += (sender, args) => UpdateDimensions();
-
+        textBuffer.TextChanged += (sender, args) =>
+        {
+            UpdateDimensions();
+            UpdateProperties();
+        };
+        
         // Subscribe to property changes
         this.WhenAnyValue(
                 x => x.VerticalOffset,
@@ -303,7 +307,10 @@ public class ScrollableTextEditorViewModel : ViewModelBase
         UpdateDimensions();
 
         TextEditorViewModel.RaisePropertyChanged(nameof(TextEditorViewModel.TotalHeight));
+        TextEditorViewModel.RaisePropertyChanged(nameof(TextEditorViewModel.LongestLineWidth));
 
         GutterViewModel.OnInvalidateRequired();
+
+        Console.WriteLine("TextEditorViewModel properties updated");
     }
 }

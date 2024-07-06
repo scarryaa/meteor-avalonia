@@ -36,7 +36,8 @@ public class TextEditorViewModel : ViewModelBase
     private double _lineHeight = BaseLineHeight;
     private const double DefaultFontSize = 13;
     private ViewModelBase? _parentViewModel;
-
+    private string _filePath;
+    
     public const double BaseLineHeight = 20;
 
     public CursorManager CursorManager { get; }
@@ -50,12 +51,19 @@ public class TextEditorViewModel : ViewModelBase
     public InputManager InputManager { get; }
     public ScrollManager ScrollManager { get; set; }
 
+    public string FilePath
+    {
+        get => _filePath;
+        set => this.RaiseAndSetIfChanged(ref _filePath, value);
+    }
+    
     public ViewModelBase? ParentViewModel
     {
         get => _parentViewModel;
         set => this.RaiseAndSetIfChanged(ref _parentViewModel, value);
     }
     public FontPropertiesViewModel FontPropertiesViewModel { get; }
+
 
     public TextEditorViewModel(
         ICursorPositionService cursorPositionService,
@@ -64,7 +72,8 @@ public class TextEditorViewModel : ViewModelBase
         ITextBuffer textBuffer,
         IClipboardService clipboardService,
         ISyntaxHighlighter syntaxHighlighter,
-        ViewModelBase parentViewModel)
+        ViewModelBase parentViewModel,
+        string filePath = null)
     {
         _cursorPositionService = cursorPositionService;
         FontPropertiesViewModel = fontPropertiesViewModel;
@@ -75,6 +84,8 @@ public class TextEditorViewModel : ViewModelBase
         _syntaxHighlighter = syntaxHighlighter;
         ParentViewModel = parentViewModel;
 
+        _filePath = filePath;
+        Console.WriteLine($"TextEditorViewModel initialized with file path: {_filePath}");
         _textBuffer.TextChanged += OnLinesUpdated;
 
         CursorManager = new CursorManager(this);
@@ -98,6 +109,18 @@ public class TextEditorViewModel : ViewModelBase
 
         UpdateLineStarts();
         UpdateSyntaxTokens(0, (int)_textBuffer.LineCount - 1);
+    }
+
+    public void SetFilePath(string filePath)
+    {
+        _filePath = filePath;
+        Console.WriteLine($"File path set to: {_filePath}");
+        this.RaisePropertyChanged(nameof(FilePath));
+
+        if (_scrollableViewModel?.ParentRenderManager != null)
+            _scrollableViewModel.ParentRenderManager?.UpdateFilePath(_filePath);
+
+        UpdateSyntaxTokens(0, (int)TextBuffer.LineCount - 1);
     }
 
     public event EventHandler<SelectionChangedEventArgs> SelectionChanged;
@@ -265,11 +288,12 @@ public class TextEditorViewModel : ViewModelBase
         }
     }
 
-    private async Task UpdateSyntaxHighlightingAsync()
+
+    public async Task UpdateSyntaxHighlightingAsync()
     {
         var fullText = _textBuffer.GetText(0, _textBuffer.Length);
-        if (_scrollableViewModel?.ParentRenderManager != null)
-            await _scrollableViewModel.ParentRenderManager.UpdateSyntaxHighlightingAsync(fullText);
+        SyntaxTokens = await Task.Run(() => _syntaxHighlighter.HighlightSyntax(fullText, _filePath));
+        OnInvalidateRequired();
     }
     
     public void UpdateServices(TextEditorViewModel viewModel)
@@ -421,6 +445,13 @@ public class TextEditorViewModel : ViewModelBase
         WidthChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    private async Task OnTextChanged()
+    {
+        var text = _textBuffer.GetText(0, _textBuffer.Length);
+        await _scrollableViewModel.ParentRenderManager.UpdateSyntaxHighlightingAsync(text);
+        OnInvalidateRequired();
+    }
+    
     public async Task InsertText(long position, string text)
     {
         var startLine = _textBuffer.GetLineIndexFromPosition(position);
@@ -435,17 +466,17 @@ public class TextEditorViewModel : ViewModelBase
         OnWidthRecalculationRequired();
         UpdateGutterWidth();
         _scrollableViewModel?.ParentRenderManager?.InvalidateLines((int)startLine, (int)endLine);
-        await UpdateSyntaxHighlightingAsync();
+
+        Console.WriteLine($"Updating syntax tokens for lines {startLine} to {endLine}");
+        UpdateSyntaxTokens((int)startLine, (int)endLine);
 
         _cursorPositionService.UpdateCursorPosition(CursorPosition, _textBuffer.LineStarts,
             _textBuffer.GetLineLength(_textBuffer.LineCount));
 
-        // Notify RenderManager to update affected lines
-        startLine = _textBuffer.GetLineIndexFromPosition(position);
-        endLine = _textBuffer.GetLineIndexFromPosition(position + text.Length);
         _scrollableViewModel?.ParentRenderManager?.InvalidateLines((int)startLine, (int)endLine);
-
+        _scrollableViewModel?.ParentRenderManager.UpdateSyntaxHighlightingAsync(text);
         OnInvalidateRequired();
+        OnTextChanged();
     }
 
     public async Task DeleteText(long start, long length)
@@ -575,12 +606,24 @@ public class TextEditorViewModel : ViewModelBase
 
     public void UpdateSyntaxTokens(int startLine, int endLine)
     {
+        Console.WriteLine($"UpdateSyntaxTokens called for lines {startLine} to {endLine}");
         var text = _textBuffer.GetText(0, _textBuffer.Length);
-        var newTokens = _syntaxHighlighter.HighlightSyntax(text, startLine, endLine);
+        List<SyntaxToken> newTokens;
+
+        if (startLine == 0 && endLine == _textBuffer.LineCount - 1)
+            // Full file update
+            newTokens = _syntaxHighlighter.HighlightSyntax(text, _filePath);
+        else
+            // Partial update
+            newTokens = _syntaxHighlighter.HighlightSyntax(text, startLine, endLine, _filePath);
+
+        Console.WriteLine($"Received {newTokens.Count} new tokens from SyntaxHighlighter");
 
         // Update the syntax tokens for the specified range
         SyntaxTokens.RemoveAll(token => token.Line >= startLine && token.Line <= endLine);
         SyntaxTokens.AddRange(newTokens);
+
+        Console.WriteLine($"Total tokens after update: {SyntaxTokens.Count}");
 
         // Notify the view to invalidate and redraw the affected lines
         OnInvalidateRequired();

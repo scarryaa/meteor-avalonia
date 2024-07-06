@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text.RegularExpressions;
-using meteor.Enums;
 using meteor.Interfaces;
 using meteor.Models;
 
@@ -9,31 +9,93 @@ namespace meteor.Services;
 
 public class SyntaxHighlighter : ISyntaxHighlighter
 {
-    private static readonly Regex KeywordRegex = new(
-        @"\b(abstract|as|base|bool|break|byte|case|catch|char|checked|class|const|continue|decimal|default|delegate|do|double|else|enum|event|explicit|extern|false|finally|fixed|float|for|foreach|goto|if|implicit|in|int|interface|internal|is|lock|long|namespace|new|null|object|operator|out|override|params|private|protected|public|readonly|ref|return|sbyte|sealed|short|sizeof|stackalloc|static|string|struct|switch|this|throw|true|try|typeof|uint|ulong|unchecked|unsafe|ushort|using|virtual|void|volatile|while)\b",
-        RegexOptions.Compiled);
+    private readonly Dictionary<string, LanguageDefinition> _languageDefinitions;
 
-    private static readonly Regex CommentRegex = new(
-        @"//.*?$|/\*.*?\*/", RegexOptions.Compiled | RegexOptions.Multiline);
-
-    private static readonly Regex StringRegex = new(@"""(?:\\.|[^\\""])*""", RegexOptions.Compiled);
-
-    private static readonly Regex TypeRegex = new(@"\b(int|string|bool|float|double|char|void|object|var)\b",
-        RegexOptions.Compiled);
-
-    private static readonly Regex NumberRegex = new(@"\b\d+(\.\d+)?\b", RegexOptions.Compiled);
-
-    public List<SyntaxToken> HighlightSyntax(string text)
+    public SyntaxHighlighter()
     {
-        return HighlightSyntaxInternal(text, 0, text.Split('\n').Length - 1);
+        _languageDefinitions = new Dictionary<string, LanguageDefinition>
+        {
+            { "cs", new CSharpLanguageDefinition() },
+            { "py", new PythonLanguageDefinition() },
+            { "js", new JavaScriptLanguageDefinition() }
+        };
     }
 
-    public List<SyntaxToken> HighlightSyntax(string text, int startLine, int endLine)
+    public List<SyntaxToken> HighlightSyntax(string text, string filePath)
     {
-        return HighlightSyntaxInternal(text, startLine, endLine);
+        Console.WriteLine($"HighlightSyntax called with filePath: {filePath}");
+        var languageDefinition = DetectLanguage(filePath, text);
+        return HighlightSyntaxInternal(text, 0, text.Split('\n').Length - 1, languageDefinition);
     }
 
-    private List<SyntaxToken> HighlightSyntaxInternal(string text, int startLine, int endLine)
+    public List<SyntaxToken> HighlightSyntax(string text, int startLine, int endLine, string filePath)
+    {
+        Console.WriteLine(
+            $"HighlightSyntax called with startLine: {startLine}, endLine: {endLine}, filePath: {filePath}");
+        var languageDefinition = DetectLanguage(filePath, text);
+        return HighlightSyntaxInternal(text, startLine, endLine, languageDefinition);
+    }
+
+    private LanguageDefinition DetectLanguage(string filePath, string content)
+    {
+        LanguageDefinition languageDefinition = null;
+
+        if (!string.IsNullOrEmpty(filePath))
+        {
+            var extension = Path.GetExtension(filePath).TrimStart('.').ToLower();
+            _languageDefinitions.TryGetValue(extension, out languageDefinition);
+            Console.WriteLine(
+                $"File extension detected: {extension}, Language: {languageDefinition?.GetType().Name ?? "None"}");
+        }
+
+        if (languageDefinition == null)
+        {
+            languageDefinition = DetectLanguageFromContent(content);
+            Console.WriteLine($"Language detected from content: {languageDefinition?.GetType().Name ?? "None"}");
+        }
+
+        return languageDefinition ?? _languageDefinitions["cs"];
+    }
+
+    private LanguageDefinition DetectLanguageFromContent(string content)
+    {
+        var sampleContent = content.Length > 1000 ? content.Substring(0, 1000) : content;
+
+        // C# detection
+        if (sampleContent.Contains("using System") ||
+            sampleContent.Contains("namespace ") ||
+            sampleContent.Contains("class ") ||
+            sampleContent.Contains("public ") ||
+            sampleContent.Contains("private ") ||
+            sampleContent.Contains("protected ") ||
+            Regex.IsMatch(sampleContent, @"\bvar\s+\w+\s*="))
+        {
+            Console.WriteLine("Detected C# from content");
+            return _languageDefinitions["cs"];
+        }
+
+        // Python detection
+        if (sampleContent.Contains("def ") || sampleContent.Contains("import ") ||
+            (sampleContent.Contains("class ") && sampleContent.Contains(":")))
+        {
+            Console.WriteLine("Detected Python from content");
+            return _languageDefinitions["py"];
+        }
+
+        // JavaScript detection
+        if (sampleContent.Contains("function") || sampleContent.Contains("var ") || sampleContent.Contains("let ") ||
+            sampleContent.Contains("const "))
+        {
+            Console.WriteLine("Detected JavaScript from content");
+            return _languageDefinitions["js"];
+        }
+
+        Console.WriteLine("No specific language detected from content, defaulting to C#");
+        return _languageDefinitions["cs"];
+    }
+
+    private List<SyntaxToken> HighlightSyntaxInternal(string text, int startLine, int endLine,
+        LanguageDefinition languageDefinition)
     {
         var tokens = new List<SyntaxToken>();
         var lines = text.Split('\n');
@@ -41,36 +103,13 @@ public class SyntaxHighlighter : ISyntaxHighlighter
         for (var lineIndex = startLine; lineIndex <= endLine && lineIndex < lines.Length; lineIndex++)
         {
             var line = lines[lineIndex];
-
-            // Find all matches for each token type
-            var keywordMatches = KeywordRegex.Matches(line);
-            var commentMatches = CommentRegex.Matches(line);
-            var stringMatches = StringRegex.Matches(line);
-            var typeMatches = TypeRegex.Matches(line);
-            var numberMatches = NumberRegex.Matches(line);
-
-            // Add tokens for each match
-            AddTokensFromMatches(tokens, keywordMatches, lineIndex, SyntaxTokenType.Keyword);
-            AddTokensFromMatches(tokens, commentMatches, lineIndex, SyntaxTokenType.Comment);
-            AddTokensFromMatches(tokens, stringMatches, lineIndex, SyntaxTokenType.String);
-            AddTokensFromMatches(tokens, typeMatches, lineIndex, SyntaxTokenType.Type);
-            AddTokensFromMatches(tokens, numberMatches, lineIndex, SyntaxTokenType.Number);
+            Console.WriteLine($"Processing line {lineIndex}: {line}");
+            var lineTokens = languageDefinition.TokenizeQuickly(line, lineIndex);
+            tokens.AddRange(lineTokens);
+            Console.WriteLine($"Generated {lineTokens.Count} tokens for line {lineIndex}");
         }
 
+        Console.WriteLine($"Total tokens generated: {tokens.Count}");
         return tokens;
-    }
-
-    private void AddTokensFromMatches(List<SyntaxToken> tokens, MatchCollection matches, int lineIndex,
-        SyntaxTokenType tokenType)
-    {
-        foreach (Match match in matches)
-            try
-            {
-                tokens.Add(new SyntaxToken(lineIndex, match.Index, match.Length, tokenType));
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error adding token: {ex.Message}");
-            }
     }
 }

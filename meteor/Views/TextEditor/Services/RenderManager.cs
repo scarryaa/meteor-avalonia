@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Media;
@@ -19,6 +20,8 @@ namespace meteor.Views.Services;
 
 public class RenderManager
 {
+    private CancellationTokenSource _highlightCancellationTokenSource;
+    private const int DebounceDelay = 300;
     private readonly TextEditorContext _context;
     private readonly IThemeService _themeService;
     private readonly ISyntaxHighlighter _syntaxHighlighter;
@@ -27,16 +30,31 @@ public class RenderManager
     private string _lastProcessedText;
     private Task _backgroundHighlightTask;
     private readonly double _verticalTextOffset;
+    private string _filePath;
 
-    public RenderManager(TextEditorContext context, IThemeService themeService, ISyntaxHighlighter syntaxHighlighter)
+    public RenderManager(TextEditorContext context, IThemeService themeService, ISyntaxHighlighter syntaxHighlighter,
+        string filePath)
     {
         _context = context;
         _themeService = themeService;
         _syntaxHighlighter = syntaxHighlighter;
         _lineCache = new ConcurrentDictionary<int, RenderedLine>();
         _cachedSyntaxTokens = new List<SyntaxToken>();
+        _filePath = filePath;
 
         _verticalTextOffset = (_context.LineHeight - _context.FontSize) / 3;
+    }
+
+    public void UpdateFilePath(string filePath)
+    {
+        _filePath = filePath;
+        // Trigger a re-highlight of the entire document
+        if (_context.ScrollableViewModel?.TextEditorViewModel != null)
+        {
+            var text = _context.ScrollableViewModel.TextEditorViewModel.TextBuffer.GetText(0,
+                _context.ScrollableViewModel.TextEditorViewModel.TextBuffer.Length);
+            UpdateSyntaxHighlightingAsync(text).ConfigureAwait(false);
+        }
     }
 
     public void UpdateContextViewModel(ScrollableTextEditorViewModel viewModel)
@@ -52,6 +70,7 @@ public class RenderManager
 
     public async Task InitializeAsync(string initialText)
     {
+        Console.WriteLine("RenderManager.InitializeAsync called");
         await UpdateSyntaxHighlightingAsync(initialText);
         _context.ScrollableViewModel?.TextEditorViewModel.OnInvalidateRequired();
     }
@@ -225,14 +244,19 @@ public class RenderManager
     private void RenderLineWithSyntaxHighlighting(DrawingContext context, string lineText, List<SyntaxToken> allTokens,
         int lineIndex, int startIndex, double yOffset, double charWidth, int visibleLength, double xOffset)
     {
+        Console.WriteLine(
+            $"RenderLineWithSyntaxHighlighting: LineIndex: {lineIndex}, StartIndex: {startIndex}, VisibleLength: {visibleLength}");
+        Console.WriteLine($"Line Text: {lineText}");
+
         var currentIndex = startIndex;
         var endIndex = Math.Min(startIndex + visibleLength, lineText.Length);
 
         var lineTokens = allTokens.Where(t => t.Line == lineIndex).OrderBy(t => t.StartColumn).ToList();
+        Console.WriteLine($"Number of tokens for this line: {lineTokens.Count}");
 
         if (lineTokens.Count == 0)
         {
-            // If there are no tokens, render the entire visible part of the line as plain text
+            Console.WriteLine("No tokens for this line, rendering as plain text");
             var visibleText = lineText.Substring(startIndex, endIndex - startIndex);
             RenderText(context, visibleText, xOffset, yOffset, _context.Foreground, charWidth);
             return;
@@ -240,13 +264,25 @@ public class RenderManager
 
         foreach (var token in lineTokens)
         {
-            if (token.StartColumn >= endIndex) break;
+            Console.WriteLine(
+                $"Processing token: Type: {token.Type}, StartColumn: {token.StartColumn}, Length: {token.Length}");
 
-            if (token.StartColumn + token.Length <= startIndex) continue;
+            if (token.StartColumn >= endIndex)
+            {
+                Console.WriteLine("Token starts after visible part, breaking");
+                break;
+            }
+
+            if (token.StartColumn + token.Length <= startIndex)
+            {
+                Console.WriteLine("Token ends before visible part, continuing");
+                continue;
+            }
 
             if (currentIndex < token.StartColumn)
             {
                 var plainText = lineText.Substring(currentIndex, Math.Min(token.StartColumn, endIndex) - currentIndex);
+                Console.WriteLine($"Rendering plain text: {plainText}");
                 RenderText(context, plainText, (currentIndex - startIndex) * charWidth + xOffset, yOffset,
                     _context.Foreground, charWidth);
                 currentIndex = token.StartColumn;
@@ -256,8 +292,11 @@ public class RenderManager
             var tokenEndInView = Math.Min(endIndex, token.StartColumn + token.Length);
             var tokenText = lineText.Substring(tokenStartInView, tokenEndInView - tokenStartInView);
 
-            RenderText(context, tokenText, (tokenStartInView - startIndex) * charWidth + xOffset, yOffset,
-                GetBrushForTokenType(token.Type),
+            Console.WriteLine(
+                $"Rendering token: Type: {token.Type}, Text: {tokenText}, Start: {tokenStartInView}, End: {tokenEndInView}");
+            var brush = GetBrushForTokenType(token.Type);
+            Console.WriteLine($"Token brush: {brush}");
+            RenderText(context, tokenText, (tokenStartInView - startIndex) * charWidth + xOffset, yOffset, brush,
                 charWidth);
             currentIndex = tokenEndInView;
         }
@@ -265,6 +304,7 @@ public class RenderManager
         if (currentIndex < endIndex)
         {
             var remainingText = lineText.Substring(currentIndex, endIndex - currentIndex);
+            Console.WriteLine($"Rendering remaining text: {remainingText}");
             RenderText(context, remainingText, (currentIndex - startIndex) * charWidth + xOffset, yOffset,
                 _context.Foreground, charWidth);
         }
@@ -287,45 +327,92 @@ public class RenderManager
         context.DrawText(formattedText, new Point(x, adjustedYOffset));
     }
 
-    public async Task UpdateSyntaxHighlightingAsync(string text)
+    public async Task UpdateSyntaxHighlightingAsync(string text, int startLine = 0, int endLine = -1)
     {
-        if (_backgroundHighlightTask != null && !_backgroundHighlightTask.IsCompleted)
-            await _backgroundHighlightTask;
+        Console.WriteLine(
+            $"UpdateSyntaxHighlightingAsync called. StartLine: {startLine}, EndLine: {endLine}, FilePath: {_filePath}");
 
-        _backgroundHighlightTask = Task.Run(() =>
+        // Cancel any ongoing highlight task
+        _highlightCancellationTokenSource?.Cancel();
+        _highlightCancellationTokenSource = new CancellationTokenSource();
+        var cancellationToken = _highlightCancellationTokenSource.Token;
+
+        try
         {
-            using (new PerformanceLogger("RenderManager.UpdateSyntaxHighlightingAsync"))
+            // Delay to debounce rapid calls
+            await Task.Delay(DebounceDelay, cancellationToken);
+
+            await Task.Run(() =>
             {
-                var newTokens = _syntaxHighlighter.HighlightSyntax(text);
-                var changedLines = new HashSet<int>();
+                using (new PerformanceLogger("RenderManager.UpdateSyntaxHighlightingAsync"))
+                {
+                    List<SyntaxToken> newTokens;
+                    var lines = text.Split('\n');
 
-                for (var i = 0; i < Math.Max(_cachedSyntaxTokens.Count, newTokens.Count); i++)
-                    if (i >= _cachedSyntaxTokens.Count || i >= newTokens.Count ||
-                        !_cachedSyntaxTokens[i].Equals(newTokens[i]))
-                        changedLines.Add(i);
+                    if (endLine == -1 || endLine >= lines.Length) endLine = lines.Length - 1;
 
-                _cachedSyntaxTokens = newTokens;
+                    // Ensure we're highlighting complete lines
+                    var partialText = string.Join("\n", lines.Skip(startLine).Take(endLine - startLine + 1));
+                    newTokens = _syntaxHighlighter.HighlightSyntax(partialText, startLine, endLine, _filePath);
 
-                foreach (var lineIndex in changedLines)
-                    _lineCache.TryRemove(lineIndex, out _);
-            }
-        });
+                    Console.WriteLine($"Generated {newTokens.Count} new tokens");
 
-        await _backgroundHighlightTask;
-        _context.ScrollableViewModel?.TextEditorViewModel.OnInvalidateRequired();
+                    lock (_cachedSyntaxTokens)
+                    {
+                        // Remove old tokens for the updated lines
+                        _cachedSyntaxTokens.RemoveAll(t => t.Line >= startLine && t.Line <= endLine);
+                        // Add new tokens
+                        _cachedSyntaxTokens.AddRange(newTokens);
+                        // Sort tokens
+                        _cachedSyntaxTokens = _cachedSyntaxTokens
+                            .OrderBy(t => t.Line)
+                            .ThenBy(t => t.StartColumn)
+                            .ToList();
+                    }
+
+                    // Invalidate changed lines in the cache
+                    for (var i = startLine; i <= endLine; i++) _lineCache.TryRemove(i, out _);
+
+                    Console.WriteLine($"Updated syntax highlighting. Lines {startLine} to {endLine}");
+                }
+            }, cancellationToken);
+
+            Console.WriteLine("Syntax highlighting update completed");
+            _context.ScrollableViewModel?.TextEditorViewModel.OnInvalidateRequired();
+        }
+        catch (OperationCanceledException)
+        {
+            Console.WriteLine("Syntax highlighting update was cancelled");
+        }
     }
 
     private IBrush GetBrushForTokenType(SyntaxTokenType type)
     {
-        return type switch
+        IBrush brush;
+        switch (type)
         {
-            SyntaxTokenType.Keyword => _themeService.GetResourceBrush("KeywordColor"),
-            SyntaxTokenType.Comment => _themeService.GetResourceBrush("CommentColor"),
-            SyntaxTokenType.String => _themeService.GetResourceBrush("StringColor"),
-            SyntaxTokenType.Type => _themeService.GetResourceBrush("TypeColor"),
-            SyntaxTokenType.Number => _themeService.GetResourceBrush("NumberColor"),
-            _ => Brushes.Black
-        };
+            case SyntaxTokenType.Keyword:
+                brush = _themeService.GetResourceBrush("KeywordColor");
+                break;
+            case SyntaxTokenType.Comment:
+                brush = _themeService.GetResourceBrush("CommentColor");
+                break;
+            case SyntaxTokenType.String:
+                brush = _themeService.GetResourceBrush("StringColor");
+                break;
+            case SyntaxTokenType.Type:
+                brush = _themeService.GetResourceBrush("TypeColor");
+                break;
+            case SyntaxTokenType.Number:
+                brush = _themeService.GetResourceBrush("NumberColor");
+                break;
+            default:
+                brush = _context.Foreground;
+                break;
+        }
+
+        Console.WriteLine($"GetBrushForTokenType: TokenType: {type}, Brush: {brush}");
+        return brush;
     }
 
     private void DrawSelection(DrawingContext context, double viewableAreaHeight,

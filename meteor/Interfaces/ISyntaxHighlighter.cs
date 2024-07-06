@@ -5,6 +5,6 @@ namespace meteor.Interfaces;
 
 public interface ISyntaxHighlighter
 {
-    List<SyntaxToken> HighlightSyntax(string text);
-    List<SyntaxToken> HighlightSyntax(string text, int startLine, int endLine);
+    List<SyntaxToken> HighlightSyntax(string text, string filePath);
+    List<SyntaxToken> HighlightSyntax(string text, int startLine, int endLine, string filePath);
 }

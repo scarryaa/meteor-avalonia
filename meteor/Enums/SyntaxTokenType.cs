@@ -9,5 +9,6 @@ public enum SyntaxTokenType
     Type,
     Number,
     Operator,
-    Punctuation
+    Punctuation,
+    Unknown
 }

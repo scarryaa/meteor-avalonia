@@ -146,7 +146,9 @@ public class TabViewModel : ViewModelBase, IDisposable
             _textBuffer,
             _clipboardService,
             App.ServiceProvider.GetRequiredService<ISyntaxHighlighter>(),
-            this);
+            this,
+            FilePath
+        );
         textEditorViewModel.InitializeAsync();
 
         var scrollManager = new ScrollManager(textEditorViewModel);

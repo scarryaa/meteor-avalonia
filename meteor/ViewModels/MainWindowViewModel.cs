@@ -50,7 +50,7 @@ public class MainWindowViewModel : ViewModelBase
         IDialogService dialogService,
         IThemeService themeService)
     {
-        NewTabCommand = ReactiveCommand.Create(NewTab);
+        NewTabCommand = ReactiveCommand.Create(() => NewTab());
         CloseTabCommand = ReactiveCommand.Create<TabViewModel>(async tab => await CloseTabAsync(tab));
         CloseOtherTabsCommand = ReactiveCommand.Create<TabViewModel>(CloseOtherTabs);
         CloseAllTabsCommand = ReactiveCommand.Create<TabViewModel>(CloseAllTabs);
@@ -244,7 +244,7 @@ public class MainWindowViewModel : ViewModelBase
         }
     }
 
-    private void NewTab()
+    private void NewTab(string filePath = null)
     {
         var cursorPositionService = App.ServiceProvider.GetRequiredService<ICursorPositionService>();
         var undoRedoManager = App.ServiceProvider.GetRequiredService<IUndoRedoManager<TextState>>();
@@ -255,6 +255,7 @@ public class MainWindowViewModel : ViewModelBase
         var clipboardService = App.ServiceProvider.GetRequiredService<IClipboardService>();
         var autoSaveService = App.ServiceProvider.GetRequiredService<IAutoSaveService>();
         var themeService = App.ServiceProvider.GetRequiredService<IThemeService>();
+        var syntaxHighlighter = App.ServiceProvider.GetRequiredService<ISyntaxHighlighter>();
 
         var textEditorViewModel = new TextEditorViewModel(
             cursorPositionService,
@@ -262,10 +263,10 @@ public class MainWindowViewModel : ViewModelBase
             lineCountViewModel,
             textBuffer,
             clipboardService,
-            App.ServiceProvider.GetRequiredService<ISyntaxHighlighter>(),
+            syntaxHighlighter,
             this);
 
-        textEditorViewModel.InitializeAsync();
+        if (!string.IsNullOrEmpty(filePath)) textEditorViewModel.SetFilePath(filePath);
 
         var scrollManager = new ScrollManager(textEditorViewModel);
         textEditorViewModel.ScrollManager = scrollManager;
@@ -295,15 +296,17 @@ public class MainWindowViewModel : ViewModelBase
             CloseOtherTabsCommand,
             CloseAllTabsCommand)
         {
-            Title = $"Untitled {Tabs.Count + 1}",
+            Title = filePath != null ? Path.GetFileName(filePath) : $"Untitled {Tabs.Count + 1}",
             ScrollableTextEditorViewModel = scrollableTextEditorViewModel,
-            CloseTabCommand = CloseTabCommand
+            CloseTabCommand = CloseTabCommand,
+            FilePath = filePath
         };
 
         Tabs.Add(newTab);
         SelectedTab = newTab;
 
-        if (SelectedTab != null) SelectedTab.ScrollableTextEditorViewModel.Viewport = new Size(WindowWidth, WindowHeight);
+        if (SelectedTab != null)
+            SelectedTab.ScrollableTextEditorViewModel.Viewport = new Size(WindowWidth, WindowHeight);
     }
 
     private void CloseOtherTabs(TabViewModel tab)
@@ -403,111 +406,78 @@ public class MainWindowViewModel : ViewModelBase
 
     public async void OnFileClicked(string filePath)
     {
-        var existingTab = Tabs.FirstOrDefault(tab => tab.Title == Path.GetFileName(filePath));
+        Console.WriteLine($"OnFileClicked: {filePath}");
+
+        var existingTab = Tabs.FirstOrDefault(tab => tab.FilePath == filePath);
         if (existingTab != null)
         {
             SelectedTab = existingTab;
             return;
         }
 
-        if (_temporaryTab == null)
+        if (_temporaryTab == null || _temporaryTab.FilePath != filePath)
         {
-            _temporaryTab = new TabViewModel(
-                App.ServiceProvider.GetRequiredService<ICursorPositionService>(),
-                App.ServiceProvider.GetRequiredService<IUndoRedoManager<TextState>>(),
-                App.ServiceProvider.GetRequiredService<IFileSystemWatcherFactory>(),
-                _textBufferFactory,
-                App.ServiceProvider.GetRequiredService<FontPropertiesViewModel>(),
-                App.ServiceProvider.GetRequiredService<LineCountViewModel>(),
-                App.ServiceProvider.GetRequiredService<IClipboardService>(),
-                App.ServiceProvider.GetRequiredService<IAutoSaveService>(),
-                App.ServiceProvider.GetRequiredService<IThemeService>(),
-                CloseTabCommand,
-                CloseOtherTabsCommand,
-                CloseAllTabsCommand)
-            {
-                Title = Path.GetFileName(filePath),
-                CloseTabCommand = CloseTabCommand,
-                IsNew = true,
-                IsTemporary = true,
-                IsDirty = false,
-                ScrollableTextEditorViewModel = new ScrollableTextEditorViewModel(
-                    App.ServiceProvider.GetRequiredService<ICursorPositionService>(),
-                    App.ServiceProvider.GetRequiredService<FontPropertiesViewModel>(),
-                    App.ServiceProvider.GetRequiredService<LineCountViewModel>(),
-                    _textBufferFactory.Create(),
-                    App.ServiceProvider.GetRequiredService<IClipboardService>(),
-                    App.ServiceProvider.GetRequiredService<IThemeService>(),
-                    App.ServiceProvider.GetRequiredService<TextEditorViewModel>(),
-                    App.ServiceProvider.GetRequiredService<ScrollManager>()
-                )
-            };
-
-            _temporaryTab.ScrollableTextEditorViewModel.TextEditorViewModel.UpdateServices(_temporaryTab
-                .ScrollableTextEditorViewModel.TextEditorViewModel);
-            Tabs.Add(_temporaryTab);
+            NewTab(filePath);
+            _temporaryTab = SelectedTab;
+            _temporaryTab.IsTemporary = true;
         }
 
-        await _temporaryTab.LoadTextAsync(filePath);
-        if (_temporaryTab.ScrollableTextEditorViewModel != null)
-        {
-            _temporaryTab.ScrollableTextEditorViewModel.TextEditorViewModel.CursorPosition = 0;
-            _temporaryTab.ScrollableTextEditorViewModel.Offset = new Vector(0, 0);
-        }
+        await LoadFileContentAsync(_temporaryTab, filePath);
 
-        _temporaryTab.Title = Path.GetFileName(filePath);
-        _temporaryTab.FilePath = Path.GetFullPath(filePath);
         SelectedTab = _temporaryTab;
     }
 
-    public void OnFileDoubleClicked(string filePath)
+    public async void OnFileDoubleClicked(string filePath)
     {
-        var existingTab = Tabs.FirstOrDefault(tab => tab.Title == Path.GetFileName(filePath));
+        Console.WriteLine($"OnFileDoubleClicked: {filePath}");
+
+        var existingTab = Tabs.FirstOrDefault(tab => tab.FilePath == filePath);
         if (existingTab != null)
         {
-            // Convert temporary tab to permanent if double-clicked
-            if (existingTab == _temporaryTab) _temporaryTab = null;
-            existingTab.IsTemporary = false;
+            if (existingTab == _temporaryTab)
+            {
+                _temporaryTab.IsTemporary = false;
+                _temporaryTab = null;
+            }
             SelectedTab = existingTab;
             return;
         }
-        
 
-        var permanentTab = new TabViewModel(
-            App.ServiceProvider.GetRequiredService<ICursorPositionService>(),
-            App.ServiceProvider.GetRequiredService<IUndoRedoManager<TextState>>(),
-            App.ServiceProvider.GetRequiredService<IFileSystemWatcherFactory>(),
-            _textBufferFactory,
-            App.ServiceProvider.GetRequiredService<FontPropertiesViewModel>(),
-            App.ServiceProvider.GetRequiredService<LineCountViewModel>(),
-            App.ServiceProvider.GetRequiredService<IClipboardService>(),
-            App.ServiceProvider.GetRequiredService<IAutoSaveService>(),
-            App.ServiceProvider.GetRequiredService<IThemeService>(),
-            CloseTabCommand,
-            CloseOtherTabsCommand,
-            CloseAllTabsCommand)
-        {
-            Title = Path.GetFileName(filePath),
-            CloseTabCommand = CloseTabCommand,
-            IsNew = true,
-            ScrollableTextEditorViewModel = new ScrollableTextEditorViewModel(
-                App.ServiceProvider.GetRequiredService<ICursorPositionService>(),
-                App.ServiceProvider.GetRequiredService<FontPropertiesViewModel>(),
-                App.ServiceProvider.GetRequiredService<LineCountViewModel>(),
-                _textBufferFactory.Create(),
-                App.ServiceProvider.GetRequiredService<IClipboardService>(),
-                App.ServiceProvider.GetRequiredService<IThemeService>(),
-                App.ServiceProvider.GetRequiredService<TextEditorViewModel>(),
-                App.ServiceProvider.GetRequiredService<ScrollManager>()
-            )
-        };
-
-        permanentTab.ScrollableTextEditorViewModel.TextEditorViewModel.UpdateServices(permanentTab
-            .ScrollableTextEditorViewModel.TextEditorViewModel);
-        permanentTab.LoadTextAsync(filePath);
-        permanentTab.FilePath = Path.GetFullPath(filePath);
-        Tabs.Add(permanentTab);
+        NewTab(filePath);
+        var permanentTab = SelectedTab;
+        await LoadFileContentAsync(permanentTab, filePath);
         SelectedTab = permanentTab;
+    }
+
+    private async Task LoadFileContentAsync(TabViewModel tab, string filePath)
+    {
+        try
+        {
+            var content = await File.ReadAllTextAsync(filePath);
+
+            var textEditorVM = tab.ScrollableTextEditorViewModel.TextEditorViewModel;
+            textEditorVM.SetFilePath(filePath);
+            textEditorVM.TextBuffer.SetText(content);
+
+            tab.Title = Path.GetFileName(filePath);
+            tab.FilePath = Path.GetFullPath(filePath);
+            tab.IsNew = false;
+            tab.IsDirty = false;
+
+            // Reset cursor and scroll position
+            textEditorVM.CursorPosition = 0;
+            tab.ScrollableTextEditorViewModel.Offset = new Vector(0, 0);
+
+            // Trigger syntax highlighting update
+            await textEditorVM.UpdateSyntaxHighlightingAsync();
+
+            Console.WriteLine($"File loaded successfully: {filePath}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading file {filePath}: {ex.Message}");
+            await ShowErrorDialogAsync($"Failed to load file: {ex.Message}");
+        }
     }
 
     private async Task SaveFileAsync(TabViewModel tab)

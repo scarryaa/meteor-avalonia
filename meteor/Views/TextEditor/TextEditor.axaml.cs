@@ -189,6 +189,7 @@ public partial class TextEditor : UserControl
         {
             _scrollableViewModel.TextEditorViewModel.PropertyChanged -= ViewModel_PropertyChanged;
             _scrollableViewModel.TextEditorViewModel.SelectionChanged -= SelectionManager.OnSelectionChanged;
+            _scrollableViewModel.TextEditorViewModel.TextBuffer.TextChanged -= OnTextBufferChanged;
             UnregisterEventHandlers();
         }
 
@@ -200,11 +201,12 @@ public partial class TextEditor : UserControl
             viewModel.PropertyChanged += ViewModel_PropertyChanged;
             viewModel.SelectionChanged += SelectionManager.OnSelectionChanged;
             viewModel.InvalidateRequired += OnInvalidateRequired;
+            viewModel.TextBuffer.TextChanged += OnTextBufferChanged;
 
             var context = CreateContext();
             var themeService = App.ServiceProvider.GetRequiredService<IThemeService>();
             var syntaxHighlighter = App.ServiceProvider.GetRequiredService<ISyntaxHighlighter>();
-            RenderManager = new RenderManager(context, themeService, syntaxHighlighter);
+            RenderManager = new RenderManager(context, themeService, syntaxHighlighter, viewModel.FilePath);
             RenderManager.AttachToViewModel(scrollableViewModel);
 
             scrollableViewModel.ScrollManager = ScrollManager;
@@ -221,6 +223,22 @@ public partial class TextEditor : UserControl
             AssignServices(scrollableViewModel);
             RegisterEventHandlers();
         }
+    }
+
+    public void UpdateRenderManagerFilePath(string filePath)
+    {
+        if (RenderManager != null)
+        {
+            Console.WriteLine($"Updating RenderManager file path: {filePath}");
+            RenderManager.UpdateFilePath(filePath);
+            InvalidateVisual();
+        }
+    }
+
+    private void OnTextBufferChanged(object sender, EventArgs e)
+    {
+        Console.WriteLine("TextBuffer changed");
+        InvalidateVisual();
     }
 
     private TextEditorContext CreateContext()
@@ -261,9 +279,23 @@ public partial class TextEditor : UserControl
 
     public override void Render(DrawingContext context)
     {
+        Console.WriteLine("TextEditor Render called");
+        if (_scrollableViewModel?.TextEditorViewModel != null)
+        {
+            var textBuffer = _scrollableViewModel.TextEditorViewModel.TextBuffer;
+            var text = textBuffer.GetText(0, textBuffer.Length);
+            Console.WriteLine(
+                $"Rendering text. Length: {text.Length}, First 100 chars: {text.Substring(0, Math.Min(100, text.Length))}");
+            Console.WriteLine($"Cursor Position: {_scrollableViewModel.TextEditorViewModel.CursorPosition}");
+        }
+        else
+        {
+            Console.WriteLine("ViewModel is null");
+        }
+
         RenderManager?.Render(context);
     }
-
+    
     private void OnRequestFocus(object? sender, EventArgs e)
     {
         Focus();
@@ -286,7 +318,7 @@ public partial class TextEditor : UserControl
             var context = CreateContext();
             var themeService = App.ServiceProvider.GetRequiredService<IThemeService>();
             var syntaxHighlighter = App.ServiceProvider.GetRequiredService<ISyntaxHighlighter>();
-            RenderManager = new RenderManager(context, themeService, syntaxHighlighter);
+            RenderManager = new RenderManager(context, themeService, syntaxHighlighter, "");
             RenderManager.AttachToViewModel(_scrollableViewModel);
         }
     }
