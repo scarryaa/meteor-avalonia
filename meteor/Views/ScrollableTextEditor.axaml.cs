@@ -1,8 +1,9 @@
-using System;
+using System.Reactive;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
 using meteor.ViewModels;
+using Color = Avalonia.Media.Color;
 
 namespace meteor.Views;
 
@@ -79,27 +80,30 @@ public partial class ScrollableTextEditor : UserControl
         {
             viewModel.TextEditorViewModel.WindowWidth = Bounds.Width;
             viewModel.TextEditorViewModel.WindowHeight = Bounds.Height;
-            this.GetObservable(BoundsProperty).Subscribe(bounds =>
+
+            var boundsObserver = Observer.Create<Rect>(bounds =>
             {
                 viewModel.TextEditorViewModel.WindowWidth = bounds.Width;
                 viewModel.TextEditorViewModel.WindowHeight = bounds.Height;
             });
+
+            this.GetObservable(BoundsProperty).Subscribe(boundsObserver);
         }
     }
 
     private void EditorScrollViewer_ScrollChanged(object? sender, ScrollChangedEventArgs e)
     {
-        if (sender is ButtonlessScrollViewer { } viewer && DataContext is ScrollableTextEditorViewModel viewModel)
+        if (sender is ButtonlessScrollViewer { } viewer && DataContext is ScrollableTextEditorViewModel viewmodel)
         {
-            viewModel.Viewport = viewer.Viewport;
-            viewModel.HorizontalOffset = viewer.Offset.X;
-            viewModel.VerticalOffset = viewer.Offset.Y;
+            viewmodel.Viewport = viewer.Viewport;
+            viewmodel.HorizontalOffset = viewer.Offset.X;
+            viewmodel.VerticalOffset = viewer.Offset.Y;
         }
     }
 
     private void EditorScrollViewer_SizeChanged(object? sender, SizeChangedEventArgs e)
     {
-        if (sender is ButtonlessScrollViewer { } viewer && DataContext is ScrollableTextEditorViewModel viewModel)
-            viewModel.Viewport = viewer.Viewport;
+        if (sender is ButtonlessScrollViewer { } viewer && DataContext is ScrollableTextEditorViewModel viewmodel)
+            viewmodel.Viewport = viewer.Viewport;
     }
 }

@@ -47,7 +47,7 @@ public partial class FileExplorer : UserControl
 
     public ObservableCollection<File> Items
     {
-        get => GetValue(ItemsProperty) ?? [];
+        get => GetValue(ItemsProperty) ?? new ObservableCollection<File>();
         set => SetValue(ItemsProperty, value);
     }
 

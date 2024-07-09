@@ -54,7 +54,8 @@ public class ScrollableTextEditorViewModel : ViewModelBase
         ClipboardService = clipboardService;
         TextEditorViewModel = textEditorViewModel;
         TextEditorViewModel.ParentViewModel = this;
-        GutterViewModel = new GutterViewModel(cursorPositionService, fontPropertiesViewModel, lineCountViewModel, this,
+        GutterViewModel = new GutterViewModel(cursorPositionService, fontPropertiesViewModel, lineCountViewModel,
+            this,
             TextEditorViewModel, themeService);
         ScrollManager = scrollManager;
         GutterViewModel.ScrollManager = ScrollManager;
@@ -70,17 +71,14 @@ public class ScrollableTextEditorViewModel : ViewModelBase
             .Subscribe(verticalOffset => VerticalOffset = verticalOffset);
 
         this.WhenAnyValue(fp => fp.FontPropertiesViewModel.LineHeight)
-            .Subscribe(lineHeight =>
-            {
-                LineHeight = lineHeight;
-            });
+            .Subscribe(lineHeight => { LineHeight = lineHeight; });
 
         textBuffer.TextChanged += (sender, args) =>
         {
             UpdateDimensions();
             UpdateProperties();
         };
-        
+
         // Subscribe to property changes
         this.WhenAnyValue(
                 x => x.VerticalOffset,
@@ -99,7 +97,7 @@ public class ScrollableTextEditorViewModel : ViewModelBase
                 x => x.FontSize)
             .Subscribe(_ => UpdateContext());
     }
-
+    
     private void UpdateContext()
     {
         ParentRenderManager?.UpdateContextViewModel(this);

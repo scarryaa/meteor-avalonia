@@ -1,3 +1,4 @@
+using System;
 using meteor.ViewModels;
 
 namespace meteor.Views.Services;
@@ -23,7 +24,7 @@ public class CursorManager
         if (_viewModel.SelectionStart != _viewModel.SelectionEnd && !isShiftPressed)
         {
             // Move cursor to the start of the selection
-            _viewModel.CursorPosition = long.Min(_viewModel.SelectionStart, _viewModel.SelectionEnd);
+            _viewModel.CursorPosition = Math.Min(_viewModel.SelectionStart, _viewModel.SelectionEnd);
             _viewModel.ClearSelection();
             return;
         }
@@ -44,7 +45,7 @@ public class CursorManager
         if (_viewModel.SelectionStart != _viewModel.SelectionEnd && !isShiftPressed)
         {
             // Move cursor to the end of the selection
-            _viewModel.CursorPosition = long.Max(_viewModel.SelectionStart, _viewModel.SelectionEnd);
+            _viewModel.CursorPosition = Math.Max(_viewModel.SelectionStart, _viewModel.SelectionEnd);
             _viewModel.ClearSelection();
             return;
         }
@@ -65,7 +66,7 @@ public class CursorManager
         if (_viewModel.SelectionStart != _viewModel.SelectionEnd && !isShiftPressed)
         {
             // Move cursor to the start of the selection
-            _viewModel.CursorPosition = long.Min(_viewModel.SelectionStart, _viewModel.SelectionEnd);
+            _viewModel.CursorPosition = Math.Min(_viewModel.SelectionStart, _viewModel.SelectionEnd);
             _viewModel.SelectionManager.UpdateSelection();
             return;
         }
@@ -77,14 +78,14 @@ public class CursorManager
             var currentColumn = _viewModel.CursorPosition - currentLineStart;
 
             // Update desired column only if it's greater than the current column
-            _desiredColumn = long.Max(_desiredColumn, currentColumn);
+            _desiredColumn = Math.Max(_desiredColumn, currentColumn);
 
             var previousLineIndex = currentLineIndex - 1;
             var previousLineStart = _viewModel.TextBuffer.GetLineStartPosition((int)previousLineIndex);
             var previousLineLength = _viewModel.TextBuffer.GetLineLength(previousLineIndex);
 
             // Calculate new cursor position
-            _viewModel.CursorPosition = previousLineStart + long.Min(_desiredColumn, previousLineLength - 1);
+            _viewModel.CursorPosition = previousLineStart + Math.Min(_desiredColumn, previousLineLength - 1);
         }
         else
         {
@@ -105,7 +106,7 @@ public class CursorManager
         if (_viewModel.SelectionStart != _viewModel.SelectionEnd && !isShiftPressed)
         {
             // Move cursor to the end of the selection
-            _viewModel.CursorPosition = long.Max(_viewModel.SelectionStart, _viewModel.SelectionEnd);
+            _viewModel.CursorPosition = Math.Max(_viewModel.SelectionStart, _viewModel.SelectionEnd);
             _viewModel.ClearSelection();
             return;
         }
@@ -117,14 +118,14 @@ public class CursorManager
             var currentColumn = _viewModel.CursorPosition - currentLineStart;
 
             // Update the desired column only if it's greater than the current column
-            _desiredColumn = long.Max(_desiredColumn, currentColumn);
+            _desiredColumn = Math.Max(_desiredColumn, currentColumn);
 
             var nextLineIndex = currentLineIndex + 1;
             var nextLineStart = _viewModel.TextBuffer.GetLineStartPosition((int)nextLineIndex);
             var nextLineLength = _viewModel.TextBuffer.GetVisualLineLength((int)nextLineIndex);
 
             // Calculate new cursor position
-            _viewModel.CursorPosition = nextLineStart + long.Min(_desiredColumn, nextLineLength);
+            _viewModel.CursorPosition = nextLineStart + Math.Min(_desiredColumn, nextLineLength);
         }
         else
         {

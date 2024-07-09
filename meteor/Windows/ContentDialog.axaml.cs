@@ -61,13 +61,6 @@ public partial class ContentDialog : Window
         return _resultCompletionSource.Task;
     }
 
-    public Task<ContentDialogResult> ShowAsync()
-    {
-        _resultCompletionSource = new TaskCompletionSource<ContentDialogResult>();
-        Show();
-        return _resultCompletionSource.Task;
-    }
-
     private void Close(ContentDialogResult result)
     {
         _resultCompletionSource.TrySetResult(result);

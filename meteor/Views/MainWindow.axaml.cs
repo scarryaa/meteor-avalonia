@@ -1,3 +1,4 @@
+using System;
 using System.Reactive;
 using Avalonia;
 using Avalonia.Controls;
@@ -31,6 +32,19 @@ public partial class MainWindow : Window
         if (leftSidebar != null) leftSidebar.FileDoubleClicked += OnFileDoubleClicked;
     }
 
+    private void OnBottomPaneSplitterDragDelta(object sender, VectorEventArgs e)
+    {
+        if (DataContext is MainWindowViewModel viewModel)
+        {
+            // Adjust the height based on the drag delta
+            var newHeight = viewModel.BottomPaneViewModel.BottomPaneHeight + e.Vector.Y;
+
+            newHeight = Math.Max(100, Math.Min(newHeight, Bounds.Height / 2));
+
+            viewModel.BottomPaneViewModel.BottomPaneHeight = newHeight;
+        }
+    }
+    
     private void OnFileClicked(object sender, string filePath)
     {
         if (DataContext is MainWindowViewModel viewModel) viewModel.OnFileClicked(filePath);

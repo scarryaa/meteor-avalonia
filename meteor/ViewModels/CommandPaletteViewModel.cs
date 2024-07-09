@@ -60,7 +60,6 @@ public class CommandPaletteViewModel : ReactiveObject
         set
         {
             this.RaiseAndSetIfChanged(ref _isVisible, value);
-            if (value) FocusRequested?.Invoke(this, EventArgs.Empty);
         }
     }
 

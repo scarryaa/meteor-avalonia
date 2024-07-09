@@ -1,0 +1,42 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:viewModels="clr-namespace:meteor.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="200"
+             x:Class="meteor.Views.BottomPane"
+             x:DataType="viewModels:BottomPaneViewModel">
+
+    <Grid RowDefinitions="Auto,*">
+        <Border BorderBrush="{DynamicResource MainBorder}" BorderThickness="0 1">
+            <StackPanel Orientation="Horizontal" Margin="5">
+                <TextBlock Text="Issues" VerticalAlignment="Center" Margin="6,0,10,0" />
+            </StackPanel>
+        </Border>
+
+        <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+            <ListBox Background="{DynamicResource WindowBackground}">
+                <ListBox.ItemContainerTheme>
+                    <ControlTheme TargetType="ListBoxItem">
+                        <Setter Property="Padding" Value="0" />
+                        <Setter Property="Margin" Value="0" />
+                    </ControlTheme>
+                </ListBox.ItemContainerTheme>
+                <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="viewModels:BottomPaneViewModel">
+                        <Button
+                            CommandParameter="{Binding}"
+                            Background="Transparent"
+                            BorderBrush="{DynamicResource MainBorder}"
+                            BorderThickness="0,0,0,0"
+                            HorizontalAlignment="Stretch"
+                            VerticalAlignment="Stretch"
+                            HorizontalContentAlignment="Left">
+                            <StackPanel Orientation="Horizontal" Spacing="5" Margin="5" />
+                        </Button>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

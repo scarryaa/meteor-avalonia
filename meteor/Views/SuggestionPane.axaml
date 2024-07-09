@@ -1,0 +1,14 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="meteor.Views.SuggestionPane">
+
+    <Border BorderBrush="Gray" BorderThickness="1" CornerRadius="3" Background="White">
+        <ListBox Name="SuggestionListBox" MaxHeight="200">
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <StackPanel Orientation="Horizontal" />
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+    </Border>
+</UserControl>

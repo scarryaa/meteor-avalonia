@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
+using meteor.Views.Models;
 
 namespace meteor.Interfaces;
 
 public interface ITextBuffer
 {
-    event EventHandler TextChanged;
+    int Version { get; }
+    event EventHandler<TextChangedEventArgs> TextChanged;
     event EventHandler LinesUpdated;
     string Text { get; }
     long Length { get; }

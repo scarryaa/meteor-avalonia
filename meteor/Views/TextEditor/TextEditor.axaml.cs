@@ -1,5 +1,6 @@
 using System;
 using System.ComponentModel;
+using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -89,7 +90,7 @@ public partial class TextEditor : UserControl
     }
 
     private ScrollableTextEditorViewModel? _scrollableViewModel;
-    private InputManager InputManager { get; set; }
+    public InputManager InputManager { get; set; }
     private ScrollManager ScrollManager { get; set; }
     private RenderManager RenderManager { get; set; }
     private TextEditorUtils TextEditorUtils { get; set; }
@@ -103,8 +104,43 @@ public partial class TextEditor : UserControl
     {
         InitializeComponent();
         Initialize();
+
+        AttachedToVisualTree += OnAttachedToVisualTree;
     }
 
+    private void OnAttachedToVisualTree(object? sender, VisualTreeAttachmentEventArgs e)
+    {
+        KeyDown += UpdatePopupPosition;
+        TextInput += UpdatePopupPosition;
+    }
+
+    private void ApplySelectedSuggestion(ScrollableTextEditorViewModel viewModel)
+    {
+        var selectedItem = viewModel.TextEditorViewModel.CompletionPopupViewModel.SelectedItem;
+        if (selectedItem != null)
+            viewModel.TextEditorViewModel.InsertText(viewModel.TextEditorViewModel.CursorPosition, selectedItem.Label);
+        viewModel.TextEditorViewModel.HideCompletionSuggestions();
+    }
+
+    private void UpdatePopupPosition(object sender, RoutedEventArgs e)
+    {
+        if (e is TextInputEventArgs || (e is KeyEventArgs ke && ke.Key != Key.Tab && ke.Key != Key.Escape))
+            if (DataContext is ScrollableTextEditorViewModel viewModel)
+            {
+                var caretPosition = viewModel.TextEditorViewModel.GetCaretScreenPosition(this);
+                var horizontalOffset = viewModel.Offset.X;
+                var verticalOffset = viewModel.Offset.Y;
+
+                viewModel.TextEditorViewModel.PopupLeft = caretPosition.X - horizontalOffset;
+                viewModel.TextEditorViewModel.PopupTop =
+                    caretPosition.Y + viewModel.TextEditorViewModel.LineHeight - verticalOffset;
+
+                if (viewModel.TextEditorViewModel.IsPopupVisible)
+                    viewModel.TextEditorViewModel.ShowCompletionSuggestions(viewModel.TextEditorViewModel
+                        .CompletionPopupViewModel.CompletionItems.ToArray());
+            }
+    }
+    
     private void Initialize()
     {
         Cursor = new Cursor(StandardCursorType.Ibeam);

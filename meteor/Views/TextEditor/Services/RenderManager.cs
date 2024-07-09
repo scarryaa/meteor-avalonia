@@ -100,7 +100,7 @@ public class RenderManager
             var firstVisibleLine = Math.Max(0,
                 (int)(_context.ScrollableViewModel.VerticalOffset / _context.LineHeight) - 1);
             var lastVisibleLine = Math.Min(firstVisibleLine + (int)(viewableAreaHeight / _context.LineHeight) + 2,
-                lineCount);
+                (int)lineCount);
 
             var viewModel = _context.ScrollableViewModel.TextEditorViewModel;
             RenderCurrentLine(context, viewModel, viewableAreaWidth);

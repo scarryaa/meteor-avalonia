@@ -181,11 +181,29 @@ public class InputManager
                 handled = true;
                 break;
             case Key.Up:
-                _viewModel.CursorManager.MoveCursorUp(e.KeyModifiers.HasFlag(KeyModifiers.Shift));
+                if (_viewModel.IsPopupVisible)
+                {
+                    _viewModel.CompletionPopupViewModel.FocusPopup();
+                    _viewModel.CompletionPopupViewModel.SelectPreviousItem();
+                }
+                else
+                {
+                    _viewModel.CursorManager.MoveCursorUp(e.KeyModifiers.HasFlag(KeyModifiers.Shift));
+                }
+
                 handled = true;
                 break;
             case Key.Down:
-                _viewModel.CursorManager.MoveCursorDown(e.KeyModifiers.HasFlag(KeyModifiers.Shift));
+                if (_viewModel.IsPopupVisible)
+                {
+                    _viewModel.CompletionPopupViewModel.FocusPopup();
+                    _viewModel.CompletionPopupViewModel.SelectNextItem();
+                }
+                else
+                {
+                    _viewModel.CursorManager.MoveCursorDown(e.KeyModifiers.HasFlag(KeyModifiers.Shift));
+                }
+
                 handled = true;
                 break;
             case Key.Home:
@@ -207,8 +225,17 @@ public class InputManager
                 handled = true;
                 break;
             case Key.Enter:
-                _viewModel.TextManipulator.InsertNewLine();
-                handled = true;
+                if (_viewModel.IsPopupVisible && _viewModel.CompletionPopupViewModel.IsFocused)
+                {
+                    _viewModel.ApplySelectedSuggestion(_viewModel.CompletionPopupViewModel
+                        .SelectedItem);
+                    handled = true;
+                }
+                else
+                {
+                    _viewModel.TextManipulator.InsertNewLine();
+                    handled = true;
+                }
                 break;
             case Key.Tab:
                 if (e.KeyModifiers.HasFlag(KeyModifiers.Shift))
@@ -221,6 +248,9 @@ public class InputManager
                 else
                     _viewModel.TextManipulator.InsertTab();
                 handled = true;
+                break;
+            case Key.Escape:
+                if (_viewModel.IsPopupVisible) _viewModel.HideCompletionSuggestions();
                 break;
         }
 
@@ -240,6 +270,7 @@ public class InputManager
 
         if (!string.IsNullOrEmpty(e.Text))
         {
+            _viewModel.HasUserStartedTyping = true;
             await _viewModel.TextManipulator.InsertTextAsync(e.Text);
             _viewModel.UpdateLineCache(_viewModel.CursorPosition - 1, e.Text);
             e.Handled = true;

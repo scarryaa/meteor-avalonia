@@ -18,7 +18,7 @@
         Cursor="Arrow"
         x:DataType="viewModels:MainWindowViewModel">
 
-    <Grid ColumnDefinitions="125, 0, *" RowDefinitions="Auto, *, Auto">
+    <Grid x:Name="MainGrid" ColumnDefinitions="125, 0, *" RowDefinitions="Auto, *, 0, Auto, Auto">
         <Rectangle Grid.Row="0" Grid.Column="0" Name="DialogOverlay" Grid.RowSpan="3"
                    Grid.ColumnSpan="3" ZIndex="9999"
                    Fill="Black" Opacity="0.5" IsVisible="{Binding IsDialogOpen}" />
@@ -104,14 +104,50 @@
                               HorizontalAlignment="Center"
                               Margin="0,50,0,0"
                               Width="400" />
-        
-        <!-- Status Pane -->
-        <views:StatusPane Grid.Column="0" x:Name="StatusPane"
-                          DataContext="{Binding StatusPaneViewModel}"
-                          Grid.Row="2" Grid.ColumnSpan="3"
+
+        <!-- GridSplitter for Bottom Pane -->
+        <GridSplitter Grid.Row="2" Grid.ColumnSpan="3" Grid.Column="0"
+                      Background="{DynamicResource MainBorder}"
+                      ResizeDirection="Rows"
+                      ResizeBehavior="PreviousAndNext"
+                      Height="1"
+                      Cursor="SizeNorthSouth">
+            <GridSplitter.Template>
+                <ControlTemplate>
+                    <Border Height="1" BorderBrush="{DynamicResource MainBorder}" BorderThickness="1" Padding="0,0" />
+                </ControlTemplate>
+            </GridSplitter.Template>
+        </GridSplitter>
+
+        <!-- Bottom Pane -->
+        <views:BottomPane x:Name="BottomPane" Grid.Column="0" Grid.ColumnSpan="3" Grid.Row="3"
+                          DataContext="{Binding BottomPaneViewModel}"
                           Background="{DynamicResource LightGray}"
                           BorderBrush="{DynamicResource MainBorder}"
                           Foreground="{DynamicResource Text}" />
+
+        <!-- GridSplitter for Status Pane -->
+        <GridSplitter Grid.Row="4" Grid.ColumnSpan="3" Grid.Column="0"
+                      Background="{DynamicResource MainBorder}"
+                      ResizeDirection="Rows"
+                      ResizeBehavior="PreviousAndNext"
+                      Height="1"
+                      Cursor="SizeNorthSouth">
+            <GridSplitter.Template>
+                <ControlTemplate>
+                    <Border Height="1" BorderBrush="{DynamicResource MainBorder}" BorderThickness="1" Padding="0,0" />
+                </ControlTemplate>
+            </GridSplitter.Template>
+        </GridSplitter>
+
+        <!-- Status Pane -->
+        <views:StatusPane Grid.Column="0" x:Name="StatusPane"
+                          DataContext="{Binding StatusPaneViewModel}"
+                          Grid.Row="4" Grid.ColumnSpan="3"
+                          Background="{DynamicResource LightGray}"
+                          BorderBrush="{DynamicResource MainBorder}"
+                          Foreground="{DynamicResource Text}" />
+        
     </Grid>
 
     <Window.KeyBindings>

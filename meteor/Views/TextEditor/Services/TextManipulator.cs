@@ -51,8 +51,8 @@ public class TextManipulator
         if (_viewModel.SelectionStart != -1 && _viewModel.SelectionEnd != -1 &&
             _viewModel.SelectionStart != _viewModel.SelectionEnd)
         {
-            var start = long.Min(_viewModel.SelectionStart, _viewModel.SelectionEnd);
-            var end = long.Max(_viewModel.SelectionStart, _viewModel.SelectionEnd);
+            var start = Math.Min(_viewModel.SelectionStart, _viewModel.SelectionEnd);
+            var end = Math.Max(_viewModel.SelectionStart, _viewModel.SelectionEnd);
             var length = end - start;
 
             await _viewModel.DeleteText(start, length);
@@ -72,8 +72,8 @@ public class TextManipulator
         if (_viewModel.SelectionStart != -1 && _viewModel.SelectionEnd != -1 &&
             _viewModel.SelectionStart != _viewModel.SelectionEnd)
         {
-            var start = long.Min(_viewModel.SelectionStart, _viewModel.SelectionEnd);
-            var end = long.Max(_viewModel.SelectionStart, _viewModel.SelectionEnd);
+            var start = Math.Min(_viewModel.SelectionStart, _viewModel.SelectionEnd);
+            var end = Math.Max(_viewModel.SelectionStart, _viewModel.SelectionEnd);
             var length = end - start;
 
             await _viewModel.DeleteText(start, length);
@@ -136,8 +136,17 @@ public class TextManipulator
         _viewModel.TextBuffer.DeleteText(start, length);
         _viewModel.TextBuffer.InsertText(start, newText);
         _viewModel.CursorPosition = start + newText.Length;
+
+        var startLine = _viewModel.TextBuffer.GetLineIndexFromPosition(start);
+        var endLine = _viewModel.TextBuffer.GetLineIndexFromPosition(start + newText.Length);
+
+        for (var i = startLine; i <= endLine; i++)
+            _viewModel.LineCache.InvalidateLine(i);
+
+        _viewModel._scrollableViewModel?.ParentRenderManager?.InvalidateLines((int)startLine - 1, (int)endLine + 1);
         _viewModel.ClearSelection();
         _viewModel.OnInvalidateRequired();
+        _viewModel.NotifyGutterOfLineChange();
     }
 
     public async void IndentSelectionAsync()

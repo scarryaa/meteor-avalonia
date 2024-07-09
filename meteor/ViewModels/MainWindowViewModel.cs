@@ -14,6 +14,7 @@ using meteor.Enums;
 using meteor.Interfaces;
 using meteor.Models;
 using meteor.Views.Services;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using ReactiveUI;
 using File = System.IO.File;
@@ -34,13 +35,15 @@ public class MainWindowViewModel : ViewModelBase
     private readonly ITextBufferFactory _textBufferFactory;
     private IAutoSaveService _autoSaveService;
     private bool _isCommandPaletteVisible;
-
+    private bool _isPopupVisible;
+    
     public IResourceProvider CurrentTheme => ThemeService.GetCurrentTheme();
     public CommandPaletteViewModel CommandPaletteViewModel { get; }
 
     public MainWindowViewModel(
         TitleBarViewModel titleBarViewModel,
         StatusPaneViewModel statusPaneViewModel,
+        BottomPaneViewModel bottomPaneViewModel,
         FontPropertiesViewModel fontPropertiesViewModel,
         LineCountViewModel lineCountViewModel,
         ICursorPositionService cursorPositionService,
@@ -70,6 +73,7 @@ public class MainWindowViewModel : ViewModelBase
         StatusPaneViewModel = statusPaneViewModel;
         FileExplorerViewModel = fileExplorerViewModel;
         TitleBarViewModel = titleBarViewModel;
+        BottomPaneViewModel = bottomPaneViewModel;
         CommandPaletteViewModel = new CommandPaletteViewModel(this);
         _isCommandPaletteVisible = false;
 
@@ -128,6 +132,8 @@ public class MainWindowViewModel : ViewModelBase
         set => this.RaiseAndSetIfChanged(ref _selectedPath, value);
     }
 
+    public ScrollableTextEditorViewModel ScrollableTextEditorViewModel => _selectedTab.ScrollableTextEditorViewModel;
+
     public bool IsCommandPaletteVisible
     {
         get => _isCommandPaletteVisible;
@@ -138,6 +144,12 @@ public class MainWindowViewModel : ViewModelBase
         }
     }
 
+    public bool IsPopupVisible
+    {
+        get => _isPopupVisible;
+        set => this.RaiseAndSetIfChanged(ref _isPopupVisible, value);
+    }
+    
     public IThemeService ThemeService { get; }
 
     public TabViewModel SelectedTab
@@ -176,6 +188,7 @@ public class MainWindowViewModel : ViewModelBase
     public StatusPaneViewModel StatusPaneViewModel { get; }
     public FileExplorerViewModel FileExplorerViewModel { get; }
     public TitleBarViewModel TitleBarViewModel { get; }
+    public BottomPaneViewModel BottomPaneViewModel { get; }
 
     public double WindowWidth
     {
@@ -256,17 +269,22 @@ public class MainWindowViewModel : ViewModelBase
         var autoSaveService = App.ServiceProvider.GetRequiredService<IAutoSaveService>();
         var themeService = App.ServiceProvider.GetRequiredService<IThemeService>();
         var syntaxHighlighter = App.ServiceProvider.GetRequiredService<ISyntaxHighlighter>();
+        var lspClient = App.ServiceProvider.GetRequiredService<LspClient>();
+        var configuration = App.ServiceProvider.GetRequiredService<IConfiguration>();
 
         var textEditorViewModel = new TextEditorViewModel(
+            lspClient,
             cursorPositionService,
             fontPropertiesViewModel,
             lineCountViewModel,
             textBuffer,
             clipboardService,
             syntaxHighlighter,
-            this);
+            configuration,
+            this,
+            GenerateTemporaryFilePath());
 
-        if (!string.IsNullOrEmpty(filePath)) textEditorViewModel.SetFilePath(filePath);
+        if (!string.IsNullOrEmpty(filePath)) _ = textEditorViewModel.SetFilePath(filePath);
 
         var scrollManager = new ScrollManager(textEditorViewModel);
         textEditorViewModel.ScrollManager = scrollManager;
@@ -307,6 +325,13 @@ public class MainWindowViewModel : ViewModelBase
 
         if (SelectedTab != null)
             SelectedTab.ScrollableTextEditorViewModel.Viewport = new Size(WindowWidth, WindowHeight);
+    }
+
+    private string GenerateTemporaryFilePath()
+    {
+        var tempFilePath = Path.GetTempFileName();
+        File.Delete(tempFilePath);
+        return tempFilePath + ".ts";
     }
 
     private void CloseOtherTabs(TabViewModel tab)
@@ -469,7 +494,7 @@ public class MainWindowViewModel : ViewModelBase
             tab.ScrollableTextEditorViewModel.Offset = new Vector(0, 0);
 
             // Trigger syntax highlighting update
-            await textEditorVM.UpdateSyntaxHighlightingAsync();
+            // await textEditorVM.UpdateSyntaxHighlightingAsync();
 
             Console.WriteLine($"File loaded successfully: {filePath}");
         }

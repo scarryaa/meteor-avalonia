@@ -1,3 +1,4 @@
+using System;
 using ReactiveUI;
 
 namespace meteor.ViewModels;
@@ -11,7 +12,7 @@ public class LineCountViewModel : ReactiveObject
 
     public long LineCount
     {
-        get => long.Max(_lineCount, 1);
+        get => Math.Max(_lineCount, 1);
         set => this.RaiseAndSetIfChanged(ref _lineCount, value);
     }
 
@@ -40,6 +41,6 @@ public class LineCountViewModel : ReactiveObject
 
     public void UpdateLineCount(long newLineCount)
     {
-        LineCount = long.Max(newLineCount, 1);
+        LineCount = Math.Max(newLineCount, 1);
     }
 }

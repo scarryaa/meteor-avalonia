@@ -9,6 +9,7 @@ using DiffPlex.DiffBuilder;
 using meteor.Interfaces;
 using meteor.Models;
 using meteor.Views.Services;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using ReactiveUI;
 using File = System.IO.File;
@@ -19,52 +20,50 @@ public class TabViewModel : ViewModelBase, IDisposable
 {
     private string _title = "Untitled";
     private bool _isSelected;
-    private ScrollableTextEditorViewModel _scrollableTextEditorViewModel;
+    private ScrollableTextEditorViewModel? _scrollableTextEditorViewModel;
     private string? _filePath;
     private bool _isDirty;
     private bool _isTemporary;
     private double _savedVerticalOffset;
     private double _savedHorizontalOffset;
-    private string _originalText = "";
-    private string _text = "";
+    private string? _originalText = "";
+    private string? _text = "";
     private bool _isLoadingText;
     private DateTime _lastWriteTime;
     private const int AutoSaveInterval = 30000; // 30 seconds
     private const string BackupExtension = ".backup";
     private readonly ICursorPositionService _cursorPositionService;
-    private readonly IUndoRedoManager<TextState> _undoRedoManager;
+    private readonly IUndoRedoManager<TextState?> _undoRedoManager;
     private readonly IFileSystemWatcherFactory _fileSystemWatcherFactory;
-    private Timer _autoSaveTimer;
+    private Timer? _autoSaveTimer;
     private readonly ITextBuffer _textBuffer;
     private readonly FontPropertiesViewModel _fontPropertiesViewModel;
     private readonly LineCountViewModel _lineCountViewModel;
     private readonly IClipboardService _clipboardService;
     private FileSystemWatcher? _fileWatcher;
     private readonly IAutoSaveService _autoSaveService;
-    private bool _isClosing;
     private readonly IThemeService _themeService;
-    private IBrush _foreground;
-    private IBrush _background;
-    private IBrush _borderBrush;
-    private IBrush _closeButtonBackground;
-    private IBrush _closeButtonForeground;
-    private IBrush _dirtyIndicatorBrush;
+    private IBrush? _foreground;
+    private IBrush? _background;
+    private IBrush? _borderBrush;
+    private IBrush? _closeButtonBackground;
+    private IBrush? _closeButtonForeground;
+    private IBrush? _dirtyIndicatorBrush;
 
     public event EventHandler? TextChanged;
     public event EventHandler? FileChangedExternally;
-    public event EventHandler? TabClosed;
     public event EventHandler? InvalidateRequired;
 
     public ICommand CloseTabCommand { get; set; }
     public ICommand CloseOtherTabsCommand { get; set; }
     public ICommand CloseAllTabsCommand { get; set; }
-    public ICommand UndoCommand { get; set; }
-    public ICommand RedoCommand { get; set; }
-    public ICommand SaveCommand { get; set; }
+    public ICommand? UndoCommand { get; set; }
+    public ICommand? RedoCommand { get; set; }
+    public ICommand? SaveCommand { get; set; }
 
     public TabViewModel(
         ICursorPositionService cursorPositionService,
-        IUndoRedoManager<TextState> undoRedoManager,
+        IUndoRedoManager<TextState?> undoRedoManager,
         IFileSystemWatcherFactory fileSystemWatcherFactory,
         ITextBufferFactory textBufferFactory,
         FontPropertiesViewModel fontPropertiesViewModel,
@@ -86,16 +85,83 @@ public class TabViewModel : ViewModelBase, IDisposable
         _clipboardService = clipboardService;
         _autoSaveService = autoSaveService;
 
-        CloseTabCommand = ReactiveCommand.Create<TabViewModel>(tab => closeTabCommand.Execute(tab));
-        CloseOtherTabsCommand = ReactiveCommand.Create<TabViewModel>(tab => closeOtherTabsCommand.Execute(tab));
-        CloseAllTabsCommand = ReactiveCommand.Create<TabViewModel>(tab => closeAllTabsCommand.Execute(tab));
+        CloseTabCommand = ReactiveCommand.Create<TabViewModel>(closeTabCommand.Execute);
+        CloseOtherTabsCommand = ReactiveCommand.Create<TabViewModel>(closeOtherTabsCommand.Execute);
+        CloseAllTabsCommand = ReactiveCommand.Create<TabViewModel>(closeAllTabsCommand.Execute);
 
         InitializeCommands();
-        InitializeScrollableTextEditor();
+        // InitializeScrollableTextEditor();
         InitializeAutoSaveTimer();
 
         _themeService.ThemeChanged += OnThemeChanged;
         UpdateBrushes();
+
+        TextChanged += OnTextChanged;
+    }
+
+    public static async Task<TabViewModel>? CreateAsync(
+        LspClient languageClientService,
+        ICursorPositionService cursorPositionService,
+        IUndoRedoManager<TextState?> undoRedoManager,
+        IFileSystemWatcherFactory fileSystemWatcherFactory,
+        ITextBufferFactory textBufferFactory,
+        FontPropertiesViewModel fontPropertiesViewModel,
+        LineCountViewModel lineCountViewModel,
+        IClipboardService clipboardService,
+        IAutoSaveService autoSaveService,
+        IThemeService themeService,
+        ICommand closeTabCommand,
+        ICommand closeOtherTabsCommand,
+        ICommand closeAllTabsCommand)
+    {
+        var textBuffer = textBufferFactory.Create();
+        var textEditorViewModel = new TextEditorViewModel(
+            languageClientService,
+            cursorPositionService,
+            fontPropertiesViewModel,
+            lineCountViewModel,
+            textBuffer,
+            clipboardService,
+            App.ServiceProvider.GetRequiredService<ISyntaxHighlighter>(),
+            App.ServiceProvider.GetRequiredService<IConfiguration>(),
+            null);
+
+        var scrollManager = new ScrollManager(textEditorViewModel);
+
+        var scrollableTextEditorViewModel = new ScrollableTextEditorViewModel(
+            cursorPositionService,
+            fontPropertiesViewModel,
+            lineCountViewModel,
+            textBuffer,
+            clipboardService,
+            themeService,
+            textEditorViewModel,
+            scrollManager);
+
+        textEditorViewModel.ParentViewModel = scrollableTextEditorViewModel;
+
+        var tabViewModel = new TabViewModel(
+            cursorPositionService,
+            undoRedoManager,
+            fileSystemWatcherFactory,
+            textBufferFactory,
+            fontPropertiesViewModel,
+            lineCountViewModel,
+            clipboardService,
+            autoSaveService,
+            themeService,
+            closeTabCommand,
+            closeOtherTabsCommand,
+            closeAllTabsCommand)
+        {
+            ScrollableTextEditorViewModel = scrollableTextEditorViewModel
+        };
+
+        scrollableTextEditorViewModel.TabViewModel = tabViewModel;
+
+        tabViewModel.FilePath = tabViewModel.GenerateTemporaryFilePath();
+
+        return tabViewModel;
     }
 
     private void InitializeCommands()
@@ -105,7 +171,7 @@ public class TabViewModel : ViewModelBase, IDisposable
         SaveCommand = ReactiveCommand.CreateFromTask(SaveAsync, this.WhenAnyValue(x => x.IsDirty));
     }
 
-    private void OnThemeChanged(object sender, EventArgs e)
+    private void OnThemeChanged(object? sender, EventArgs e)
     {
         UpdateBrushes();
     }
@@ -132,44 +198,51 @@ public class TabViewModel : ViewModelBase, IDisposable
         DirtyIndicatorBrush = isDirty ? GetResourceBrush("TabDirtyIndicator") : Brushes.Transparent;
     }
 
-    private IBrush GetResourceBrush(string resourceKey)
+    private IBrush? GetResourceBrush(string resourceKey)
     {
         return _themeService.GetResourceBrush(resourceKey);
     }
 
     private void InitializeScrollableTextEditor()
     {
-        var textEditorViewModel = new TextEditorViewModel(
-            _cursorPositionService,
-            _fontPropertiesViewModel,
-            _lineCountViewModel,
-            _textBuffer,
-            _clipboardService,
-            App.ServiceProvider.GetRequiredService<ISyntaxHighlighter>(),
-            this,
-            FilePath
-        );
-        textEditorViewModel.InitializeAsync();
+        if (App.ServiceProvider != null)
+        {
+            var textEditorViewModel = new TextEditorViewModel(
+                App.ServiceProvider.GetRequiredService<LspClient>(),
+                _cursorPositionService,
+                _fontPropertiesViewModel,
+                _lineCountViewModel,
+                _textBuffer,
+                _clipboardService,
+                App.ServiceProvider.GetRequiredService<ISyntaxHighlighter>(),
+                App.ServiceProvider.GetRequiredService<IConfiguration>(),
+                this,
+                FilePath
+            );
 
-        var scrollManager = new ScrollManager(textEditorViewModel);
+            var scrollManager = new ScrollManager(textEditorViewModel);
 
-        ScrollableTextEditorViewModel = new ScrollableTextEditorViewModel(
-            _cursorPositionService,
-            _fontPropertiesViewModel,
-            _lineCountViewModel,
-            _textBuffer,
-            _clipboardService,
-            _themeService,
-            textEditorViewModel,
-            scrollManager);
+            ScrollableTextEditorViewModel = new ScrollableTextEditorViewModel(
+                _cursorPositionService,
+                _fontPropertiesViewModel,
+                _lineCountViewModel,
+                _textBuffer,
+                _clipboardService,
+                _themeService,
+                textEditorViewModel,
+                scrollManager);
 
-        textEditorViewModel.ParentViewModel = ScrollableTextEditorViewModel;
+            textEditorViewModel.ParentViewModel = ScrollableTextEditorViewModel;
 
-        textEditorViewModel.TextManipulator = new TextManipulator();
-        textEditorViewModel.TextManipulator.UpdateViewModel(textEditorViewModel);
+            textEditorViewModel.TextManipulator = new TextManipulator();
+            textEditorViewModel.TextManipulator.UpdateViewModel(textEditorViewModel);
+        }
 
-        ScrollableTextEditorViewModel.TextEditorViewModel.TextBuffer.LinesUpdated += OnTextBufferLinesUpdated;
-        ScrollableTextEditorViewModel.TabViewModel = this;
+        if (ScrollableTextEditorViewModel != null)
+        {
+            ScrollableTextEditorViewModel.TextEditorViewModel.TextBuffer.LinesUpdated += OnTextBufferLinesUpdated;
+            ScrollableTextEditorViewModel.TabViewModel = this;
+        }
     }
 
     public string Title
@@ -180,37 +253,37 @@ public class TabViewModel : ViewModelBase, IDisposable
 
     public bool IsNew { get; set; } = true;
 
-    public IBrush DirtyIndicatorBrush
+    public IBrush? DirtyIndicatorBrush
     {
         get => _dirtyIndicatorBrush;
         set => this.RaiseAndSetIfChanged(ref _dirtyIndicatorBrush, value);
     }
 
-    public IBrush Foreground
+    public IBrush? Foreground
     {
         get => _foreground;
         set => this.RaiseAndSetIfChanged(ref _foreground, value);
     }
 
-    public IBrush CloseButtonForeground
+    public IBrush? CloseButtonForeground
     {
         get => _closeButtonForeground;
         set => this.RaiseAndSetIfChanged(ref _closeButtonForeground, value);
     }
 
-    public IBrush CloseButtonBackground
+    public IBrush? CloseButtonBackground
     {
         get => _closeButtonBackground;
         set => this.RaiseAndSetIfChanged(ref _closeButtonBackground, value);
     }
 
-    public IBrush Background
+    public IBrush? Background
     {
         get => _background;
         set => this.RaiseAndSetIfChanged(ref _background, value);
     }
 
-    public IBrush BorderBrush
+    public IBrush? BorderBrush
     {
         get => _borderBrush;
         set => this.RaiseAndSetIfChanged(ref _borderBrush, value);
@@ -232,24 +305,28 @@ public class TabViewModel : ViewModelBase, IDisposable
         set => this.RaiseAndSetIfChanged(ref _isTemporary, value);
     }
 
-    public string OriginalText
+    public string? OriginalText
     {
         get => _originalText;
         set => this.RaiseAndSetIfChanged(ref _originalText, value);
     }
 
-    public ScrollableTextEditorViewModel ScrollableTextEditorViewModel
+    public ScrollableTextEditorViewModel? ScrollableTextEditorViewModel
     {
         get => _scrollableTextEditorViewModel;
         set
         {
             this.RaiseAndSetIfChanged(ref _scrollableTextEditorViewModel, value);
             if (_scrollableTextEditorViewModel != null)
-                _scrollableTextEditorViewModel.PropertyChanged += (sender, args) =>
-                {
-                    if (args.PropertyName == nameof(ScrollableTextEditorViewModel.HorizontalOffset))
-                        OnInvalidateRequired();
-                };
+            {
+                _scrollableTextEditorViewModel.TabViewModel = this;
+                if (_scrollableTextEditorViewModel != null)
+                    _scrollableTextEditorViewModel.PropertyChanged += (_, args) =>
+                    {
+                        if (args.PropertyName == nameof(ScrollableTextEditorViewModel.HorizontalOffset))
+                            OnInvalidateRequired();
+                    };
+            }
         }
     }
 
@@ -258,20 +335,21 @@ public class TabViewModel : ViewModelBase, IDisposable
         get => _filePath;
         set
         {
-            OnFilePathChanged(_filePath, value);
+            OnFilePathChanged(value);
             this.RaiseAndSetIfChanged(ref _filePath, value);
         }
     }
 
-    public string Text
+    public string? Text
     {
         get => _text;
         set
         {
             if (_text != value)
             {
-                OnTextChanged(_text, value);
-                this.RaiseAndSetIfChanged(ref _text, value);
+                _text = value;
+                this.RaisePropertyChanged();
+                OnTextChanged(this, EventArgs.Empty);
             }
         }
     }
@@ -301,7 +379,7 @@ public class TabViewModel : ViewModelBase, IDisposable
     private void InitializeAutoSaveTimer()
     {
         _autoSaveTimer = new Timer(AutoSaveInterval);
-        _autoSaveTimer.Elapsed += AutoSaveTimer_Elapsed;
+        // _autoSaveTimer.Elapsed += AutoSaveTimer_Elapsed;
     }
 
     public async Task LoadTextAsync(string filePath)
@@ -317,17 +395,26 @@ public class TabViewModel : ViewModelBase, IDisposable
             _lastWriteTime = File.GetLastWriteTime(filePath);
             IsNew = false;
             _undoRedoManager.Clear();
-            var initialState =
-                new TextState(Text, (int)ScrollableTextEditorViewModel.TextEditorViewModel.CursorPosition);
-            _undoRedoManager.AddState(initialState, "Loaded text");
+            if (ScrollableTextEditorViewModel != null)
+            {
+                var initialState =
+                    new TextState(Text, (int)ScrollableTextEditorViewModel.TextEditorViewModel.CursorPosition);
+                _undoRedoManager.AddState(initialState, "Loaded text");
+            }
 
             await _autoSaveService.InitializeAsync(filePath, Text);
             // Start auto-save timer when file is loaded
-            _autoSaveTimer.Start();
+            _autoSaveTimer?.Start();
 
-            ScrollableTextEditorViewModel.TextEditorViewModel.TextBuffer.UpdateLineCache();
-            ScrollableTextEditorViewModel.TextEditorViewModel.TextBuffer.RaiseLinesUpdated();
-            ScrollableTextEditorViewModel.TextEditorViewModel.NotifyGutterOfLineChange();
+            ScrollableTextEditorViewModel?.TextEditorViewModel.TextBuffer.UpdateLineCache();
+            ScrollableTextEditorViewModel?.TextEditorViewModel.TextBuffer.RaiseLinesUpdated();
+            ScrollableTextEditorViewModel?.TextEditorViewModel.NotifyGutterOfLineChange();
+            ScrollableTextEditorViewModel?.TextEditorViewModel.RenderManager.InvalidateLines(0,
+                (int)_textBuffer.LineCount);
+
+            // Ensure LSP client sends didOpen notification
+            if (ScrollableTextEditorViewModel?.TextEditorViewModel != null)
+                await ScrollableTextEditorViewModel.TextEditorViewModel.SetFilePath(filePath);
         }
         finally
         {
@@ -339,7 +426,7 @@ public class TabViewModel : ViewModelBase, IDisposable
     {
         if (_undoRedoManager.CanUndo)
         {
-            var (undoneState, description) = _undoRedoManager.Undo();
+            var (undoneState, _) = _undoRedoManager.Undo();
             ApplyTextChange(undoneState);
             UpdateDirtyState();
         }
@@ -349,7 +436,7 @@ public class TabViewModel : ViewModelBase, IDisposable
     {
         if (_undoRedoManager.CanRedo)
         {
-            var (redoneState, description) = _undoRedoManager.Redo();
+            var (redoneState, _) = _undoRedoManager.Redo();
             ApplyTextChange(redoneState);
         }
     }
@@ -358,10 +445,13 @@ public class TabViewModel : ViewModelBase, IDisposable
     {
         if (!_isLoadingText)
         {
-            var currentText = ScrollableTextEditorViewModel.TextEditorViewModel.TextBuffer.Text;
-            _undoRedoManager.AddState(
-                new TextState(currentText, (int)ScrollableTextEditorViewModel.TextEditorViewModel.CursorPosition),
-                "Text buffer update");
+            var currentText = ScrollableTextEditorViewModel?.TextEditorViewModel.TextBuffer.Text;
+            if (ScrollableTextEditorViewModel != null)
+                if (currentText != null)
+                    _undoRedoManager.AddState(
+                        new TextState(currentText,
+                            (int)ScrollableTextEditorViewModel.TextEditorViewModel.CursorPosition),
+                        "Text buffer update");
             Text = currentText;
         }
     }
@@ -379,11 +469,6 @@ public class TabViewModel : ViewModelBase, IDisposable
         return reader.CurrentEncoding;
     }
 
-    private async void AutoSaveTimer_Elapsed(object? sender, ElapsedEventArgs e)
-    {
-        if (!IsNew && IsDirty) await _autoSaveService.SaveBackupAsync(Text);
-    }
-
     public async Task SaveAsync()
     {
         if (IsDirty && !string.IsNullOrEmpty(FilePath))
@@ -394,7 +479,7 @@ public class TabViewModel : ViewModelBase, IDisposable
                 UpdateDirtyState();
                 IsNew = false;
                 // Start auto-save timer when file is saved
-                _autoSaveTimer.Start();
+                _autoSaveTimer?.Start();
             }
             catch (Exception ex)
             {
@@ -468,52 +553,38 @@ public class TabViewModel : ViewModelBase, IDisposable
             if (newLastWriteTime != _lastWriteTime)
             {
                 _lastWriteTime = newLastWriteTime;
-                LoadTextAsync(e.FullPath);
+                _ = LoadTextAsync(e.FullPath);
                 FileChangedExternally?.Invoke(this, EventArgs.Empty);
             }
         }
     }
 
-    private void OnScrollableTextEditorViewModelChanged(ScrollableTextEditorViewModel oldValue,
-        ScrollableTextEditorViewModel newValue)
-    {
-        if (oldValue != null)
-        {
-            oldValue.TextEditorViewModel.TextBuffer.LinesUpdated -= OnTextBufferLinesUpdated;
-            oldValue.TabViewModel = null;
-        }
-
-        if (newValue != null)
-        {
-            newValue.TextEditorViewModel.TextBuffer.LinesUpdated += OnTextBufferLinesUpdated;
-            newValue.TabViewModel = this;
-        }
-    }
-
-    private void OnFilePathChanged(string? oldValue, string? newValue)
+    private void OnFilePathChanged(string? newValue)
     {
         if (!string.IsNullOrEmpty(newValue))
             SetupFileWatcher(newValue);
     }
 
-    private void OnTextChanged(string oldValue, string newValue)
+    public void OnTextChanged(object? sender, EventArgs e)
     {
         if (!_isLoadingText)
         {
-            var cursorPosition = ScrollableTextEditorViewModel.TextEditorViewModel.CursorPosition;
-            var newState = new TextState(newValue, (int)cursorPosition);
+            if (ScrollableTextEditorViewModel != null)
+            {
+                var cursorPosition = ScrollableTextEditorViewModel.TextEditorViewModel.CursorPosition;
+                var newState = new TextState(_text, (int)cursorPosition);
 
-            _undoRedoManager.AddState(newState, "Text change");
+                _undoRedoManager.AddState(newState, "Text change");
+            }
+
             UpdateDirtyState();
             if (IsTemporary) IsTemporary = false;
             if (!IsNew)
             {
-                _autoSaveTimer.Stop();
-                _autoSaveTimer.Start();
+                _autoSaveTimer?.Stop();
+                _autoSaveTimer?.Start();
             }
         }
-
-        TextChanged?.Invoke(this, EventArgs.Empty);
     }
 
     public virtual void OnInvalidateRequired()
@@ -521,7 +592,7 @@ public class TabViewModel : ViewModelBase, IDisposable
         InvalidateRequired?.Invoke(this, EventArgs.Empty);
     }
 
-    private void ApplyTextChange(TextState newState)
+    private void ApplyTextChange(TextState? newState)
     {
         if (newState == null)
         {
@@ -532,21 +603,24 @@ public class TabViewModel : ViewModelBase, IDisposable
         _isLoadingText = true;
         Text = newState.Text;
         OriginalText = newState.Text;
-        ScrollableTextEditorViewModel.TextEditorViewModel.TextBuffer.SetText(newState.Text);
-        ScrollableTextEditorViewModel.TextEditorViewModel.CursorPosition = newState.CursorPosition;
-        _isLoadingText = false;
-        UpdateDirtyState();
-        ScrollableTextEditorViewModel.TextEditorViewModel.UpdateLineStarts();
-        ScrollableTextEditorViewModel.TextEditorViewModel.OnInvalidateRequired();
+        ScrollableTextEditorViewModel?.TextEditorViewModel.TextBuffer.SetText(newState.Text);
+        if (ScrollableTextEditorViewModel != null)
+        {
+            ScrollableTextEditorViewModel.TextEditorViewModel.CursorPosition = newState.CursorPosition;
+            _isLoadingText = false;
+            UpdateDirtyState();
+            ScrollableTextEditorViewModel.TextEditorViewModel.UpdateLineStarts();
+            ScrollableTextEditorViewModel.TextEditorViewModel.OnInvalidateRequired();
+        }
     }
 
     private void UpdateTextEditorBuffer()
     {
-        ScrollableTextEditorViewModel.TextEditorViewModel.TextBuffer.Clear();
-        ScrollableTextEditorViewModel.TextEditorViewModel.LineCache.Clear();
-        ScrollableTextEditorViewModel.TextEditorViewModel.TextBuffer.SetText(Text);
-        ScrollableTextEditorViewModel.TextEditorViewModel.OnInvalidateRequired();
-        ScrollableTextEditorViewModel.GutterViewModel.OnInvalidateRequired();
+        ScrollableTextEditorViewModel?.TextEditorViewModel.TextBuffer.Clear();
+        ScrollableTextEditorViewModel?.TextEditorViewModel.LineCache.Clear();
+        ScrollableTextEditorViewModel?.TextEditorViewModel.TextBuffer.SetText(Text);
+        ScrollableTextEditorViewModel?.TextEditorViewModel.OnInvalidateRequired();
+        ScrollableTextEditorViewModel?.GutterViewModel.OnInvalidateRequired();
     }
 
     public async Task CleanupBackupsAsync()
@@ -563,8 +637,16 @@ public class TabViewModel : ViewModelBase, IDisposable
 
     public void Dispose()
     {
-        ScrollableTextEditorViewModel.TextEditorViewModel.TextBuffer.LinesUpdated -= OnTextBufferLinesUpdated;
-        _autoSaveTimer.Dispose();
+        if (ScrollableTextEditorViewModel != null)
+            ScrollableTextEditorViewModel.TextEditorViewModel.TextBuffer.LinesUpdated -= OnTextBufferLinesUpdated;
+        _autoSaveTimer?.Dispose();
         _fileWatcher?.Dispose();
+    }
+
+    private string GenerateTemporaryFilePath()
+    {
+        var tempFilePath = Path.GetTempFileName();
+        File.Delete(tempFilePath);
+        return tempFilePath + ".ts";
     }
 }

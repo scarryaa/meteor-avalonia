@@ -17,8 +17,10 @@
         <entry key="meteor/Styles/ContextMenu.axaml" value="meteor/meteor.csproj" />
         <entry key="meteor/Styles/Styles.axaml" value="meteor/meteor.csproj" />
         <entry key="meteor/Styles/Tooltip.axaml" value="meteor/meteor.csproj" />
+        <entry key="meteor/Views/BottomPane.axaml" value="meteor/meteor.csproj" />
         <entry key="meteor/Views/ButtonlessScrollViewer.axaml" value="meteor/meteor.csproj" />
         <entry key="meteor/Views/CommandPalette.axaml" value="meteor/meteor.csproj" />
+        <entry key="meteor/Views/CompletionPopup.axaml" value="meteor/meteor.csproj" />
         <entry key="meteor/Views/FileExplorer.axaml" value="meteor/meteor.csproj" />
         <entry key="meteor/Views/Gutter.axaml" value="meteor/meteor.csproj" />
         <entry key="meteor/Views/HorizontalScrollableTabControl.axaml" value="meteor/meteor.csproj" />
@@ -27,6 +29,7 @@
         <entry key="meteor/Views/SaveConfirmationDialog.axaml" value="meteor/meteor.csproj" />
         <entry key="meteor/Views/ScrollableTextEditor.axaml" value="meteor/meteor.csproj" />
         <entry key="meteor/Views/StatusPane.axaml" value="meteor/meteor.csproj" />
+        <entry key="meteor/Views/SuggestionPane.axaml" value="meteor/meteor.csproj" />
         <entry key="meteor/Views/TabItemView.axaml" value="meteor/meteor.csproj" />
         <entry key="meteor/Views/TabView.axaml" value="meteor/meteor.csproj" />
         <entry key="meteor/Views/TextEditor.axaml" value="meteor/meteor.csproj" />

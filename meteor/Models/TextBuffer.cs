@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using meteor.Interfaces;
+using meteor.Views.Models;
 using ReactiveUI;
 
 namespace meteor.Models;
@@ -14,9 +15,11 @@ public class TextBuffer : ReactiveObject, ITextBuffer
     private double _lineHeight;
     private int _updatedStartLine;
     private int _updatedEndLine;
-    
+
     private readonly Dictionary<int, long> _lineStartCache = new();
     private readonly Dictionary<long, int> _lineIndexCache = new();
+
+    public int Version { get; private set; }
 
     public TextBuffer()
     {
@@ -64,7 +67,7 @@ public class TextBuffer : ReactiveObject, ITextBuffer
     public List<long> LineStarts { get; }
 
     public event EventHandler LinesUpdated;
-    public event EventHandler TextChanged;
+    public event EventHandler<TextChangedEventArgs> TextChanged;
 
     public string GetLineText(long lineIndex)
     {
@@ -76,11 +79,13 @@ public class TextBuffer : ReactiveObject, ITextBuffer
         return _rope.GetText((int)lineStart, (int)(lineEnd - lineStart + 1));
     }
 
-    public void SetText(string newText)
+    public void SetText(string? newText)
     {
+        var oldText = _rope.GetText();
         Clear();
         InsertText(0, newText);
         UpdateLineCache();
+        OnTextChanged(0, newText ?? string.Empty, oldText.Length);
     }
 
     public void Clear()
@@ -97,7 +102,20 @@ public class TextBuffer : ReactiveObject, ITextBuffer
 
     public string GetText(long start, long end)
     {
-        return Text.Substring((int)start, (int)(end - start));
+        if (start < 0) start = 0;
+        if (end > Text.Length) end = Text.Length;
+        if (start >= end) return string.Empty;
+
+        try
+        {
+            return Text.Substring((int)start, (int)(end - start));
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in GetText: start={start}, end={end}, _text.Length={Text.Length}");
+            Console.WriteLine($"Exception: {ex.Message}");
+            return string.Empty;
+        }
     }
 
     public void RaiseLinesUpdated()
@@ -105,7 +123,7 @@ public class TextBuffer : ReactiveObject, ITextBuffer
         LinesUpdated?.Invoke(this, EventArgs.Empty);
     }
 
-    public void InsertText(long position, string text)
+    public void InsertText(long position, string? text)
     {
         if (string.IsNullOrEmpty(text) || position < 0 || position > _rope.Length) return;
 
@@ -113,7 +131,7 @@ public class TextBuffer : ReactiveObject, ITextBuffer
         UpdateLineCacheAfterInsertion(position, text);
         _updatedStartLine = (int)GetLineIndexFromPosition(position);
         _updatedEndLine = (int)GetLineIndexFromPosition(position + text.Length);
-        TextChanged?.Invoke(this, EventArgs.Empty);
+        OnTextChanged(position, text, 0);
         LinesUpdated?.Invoke(this, EventArgs.Empty);
     }
 
@@ -134,10 +152,12 @@ public class TextBuffer : ReactiveObject, ITextBuffer
     {
         if (length > 0)
         {
+            var deletedText = _rope.GetText((int)start, (int)length);
             _rope.Delete((int)start, (int)length);
             UpdateLineCacheAfterDeletion(start, length);
             _updatedStartLine = (int)GetLineIndexFromPosition(start);
             _updatedEndLine = (int)GetLineIndexFromPosition(start + length);
+            OnTextChanged(start, string.Empty, length);
             LinesUpdated?.Invoke(this, EventArgs.Empty);
         }
     }
@@ -181,6 +201,12 @@ public class TextBuffer : ReactiveObject, ITextBuffer
     {
         var lineText = GetLineText(lineIndex);
         return lineText.TrimEnd('\n', '\r').Length;
+    }
+
+    protected virtual void OnTextChanged(long position, string insertedText, long deletedLength)
+    {
+        Version++;
+        TextChanged?.Invoke(this, new TextChangedEventArgs(position, insertedText, deletedLength, Version));
     }
 
     public long GetLineEndPosition(int lineIndex)

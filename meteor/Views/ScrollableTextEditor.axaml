@@ -8,23 +8,25 @@
              x:Class="meteor.Views.ScrollableTextEditor"
              x:DataType="vm:ScrollableTextEditorViewModel"
              AttachedToVisualTree="OnAttachedToVisualTree">
-    
-    <views:ButtonlessScrollViewer x:Name="EditorScrollViewer"
-                                  Theme="{StaticResource {x:Type ScrollViewer}}"
-                                  VerticalScrollBarVisibility="Auto"
-                                  HorizontalScrollBarVisibility="Auto"
-                                  ScrollChanged="EditorScrollViewer_ScrollChanged"
-                                  SizeChanged="EditorScrollViewer_SizeChanged"
-                                  Offset="{Binding Offset, Mode=TwoWay}">
-        <views:TextEditor x:Name="TextEditor"
-                          FontFamily="{Binding FontPropertiesViewModel.FontFamily}"
-                          FontSize="{Binding FontPropertiesViewModel.FontSize}"
-                          Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=views:ScrollableTextEditor}}"
-                          BackgroundBrush="{Binding BackgroundBrush, RelativeSource={RelativeSource AncestorType=views:ScrollableTextEditor}}"
-                          CursorBrush="{Binding CursorBrush, RelativeSource={RelativeSource AncestorType=views:ScrollableTextEditor}}"
-                          SelectionBrush="{Binding SelectionBrush, RelativeSource={RelativeSource AncestorType=views:ScrollableTextEditor}}"
-                          LineHighlightBrush="{Binding LineHighlightBrush, RelativeSource={RelativeSource AncestorType=views:ScrollableTextEditor}}"
-                          Width="{Binding LongestLineWidth}"
-                          Height="{Binding TotalHeight}" />
-    </views:ButtonlessScrollViewer>
+
+    <Grid>
+        <views:ButtonlessScrollViewer x:Name="EditorScrollViewer"
+                                      Theme="{StaticResource {x:Type ScrollViewer}}"
+                                      VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Auto"
+                                      ScrollChanged="EditorScrollViewer_ScrollChanged"
+                                      SizeChanged="EditorScrollViewer_SizeChanged"
+                                      Offset="{Binding Offset, Mode=TwoWay}">
+            <views:TextEditor x:Name="TextEditor"
+                              FontFamily="{Binding FontPropertiesViewModel.FontFamily}"
+                              FontSize="{Binding FontPropertiesViewModel.FontSize}"
+                              Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=views:ScrollableTextEditor}}"
+                              BackgroundBrush="{Binding BackgroundBrush, RelativeSource={RelativeSource AncestorType=views:ScrollableTextEditor}}"
+                              CursorBrush="{Binding CursorBrush, RelativeSource={RelativeSource AncestorType=views:ScrollableTextEditor}}"
+                              SelectionBrush="{Binding SelectionBrush, RelativeSource={RelativeSource AncestorType=views:ScrollableTextEditor}}"
+                              LineHighlightBrush="{Binding LineHighlightBrush, RelativeSource={RelativeSource AncestorType=views:ScrollableTextEditor}}"
+                              Width="{Binding LongestLineWidth}"
+                              Height="{Binding TotalHeight}" />
+        </views:ButtonlessScrollViewer>
+    </Grid>
 </UserControl>
