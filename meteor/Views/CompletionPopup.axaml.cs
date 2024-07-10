@@ -155,7 +155,7 @@ public partial class CompletionPopup : Window
     private void OnDeactivated(object? sender, EventArgs e)
     {
         _shouldShowSuggestions = false;
-        Hide();
+        Close();
     }
 
     private void SuggestionListBox_GotFocus(object sender, GotFocusEventArgs e)

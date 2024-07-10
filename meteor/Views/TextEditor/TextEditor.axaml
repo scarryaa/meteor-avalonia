@@ -13,12 +13,4 @@
              CursorBrush="{Binding CursorBrush, RelativeSource={RelativeSource Self}}"
              SelectionBrush="{Binding SelectionBrush, RelativeSource={RelativeSource Self}}"
              LineHighlightBrush="{Binding LineHighlightBrush, RelativeSource={RelativeSource Self}}">
-
-    <Popup x:DataType="viewModels:TextEditorViewModel"
-           IsOpen="{Binding IsPopupVisible}"
-           HorizontalOffset="{Binding PopupLeft}"
-           VerticalOffset="{Binding PopupTop}">
-        <views:CompletionPopup DataContext="{Binding CompletionPopupViewModel}" />
-    </Popup>
-    
 </UserControl>

@@ -309,7 +309,6 @@ public partial class TextEditor : UserControl
                 if (_scrollableViewModel.TextEditorViewModel.ShouldScrollToCursor)
                     Dispatcher.UIThread.Post(ScrollManager.EnsureCursorVisible);
                 break;
-                break;
         }
     }
 

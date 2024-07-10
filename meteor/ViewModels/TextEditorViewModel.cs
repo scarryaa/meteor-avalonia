@@ -111,7 +111,6 @@ public class TextEditorViewModel : ViewModelBase
         set
         {
             this.RaiseAndSetIfChanged(ref _popupLeft, value);
-            ShowPopup(_popupLeft, PopupTop);
         }
     }
 
@@ -121,7 +120,6 @@ public class TextEditorViewModel : ViewModelBase
         set
         {
             this.RaiseAndSetIfChanged(ref _popupTop, value);
-            ShowPopup(PopupLeft, _popupTop);
         }
     }
 
@@ -526,6 +524,7 @@ public class TextEditorViewModel : ViewModelBase
 
     public void ShowCompletionSuggestions(CompletionItem[] items)
     {
+        if (items.Length == 0) return;
         CompletionPopupViewModel.UpdateCompletionItems(items);
         IsPopupVisible = true;
     }

@@ -27,10 +27,4 @@ public class SuggestionPaneViewModel : ViewModelBase
     {
         Suggestions = new ObservableCollection<CompletionItem>();
     }
-
-    public void UpdateSuggestions(IEnumerable<CompletionItem> items)
-    {
-        Suggestions.Clear();
-        foreach (var item in items) Suggestions.Add(item);
-    }
 }
