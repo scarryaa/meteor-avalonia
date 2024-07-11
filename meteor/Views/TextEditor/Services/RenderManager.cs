@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
+using System.Collections.Immutable;
 using System.Globalization;
 using System.Linq;
 using System.Threading;
@@ -18,42 +18,42 @@ using meteor.Views.Models;
 
 namespace meteor.Views.Services;
 
-public class RenderManager
+public class RenderManager : IDisposable
 {
-    private CancellationTokenSource _highlightCancellationTokenSource;
-    private const int DebounceDelay = 300;
     private readonly TextEditorContext _context;
     private readonly IThemeService _themeService;
-    private readonly ISyntaxHighlighter _syntaxHighlighter;
+    private readonly Lazy<ISyntaxHighlighter> _syntaxHighlighter;
     private readonly ConcurrentDictionary<int, RenderedLine> _lineCache;
-    private List<SyntaxToken> _cachedSyntaxTokens;
-    private string _lastProcessedText;
-    private Task _backgroundHighlightTask;
+    private ImmutableList<SyntaxToken> _cachedSyntaxTokens = ImmutableList<SyntaxToken>.Empty;
+    private readonly HashSet<int> _dirtyLines = new();
     private readonly double _verticalTextOffset;
     private string _filePath;
+    private CancellationTokenSource _highlightCancellationTokenSource;
+    private const int DebounceDelay = 300;
+    private readonly ObjectPool<RenderedLine> _renderedLinePool = new(() => new RenderedLine());
 
-    public RenderManager(TextEditorContext context, IThemeService themeService, ISyntaxHighlighter syntaxHighlighter,
-        string filePath)
+    private readonly ConcurrentDictionary<(string Text, double FontSize, IBrush Brush), FormattedText>
+        _formattedTextCache = new();
+
+    public RenderManager(TextEditorContext context, IThemeService themeService,
+        Func<ISyntaxHighlighter> syntaxHighlighterFactory, string filePath)
     {
         _context = context;
         _themeService = themeService;
-        _syntaxHighlighter = syntaxHighlighter;
+        _syntaxHighlighter = new Lazy<ISyntaxHighlighter>(syntaxHighlighterFactory);
         _lineCache = new ConcurrentDictionary<int, RenderedLine>();
-        _cachedSyntaxTokens = new List<SyntaxToken>();
         _filePath = filePath;
-
         _verticalTextOffset = (_context.LineHeight - _context.FontSize) / 3;
     }
 
     public void UpdateFilePath(string filePath)
     {
         _filePath = filePath;
-        // Trigger a re-highlight of the entire document
         if (_context.ScrollableViewModel?.TextEditorViewModel != null)
         {
             var text = _context.ScrollableViewModel.TextEditorViewModel.TextBuffer.GetText(0,
                 _context.ScrollableViewModel.TextEditorViewModel.TextBuffer.Length);
-            UpdateSyntaxHighlightingAsync(text).ConfigureAwait(false);
+            UpdateSyntaxHighlightingAsync(text).AsTask().ConfigureAwait(false);
         }
     }
 
@@ -70,49 +70,53 @@ public class RenderManager
 
     public async Task InitializeAsync(string initialText)
     {
-        Console.WriteLine("RenderManager.InitializeAsync called");
         await UpdateSyntaxHighlightingAsync(initialText);
         _context.ScrollableViewModel?.TextEditorViewModel.OnInvalidateRequired();
     }
 
-    public void InvalidateLines(int startLine, int endLine)
+    public void MarkLineDirty(int lineIndex)
     {
-        for (var i = startLine; i <= endLine; i++) _lineCache.TryRemove(i, out _);
+        _dirtyLines.Add(lineIndex);
     }
 
     public void Render(DrawingContext context)
     {
-        using (new PerformanceLogger("RenderManager.Render"))
-        {
-            var adjustedHeight = _context.ScrollableViewModel.Viewport.Height +
-                                 _context.ScrollableViewModel.VerticalOffset;
-            var adjustedWidth = _context.ScrollableViewModel.Viewport.Width +
-                                _context.ScrollableViewModel.HorizontalOffset;
-            context.FillRectangle(_context.BackgroundBrush, new Rect(new Size(adjustedWidth, adjustedHeight)));
-
-            var lineCount = _context.ScrollableViewModel.TextEditorViewModel.TextBuffer.LineCount;
-            if (lineCount == 0) return;
-
-            var viewableAreaWidth = _context.ScrollableViewModel.Viewport.Width + _context.LinePadding +
-                                    _context.ScrollableViewModel.HorizontalOffset;
-            var viewableAreaHeight = _context.ScrollableViewModel.Viewport.Height;
-
-            var firstVisibleLine = Math.Max(0,
-                (int)(_context.ScrollableViewModel.VerticalOffset / _context.LineHeight) - 1);
-            var lastVisibleLine = Math.Min(firstVisibleLine + (int)(viewableAreaHeight / _context.LineHeight) + 2,
-                (int)lineCount);
-
-            var viewModel = _context.ScrollableViewModel.TextEditorViewModel;
-            RenderCurrentLine(context, viewModel, viewableAreaWidth);
-
-            RenderVisibleLines(context, _context.ScrollableViewModel, firstVisibleLine, (int)lastVisibleLine,
-                viewableAreaWidth);
-            DrawSelection(context, viewableAreaHeight, _context.ScrollableViewModel);
-            DrawCursor(context, _context.ScrollableViewModel);
-        }
+        var batchingContext = new BatchingDrawingContext();
+        RenderInternal(batchingContext);
+        batchingContext.Flush(context);
     }
 
-    private void RenderCurrentLine(DrawingContext context, TextEditorViewModel viewModel, double viewableAreaWidth)
+    private void RenderInternal(BatchingDrawingContext context)
+    {
+        var adjustedHeight = _context.ScrollableViewModel.Viewport.Height +
+                             _context.ScrollableViewModel.VerticalOffset;
+        var adjustedWidth = _context.ScrollableViewModel.Viewport.Width +
+                            _context.ScrollableViewModel.HorizontalOffset;
+        context.FillRectangle(_context.BackgroundBrush, new Rect(new Size(adjustedWidth, adjustedHeight)));
+
+        var lineCount = _context.ScrollableViewModel.TextEditorViewModel.TextBuffer.LineCount;
+        if (lineCount == 0) return;
+
+        var viewableAreaWidth = _context.ScrollableViewModel.Viewport.Width + _context.LinePadding +
+                                _context.ScrollableViewModel.HorizontalOffset;
+        var viewableAreaHeight = _context.ScrollableViewModel.Viewport.Height;
+
+        var firstVisibleLine = Math.Max(0,
+            (int)(_context.ScrollableViewModel.VerticalOffset / _context.LineHeight) - 1);
+        var lastVisibleLine = Math.Min(firstVisibleLine + (int)(viewableAreaHeight / _context.LineHeight) + 2,
+            (int)lineCount);
+
+        var viewModel = _context.ScrollableViewModel.TextEditorViewModel;
+        RenderCurrentLine(context, viewModel, viewableAreaWidth);
+
+        RenderVisibleLines(context, _context.ScrollableViewModel, firstVisibleLine, lastVisibleLine,
+            viewableAreaWidth);
+        DrawSelection(context, viewableAreaHeight, _context.ScrollableViewModel);
+        DrawCursor(context, _context.ScrollableViewModel);
+    }
+
+    private void RenderCurrentLine(BatchingDrawingContext context, TextEditorViewModel viewModel,
+        double viewableAreaWidth)
     {
         var cursorLine = viewModel.TextBuffer.GetLineIndexFromPosition(viewModel.CursorPosition);
         var y = cursorLine * _context.LineHeight;
@@ -121,7 +125,7 @@ public class RenderManager
         var selectionEndLine = viewModel.TextBuffer.GetLineIndexFromPosition(viewModel.SelectionEnd);
 
         var totalWidth = Math.Max(viewModel.WindowWidth,
-            viewableAreaWidth + _context.ScrollableViewModel.HorizontalOffset!);
+            viewableAreaWidth + _context.ScrollableViewModel.HorizontalOffset);
 
         if (cursorLine < selectionStartLine || cursorLine > selectionEndLine)
         {
@@ -154,158 +158,124 @@ public class RenderManager
         }
     }
 
-    private void RenderVisibleLines(DrawingContext context, ScrollableTextEditorViewModel scrollableViewModel,
+    private void RenderVisibleLines(BatchingDrawingContext context, ScrollableTextEditorViewModel scrollableViewModel,
         int firstVisibleLine, int lastVisibleLine, double viewableAreaWidth)
     {
-        using (new PerformanceLogger("RenderManager.RenderVisibleLines"))
+        var yOffset = firstVisibleLine * _context.LineHeight;
+        var viewModel = scrollableViewModel.TextEditorViewModel;
+
+        for (var i = firstVisibleLine; i < lastVisibleLine; i++)
         {
-            var yOffset = firstVisibleLine * _context.LineHeight;
-            var viewModel = scrollableViewModel.TextEditorViewModel;
-
-            for (var i = firstVisibleLine; i < lastVisibleLine; i++)
+            if (!_lineCache.TryGetValue(i, out var renderedLine) ||
+                renderedLine.NeedsUpdate(scrollableViewModel.HorizontalOffset, viewableAreaWidth))
             {
-                var renderedLine =
-                    _lineCache.GetOrAdd(i, lineIndex => RenderLine(viewModel, lineIndex, viewableAreaWidth));
-
-                if (renderedLine.NeedsUpdate(scrollableViewModel.HorizontalOffset, viewableAreaWidth))
-                {
-                    renderedLine = RenderLine(viewModel, i, viewableAreaWidth);
-                    _lineCache[i] = renderedLine;
-                }
-
-                context.DrawImage(renderedLine.Image,
-                    new Rect(0, yOffset, renderedLine.Image.Size.Width, _context.LineHeight));
-                yOffset += _context.LineHeight;
+                renderedLine = RenderLine(viewModel, i, viewableAreaWidth);
+                _lineCache[i] = renderedLine;
             }
+
+            context.DrawImage(renderedLine.Image,
+                new Rect(0, yOffset, renderedLine.Image.Size.Width, _context.LineHeight));
+            yOffset += _context.LineHeight;
         }
     }
-
+    
     private RenderedLine RenderLine(TextEditorViewModel viewModel, int lineIndex, double viewableAreaWidth)
     {
-        using (new PerformanceLogger($"RenderManager.RenderLine({lineIndex})"))
+        var lineText = viewModel.TextBuffer.GetLineText(lineIndex);
+        if (string.IsNullOrEmpty(lineText))
+            return _renderedLinePool.Get().Update(
+                new WriteableBitmap(new PixelSize(1, (int)_context.LineHeight), new Vector(96, 96)), 0,
+                viewableAreaWidth);
+
+        var horizontalOffset = (int)viewModel.ScrollableTextEditorViewModel.HorizontalOffset;
+        var startIndex = (int)(horizontalOffset / viewModel.CharWidth);
+        startIndex = Math.Min(startIndex, lineText.Length);
+
+        var maxCharsToDisplay = (int)(viewableAreaWidth / viewModel.CharWidth) + 1;
+        var visiblePartLength = Math.Max(0, Math.Min(maxCharsToDisplay, lineText.Length - startIndex));
+
+        var pixelSize = new PixelSize((int)viewableAreaWidth, (int)_context.LineHeight);
+        var renderTarget = new RenderTargetBitmap(pixelSize, new Vector(96, 96));
+
+        using (var context = renderTarget.CreateDrawingContext())
         {
-            try
-            {
-                var lineText = viewModel.TextBuffer.GetLineText(lineIndex);
-                if (string.IsNullOrEmpty(lineText))
-                    return new RenderedLine(
-                        new WriteableBitmap(new PixelSize(1, (int)_context.LineHeight), new Vector(96, 96)), 0,
-                        viewableAreaWidth);
+            context.FillRectangle(Brushes.Transparent, new Rect(0, 0, pixelSize.Width, pixelSize.Height));
+            var xOffset = startIndex * viewModel.CharWidth;
 
-                var horizontalOffset = (int)viewModel._scrollableViewModel.HorizontalOffset;
-                var startIndex = (int)(horizontalOffset / viewModel.CharWidth);
-
-                // Ensure startIndex is not larger than lineText.Length
-                startIndex = Math.Min(startIndex, lineText.Length);
-
-                var maxCharsToDisplay = (int)(viewableAreaWidth / viewModel.CharWidth) + 1;
-                var visiblePartLength = Math.Min(maxCharsToDisplay, lineText.Length - startIndex);
-
-                // Ensure visiblePartLength is not negative
-                visiblePartLength = Math.Max(0, visiblePartLength);
-
-                var pixelSize = new PixelSize((int)viewableAreaWidth, (int)_context.LineHeight);
-                var renderTarget = new RenderTargetBitmap(pixelSize, new Vector(96, 96));
-
-                using (var context = renderTarget.CreateDrawingContext())
-                {
-                    // Clear the background
-                    context.FillRectangle(Brushes.Transparent, new Rect(0, 0, pixelSize.Width, pixelSize.Height));
-
-                    // Calculate the x-offset for rendering text
-                    var xOffset = startIndex * viewModel.CharWidth;
-
-                    RenderLineWithSyntaxHighlighting(context, lineText, _cachedSyntaxTokens, lineIndex, startIndex, 0,
-                        viewModel.CharWidth, visiblePartLength, xOffset);
-                }
-
-                var writeableBitmap = new WriteableBitmap(pixelSize, new Vector(96, 96));
-                using (var lockedBitmap = writeableBitmap.Lock())
-                {
-                    renderTarget.CopyPixels(new PixelRect(0, 0, pixelSize.Width, pixelSize.Height),
-                        lockedBitmap.Address,
-                        lockedBitmap.RowBytes * lockedBitmap.Size.Height,
-                        lockedBitmap.RowBytes);
-                }
-
-                return new RenderedLine(writeableBitmap, horizontalOffset, viewableAreaWidth);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error in RenderLine for line {lineIndex}: {ex.Message}");
-                // Return a blank bitmap in case of error
-                return new RenderedLine(
-                    new WriteableBitmap(new PixelSize(1, (int)_context.LineHeight), new Vector(96, 96)), 0,
-                    viewableAreaWidth);
-            }
+            RenderLineWithSyntaxHighlighting(context, lineText.AsSpan(), _cachedSyntaxTokens, lineIndex, startIndex, 0,
+                viewModel.CharWidth, visiblePartLength, xOffset);
         }
+
+        var writeableBitmap = new WriteableBitmap(pixelSize, new Vector(96, 96));
+        using (var lockedBitmap = writeableBitmap.Lock())
+        {
+            renderTarget.CopyPixels(new PixelRect(0, 0, pixelSize.Width, pixelSize.Height),
+                lockedBitmap.Address,
+                lockedBitmap.RowBytes * lockedBitmap.Size.Height,
+                lockedBitmap.RowBytes);
+        }
+
+        return _renderedLinePool.Get().Update(writeableBitmap, horizontalOffset, viewableAreaWidth);
     }
 
-    private void RenderLineWithSyntaxHighlighting(DrawingContext context, string lineText, List<SyntaxToken> allTokens,
+    public void InvalidateLine(int lineIndex)
+    {
+        if (_lineCache.TryGetValue(lineIndex, out var renderedLine)) renderedLine.Invalidate();
+    }
+
+    public void InvalidateLines(int startLine, int endLine)
+    {
+        for (var i = startLine; i <= endLine; i++) InvalidateLine(i);
+        _context.ScrollableViewModel?.TextEditorViewModel.OnInvalidateRequired();
+    }
+
+    private void RenderLineWithSyntaxHighlighting(DrawingContext context, ReadOnlySpan<char> lineText,
+        ImmutableList<SyntaxToken> allTokens,
         int lineIndex, int startIndex, double yOffset, double charWidth, int visibleLength, double xOffset)
     {
-        Console.WriteLine(
-            $"RenderLineWithSyntaxHighlighting: LineIndex: {lineIndex}, StartIndex: {startIndex}, VisibleLength: {visibleLength}");
-        Console.WriteLine($"Line Text: {lineText}");
-
         var currentIndex = startIndex;
         var endIndex = Math.Min(startIndex + visibleLength, lineText.Length);
 
         var lineTokens = allTokens.Where(t => t.Line == lineIndex).OrderBy(t => t.StartColumn).ToList();
-        Console.WriteLine($"Number of tokens for this line: {lineTokens.Count}");
 
         if (lineTokens.Count == 0)
         {
-            Console.WriteLine("No tokens for this line, rendering as plain text");
-            var visibleText = lineText.Substring(startIndex, endIndex - startIndex);
-            RenderText(context, visibleText, xOffset, yOffset, _context.Foreground, charWidth);
+            var visibleText = lineText.Slice(startIndex, endIndex - startIndex);
+            RenderText(context, visibleText.ToString(), xOffset, yOffset, _context.Foreground, charWidth);
             return;
         }
 
         foreach (var token in lineTokens)
         {
-            Console.WriteLine(
-                $"Processing token: Type: {token.Type}, StartColumn: {token.StartColumn}, Length: {token.Length}");
-
             if (token.StartColumn >= endIndex)
-            {
-                Console.WriteLine("Token starts after visible part, breaking");
                 break;
-            }
 
             if (token.StartColumn + token.Length <= startIndex)
-            {
-                Console.WriteLine("Token ends before visible part, continuing");
                 continue;
-            }
 
             if (currentIndex < token.StartColumn)
             {
-                var plainText = lineText.Substring(currentIndex, Math.Min(token.StartColumn, endIndex) - currentIndex);
-                Console.WriteLine($"Rendering plain text: {plainText}");
-                RenderText(context, plainText, (currentIndex - startIndex) * charWidth + xOffset, yOffset,
+                var plainText = lineText.Slice(currentIndex, Math.Min(token.StartColumn, endIndex) - currentIndex);
+                RenderText(context, plainText.ToString(), (currentIndex - startIndex) * charWidth + xOffset, yOffset,
                     _context.Foreground, charWidth);
                 currentIndex = token.StartColumn;
             }
 
             var tokenStartInView = Math.Max(startIndex, token.StartColumn);
             var tokenEndInView = Math.Min(endIndex, token.StartColumn + token.Length);
-            var tokenText = lineText.Substring(tokenStartInView, tokenEndInView - tokenStartInView);
+            var tokenText = lineText.Slice(tokenStartInView, tokenEndInView - tokenStartInView);
 
-            Console.WriteLine(
-                $"Rendering token: Type: {token.Type}, Text: {tokenText}, Start: {tokenStartInView}, End: {tokenEndInView}");
             var brush = GetBrushForTokenType(token.Type);
-            Console.WriteLine($"Token brush: {brush}");
-            RenderText(context, tokenText, (tokenStartInView - startIndex) * charWidth + xOffset, yOffset, brush,
+            RenderText(context, tokenText.ToString(), (tokenStartInView - startIndex) * charWidth + xOffset, yOffset,
+                brush,
                 charWidth);
             currentIndex = tokenEndInView;
         }
 
         if (currentIndex < endIndex)
         {
-            var remainingText = lineText.Substring(currentIndex, endIndex - currentIndex);
-            Console.WriteLine($"Rendering remaining text: {remainingText}");
-            RenderText(context, remainingText, (currentIndex - startIndex) * charWidth + xOffset, yOffset,
+            var remainingText = lineText.Slice(currentIndex, endIndex - currentIndex);
+            RenderText(context, remainingText.ToString(), (currentIndex - startIndex) * charWidth + xOffset, yOffset,
                 _context.Foreground, charWidth);
         }
     }
@@ -313,109 +283,65 @@ public class RenderManager
     private void RenderText(DrawingContext context, string text, double x, double yOffset, IBrush brush,
         double charWidth)
     {
-        var formattedText = new FormattedText(
-            text,
-            CultureInfo.CurrentCulture,
-            FlowDirection.LeftToRight,
-            new Typeface(_context.FontFamily),
-            _context.FontSize,
-            brush);
-
-        // Adjust the yOffset to center the text vertically
+        var formattedText = GetOrCreateFormattedText(text, _context.FontSize, brush);
         var adjustedYOffset = yOffset + _verticalTextOffset;
-
         context.DrawText(formattedText, new Point(x, adjustedYOffset));
     }
 
-    public async Task UpdateSyntaxHighlightingAsync(string text, int startLine = 0, int endLine = -1)
+    public ValueTask UpdateSyntaxHighlightingAsync(string text, int startLine = 0, int endLine = -1)
     {
-        Console.WriteLine(
-            $"UpdateSyntaxHighlightingAsync called. StartLine: {startLine}, EndLine: {endLine}, FilePath: {_filePath}");
+        if (string.IsNullOrEmpty(text))
+            return default;
 
-        // Cancel any ongoing highlight task
         _highlightCancellationTokenSource?.Cancel();
         _highlightCancellationTokenSource = new CancellationTokenSource();
         var cancellationToken = _highlightCancellationTokenSource.Token;
 
-        try
+        return new ValueTask(Task.Run(async () =>
         {
-            // Delay to debounce rapid calls
-            await Task.Delay(DebounceDelay, cancellationToken);
-
-            await Task.Run(() =>
+            try
             {
-                using (new PerformanceLogger("RenderManager.UpdateSyntaxHighlightingAsync"))
-                {
-                    List<SyntaxToken> newTokens;
-                    var lines = text.Split('\n');
+                await Task.Delay(DebounceDelay, cancellationToken);
 
-                    if (endLine == -1 || endLine >= lines.Length) endLine = lines.Length - 1;
+                var lines = text.Split('\n');
+                if (endLine == -1 || endLine >= lines.Length) endLine = lines.Length - 1;
 
-                    // Ensure we're highlighting complete lines
-                    var partialText = string.Join("\n", lines.Skip(startLine).Take(endLine - startLine + 1));
-                    newTokens = _syntaxHighlighter.HighlightSyntax(partialText, startLine, endLine, _filePath);
+                var partialText = string.Join("\n", lines.Skip(startLine).Take(endLine - startLine + 1));
+                var newTokens = _syntaxHighlighter.Value.HighlightSyntax(partialText, startLine, endLine, _filePath);
 
-                    Console.WriteLine($"Generated {newTokens.Count} new tokens");
+                _cachedSyntaxTokens = _cachedSyntaxTokens
+                    .RemoveAll(t => t.Line >= startLine && t.Line <= endLine)
+                    .AddRange(newTokens)
+                    .OrderBy(t => t.Line)
+                    .ThenBy(t => t.StartColumn)
+                    .ToImmutableList();
 
-                    lock (_cachedSyntaxTokens)
-                    {
-                        // Remove old tokens for the updated lines
-                        _cachedSyntaxTokens.RemoveAll(t => t.Line >= startLine && t.Line <= endLine);
-                        // Add new tokens
-                        _cachedSyntaxTokens.AddRange(newTokens);
-                        // Sort tokens
-                        _cachedSyntaxTokens = _cachedSyntaxTokens
-                            .OrderBy(t => t.Line)
-                            .ThenBy(t => t.StartColumn)
-                            .ToList();
-                    }
-
-                    // Invalidate changed lines in the cache
-                    for (var i = startLine; i <= endLine; i++) _lineCache.TryRemove(i, out _);
-
-                    Console.WriteLine($"Updated syntax highlighting. Lines {startLine} to {endLine}");
-                }
-            }, cancellationToken);
-
-            Console.WriteLine("Syntax highlighting update completed");
-            _context.ScrollableViewModel?.TextEditorViewModel.OnInvalidateRequired();
-        }
-        catch (OperationCanceledException)
-        {
-            Console.WriteLine("Syntax highlighting update was cancelled");
-        }
+                for (var i = startLine; i <= endLine; i++)
+                    MarkLineDirty(i);
+                InvalidateLines(startLine, endLine);
+                _context.ScrollableViewModel?.TextEditorViewModel.OnInvalidateRequired();
+            }
+            catch (OperationCanceledException)
+            {
+                // Ignore cancellation
+            }
+        }, cancellationToken));
     }
 
     private IBrush GetBrushForTokenType(SyntaxTokenType type)
     {
-        IBrush brush;
-        switch (type)
+        return type switch
         {
-            case SyntaxTokenType.Keyword:
-                brush = _themeService.GetResourceBrush("KeywordColor");
-                break;
-            case SyntaxTokenType.Comment:
-                brush = _themeService.GetResourceBrush("CommentColor");
-                break;
-            case SyntaxTokenType.String:
-                brush = _themeService.GetResourceBrush("StringColor");
-                break;
-            case SyntaxTokenType.Type:
-                brush = _themeService.GetResourceBrush("TypeColor");
-                break;
-            case SyntaxTokenType.Number:
-                brush = _themeService.GetResourceBrush("NumberColor");
-                break;
-            default:
-                brush = _context.Foreground;
-                break;
-        }
-
-        Console.WriteLine($"GetBrushForTokenType: TokenType: {type}, Brush: {brush}");
-        return brush;
+            SyntaxTokenType.Keyword => _themeService.GetResourceBrush("KeywordColor"),
+            SyntaxTokenType.Comment => _themeService.GetResourceBrush("CommentColor"),
+            SyntaxTokenType.String => _themeService.GetResourceBrush("StringColor"),
+            SyntaxTokenType.Type => _themeService.GetResourceBrush("TypeColor"),
+            SyntaxTokenType.Number => _themeService.GetResourceBrush("NumberColor"),
+            _ => _context.Foreground
+        };
     }
 
-    private void DrawSelection(DrawingContext context, double viewableAreaHeight,
+    private void DrawSelection(BatchingDrawingContext context, double viewableAreaHeight,
         ScrollableTextEditorViewModel scrollableViewModel)
     {
         var viewModel = scrollableViewModel.TextEditorViewModel;
@@ -478,7 +404,7 @@ public class RenderManager
         }
     }
 
-    private void DrawCursor(DrawingContext context, ScrollableTextEditorViewModel scrollableViewModel)
+    private void DrawCursor(BatchingDrawingContext context, ScrollableTextEditorViewModel scrollableViewModel)
     {
         var viewModel = scrollableViewModel.TextEditorViewModel;
 
@@ -495,5 +421,52 @@ public class RenderManager
                 new Point(cursorXRelative, cursorY),
                 new Point(cursorXRelative, cursorY + _context.LineHeight)
             );
+    }
+
+    private RenderedLine GetOrCreateRenderedLine(int lineIndex, Func<int, RenderedLine> factory)
+    {
+        return _lineCache.GetOrAdd(lineIndex, _ =>
+        {
+            var renderedLine = _renderedLinePool.Get();
+            factory(lineIndex).CopyTo(renderedLine);
+            return renderedLine;
+        });
+    }
+
+    private FormattedText GetOrCreateFormattedText(string text, double fontSize, IBrush brush)
+    {
+        return _formattedTextCache.GetOrAdd((text, fontSize, brush), key =>
+            new FormattedText(key.Text, CultureInfo.CurrentCulture, FlowDirection.LeftToRight,
+                new Typeface(_context.FontFamily), key.FontSize, key.Brush));
+    }
+
+    public void Dispose()
+    {
+        _highlightCancellationTokenSource?.Cancel();
+        _highlightCancellationTokenSource?.Dispose();
+
+        foreach (var renderedLine in _lineCache.Values) _renderedLinePool.Return(renderedLine);
+        _lineCache.Clear();
+    }
+}
+
+public class ObjectPool<T> where T : class, new()
+{
+    private readonly ConcurrentBag<T> _objects = new();
+    private readonly Func<T> _objectGenerator;
+
+    public ObjectPool(Func<T> objectGenerator)
+    {
+        _objectGenerator = objectGenerator ?? throw new ArgumentNullException(nameof(objectGenerator));
+    }
+
+    public T Get()
+    {
+        return _objects.TryTake(out var item) ? item : _objectGenerator();
+    }
+
+    public void Return(T item)
+    {
+        _objects.Add(item);
     }
 }

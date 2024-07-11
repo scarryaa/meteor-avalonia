@@ -9,17 +9,15 @@ namespace meteor.Models;
 
 public class TextBuffer : ReactiveObject, ITextBuffer
 {
-    private IRope _rope;
+    private readonly Dictionary<long, int> _lineIndexCache = new();
     private readonly Dictionary<long, long> _lineLengths;
-    private long _longestLineLength;
-    private double _lineHeight;
-    private int _updatedStartLine;
-    private int _updatedEndLine;
 
     private readonly Dictionary<int, long> _lineStartCache = new();
-    private readonly Dictionary<long, int> _lineIndexCache = new();
-
-    public int Version { get; private set; }
+    private double _lineHeight;
+    private long _longestLineLength;
+    private IRope _rope;
+    private int _updatedEndLine;
+    private int _updatedStartLine;
 
     public TextBuffer()
     {
@@ -28,6 +26,8 @@ public class TextBuffer : ReactiveObject, ITextBuffer
         _lineLengths = new Dictionary<long, long> { [0] = 0 };
         UpdateLineCache();
     }
+
+    public int Version { get; private set; }
 
     public (int StartLine, int EndLine) GetUpdatedRange()
     {
@@ -108,7 +108,8 @@ public class TextBuffer : ReactiveObject, ITextBuffer
 
         try
         {
-            return Text.Substring((int)start, (int)(end - start));
+            var length = (int)(end - start);
+            return new string(Text.AsSpan((int)start, length));
         }
         catch (Exception ex)
         {
@@ -150,16 +151,45 @@ public class TextBuffer : ReactiveObject, ITextBuffer
 
     public void DeleteText(long start, long length)
     {
-        if (length > 0)
+        if (length <= 0 || start < 0 || start >= _rope.Length) return;
+
+        var deletedText = _rope.GetText((int)start, (int)length);
+        _rope.Delete((int)start, (int)length);
+
+        var startLine = GetLineIndexFromPosition(start);
+        var endLine = GetLineIndexFromPosition(start + length);
+
+        if (startLine == endLine)
         {
-            var deletedText = _rope.GetText((int)start, (int)length);
-            _rope.Delete((int)start, (int)length);
-            UpdateLineCacheAfterDeletion(start, length);
-            _updatedStartLine = (int)GetLineIndexFromPosition(start);
-            _updatedEndLine = (int)GetLineIndexFromPosition(start + length);
-            OnTextChanged(start, string.Empty, length);
-            LinesUpdated?.Invoke(this, EventArgs.Empty);
+            _lineLengths[startLine] -= length;
         }
+        else
+        {
+            var firstLineEnd = GetLineEndPosition((int)startLine);
+            var lastLineStart = GetLineStartPosition((int)endLine);
+
+            var firstLineLength = firstLineEnd - start + 1;
+            var lastLineLength = start + length - lastLineStart;
+
+            _lineLengths[startLine] = firstLineLength - length + lastLineLength;
+
+            var linesToRemove = endLine - startLine;
+            LineStarts.RemoveRange((int)startLine + 1, (int)linesToRemove);
+            for (var i = 0; i < linesToRemove; i++) _lineLengths.Remove(startLine + 1);
+
+            for (var i = (int)startLine + 1; i < LineStarts.Count; i++) LineStarts[i] -= length;
+        }
+
+        InvalidateCachesAfterDeletion(start, length);
+
+        LongestLineLength = _lineLengths.Values.Count > 0 ? _lineLengths.Values.Max() : 0;
+
+        _updatedStartLine = (int)startLine;
+        _updatedEndLine = (int)GetLineIndexFromPosition(start);
+
+        OnTextChanged(start, string.Empty, length);
+        LinesUpdated?.Invoke(this, EventArgs.Empty);
+        UpdateTotalHeight();
     }
 
     public void SetLineStartPosition(int lineIndex, long position)
@@ -203,12 +233,6 @@ public class TextBuffer : ReactiveObject, ITextBuffer
         return lineText.TrimEnd('\n', '\r').Length;
     }
 
-    protected virtual void OnTextChanged(long position, string insertedText, long deletedLength)
-    {
-        Version++;
-        TextChanged?.Invoke(this, new TextChangedEventArgs(position, insertedText, deletedLength, Version));
-    }
-
     public long GetLineEndPosition(int lineIndex)
     {
         if (lineIndex < 0 || lineIndex >= LineStarts.Count)
@@ -223,6 +247,64 @@ public class TextBuffer : ReactiveObject, ITextBuffer
     public long GetLineLength(long lineIndex)
     {
         return _lineLengths.GetValueOrDefault(lineIndex, 0);
+    }
+
+    public void UpdateLineCache()
+    {
+        ClearCache();
+
+        LineStarts.Clear();
+        _lineLengths.Clear();
+        LineStarts.Add(0);
+
+        long lineStart = 0;
+        LongestLineLength = 0;
+
+        while (lineStart < _rope.Length)
+        {
+            var nextNewline = _rope.IndexOf('\n', (int)lineStart);
+            if (nextNewline == -1)
+            {
+                // Handle the last line if there are no more newlines
+                var lastLineLength = _rope.Length - lineStart;
+                _lineLengths[LineStarts.Count - 1] = lastLineLength;
+                LongestLineLength = Math.Max(LongestLineLength, lastLineLength);
+                break;
+            }
+
+            var currentLineLength = nextNewline - lineStart + 1; // Include newline character in length
+            _lineLengths[LineStarts.Count - 1] = currentLineLength;
+            LongestLineLength = Math.Max(LongestLineLength, currentLineLength);
+
+            LineStarts.Add(nextNewline + 1);
+            lineStart = nextNewline + 1;
+        }
+
+        // Handle the case where there are no lines at all
+        if (_rope.Length == 0) LongestLineLength = 0;
+
+        UpdateTotalHeight();
+    }
+
+    public long GetLineIndexFromPosition(long position)
+    {
+        if (_lineIndexCache.TryGetValue(position, out var cachedIndex)) return cachedIndex;
+
+        var index = LineStarts.BinarySearch(position);
+        if (index < 0)
+        {
+            index = ~index;
+            index = Math.Max(0, index - 1);
+        }
+
+        _lineIndexCache[position] = index;
+        return index;
+    }
+
+    protected virtual void OnTextChanged(long position, string insertedText, long deletedLength)
+    {
+        Version++;
+        TextChanged?.Invoke(this, new TextChangedEventArgs(position, insertedText, deletedLength, Version));
     }
 
     private void UpdateLineCacheAfterInsertion(long position, string text)
@@ -323,67 +405,13 @@ public class TextBuffer : ReactiveObject, ITextBuffer
         var startLine = GetLineIndexFromPosition(start);
         var endLine = GetLineIndexFromPosition(start + length);
 
-        // Invalidate line start cache entries
         foreach (var key in _lineStartCache.Keys.ToList())
             if (key >= startLine && key <= endLine)
                 _lineStartCache.Remove(key);
 
-        // Invalidate line index cache entries
         foreach (var key in _lineIndexCache.Keys.ToList())
             if (key >= start && key <= start + length)
                 _lineIndexCache.Remove(key);
-    }
-
-    public void UpdateLineCache()
-    {
-        ClearCache();
-
-        LineStarts.Clear();
-        _lineLengths.Clear();
-        LineStarts.Add(0);
-
-        long lineStart = 0;
-        LongestLineLength = 0;
-
-        while (lineStart < _rope.Length)
-        {
-            var nextNewline = _rope.IndexOf('\n', (int)lineStart);
-            if (nextNewline == -1)
-            {
-                // Handle the last line if there are no more newlines
-                var lastLineLength = _rope.Length - lineStart;
-                _lineLengths[LineStarts.Count - 1] = lastLineLength;
-                LongestLineLength = Math.Max(LongestLineLength, lastLineLength);
-                break;
-            }
-
-            var currentLineLength = nextNewline - lineStart + 1; // Include newline character in length
-            _lineLengths[LineStarts.Count - 1] = currentLineLength;
-            LongestLineLength = Math.Max(LongestLineLength, currentLineLength);
-
-            LineStarts.Add(nextNewline + 1);
-            lineStart = nextNewline + 1;
-        }
-
-        // Handle the case where there are no lines at all
-        if (_rope.Length == 0) LongestLineLength = 0;
-
-        UpdateTotalHeight();
-    }
-
-    public long GetLineIndexFromPosition(long position)
-    {
-        if (_lineIndexCache.TryGetValue(position, out var cachedIndex)) return cachedIndex;
-
-        var index = LineStarts.BinarySearch(position);
-        if (index < 0)
-        {
-            index = ~index;
-            index = Math.Max(0, index - 1);
-        }
-
-        _lineIndexCache[position] = index;
-        return index;
     }
 
     private void ClearCache()

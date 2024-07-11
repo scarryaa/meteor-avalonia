@@ -44,8 +44,8 @@ public class TextEditorUtils
         var lineStart = _viewModel.TextBuffer.GetLineStartPosition((int)lineIndex);
         var column = position - lineStart;
 
-        var x = column * _viewModel.CharWidth - _viewModel._scrollableViewModel.HorizontalOffset;
-        var y = lineIndex * _viewModel.LineHeight - _viewModel._scrollableViewModel.VerticalOffset;
+        var x = column * _viewModel.CharWidth - _viewModel.ScrollableTextEditorViewModel.HorizontalOffset;
+        var y = lineIndex * _viewModel.LineHeight - _viewModel.ScrollableTextEditorViewModel.VerticalOffset;
 
         return new Point(x, y);
     }

@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Input;
 using Avalonia.Threading;
@@ -28,6 +29,7 @@ public class InputManager
     {
         var currentPosition = e.GetPosition((Visual)sender);
         var currentTime = DateTime.Now;
+        _viewModel.HideCompletionSuggestions();
 
         // Check for triple-click
         if ((currentTime - _lastClickTime).TotalMilliseconds <= TripleClickTimeThreshold &&
@@ -106,29 +108,31 @@ public class InputManager
 
     public void OnPointerWheelChanged(object? sender, PointerWheelEventArgs e)
     {
-        if (_viewModel._scrollableViewModel == null) return;
+        if (_viewModel.ScrollableTextEditorViewModel == null) return;
 
         _viewModel.ScrollManager.IsManualScrolling = true;
         var delta = e.Delta.Y * 3;
         if (e.KeyModifiers.HasFlag(KeyModifiers.Shift))
         {
             // Horizontal scrolling (shift + scroll)
-            var newOffset = _viewModel._scrollableViewModel.HorizontalOffset -
-                            delta * _viewModel._scrollableViewModel.TextEditorViewModel.CharWidth;
+            var newOffset = _viewModel.ScrollableTextEditorViewModel.HorizontalOffset -
+                            delta * _viewModel.ScrollableTextEditorViewModel.TextEditorViewModel.CharWidth;
             var maxOffset = Math.Max(0,
-                _viewModel._scrollableViewModel.LongestLineWidth - _viewModel._scrollableViewModel.Viewport.Width);
-            _viewModel._scrollableViewModel.HorizontalOffset = Math.Max(0, Math.Min(newOffset, maxOffset));
+                _viewModel.ScrollableTextEditorViewModel.LongestLineWidth -
+                _viewModel.ScrollableTextEditorViewModel.Viewport.Width);
+            _viewModel.ScrollableTextEditorViewModel.HorizontalOffset = Math.Max(0, Math.Min(newOffset, maxOffset));
         }
         else
         {
             // Vertical scrolling
-            var newOffset = _viewModel._scrollableViewModel.VerticalOffset -
-                            delta * _viewModel._scrollableViewModel.LineHeight;
+            var newOffset = _viewModel.ScrollableTextEditorViewModel.VerticalOffset -
+                            delta * _viewModel.ScrollableTextEditorViewModel.LineHeight;
             var maxOffset = Math.Max(0,
-                _viewModel.LineCount * _viewModel.LineHeight - _viewModel._scrollableViewModel.Viewport.Height + 6);
-            _viewModel._scrollableViewModel.VerticalOffset = Math.Max(0, Math.Min(newOffset, maxOffset));
+                _viewModel.LineCount * _viewModel.LineHeight -
+                _viewModel.ScrollableTextEditorViewModel.Viewport.Height + 6);
+            _viewModel.ScrollableTextEditorViewModel.VerticalOffset = Math.Max(0, Math.Min(newOffset, maxOffset));
 
-            if (_viewModel._scrollableViewModel.TextEditorViewModel.IsSelecting)
+            if (_viewModel.ScrollableTextEditorViewModel.TextEditorViewModel.IsSelecting)
             {
                 // Update selection based on new scroll position
                 var position = _viewModel.TextEditorUtils.GetPositionFromPoint(e.GetPosition((Visual)sender));
@@ -181,9 +185,8 @@ public class InputManager
                 handled = true;
                 break;
             case Key.Up:
-                if (_viewModel.IsPopupVisible)
+                if (_viewModel.CompletionPopupViewModel.IsVisible)
                 {
-                    _viewModel.CompletionPopupViewModel.FocusPopup();
                     _viewModel.CompletionPopupViewModel.SelectPreviousItem();
                 }
                 else
@@ -194,9 +197,8 @@ public class InputManager
                 handled = true;
                 break;
             case Key.Down:
-                if (_viewModel.IsPopupVisible)
+                if (_viewModel.CompletionPopupViewModel.IsVisible)
                 {
-                    _viewModel.CompletionPopupViewModel.FocusPopup();
                     _viewModel.CompletionPopupViewModel.SelectNextItem();
                 }
                 else
@@ -215,27 +217,50 @@ public class InputManager
                 handled = true;
                 break;
             case Key.Back:
-                await _viewModel.TextManipulator.HandleBackspaceAsync();
-                _viewModel.UpdateLineCacheAfterDeletion(_viewModel.CursorPosition + 1, 1);
+                await HandleBackspace();
                 handled = true;
                 break;
+
             case Key.Delete:
-                await _viewModel.TextManipulator.HandleDeleteAsync();
-                _viewModel.UpdateLineCacheAfterDeletion(_viewModel.CursorPosition, 1);
+                await HandleDelete();
                 handled = true;
                 break;
+
             case Key.Enter:
-                if (_viewModel.IsPopupVisible && _viewModel.CompletionPopupViewModel.IsFocused)
+                if (_viewModel.CompletionPopupViewModel.IsVisible && _viewModel.CompletionPopupViewModel.IsFocused)
                 {
-                    _viewModel.ApplySelectedSuggestion(_viewModel.CompletionPopupViewModel
-                        .SelectedItem);
+                    _viewModel.ApplySelectedSuggestion(_viewModel.CompletionPopupViewModel.SelectedItem);
                     handled = true;
                 }
                 else
                 {
                     _viewModel.TextManipulator.InsertNewLine();
+                    await UpdateCompletionSuggestions();
                     handled = true;
                 }
+
+                break;
+
+            case Key.Space:
+                if (_viewModel.CompletionPopupViewModel.IsVisible && _viewModel.CompletionPopupViewModel.IsFocused)
+                    _viewModel.HideCompletionSuggestions();
+                handled = true;
+                await _viewModel.TextManipulator.InsertTextAsync(" ");
+                await UpdateCompletionSuggestions();
+                break;
+            case Key.OemSemicolon:
+                if (_viewModel.CompletionPopupViewModel.IsVisible && _viewModel.CompletionPopupViewModel.IsFocused)
+                {
+                    _viewModel.ApplySelectedSuggestion(_viewModel.CompletionPopupViewModel.SelectedItem);
+                    await _viewModel.TextManipulator.InsertTextAsync(";");
+                }
+                else
+                {
+                    await _viewModel.TextManipulator.InsertTextAsync(";");
+                }
+
+                await UpdateCompletionSuggestions();
+                handled = true;
                 break;
             case Key.Tab:
                 if (e.KeyModifiers.HasFlag(KeyModifiers.Shift))
@@ -250,7 +275,7 @@ public class InputManager
                 handled = true;
                 break;
             case Key.Escape:
-                if (_viewModel.IsPopupVisible) _viewModel.HideCompletionSuggestions();
+                if (_viewModel.CompletionPopupViewModel.IsVisible) _viewModel.HideCompletionSuggestions();
                 break;
         }
 
@@ -258,6 +283,61 @@ public class InputManager
         if (e.KeyModifiers.HasFlag(KeyModifiers.Control)) handled = HandleControlKeyCombo(e);
 
         e.Handled = handled;
+    }
+
+    private async Task HandleBackspace()
+    {
+        var currentPosition = _viewModel.CursorPosition;
+        var wordBeforeCursor = _viewModel.GetWordBeforeCursor();
+
+        await _viewModel.TextManipulator.HandleBackspaceAsync();
+        _viewModel.UpdateLineCacheAfterDeletion(currentPosition, 1);
+
+        if (string.IsNullOrEmpty(_viewModel.GetWordBeforeCursor()))
+            _viewModel.HideCompletionSuggestions();
+        else
+            await UpdateCompletionSuggestions();
+    }
+
+    private async Task HandleDelete()
+    {
+        var currentPosition = _viewModel.CursorPosition;
+
+        await _viewModel.TextManipulator.HandleDeleteAsync();
+        _viewModel.UpdateLineCacheAfterDeletion(currentPosition, 1);
+
+        await UpdateCompletionSuggestions();
+    }
+
+    private async Task UpdateCompletionSuggestions()
+    {
+        try
+        {
+            var position = _viewModel.CursorPosition;
+            char? lastChar = null;
+
+            Console.WriteLine(
+                $"UpdateCompletionSuggestions - Position: {position}, TextBuffer Length: {_viewModel.TextBuffer.Length}");
+
+            if (position > 0 && position <= _viewModel.TextBuffer.Length)
+            {
+                var textAtPosition = _viewModel.TextBuffer.GetText(Math.Max(0, position - 1), 1);
+                Console.WriteLine($"Text at position: '{textAtPosition}'");
+                if (!string.IsNullOrEmpty(textAtPosition)) lastChar = textAtPosition[0];
+            }
+
+            Console.WriteLine($"Last char: {lastChar}");
+
+            if (_viewModel.CompletionService != null)
+                await _viewModel.CompletionService.RequestCompletionAsync(position, lastChar);
+            else
+                Console.WriteLine("CompletionService is null");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in UpdateCompletionSuggestions: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+        }
     }
 
     public async void OnTextInput(object? sender, TextInputEventArgs e)
@@ -272,7 +352,8 @@ public class InputManager
         {
             _viewModel.HasUserStartedTyping = true;
             await _viewModel.TextManipulator.InsertTextAsync(e.Text);
-            _viewModel.UpdateLineCache(_viewModel.CursorPosition - 1, e.Text);
+            _viewModel.UpdateLineCache(_viewModel.CursorPosition - e.Text.Length, e.Text);
+            await UpdateCompletionSuggestions();
             e.Handled = true;
         }
     }

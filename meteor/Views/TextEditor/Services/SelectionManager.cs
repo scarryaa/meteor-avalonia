@@ -5,17 +5,20 @@ using System.Text;
 using System.Threading.Tasks;
 using meteor.Models;
 using meteor.ViewModels;
+using Microsoft.Extensions.Logging;
 
 namespace meteor.Views.Services;
 
 public class SelectionManager
 {
     private TextEditorViewModel _viewModel;
-
+    private readonly ILogger<SelectionManager> _logger;
+    
     public long SelectionAnchor { get; set; }
 
     public SelectionManager(TextEditorViewModel viewModel)
     {
+        _logger = ServiceLocator.GetService<ILogger<SelectionManager>>();
         _viewModel = viewModel;
     }
 
@@ -129,7 +132,7 @@ public class SelectionManager
 
                 if (lastLineIndex < 0 || lastLineIndex >= viewModel.TextBuffer.LineCount)
                 {
-                    Console.WriteLine(
+                    _logger.LogError(
                         $"Invalid lastLineIndex: {lastLineIndex}, LineCount: {viewModel.TextBuffer.LineCount}");
                     lastLineIndex = viewModel.TextBuffer.LineCount - 1;
                 }
@@ -266,7 +269,7 @@ public class SelectionManager
         {
             if (lineIndex < 0 || lineIndex >= viewModel.TextBuffer.LineCount)
             {
-                Console.WriteLine(
+                _logger.LogError(
                     $"Invalid lineIndex: {lineIndex}, LineStarts.Count: {viewModel.TextBuffer.LineStarts.Count}");
                 continue;
             }
@@ -302,7 +305,7 @@ public class SelectionManager
 
             if (position + offset < 0 || position + offset >= sb.Length)
             {
-                Console.WriteLine($"Position {position + offset} is out of bounds. Skipping modification.");
+                _logger.LogWarning($"Position {position + offset} is out of bounds. Skipping modification.");
                 continue;
             }
 
@@ -310,7 +313,7 @@ public class SelectionManager
             {
                 if (position + offset + deleteLength > sb.Length)
                 {
-                    Console.WriteLine(
+                    _logger.LogWarning(
                         $"Delete length {deleteLength} from position {position + offset} exceeds string bounds. Adjusting length.");
                     deleteLength = sb.Length - (int)(position + offset);
                 }

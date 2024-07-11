@@ -135,19 +135,22 @@ public class TextManipulator
     {
         _viewModel.TextBuffer.DeleteText(start, length);
         _viewModel.TextBuffer.InsertText(start, newText);
-        _viewModel.CursorPosition = start + newText.Length;
+        var newCursorPosition = start + newText.Length;
 
+        _viewModel.CursorPosition = newCursorPosition;
+        
         var startLine = _viewModel.TextBuffer.GetLineIndexFromPosition(start);
         var endLine = _viewModel.TextBuffer.GetLineIndexFromPosition(start + newText.Length);
-
+        
         for (var i = startLine; i <= endLine; i++)
             _viewModel.LineCache.InvalidateLine(i);
 
-        _viewModel._scrollableViewModel?.ParentRenderManager?.InvalidateLines((int)startLine - 1, (int)endLine + 1);
+        _viewModel.ScrollableTextEditorViewModel.ParentRenderManager.InvalidateLines((int)startLine, (int)endLine);
         _viewModel.ClearSelection();
         _viewModel.OnInvalidateRequired();
         _viewModel.NotifyGutterOfLineChange();
     }
+
 
     public async void IndentSelectionAsync()
     {

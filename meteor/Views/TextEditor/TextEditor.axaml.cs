@@ -1,6 +1,5 @@
 using System;
 using System.ComponentModel;
-using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -90,6 +89,7 @@ public partial class TextEditor : UserControl
     }
 
     private ScrollableTextEditorViewModel? _scrollableViewModel;
+    private CompletionService _completionService;
     public InputManager InputManager { get; set; }
     private ScrollManager ScrollManager { get; set; }
     private RenderManager RenderManager { get; set; }
@@ -110,35 +110,8 @@ public partial class TextEditor : UserControl
 
     private void OnAttachedToVisualTree(object? sender, VisualTreeAttachmentEventArgs e)
     {
-        KeyDown += UpdatePopupPosition;
-        TextInput += UpdatePopupPosition;
-    }
-
-    private void ApplySelectedSuggestion(ScrollableTextEditorViewModel viewModel)
-    {
-        var selectedItem = viewModel.TextEditorViewModel.CompletionPopupViewModel.SelectedItem;
-        if (selectedItem != null)
-            viewModel.TextEditorViewModel.InsertText(viewModel.TextEditorViewModel.CursorPosition, selectedItem.Label);
-        viewModel.TextEditorViewModel.HideCompletionSuggestions();
-    }
-
-    private void UpdatePopupPosition(object sender, RoutedEventArgs e)
-    {
-        if (e is TextInputEventArgs || (e is KeyEventArgs ke && ke.Key != Key.Tab && ke.Key != Key.Escape))
-            if (DataContext is ScrollableTextEditorViewModel viewModel)
-            {
-                var caretPosition = viewModel.TextEditorViewModel.GetCaretScreenPosition(this);
-                var horizontalOffset = viewModel.Offset.X;
-                var verticalOffset = viewModel.Offset.Y;
-
-                viewModel.TextEditorViewModel.PopupLeft = caretPosition.X - horizontalOffset;
-                viewModel.TextEditorViewModel.PopupTop =
-                    caretPosition.Y + viewModel.TextEditorViewModel.LineHeight - verticalOffset;
-
-                if (viewModel.TextEditorViewModel.IsPopupVisible)
-                    viewModel.TextEditorViewModel.ShowCompletionSuggestions(viewModel.TextEditorViewModel
-                        .CompletionPopupViewModel.CompletionItems.ToArray());
-            }
+        KeyDown += _completionService.ShowSuggestions;
+        TextInput += _completionService.ShowSuggestions;
     }
     
     private void Initialize()
@@ -163,11 +136,12 @@ public partial class TextEditor : UserControl
         TextManipulator = new TextManipulator();
     }
 
-    private void AssignServices(ScrollableTextEditorViewModel viewModel)
+    private void AssignServices(ScrollableTextEditorViewModel? viewModel)
     {
-        viewModel.TextEditorViewModel._scrollableViewModel = viewModel;
+        viewModel.TextEditorViewModel.ScrollableTextEditorViewModel = viewModel;
         _scrollableViewModel = viewModel;
-
+        _completionService = new CompletionService(viewModel.TextEditorViewModel);
+        
         TextEditorUtils = viewModel.TextEditorViewModel.TextEditorUtils;
         InputManager = viewModel.TextEditorViewModel.InputManager;
         ScrollManager = viewModel.TextEditorViewModel.ScrollManager;
@@ -238,11 +212,12 @@ public partial class TextEditor : UserControl
             viewModel.SelectionChanged += SelectionManager.OnSelectionChanged;
             viewModel.InvalidateRequired += OnInvalidateRequired;
             viewModel.TextBuffer.TextChanged += OnTextBufferChanged;
+            viewModel.RequestFocus += (_, _) => Focus();
 
             var context = CreateContext();
             var themeService = App.ServiceProvider.GetRequiredService<IThemeService>();
             var syntaxHighlighter = App.ServiceProvider.GetRequiredService<ISyntaxHighlighter>();
-            RenderManager = new RenderManager(context, themeService, syntaxHighlighter, viewModel.FilePath);
+            RenderManager = new RenderManager(context, themeService, () => syntaxHighlighter, viewModel.FilePath);
             RenderManager.AttachToViewModel(scrollableViewModel);
 
             scrollableViewModel.ScrollManager = ScrollManager;
@@ -353,7 +328,7 @@ public partial class TextEditor : UserControl
             var context = CreateContext();
             var themeService = App.ServiceProvider.GetRequiredService<IThemeService>();
             var syntaxHighlighter = App.ServiceProvider.GetRequiredService<ISyntaxHighlighter>();
-            RenderManager = new RenderManager(context, themeService, syntaxHighlighter, "");
+            RenderManager = new RenderManager(context, themeService, () => new SyntaxHighlighter(), "");
             RenderManager.AttachToViewModel(_scrollableViewModel);
         }
     }

@@ -8,19 +8,20 @@ using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
 using meteor.ViewModels;
+using Microsoft.Extensions.Logging;
 using ReactiveUI;
 
 namespace meteor.Views;
 
 public partial class Gutter : UserControl
 {
+    private readonly ILogger<Gutter> _logger;
     private bool _isDragging;
     private long _dragStartLine;
     private const double VerticalScrollThreshold = 20;
     private const double HorizontalScrollThreshold = 20;
     private const double ScrollSpeed = 1;
-    private readonly Dictionary<long, FormattedText> formattedTextCache = new();
-    private (long start, long end) _lastKnownSelection = (-1, -1);
+    private readonly Dictionary<long, FormattedText> _formattedTextCache = new();
 
     public static readonly StyledProperty<double> LineHeightProperty =
         AvaloniaProperty.Register<Gutter, double>(nameof(LineHeight), 20);
@@ -64,7 +65,7 @@ public partial class Gutter : UserControl
         set => SetValue(LineHeightProperty, value);
     }
 
-    public IBrush ForegroundBrush
+    public IBrush? ForegroundBrush
     {
         get => GetValue(ForegroundProperty);
         set
@@ -90,23 +91,48 @@ public partial class Gutter : UserControl
         set => SetValue(LineHighlightBrushProperty, value);
     }
 
-    public IBrush SelectedBrush
+    public IBrush? SelectedBrush
     {
         get => GetValue(SelectedBrushProperty);
-        set => SetValue(SelectedBrushProperty, value);
+        set => SetValue(SelectedBrushProperty!, value);
     }
 
+    private FormattedText GetOrCreateFormattedText(long lineNumber, IBrush brush)
+    {
+        if (_formattedTextCache.TryGetValue(lineNumber, out var cachedText)) return cachedText;
+
+        var formattedText = new FormattedText(
+            lineNumber.ToString(),
+            CultureInfo.CurrentCulture,
+            FlowDirection.LeftToRight,
+            new Typeface(FontFamily),
+            FontSize,
+            brush);
+
+        _formattedTextCache[lineNumber] = formattedText;
+        return formattedText;
+    }
+    
     public Gutter()
     {
         InitializeComponent();
         DataContextChanged += OnDataContextChanged;
+        _logger = ServiceLocator.GetService<ILogger<Gutter>>();
 
+        this.GetObservable(FontFamilyProperty).Subscribe(_ => ClearFormattedTextCache());
+        this.GetObservable(FontSizeProperty).Subscribe(_ => ClearFormattedTextCache());
         this.GetObservable(ForegroundBrushProperty).Subscribe(_ => InvalidateVisual());
         this.GetObservable(SelectedBrushProperty).Subscribe(_ => InvalidateVisual());
         this.GetObservable(FontFamilyProperty).Subscribe(_ => InvalidateVisual());
         this.GetObservable(FontSizeProperty).Subscribe(_ => InvalidateVisual());
         this.GetObservable(BackgroundBrushProperty).Subscribe(_ => InvalidateVisual());
         this.GetObservable(LineHighlightBrushProperty).Subscribe(_ => { InvalidateVisual(); });
+    }
+
+    private void ClearFormattedTextCache()
+    {
+        _formattedTextCache.Clear();
+        InvalidateVisual();
     }
 
     private void OnDataContextChanged(object? sender, EventArgs e)
@@ -130,8 +156,8 @@ public partial class Gutter : UserControl
 
             newViewModel.ScrollManagerChanged += OnScrollManagerChanged;
             newViewModel.WhenAnyValue(vm => vm.FontSize).Subscribe(_ => UpdateGutterWidth(newViewModel));
-            Console.WriteLine(newViewModel.TextEditorViewModel);
-            newViewModel.TextEditorViewModel.LineChanged += (o, args) => UpdateGutterWidth(newViewModel);
+            newViewModel.TextEditorViewModel.LineChanged += (_, _) => UpdateGutterWidth(newViewModel);
+            newViewModel.TextEditorViewModel.TextBuffer.TextChanged += (_, _) => ClearFormattedTextCache();
         }
         
         OnScrollManagerChanged(this, EventArgs.Empty);
@@ -145,7 +171,7 @@ public partial class Gutter : UserControl
 
     private void RegisterEventHandlers()
     {
-        Console.WriteLine("Gutter - Registering event handlers");
+        _logger.LogInformation("Gutter - Registering event handlers");
         AddHandler(PointerWheelChangedEvent, OnPointerWheelChanged, RoutingStrategies.Tunnel);
         AddHandler(PointerPressedEvent, OnPointerPressed, RoutingStrategies.Tunnel);
         AddHandler(PointerMovedEvent, OnPointerMoved, RoutingStrategies.Tunnel);
@@ -155,7 +181,7 @@ public partial class Gutter : UserControl
 
     private void UnregisterEventHandlers()
     {
-        Console.WriteLine("Gutter - Unregistering event handlers");
+        _logger.LogInformation("Gutter - Unregistering event handlers");
         RemoveHandler(PointerWheelChangedEvent, OnPointerWheelChanged);
         RemoveHandler(PointerPressedEvent, OnPointerPressed);
         RemoveHandler(PointerMovedEvent, OnPointerMoved);
@@ -259,8 +285,12 @@ public partial class Gutter : UserControl
         {
             if (viewModel.ScrollableTextEditorViewModel is { } scrollableViewModel)
             {
-                scrollableViewModel.TextEditorViewModel.ScrollManager.DisableVerticalScrollToCursor = true;
-                scrollableViewModel.TextEditorViewModel.ScrollManager.DisableHorizontalScrollToCursor = true;
+                if (scrollableViewModel.TextEditorViewModel.ScrollManager != null)
+                {
+                    scrollableViewModel.TextEditorViewModel.ScrollManager.DisableVerticalScrollToCursor = true;
+                    scrollableViewModel.TextEditorViewModel.ScrollManager.DisableHorizontalScrollToCursor = true;
+                }
+
                 scrollableViewModel.HorizontalOffset = 0;
             }
 
@@ -318,7 +348,8 @@ public partial class Gutter : UserControl
 
             var textEditorViewModel = viewModel.TextEditorViewModel;
 
-            if (viewModel.ScrollableTextEditorViewModel is ScrollableTextEditorViewModel scrollableViewModel)
+            if (viewModel.ScrollableTextEditorViewModel is
+                { TextEditorViewModel.ScrollManager: not null } scrollableViewModel)
             {
                 scrollableViewModel.TextEditorViewModel.ScrollManager.DisableHorizontalScrollToCursor = false;
                 scrollableViewModel.TextEditorViewModel.ScrollManager.DisableVerticalScrollToCursor = false;
@@ -356,10 +387,13 @@ public partial class Gutter : UserControl
 
         // Set the cursor position based on the selection direction
         textEditorViewModel.ShouldScrollToCursor = false;
-        textEditorViewModel.ScrollManager.DisableHorizontalScrollToCursor = true;
-        textEditorViewModel.CursorPosition = startLine <= endLine ? selectionEnd : selectionStart;
-        textEditorViewModel.ShouldScrollToCursor = true;
-        textEditorViewModel.ScrollManager.DisableHorizontalScrollToCursor = false;
+        if (textEditorViewModel.ScrollManager != null)
+        {
+            textEditorViewModel.ScrollManager.DisableHorizontalScrollToCursor = true;
+            textEditorViewModel.CursorPosition = startLine <= endLine ? selectionEnd : selectionStart;
+            textEditorViewModel.ShouldScrollToCursor = true;
+            textEditorViewModel.ScrollManager.DisableHorizontalScrollToCursor = false;
+        }
 
         textEditorViewModel.NotifySelectionChanged(textEditorViewModel.SelectionStart,
             textEditorViewModel.SelectionEnd);
@@ -400,12 +434,6 @@ public partial class Gutter : UserControl
         var cursorLine = GetLineIndexFromPosition(viewModel.TextEditorViewModel.CursorPosition);
         var textBuffer = viewModel.TextEditorViewModel.TextBuffer;
 
-        if (selectionStart != _lastKnownSelection.start || selectionEnd != _lastKnownSelection.end)
-        {
-            formattedTextCache.Clear();
-            _lastKnownSelection = (selectionStart, selectionEnd);
-        }
-
         for (var i = firstVisibleLine; i <= lastVisibleLine; i++)
         {
             var lineNumber = i + 1;
@@ -419,24 +447,17 @@ public partial class Gutter : UserControl
                 }
                 catch (ArgumentOutOfRangeException ex)
                 {
-                    Console.WriteLine(
+                    _logger.LogError(
                         $"Error in IsLineSelected: {ex.Message}. Line index: {i}, Selection: {selectionStart}-{selectionEnd}, Total lines: {textBuffer.LineCount}");
                 }
 
             var isCurrentLine = i == cursorLine;
 
-            var brush = (isSelected && _lastKnownSelection.start != _lastKnownSelection.end) || isCurrentLine
+            var brush = (isSelected && selectionStart != selectionEnd) || isCurrentLine
                 ? SelectedBrush
                 : ForegroundBrush;
 
-            var formattedText = new FormattedText(
-                lineNumber.ToString(),
-                CultureInfo.CurrentCulture,
-                FlowDirection.LeftToRight,
-                new Typeface(FontFamily),
-                FontSize,
-                brush);
-            formattedTextCache[i] = formattedText;
+            var formattedText = GetOrCreateFormattedText(lineNumber, brush);
 
             var verticalOffset = (LineHeight - formattedText.Height) / 2;
             yPosition += verticalOffset;
@@ -468,6 +489,7 @@ public partial class Gutter : UserControl
         {
             viewModel.InvalidateRequired -= OnInvalidateRequired;
             viewModel.ScrollManagerChanged -= OnScrollManagerChanged;
+            viewModel.TextEditorViewModel.TextBuffer.TextChanged -= (_, _) => ClearFormattedTextCache();
             UnregisterEventHandlers();
         }
     }

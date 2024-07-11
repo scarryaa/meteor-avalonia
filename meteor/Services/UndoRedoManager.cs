@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using meteor.Interfaces;
+using Microsoft.Extensions.Logging;
 
 namespace meteor.Models;
 
@@ -8,7 +9,8 @@ public class UndoRedoManager<T> : IUndoRedoManager<T>
 {
     private readonly CircularBuffer<UndoRedoAction<T>> _undoBuffer;
     private readonly CircularBuffer<UndoRedoAction<T>> _redoBuffer;
-
+    private readonly ILogger<UndoRedoManager<T>> _logger;
+    
     public bool CanUndo => _undoBuffer.Count > 0;
     public bool CanRedo => _redoBuffer.Count > 0;
 
@@ -17,6 +19,7 @@ public class UndoRedoManager<T> : IUndoRedoManager<T>
 
     public UndoRedoManager(T initialState, int maxUndoLevels = 100)
     {
+        _logger = ServiceLocator.GetService<ILogger<UndoRedoManager<T>>>();
         _undoBuffer = new CircularBuffer<UndoRedoAction<T>>(maxUndoLevels);
         _redoBuffer = new CircularBuffer<UndoRedoAction<T>>(maxUndoLevels);
 
@@ -30,7 +33,7 @@ public class UndoRedoManager<T> : IUndoRedoManager<T>
     {
         if (newState == null)
         {
-            Console.WriteLine("Error: Attempted to add a null state.");
+            _logger.LogError("Attempted to add a null state.");
             return;
         }
 
@@ -47,7 +50,7 @@ public class UndoRedoManager<T> : IUndoRedoManager<T>
         var action = _undoBuffer.Remove();
         if (action == null || action.OldState == null)
         {
-            Console.WriteLine("Error: action or action.OldState is null during undo.");
+            _logger.LogError("Action or action.OldState is null during undo.");
             return (default, "Error: action or action.OldState is null during undo.");
         }
 
@@ -65,11 +68,11 @@ public class UndoRedoManager<T> : IUndoRedoManager<T>
         var action = _redoBuffer.Remove();
         if (action == null || action.NewState == null)
         {
-            Console.WriteLine("Error: action or action.NewState is null during redo.");
-            return (default, "Error: action or action.NewState is null during redo.");
+            _logger.LogError("Action or action.NewState is null during redo.");
+            return (default, "Action or action.NewState is null during redo.")!;
         }
 
-        Console.WriteLine($"Redoing state: {action.NewState}");
+        _logger.LogInformation($"Redoing state: {action.NewState}");
         _undoBuffer.Add(action); // Add the redone action to the undo buffer
         CurrentState = action.NewState; // Update current state to the new state
         OnStateChanged();

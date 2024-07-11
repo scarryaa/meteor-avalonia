@@ -6,18 +6,19 @@ using meteor.Enums;
 using meteor.Interfaces;
 using meteor.ViewModels;
 using meteor.Windows;
+using Microsoft.Extensions.Logging;
 
 namespace meteor.Services;
 
 public class DialogService : IDialogService
 {
     private readonly IMainWindowProvider _mainWindowProvider;
-    private readonly IErrorLoggingService _errorLoggingService;
-
+    private readonly ILogger<DialogService> _logger;
+    
     public DialogService(IMainWindowProvider mainWindowProvider, IErrorLoggingService errorLoggingService)
     {
+        _logger = ServiceLocator.GetService<ILogger<DialogService>>();
         _mainWindowProvider = mainWindowProvider;
-        _errorLoggingService = errorLoggingService;
     }
 
     public async Task<ContentDialogResult> ShowContentDialogAsync(
@@ -70,7 +71,7 @@ public class DialogService : IDialogService
         else
         {
             SetDialogOpenState(mainWindowViewModel, false);
-            await _errorLoggingService.LogErrorAsync("Error dialog fallback", new Exception(message));
+            _logger.LogError("Error dialog fallback");
             Console.WriteLine($"Error: {message}");
         }
     }

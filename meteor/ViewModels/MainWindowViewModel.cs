@@ -53,8 +53,9 @@ public class MainWindowViewModel : ViewModelBase
         IDialogService dialogService,
         IThemeService themeService)
     {
-        NewTabCommand = ReactiveCommand.Create(() => NewTab());
-        CloseTabCommand = ReactiveCommand.Create<TabViewModel>(async tab => await CloseTabAsync(tab));
+        NewTabCommand = ReactiveCommand.Create(() => NewTab(GenerateTemporaryFilePath()));
+        CloseTabCommand =
+            ReactiveCommand.Create<TabViewModel>(async tab => await CloseTabAsync(tab).ConfigureAwait(false));
         CloseOtherTabsCommand = ReactiveCommand.Create<TabViewModel>(CloseOtherTabs);
         CloseAllTabsCommand = ReactiveCommand.Create<TabViewModel>(CloseAllTabs);
         SaveCommand = ReactiveCommand.Create(SaveCurrentFile);
@@ -257,7 +258,7 @@ public class MainWindowViewModel : ViewModelBase
         }
     }
 
-    private void NewTab(string filePath = null)
+    private async void NewTab(string filePath = null)
     {
         var cursorPositionService = App.ServiceProvider.GetRequiredService<ICursorPositionService>();
         var undoRedoManager = App.ServiceProvider.GetRequiredService<IUndoRedoManager<TextState>>();
@@ -282,9 +283,9 @@ public class MainWindowViewModel : ViewModelBase
             syntaxHighlighter,
             configuration,
             this,
-            GenerateTemporaryFilePath());
+            filePath);
 
-        if (!string.IsNullOrEmpty(filePath)) _ = textEditorViewModel.SetFilePath(filePath);
+        await textEditorViewModel.SetFilePath(filePath, "");
 
         var scrollManager = new ScrollManager(textEditorViewModel);
         textEditorViewModel.ScrollManager = scrollManager;
@@ -330,7 +331,7 @@ public class MainWindowViewModel : ViewModelBase
     private string GenerateTemporaryFilePath()
     {
         var tempFilePath = Path.GetTempFileName();
-        File.Delete(tempFilePath);
+        File.Create(tempFilePath + ".ts");
         return tempFilePath + ".ts";
     }
 
@@ -372,6 +373,17 @@ public class MainWindowViewModel : ViewModelBase
             // Cleanup auto-save backups
             await tab.CleanupBackupsAsync();
 
+            // Check if the file is temporary and delete it
+            if (tab.IsTemporary && !string.IsNullOrEmpty(tab.FilePath))
+                try
+                {
+                    File.Delete(tab.FilePath);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error deleting temporary file: {ex.Message}");
+                }
+
             Tabs.Remove(tab);
 
             if (tab == _temporaryTab)
@@ -386,6 +398,7 @@ public class MainWindowViewModel : ViewModelBase
             await ShowErrorDialogAsync("Failed to close the tab. Please try again.");
         }
     }
+
 
     private void UpdateTabSelectionAfterClose(TabViewModel closedTab)
     {
@@ -481,7 +494,6 @@ public class MainWindowViewModel : ViewModelBase
             var content = await File.ReadAllTextAsync(filePath);
 
             var textEditorVM = tab.ScrollableTextEditorViewModel.TextEditorViewModel;
-            textEditorVM.SetFilePath(filePath);
             textEditorVM.TextBuffer.SetText(content);
 
             tab.Title = Path.GetFileName(filePath);

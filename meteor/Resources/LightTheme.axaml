@@ -79,6 +79,15 @@
     <Color x:Key="CommandPaletteBoxShadowColor">#30000000</Color>
     <Color x:Key="CommandPaletteTextBoxCaret">#000000</Color>
 
+    <!-- ListBox -->
+    <Color x:Key="ListBoxBackground">#FFFFFF</Color>
+    <Color x:Key="ListBoxBorder">#DEDEDE</Color>
+    <Color x:Key="ListBoxItemBackground">#FFFFFF</Color>
+    <Color x:Key="ListBoxItemForeground">#333333</Color>
+    <Color x:Key="ListBoxItemHoverBackground">#F0F0F0</Color>
+    <Color x:Key="ListBoxItemSelectedBackground">#E0E0E0</Color>
+    <Color x:Key="ListBoxItemSelectedForeground">#000000</Color>
+
     <!-- Syntax Highlighting -->
     <Color x:Key="KeywordColor">#007ACC</Color>
     <Color x:Key="CommentColor">#60A561</Color>

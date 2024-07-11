@@ -18,6 +18,7 @@ namespace meteor.ViewModels;
 
 public class TabViewModel : ViewModelBase, IDisposable
 {
+    private static int _untitledCounter = 1;
     private string _title = "Untitled";
     private bool _isSelected;
     private ScrollableTextEditorViewModel? _scrollableTextEditorViewModel;
@@ -90,7 +91,6 @@ public class TabViewModel : ViewModelBase, IDisposable
         CloseAllTabsCommand = ReactiveCommand.Create<TabViewModel>(closeAllTabsCommand.Execute);
 
         InitializeCommands();
-        // InitializeScrollableTextEditor();
         InitializeAutoSaveTimer();
 
         _themeService.ThemeChanged += OnThemeChanged;
@@ -99,7 +99,7 @@ public class TabViewModel : ViewModelBase, IDisposable
         TextChanged += OnTextChanged;
     }
 
-    public static async Task<TabViewModel>? CreateAsync(
+    public static async Task<TabViewModel> CreateAsync(
         LspClient languageClientService,
         ICursorPositionService cursorPositionService,
         IUndoRedoManager<TextState?> undoRedoManager,
@@ -158,8 +158,6 @@ public class TabViewModel : ViewModelBase, IDisposable
         };
 
         scrollableTextEditorViewModel.TabViewModel = tabViewModel;
-
-        tabViewModel.FilePath = tabViewModel.GenerateTemporaryFilePath();
 
         return tabViewModel;
     }
@@ -302,9 +300,20 @@ public class TabViewModel : ViewModelBase, IDisposable
     public bool IsTemporary
     {
         get => _isTemporary;
-        set => this.RaiseAndSetIfChanged(ref _isTemporary, value);
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _isTemporary, value);
+        }
     }
 
+    public void UpdateTitle()
+    {
+        if (_filePath.Contains("tmp"))
+            Title = $"Untitled {_untitledCounter++}";
+        else
+            Title = Path.GetFileName(FilePath) ?? "Untitled";
+    }
+    
     public string? OriginalText
     {
         get => _originalText;
@@ -337,6 +346,7 @@ public class TabViewModel : ViewModelBase, IDisposable
         {
             OnFilePathChanged(value);
             this.RaiseAndSetIfChanged(ref _filePath, value);
+            UpdateTitle();
         }
     }
 
@@ -409,12 +419,6 @@ public class TabViewModel : ViewModelBase, IDisposable
             ScrollableTextEditorViewModel?.TextEditorViewModel.TextBuffer.UpdateLineCache();
             ScrollableTextEditorViewModel?.TextEditorViewModel.TextBuffer.RaiseLinesUpdated();
             ScrollableTextEditorViewModel?.TextEditorViewModel.NotifyGutterOfLineChange();
-            ScrollableTextEditorViewModel?.TextEditorViewModel.RenderManager.InvalidateLines(0,
-                (int)_textBuffer.LineCount);
-
-            // Ensure LSP client sends didOpen notification
-            if (ScrollableTextEditorViewModel?.TextEditorViewModel != null)
-                await ScrollableTextEditorViewModel.TextEditorViewModel.SetFilePath(filePath);
         }
         finally
         {
@@ -647,6 +651,8 @@ public class TabViewModel : ViewModelBase, IDisposable
     {
         var tempFilePath = Path.GetTempFileName();
         File.Delete(tempFilePath);
-        return tempFilePath + ".ts";
+        var newFilePath = tempFilePath + ".ts";
+        IsTemporary = true;
+        return newFilePath;
     }
 }
