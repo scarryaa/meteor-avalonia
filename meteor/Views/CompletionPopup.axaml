@@ -1,21 +1,17 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:viewModels="clr-namespace:meteor.ViewModels"
-        xmlns:system="clr-namespace:System;assembly=System.Runtime"
-        x:Class="meteor.Views.CompletionPopup"
-        ExtendClientAreaToDecorationsHint="True"
-        SystemDecorations="None"
-        SizeToContent="Height"
-        MaxHeight="300"
-        Width="250"
-        Focusable="False"
-        ShowInTaskbar="False">
-
-    <Window.Resources>
+<Popup xmlns="https://github.com/avaloniaui"
+       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+       xmlns:viewModels="clr-namespace:meteor.ViewModels"
+       xmlns:system="clr-namespace:System;assembly=System.Runtime"
+       x:Class="meteor.Views.CompletionPopup"
+       Width="250"
+       MaxHeight="300"
+       Focusable="False">
+  
+    <Popup.Resources>
         <CornerRadius x:Key="PopupCornerRadius">6</CornerRadius>
         <system:Double x:Key="PopupFontSize">14</system:Double>
-    </Window.Resources>
-
+    </Popup.Resources>
+  
     <Border Background="{DynamicResource ListBoxBackground}"
             BorderBrush="{DynamicResource ListBoxBorder}"
             BorderThickness="1"
@@ -64,4 +60,4 @@
             </ListBox>
         </ScrollViewer>
     </Border>
-</Window>
+</Popup>

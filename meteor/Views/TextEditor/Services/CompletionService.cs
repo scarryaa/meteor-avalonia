@@ -62,7 +62,7 @@ public class CompletionService
         }
 
         _popupWindow.SetPosition(left, top);
-        _popupWindow.Show();
+        _popupWindow.IsVisible = true;
         _textEditorViewModel.CompletionPopupViewModel.IsFocused = true;
     }
 
@@ -70,7 +70,7 @@ public class CompletionService
     {
         _textEditorViewModel.CompletionPopupViewModel.IsVisible = false;
         _textEditorViewModel.CompletionPopupViewModel.IsFocused = false;
-        _popupWindow?.Hide();
+        _popupWindow.IsVisible = false;
     }
 
     public void ApplySelectedSuggestion()
