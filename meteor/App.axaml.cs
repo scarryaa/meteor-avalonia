@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Reactive;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
@@ -10,6 +11,7 @@ using meteor.Models;
 using meteor.Services;
 using meteor.ViewModels;
 using meteor.Views;
+using meteor.Views.Interfaces;
 using meteor.Views.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -65,14 +67,25 @@ public class App : Application
             });
         });
 
-        // Register LspClient with a factory method
-        services.AddSingleton<LspClient>(provider =>
+        var languageServersConfigPath = Path.Combine(AppContext.BaseDirectory, "../../../languageServers.json");
+        services.AddSingleton<LspClientFactory>(provider =>
         {
-            var workspacePath = "/home/scarlet/Documents/Coding/meteor-avalonia/";
-            var languageServerPath = "/usr/bin/typescript-language-server";
-            var languageServerArgs = "--stdio";
+            try
+            {
+                return new LspClientFactory(languageServersConfigPath);
+            }
+            catch (Exception ex)
+            {
+                provider.GetRequiredService<ILogger<App>>().LogError(ex, "Failed to initialize LspClientFactory");
+                throw;
+            }
+        });
 
-            return new LspClient(workspacePath, languageServerPath, languageServerArgs);
+        services.AddTransient<ILspClient>(provider =>
+        {
+            var factory = provider.GetRequiredService<LspClientFactory>();
+            var filePath = "/path/to/source/file"; // Replace with actual file path
+            return factory.GetOrCreateClient(filePath);
         });
 
         services.AddSingleton<Func<Task<TabViewModel>>>(serviceProvider => async () =>
@@ -86,14 +99,14 @@ public class App : Application
             var clipboardService = serviceProvider.GetRequiredService<IClipboardService>();
             var autoSaveService = serviceProvider.GetRequiredService<IAutoSaveService>();
             var themeService = serviceProvider.GetRequiredService<IThemeService>();
-            var languageClientService = serviceProvider.GetRequiredService<LspClient>();
+            var languageClientFactory = serviceProvider.GetRequiredService<LspClientFactory>();
 
             var closeTabCommand = ReactiveCommand.Create<TabViewModel, Unit>(_ => Unit.Default);
             var closeOtherTabsCommand = ReactiveCommand.Create<TabViewModel, Unit>(_ => Unit.Default);
             var closeAllTabsCommand = ReactiveCommand.Create<TabViewModel, Unit>(_ => Unit.Default);
 
             return await TabViewModel.CreateAsync(
-                languageClientService,
+                languageClientFactory,
                 cursorPositionService,
                 undoRedoManager!,
                 fileSystemWatcherFactory,

@@ -8,6 +8,7 @@ using Avalonia.Media;
 using DiffPlex.DiffBuilder;
 using meteor.Interfaces;
 using meteor.Models;
+using meteor.Services;
 using meteor.Views.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -100,7 +101,7 @@ public class TabViewModel : ViewModelBase, IDisposable
     }
 
     public static async Task<TabViewModel> CreateAsync(
-        LspClient languageClientService,
+        LspClientFactory lspClientFactory,
         ICursorPositionService cursorPositionService,
         IUndoRedoManager<TextState?> undoRedoManager,
         IFileSystemWatcherFactory fileSystemWatcherFactory,
@@ -116,7 +117,7 @@ public class TabViewModel : ViewModelBase, IDisposable
     {
         var textBuffer = textBufferFactory.Create();
         var textEditorViewModel = new TextEditorViewModel(
-            languageClientService,
+            lspClientFactory,
             cursorPositionService,
             fontPropertiesViewModel,
             lineCountViewModel,
@@ -125,6 +126,7 @@ public class TabViewModel : ViewModelBase, IDisposable
             App.ServiceProvider.GetRequiredService<ISyntaxHighlighter>(),
             App.ServiceProvider.GetRequiredService<IConfiguration>(),
             null);
+
 
         var scrollManager = new ScrollManager(textEditorViewModel);
 
@@ -199,48 +201,6 @@ public class TabViewModel : ViewModelBase, IDisposable
     private IBrush? GetResourceBrush(string resourceKey)
     {
         return _themeService.GetResourceBrush(resourceKey);
-    }
-
-    private void InitializeScrollableTextEditor()
-    {
-        if (App.ServiceProvider != null)
-        {
-            var textEditorViewModel = new TextEditorViewModel(
-                App.ServiceProvider.GetRequiredService<LspClient>(),
-                _cursorPositionService,
-                _fontPropertiesViewModel,
-                _lineCountViewModel,
-                _textBuffer,
-                _clipboardService,
-                App.ServiceProvider.GetRequiredService<ISyntaxHighlighter>(),
-                App.ServiceProvider.GetRequiredService<IConfiguration>(),
-                this,
-                FilePath
-            );
-
-            var scrollManager = new ScrollManager(textEditorViewModel);
-
-            ScrollableTextEditorViewModel = new ScrollableTextEditorViewModel(
-                _cursorPositionService,
-                _fontPropertiesViewModel,
-                _lineCountViewModel,
-                _textBuffer,
-                _clipboardService,
-                _themeService,
-                textEditorViewModel,
-                scrollManager);
-
-            textEditorViewModel.ParentViewModel = ScrollableTextEditorViewModel;
-
-            textEditorViewModel.TextManipulator = new TextManipulator();
-            textEditorViewModel.TextManipulator.UpdateViewModel(textEditorViewModel);
-        }
-
-        if (ScrollableTextEditorViewModel != null)
-        {
-            ScrollableTextEditorViewModel.TextEditorViewModel.TextBuffer.LinesUpdated += OnTextBufferLinesUpdated;
-            ScrollableTextEditorViewModel.TabViewModel = this;
-        }
     }
 
     public string Title

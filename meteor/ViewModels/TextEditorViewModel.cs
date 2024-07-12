@@ -10,6 +10,7 @@ using Avalonia.Media;
 using meteor.Interfaces;
 using meteor.Models;
 using meteor.Views.Enums;
+using meteor.Views.Interfaces;
 using meteor.Views.Services;
 using meteor.Views.Utils;
 using Microsoft.Extensions.Configuration;
@@ -70,6 +71,8 @@ public class TextEditorViewModel : ViewModelBase, IDisposable
     private double _popupTop;
     private CompletionPopupViewModel _completionPopupViewModel;
     private bool _isApplyingSuggestion;
+    private readonly LspClientFactory _lspClientFactory;
+    
     public CursorManager CursorManager { get; }
     public SelectionManager SelectionManager { get; }
     public TextManipulator TextManipulator { get; set; }
@@ -82,11 +85,11 @@ public class TextEditorViewModel : ViewModelBase, IDisposable
     public ScrollManager? ScrollManager { get; set; }
     public ScrollableTextEditorViewModel? ScrollableTextEditorViewModel;
     public bool HasUserStartedTyping { get; set; }
-    public LspClient LspClient { get; set; }
+    public ILspClient LspClient { get; set; }
     public FontPropertiesViewModel FontPropertiesViewModel { get; }
 
     public TextEditorViewModel(
-        LspClient lspClient,
+        LspClientFactory lspClientFactory,
         ICursorPositionService cursorPositionService,
         FontPropertiesViewModel fontPropertiesViewModel,
         LineCountViewModel lineCountViewModel,
@@ -97,8 +100,16 @@ public class TextEditorViewModel : ViewModelBase, IDisposable
         ViewModelBase? parentViewModel,
         string? filePath = null)
     {
+        _lspClientFactory = lspClientFactory;
         _completionPopupViewModel = new CompletionPopupViewModel(this);
-        LspClient = lspClient;
+
+        if (!string.IsNullOrEmpty(filePath))
+        {
+            LspClient = lspClientFactory.GetOrCreateClient(filePath);
+            if (LspClient == null)
+                Console.WriteLine($"No LSP support available for {filePath}. Some features may be limited.");
+        }
+
         _cursorPositionService = cursorPositionService;
         FontPropertiesViewModel = fontPropertiesViewModel;
         FontFamily = FontFamily.DefaultFontFamilyName;
@@ -112,7 +123,7 @@ public class TextEditorViewModel : ViewModelBase, IDisposable
         Console.WriteLine($"TextEditorViewModel initialized with file path: {_filePath}");
         TextBuffer.TextChanged += OnTextChanged;
         CompletionService = new CompletionService(this);
-        
+
         CursorManager = new CursorManager(this);
         SelectionManager = new SelectionManager(this);
         ScrollManager = new ScrollManager(this);
@@ -128,10 +139,12 @@ public class TextEditorViewModel : ViewModelBase, IDisposable
         this.WhenAnyValue(x => x.FontPropertiesViewModel.LineHeight).Subscribe(height => LineHeight = height);
 
         CompletionPopupViewModel.SuggestionApplied += OnSuggestionApplied;
-        LspClient.LogReceived += (sender, log) => Console.WriteLine(log);
         UpdateLineStarts();
-    }
 
+        if (LspClient == null) return;
+        LspClient.LogReceived += (sender, log) => Console.WriteLine(log);
+    }
+    
     public string? FilePath
     {
         get => _filePath;
@@ -307,6 +320,7 @@ public class TextEditorViewModel : ViewModelBase, IDisposable
     public event EventHandler? RequestFocus;
     public event EventHandler? WidthRecalculationRequired;
 
+
     public async Task SetFilePath(string? filePath, string content)
     {
         _filePath = filePath;
@@ -314,13 +328,19 @@ public class TextEditorViewModel : ViewModelBase, IDisposable
 
         if (filePath != null)
         {
+            // Create a new LspClient for this file
+            LspClient = _lspClientFactory.GetOrCreateClient(filePath);
+
             var version = 1;
             var languageId = GetLanguageIdFromFileExtension(filePath);
 
             Console.WriteLine($"Detected language ID: {languageId}");
 
-            await EnsureLspInitializedAsync();
-            await LspClient.SendDidOpenAsync(filePath, languageId, version, content);
+            if (LspClient != null)
+            {
+                await EnsureLspInitializedAsync();
+                await LspClient.SendDidOpenAsync(filePath, languageId, 1, content);
+            }
         }
     }
 
@@ -654,7 +674,7 @@ public class TextEditorViewModel : ViewModelBase, IDisposable
 
             Console.WriteLine($"Sending didChange notification for {FilePath}");
             await LspClient.SendDidChangeAsync(parameters.textDocument.Uri.ToString(),
-                _textBuffer.GetText(0, _textBuffer.Length), parameters.textDocument.Version);
+                _textBuffer.Text, parameters.textDocument.Version);
             Console.WriteLine("didChange notification sent successfully");
         }
         catch (Exception ex)
@@ -768,6 +788,8 @@ public class TextEditorViewModel : ViewModelBase, IDisposable
 
     private async Task EnsureLspInitializedAsync()
     {
+        if (LspClient == null) return;
+        
         await _lspInitLock.WaitAsync();
         try
         {
@@ -855,8 +877,40 @@ public class TextEditorViewModel : ViewModelBase, IDisposable
             ".jsx" => "javascriptreact",
             ".json" => "json",
             ".html" => "html",
+            ".htm" => "html",
             ".css" => "css",
-            _ => "typescript"
+            ".scss" => "scss",
+            ".less" => "less",
+            ".py" => "python",
+            ".rb" => "ruby",
+            ".php" => "php",
+            ".java" => "java",
+            ".cs" => "csharp",
+            ".cpp" => "cpp",
+            ".c" => "c",
+            ".h" => "c",
+            ".go" => "go",
+            ".rs" => "rust",
+            ".swift" => "swift",
+            ".kt" => "kotlin",
+            ".scala" => "scala",
+            ".groovy" => "groovy",
+            ".pl" => "perl",
+            ".lua" => "lua",
+            ".sql" => "sql",
+            ".r" => "r",
+            ".m" => "matlab",
+            ".sh" => "shellscript",
+            ".ps1" => "powershell",
+            ".yaml" => "yaml",
+            ".yml" => "yaml",
+            ".xml" => "xml",
+            ".md" => "markdown",
+            ".tex" => "latex",
+            ".dart" => "dart",
+            ".vue" => "vue",
+            ".svelte" => "svelte",
+            _ => "plaintext"
         };
     }
 }

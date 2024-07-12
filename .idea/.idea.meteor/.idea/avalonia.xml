@@ -15,7 +15,9 @@
         <entry key="meteor/Styles/Buttons.axaml" value="meteor/meteor.csproj" />
         <entry key="meteor/Styles/CommandPalette.axaml" value="meteor/meteor.csproj" />
         <entry key="meteor/Styles/ContextMenu.axaml" value="meteor/meteor.csproj" />
+        <entry key="meteor/Styles/ListBox.axaml" value="meteor/meteor.csproj" />
         <entry key="meteor/Styles/Styles.axaml" value="meteor/meteor.csproj" />
+        <entry key="meteor/Styles/Theme.axaml" value="meteor/meteor.csproj" />
         <entry key="meteor/Styles/Tooltip.axaml" value="meteor/meteor.csproj" />
         <entry key="meteor/Views/BottomPane.axaml" value="meteor/meteor.csproj" />
         <entry key="meteor/Views/ButtonlessScrollViewer.axaml" value="meteor/meteor.csproj" />

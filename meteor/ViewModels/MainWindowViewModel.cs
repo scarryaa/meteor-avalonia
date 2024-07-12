@@ -23,6 +23,7 @@ namespace meteor.ViewModels;
 
 public class MainWindowViewModel : ViewModelBase
 {
+    private readonly LspClientFactory _lspClientFactory;
     private readonly IDialogService _dialogService;
     private Stack<TabViewModel> _tabSelectionHistory;
     private TabViewModel? _selectedTab;
@@ -51,8 +52,10 @@ public class MainWindowViewModel : ViewModelBase
         ITextBufferFactory textBufferFactory,
         IAutoSaveService autoSaveService,
         IDialogService dialogService,
-        IThemeService themeService)
+        IThemeService themeService,
+        LspClientFactory lspClientFactory)
     {
+        _lspClientFactory = lspClientFactory;
         NewTabCommand = ReactiveCommand.Create(() => NewTab(GenerateTemporaryFilePath()));
         CloseTabCommand =
             ReactiveCommand.Create<TabViewModel>(async tab => await CloseTabAsync(tab).ConfigureAwait(false));
@@ -270,11 +273,10 @@ public class MainWindowViewModel : ViewModelBase
         var autoSaveService = App.ServiceProvider.GetRequiredService<IAutoSaveService>();
         var themeService = App.ServiceProvider.GetRequiredService<IThemeService>();
         var syntaxHighlighter = App.ServiceProvider.GetRequiredService<ISyntaxHighlighter>();
-        var lspClient = App.ServiceProvider.GetRequiredService<LspClient>();
         var configuration = App.ServiceProvider.GetRequiredService<IConfiguration>();
 
         var textEditorViewModel = new TextEditorViewModel(
-            lspClient,
+            _lspClientFactory,
             cursorPositionService,
             fontPropertiesViewModel,
             lineCountViewModel,
@@ -285,7 +287,7 @@ public class MainWindowViewModel : ViewModelBase
             this,
             filePath);
 
-        await textEditorViewModel.SetFilePath(filePath, "");
+        await textEditorViewModel.SetFilePath(filePath, "test");
 
         var scrollManager = new ScrollManager(textEditorViewModel);
         textEditorViewModel.ScrollManager = scrollManager;
@@ -327,7 +329,7 @@ public class MainWindowViewModel : ViewModelBase
         if (SelectedTab != null)
             SelectedTab.ScrollableTextEditorViewModel.Viewport = new Size(WindowWidth, WindowHeight);
     }
-
+    
     private string GenerateTemporaryFilePath()
     {
         var tempFilePath = Path.GetTempFileName();
@@ -444,7 +446,19 @@ public class MainWindowViewModel : ViewModelBase
 
     public async void OnFileClicked(string filePath)
     {
+        if (filePath == null)
+        {
+            Console.WriteLine("OnFileClicked: filePath is null");
+            return;
+        }
+
         Console.WriteLine($"OnFileClicked: {filePath}");
+
+        if (Tabs == null)
+        {
+            Console.WriteLine("Tabs collection is null");
+            return;
+        }
 
         var existingTab = Tabs.FirstOrDefault(tab => tab.FilePath == filePath);
         if (existingTab != null)
@@ -456,6 +470,12 @@ public class MainWindowViewModel : ViewModelBase
         if (_temporaryTab == null || _temporaryTab.FilePath != filePath)
         {
             NewTab(filePath);
+            if (SelectedTab == null)
+            {
+                Console.WriteLine("SelectedTab is null after NewTab");
+                return;
+            }
+
             _temporaryTab = SelectedTab;
             _temporaryTab.IsTemporary = true;
         }

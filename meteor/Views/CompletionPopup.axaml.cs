@@ -42,7 +42,6 @@ public partial class CompletionPopup : Window
             }
     }
 
-
     private void SuggestionListBox_PointerPressed(object sender, PointerPressedEventArgs e)
     {
         if (e.Source is Visual visual)
