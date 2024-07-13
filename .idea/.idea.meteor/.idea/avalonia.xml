@@ -3,6 +3,9 @@
   <component name="AvaloniaProject">
     <option name="projectPerEditor">
       <map>
+        <entry key="meteor.ui.avalonia/Views/BottomPane.axaml" value="meteor.app/meteor.app.csproj" />
+        <entry key="meteor.ui.avalonia/Views/ButtonlessScrollViewer.axaml" value="meteor.app/meteor.app.csproj" />
+        <entry key="meteor.ui.avalonia/Windows/ContentDialog.axaml" value="meteor.app/meteor.app.csproj" />
         <entry key="meteor/App.axaml" value="meteor/meteor.csproj" />
         <entry key="meteor/Resources/BaseResources.axaml" value="meteor/meteor.csproj" />
         <entry key="meteor/Resources/ButtonColors.axaml" value="meteor/meteor.csproj" />
