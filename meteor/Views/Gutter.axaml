@@ -1,0 +1,21 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:viewModels="clr-namespace:meteor.ViewModels"
+             xmlns:views="clr-namespace:meteor.Views"
+             mc:Ignorable="d" d:DesignWidth="50"
+             x:Class="meteor.Views.Gutter"
+             x:DataType="viewModels:GutterViewModel"
+             ForegroundBrush="{Binding ForegroundBrush, RelativeSource={RelativeSource Self}}"
+             FontFamily="{Binding FontFamily, RelativeSource={RelativeSource Self}}"
+             Background="{Binding BackgroundBrush, RelativeSource={RelativeSource AncestorType=views:Gutter}}"
+             FontSize="{Binding FontSize, RelativeSource={RelativeSource Self}}"
+             LineHeight="{Binding LineHeight, RelativeSource={RelativeSource Self}}"
+             LineHighlightBrush="{Binding LineHighlightBrush}"
+             SelectedBrush="{Binding SelectedBrush}">
+
+    <Border BorderBrush="Transparent"
+            BorderThickness="0,0,1,0"
+            Background="Transparent" />
+</UserControl>

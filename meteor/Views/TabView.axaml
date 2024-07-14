@@ -1,0 +1,84 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="meteor.Views.TabView"
+             xmlns:vm="clr-namespace:meteor.ViewModels"
+             xmlns:local="clr-namespace:meteor.Behaviors"
+             xmlns:converters="clr-namespace:meteor.Converters"
+             xmlns:design="clr-namespace:meteor.ViewModels.Design"
+             x:DataType="vm:TabViewModel">
+
+    <Design.DataContext>
+        <design:DesignTabViewModel />
+    </Design.DataContext>
+
+    <UserControl.Resources>
+        <converters:IsTemporaryTabToFontStyleConverter x:Key="IsTemporaryTabToFontStyleConverter" />
+        <converters:IsTemporaryTabToFontFamilyConverter x:Key="IsTemporaryTabToFontFamilyConverter"
+                                                        SanFrancisco="{StaticResource SanFrancisco}"
+                                                        SanFranciscoItalic="{StaticResource SanFranciscoItalic}" />
+        <converters:BoolToBrushConverter x:Key="BoolToBrushConverter" />
+
+        <ContextMenu x:Key="TabContextMenu">
+            <MenuItem Header="Close Tab" Command="{Binding CloseTabCommand}" CommandParameter="{Binding}" />
+            <MenuItem Header="Close Other Tabs" Command="{Binding CloseOtherTabsCommand}" CommandParameter="{Binding}" />
+            <MenuItem Header="Close All Tabs" Command="{Binding CloseAllTabsCommand}" CommandParameter="{Binding}" />
+        </ContextMenu>
+    </UserControl.Resources>
+
+    <UserControl.Styles>
+        <Style Selector="ContentPresenter Button#CloseButton">
+            <Setter Property="Opacity" Value="0" />
+        </Style>
+        <Style Selector="Border#MainBorder:pointerover Button#CloseButton">
+            <Setter Property="Opacity" Value="1" />
+        </Style>
+        <Style Selector="Button#CloseButton">
+            <Setter Property="Foreground"
+                    Value="{Binding CloseButtonForeground}" />
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="Button#CloseButton:pointerover /template/ ContentPresenter">
+            <Setter Property="Foreground"
+                    Value="{Binding CloseButtonForeground}" />
+            <Setter Property="Background" Value="{Binding CloseButtonBackground}" />
+        </Style>
+    </UserControl.Styles>
+
+    <Border x:Name="MainBorder"
+            BorderBrush="{Binding BorderBrush}"
+            Background="{Binding Background}"
+            BorderThickness="0 0 1 0"
+            Padding="14 4 2 4"
+            local:MiddleTabClickBehavior.CloseCommand="{Binding CloseTabCommand}"
+            local:MiddleTabClickBehavior.CloseCommandParameter="{Binding}"
+            ContextMenu="{StaticResource TabContextMenu}">
+        <Grid x:Name="TabGrid" ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center" HorizontalAlignment="Center">
+            <Ellipse Grid.Column="0" Width="8" Height="8"
+                     Fill="{Binding DirtyIndicatorBrush}"
+                     IsVisible="{Binding IsDirty, Converter={StaticResource BoolToBrushConverter}}"
+                     Margin="-4,0,6,0" />
+            <TextBlock Grid.Column="1" Text="{Binding Title}" VerticalAlignment="Center"
+                       HorizontalAlignment="Center" FontSize="13"
+                       FontWeight="Normal" Margin="0 1 0 0"
+                       Foreground="{Binding Foreground}"
+                       FontFamily="{Binding IsTemporary, Converter={StaticResource IsTemporaryTabToFontFamilyConverter}}"
+                       FontStyle="{Binding IsTemporary, Converter={StaticResource IsTemporaryTabToFontStyleConverter}}" />
+            <Button x:Name="CloseButton" Grid.Column="2"
+                    Width="18"
+                    Height="16"
+                    Padding="0"
+                    Foreground="{Binding CloseButtonForeground}"
+                    VerticalAlignment="Center" HorizontalAlignment="Center"
+                    VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
+                    Margin="2 1 0 0"
+                    Command="{Binding CloseTabCommand}"
+                    CommandParameter="{Binding}">
+                <Viewbox Stretch="Uniform" StretchDirection="Both" HorizontalAlignment="Center"
+                         VerticalAlignment="Center">
+                    <TextBlock Text="×" FontFamily="{StaticResource SanFrancisco}"
+                               FontSize="13" />
+                </Viewbox>
+            </Button>
+        </Grid>
+    </Border>
+</UserControl>

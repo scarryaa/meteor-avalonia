@@ -1,40 +1,22 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.0.31903.59
-MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "meteor.core", "meteor.core\meteor.core.csproj", "{F8063821-3914-4F4C-97C3-08C4F14ED935}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "meteor", "meteor\meteor.csproj", "{8E92C1D9-EF6D-4865-8AAA-18504403CE72}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "meteor.languageserver", "meteor.languageserver\meteor.languageserver.csproj", "{7639B497-D880-4EE2-AD83-765D2D5B3C33}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "meteor.rendering", "meteor.rendering\meteor.rendering.csproj", "{C50A3546-7BD0-4506-9765-4DBF9AAB6EFD}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "meteor.avalonia", "meteor.avalonia\meteor.avalonia.csproj", "{5B77E73F-27B7-4170-A4E2-3DFAFCC9A176}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "tests", "tests\tests.csproj", "{157E5DFB-110E-45B8-85B3-BFC4949D6AEE}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
-	GlobalSection(SolutionProperties) = preSolution
-		HideSolutionNode = FALSE
-	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{F8063821-3914-4F4C-97C3-08C4F14ED935}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{F8063821-3914-4F4C-97C3-08C4F14ED935}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{F8063821-3914-4F4C-97C3-08C4F14ED935}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{F8063821-3914-4F4C-97C3-08C4F14ED935}.Release|Any CPU.Build.0 = Release|Any CPU
-		{7639B497-D880-4EE2-AD83-765D2D5B3C33}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{7639B497-D880-4EE2-AD83-765D2D5B3C33}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{7639B497-D880-4EE2-AD83-765D2D5B3C33}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{7639B497-D880-4EE2-AD83-765D2D5B3C33}.Release|Any CPU.Build.0 = Release|Any CPU
-		{C50A3546-7BD0-4506-9765-4DBF9AAB6EFD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{C50A3546-7BD0-4506-9765-4DBF9AAB6EFD}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{C50A3546-7BD0-4506-9765-4DBF9AAB6EFD}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{C50A3546-7BD0-4506-9765-4DBF9AAB6EFD}.Release|Any CPU.Build.0 = Release|Any CPU
-		{5B77E73F-27B7-4170-A4E2-3DFAFCC9A176}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{5B77E73F-27B7-4170-A4E2-3DFAFCC9A176}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{5B77E73F-27B7-4170-A4E2-3DFAFCC9A176}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{5B77E73F-27B7-4170-A4E2-3DFAFCC9A176}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8E92C1D9-EF6D-4865-8AAA-18504403CE72}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8E92C1D9-EF6D-4865-8AAA-18504403CE72}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8E92C1D9-EF6D-4865-8AAA-18504403CE72}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8E92C1D9-EF6D-4865-8AAA-18504403CE72}.Release|Any CPU.Build.0 = Release|Any CPU
+		{157E5DFB-110E-45B8-85B3-BFC4949D6AEE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{157E5DFB-110E-45B8-85B3-BFC4949D6AEE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{157E5DFB-110E-45B8-85B3-BFC4949D6AEE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{157E5DFB-110E-45B8-85B3-BFC4949D6AEE}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

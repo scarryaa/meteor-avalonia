@@ -1,0 +1,35 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="meteor.Views.TitleBar"
+             xmlns:i="https://github.com/projektanker/icons.avalonia"
+             xmlns:viewmodels="clr-namespace:meteor.ViewModels"
+             xmlns:converters="clr-namespace:meteor.Converters"
+             Background="{Binding Background, RelativeSource={RelativeSource AncestorType=UserControl}}"
+             FontFamily="{StaticResource SanFrancisco}"
+             x:DataType="viewmodels:TitleBarViewModel">
+
+    <UserControl.Resources>
+        <converters:StringBoolToVisibilityConverter x:Key="StringBoolToVisibilityConverter" />
+        <converters:EscapeUnderscoreConverter x:Key="EscapeUnderscoreConverter" />
+    </UserControl.Resources>
+
+    <Border BorderBrush="{Binding BorderBrush, RelativeSource={RelativeSource AncestorType=UserControl}}"
+            BorderThickness="0 0 0 1">
+        <Grid Height="30" ColumnDefinitions="Auto, Auto, *">
+            <Button Classes="noBg" CornerRadius="0" i:Attached.Icon="fa-solid fa-bars" HorizontalAlignment="Left">
+                <Button.Flyout>
+                    <MenuFlyout Placement="BottomEdgeAlignedLeft">
+                        <MenuItem FontSize="15" FontFamily="{StaticResource SanFrancisco}" Header="Settings"
+                                  i:MenuItem.Icon="fa-solid fa-gear" />
+                    </MenuFlyout>
+                </Button.Flyout>
+            </Button>
+            <Button Classes="noBg" HorizontalAlignment="Left" Grid.Column="2" FontSize="13"
+                    FontFamily="{StaticResource SanFrancisco}" Margin="0 0 0 0" VerticalAlignment="Center"
+                    Height="20" Padding="3 2"
+                    Click="OpenFolderButton_Click"
+                    Content="{Binding OpenProjectName, Converter={StaticResource EscapeUnderscoreConverter}}"
+                    IsVisible="{Binding OpenProjectName, Converter={StaticResource StringBoolToVisibilityConverter}}" />
+        </Grid>
+    </Border>
+</UserControl>
