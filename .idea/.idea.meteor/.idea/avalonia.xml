@@ -3,8 +3,36 @@
   <component name="AvaloniaProject">
     <option name="projectPerEditor">
       <map>
+        <entry key="meteor.ui.avalonia/App.axaml" value="meteor.app/meteor.app.csproj" />
+        <entry key="meteor.ui.avalonia/Resources/BaseResources.axaml" value="meteor.app/meteor.app.csproj" />
+        <entry key="meteor.ui.avalonia/Resources/DarkTheme.axaml" value="meteor.app/meteor.app.csproj" />
+        <entry key="meteor.ui.avalonia/Resources/Fonts.axaml" value="meteor.app/meteor.app.csproj" />
+        <entry key="meteor.ui.avalonia/Resources/LightTheme.axaml" value="meteor.app/meteor.app.csproj" />
+        <entry key="meteor.ui.avalonia/Resources/ScrollViewer.axaml" value="meteor.app/meteor.app.csproj" />
+        <entry key="meteor.ui.avalonia/Styles/Buttons.axaml" value="meteor.app/meteor.app.csproj" />
+        <entry key="meteor.ui.avalonia/Styles/CommandPalette.axaml" value="meteor.app/meteor.app.csproj" />
+        <entry key="meteor.ui.avalonia/Styles/ContextMenu.axaml" value="meteor.app/meteor.app.csproj" />
+        <entry key="meteor.ui.avalonia/Styles/DarkTheme.axaml" value="meteor.app/meteor.app.csproj" />
+        <entry key="meteor.ui.avalonia/Styles/LightTheme.axaml" value="meteor.app/meteor.app.csproj" />
+        <entry key="meteor.ui.avalonia/Styles/ListBox.axaml" value="meteor.app/meteor.app.csproj" />
+        <entry key="meteor.ui.avalonia/Styles/Styles.axaml" value="meteor.app/meteor.app.csproj" />
+        <entry key="meteor.ui.avalonia/Styles/Tooltip.axaml" value="meteor.app/meteor.app.csproj" />
         <entry key="meteor.ui.avalonia/Views/BottomPane.axaml" value="meteor.app/meteor.app.csproj" />
         <entry key="meteor.ui.avalonia/Views/ButtonlessScrollViewer.axaml" value="meteor.app/meteor.app.csproj" />
+        <entry key="meteor.ui.avalonia/Views/CommandPalette.axaml" value="meteor.app/meteor.app.csproj" />
+        <entry key="meteor.ui.avalonia/Views/CompletionPopup.axaml" value="meteor.app/meteor.app.csproj" />
+        <entry key="meteor.ui.avalonia/Views/FileExplorer.axaml" value="meteor.app/meteor.app.csproj" />
+        <entry key="meteor.ui.avalonia/Views/Gutter.axaml" value="meteor.app/meteor.app.csproj" />
+        <entry key="meteor.ui.avalonia/Views/HorizontalScrollableTabControl.axaml" value="meteor.app/meteor.app.csproj" />
+        <entry key="meteor.ui.avalonia/Views/LeftSidebar.axaml" value="meteor.app/meteor.app.csproj" />
+        <entry key="meteor.ui.avalonia/Views/MainWindow.axaml" value="meteor.app/meteor.app.csproj" />
+        <entry key="meteor.ui.avalonia/Views/ScrollableTextEditor.axaml" value="meteor.app/meteor.app.csproj" />
+        <entry key="meteor.ui.avalonia/Views/StatusPane.axaml" value="meteor.app/meteor.app.csproj" />
+        <entry key="meteor.ui.avalonia/Views/SuggestionPane.axaml" value="meteor.app/meteor.app.csproj" />
+        <entry key="meteor.ui.avalonia/Views/TabView.axaml" value="meteor.app/meteor.app.csproj" />
+        <entry key="meteor.ui.avalonia/Views/TextEditor/TextEditor.axaml" value="meteor.app/meteor.app.csproj" />
+        <entry key="meteor.ui.avalonia/Views/TextEditorView.axaml" value="meteor.app/meteor.app.csproj" />
+        <entry key="meteor.ui.avalonia/Views/TitleBar.axaml" value="meteor.app/meteor.app.csproj" />
         <entry key="meteor.ui.avalonia/Windows/ContentDialog.axaml" value="meteor.app/meteor.app.csproj" />
         <entry key="meteor/App.axaml" value="meteor/meteor.csproj" />
         <entry key="meteor/Resources/BaseResources.axaml" value="meteor/meteor.csproj" />
