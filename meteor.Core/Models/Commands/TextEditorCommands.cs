@@ -62,7 +62,6 @@ public class TextEditorCommands(
     public async Task PasteText()
     {
         var text = await clipboardService.GetTextAsync();
-        Console.WriteLine($"Pasted: {text}");
         if (!string.IsNullOrEmpty(text)) InsertText(cursorManager.Position, text);
     }
 

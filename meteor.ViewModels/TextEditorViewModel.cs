@@ -363,7 +363,7 @@ public sealed class TextEditorViewModel : ITextEditorViewModel
         OnInvalidateRequired();
     }
 
-    private void UpdateLongestLineWidth()
+    public void UpdateLongestLineWidth()
     {
         double maxWidth = 0;
         for (var i = 0; i < TextBuffer.LineCount; i++)
@@ -559,20 +559,24 @@ public sealed class TextEditorViewModel : ITextEditorViewModel
     {
         int startLine = TextBuffer.GetLineIndexFromPosition(e.Position);
         int endLine = TextBuffer.GetLineIndexFromPosition(e.Position + Math.Max(e.InsertedText.Length, e.DeletedLength));
-    
+
+        var maxWidth = LongestLineWidth;
+        var lineSpan = new Span<char>(new char[1024]);
+
         for (int i = startLine; i <= endLine; i++)
         {
-            UpdateLineWidth(i);
-        }
-    }
+            var lineLength = TextBuffer.GetLineLength(i);
+            if (lineLength > lineSpan.Length) lineSpan = new Span<char>(new char[lineLength]);
 
-    private void UpdateLineWidth(int lineIndex)
-    {
-        var line = TextBuffer.GetLineText(lineIndex);
-        var lineWidth = _textMeasurer.MeasureWidth(line, FontSize, FontFamily);
-        if (lineWidth > LongestLineWidth)
+            TextBuffer.GetLineText(i);
+            var lineWidth = _textMeasurer.MeasureWidth(new string(lineSpan.Slice(0, lineLength)), FontSize, FontFamily);
+
+            if (lineWidth > maxWidth) maxWidth = lineWidth;
+        }
+
+        if (maxWidth > LongestLineWidth)
         {
-            LongestLineWidth = lineWidth;
+            LongestLineWidth = maxWidth;
             OnPropertyChanged(nameof(RequiredWidth));
         }
     }
@@ -581,7 +585,7 @@ public sealed class TextEditorViewModel : ITextEditorViewModel
     {
         CursorPositionChanged?.Invoke(this,
             new CursorPositionChangedEventArgs(CursorPosition, _textBuffer.GetLineStarts(),
-                _textBuffer.GetLineLength(_textBuffer.GetLineIndexFromPosition(CursorPosition))));
+                _textBuffer.GetLineLength(_textBuffer.GetLineIndexFromPosition(CursorPosition))));      
         OnInvalidateRequired();
     }
 

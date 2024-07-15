@@ -8,6 +8,10 @@ public class TextBuffer : ITextBuffer
     private List<string?> _lines = new() { "" };
     private readonly List<int> _cachedLineStarts = new() { 0 };
     private bool _isLineStartsCacheValid = true;
+    private string _cachedText = "";
+    private bool _isTextCacheValid = true;
+    private int _cachedLength;
+    private bool _isLengthCacheValid = true;
 
     public List<int> GetLineStarts()
     {
@@ -15,8 +19,34 @@ public class TextBuffer : ITextBuffer
         return _cachedLineStarts;
     }
 
-    public string Text => string.Join(Environment.NewLine, _lines);
-    public int Length => Text.Length;
+    public string Text
+    {
+        get
+        {
+            if (!_isTextCacheValid)
+            {
+                _cachedText = string.Join(Environment.NewLine, _lines);
+                _isTextCacheValid = true;
+            }
+
+            return _cachedText;
+        }
+    }
+
+    public int Length
+    {
+        get
+        {
+            if (!_isLengthCacheValid)
+            {
+                _cachedLength = _lines.Sum(l => l.Length) + Environment.NewLine.Length * (_lines.Count - 1);
+                _isLengthCacheValid = true;
+            }
+
+            return _cachedLength;
+        }
+    }
+
     public int LineCount => _lines.Count;
 
     public event EventHandler<TextChangedEventArgs> TextChanged;
@@ -31,30 +61,30 @@ public class TextBuffer : ITextBuffer
 
     public void InsertText(int position, string text)
     {
-        if (string.IsNullOrEmpty(text) || position < 0 || position > Length)
+        if (string.IsNullOrEmpty(text))
             return;
+
+        // Ensure position is within valid range
+        position = Math.Max(0, Math.Min(position, Length));
 
         var lineIndex = GetLineIndexFromPosition(position);
         var linePosition = position - GetLineStartPosition(lineIndex);
 
-        var newLines = text.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
+        var newLines = text.Split(["\r\n", "\r", "\n"], StringSplitOptions.None);
 
         if (newLines.Length == 1)
         {
-            _lines[lineIndex] = _lines[lineIndex].Insert(linePosition, text);
+            _lines[lineIndex] = (_lines[lineIndex] ?? "").Insert(linePosition, text);
         }
         else
         {
-            var currentLine = _lines[lineIndex];
-            var beforeInsertion = currentLine.Substring(0, linePosition);
-            var afterInsertion = currentLine.Substring(linePosition);
-
-            _lines[lineIndex] = beforeInsertion + newLines[0];
+            var currentLine = _lines[lineIndex] ?? "";
+            _lines[lineIndex] = currentLine[..linePosition] + newLines[0];
             _lines.InsertRange(lineIndex + 1, newLines.Skip(1).Take(newLines.Length - 2));
-            _lines.Insert(lineIndex + newLines.Length - 1, newLines[^1] + afterInsertion);
+            _lines.Insert(lineIndex + newLines.Length - 1, newLines[^1] + currentLine[linePosition..]);
         }
 
-        _isLineStartsCacheValid = false;
+        InvalidateCache();
         OnTextChanged(position, text, 0);
     }
 
@@ -83,7 +113,7 @@ public class TextBuffer : ITextBuffer
             _lines.RemoveRange(startLineIndex + 1, endLineIndex - startLineIndex);
         }
 
-        _isLineStartsCacheValid = false;
+        InvalidateCache();
         OnTextChanged(start, string.Empty, length);
     }
 
@@ -93,7 +123,7 @@ public class TextBuffer : ITextBuffer
         if (_lines.Count == 0)
             _lines.Add(string.Empty);
 
-        _isLineStartsCacheValid = false;
+        InvalidateCache();
         OnTextChanged(0, newText, Length);
     }
 
@@ -101,7 +131,7 @@ public class TextBuffer : ITextBuffer
     {
         var oldLength = Length;
         _lines = new List<string?> { "" };
-        _isLineStartsCacheValid = false;
+        InvalidateCache();
         OnTextChanged(0, string.Empty, oldLength);
     }
 
@@ -142,6 +172,13 @@ public class TextBuffer : ITextBuffer
         if (position < 0 || position > Length)
             throw new ArgumentOutOfRangeException(nameof(position));
 
+        if (_isLineStartsCacheValid)
+            return _cachedLineStarts.BinarySearch(position) switch
+            {
+                var i when i >= 0 => i,
+                var i => ~i - 1
+            };
+
         var currentPosition = 0;
         for (var i = 0; i < LineCount; i++)
         {
@@ -167,6 +204,13 @@ public class TextBuffer : ITextBuffer
         }
 
         _isLineStartsCacheValid = true;
+    }
+
+    private void InvalidateCache()
+    {
+        _isLineStartsCacheValid = false;
+        _isTextCacheValid = false;
+        _isLengthCacheValid = false;
     }
 
     protected virtual void OnTextChanged(int position, string insertedText, int deletedLength)

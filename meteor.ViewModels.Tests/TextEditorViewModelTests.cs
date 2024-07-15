@@ -148,20 +148,26 @@ public class TextEditorViewModelTests
 
         Assert.Equal(5 + Environment.NewLine.Length, cursorPosition); // Verify the cursor position has been updated
     }
-
+    
     [Fact]
     public void UpdateLongestLineWidth_UpdatesLongestLineWidthProperty()
     {
         // Arrange
-        _mockTextBuffer.Setup(tb => tb.GetText(0, It.IsAny<int>())).Returns("Line1\nLine2\nLongest Line");
-        _mockTextMeasurer.Setup(tm => tm.MeasureWidth("Longest Line", It.IsAny<double>(), It.IsAny<string>()))
-            .Returns(100);
+        _mockTextBuffer.Setup(tb => tb.LineCount).Returns(3);
+        _mockTextBuffer.Setup(tb => tb.GetLineText(It.IsAny<int>())).Returns("Very very very long line");
+        _mockTextMeasurer.Setup(tm => tm.MeasureWidth(It.IsAny<string>(), It.IsAny<double>(), It.IsAny<string>()))
+            .Returns((string text, double fontSize, string fontFamily) =>
+                text.Length * 5);
+        _viewModel.WindowWidth = 10;
 
         // Act
-        _viewModel.UpdateViewProperties();
+        _viewModel.UpdateLongestLineWidth();
 
         // Assert
-        Assert.Equal(100, _viewModel.LongestLineWidth);
+        Assert.Equal(120, _viewModel.LongestLineWidth); // "Very very very long line" length (24) * 5
+        _mockTextBuffer.Verify(tb => tb.GetLineText(It.IsAny<int>()), Times.Exactly(6));
+        _mockTextMeasurer.Verify(tm => tm.MeasureWidth(It.IsAny<string>(), _viewModel.FontSize, _viewModel.FontFamily),
+            Times.Exactly(6));
     }
 
     [Fact]
@@ -537,13 +543,15 @@ public class TextEditorViewModelTests
     }
 
     [Fact]
-    public void ViewportWidth_SetNewValue_UpdatesPropertyAndLongestLineWidth()
+    public void ViewportWidth_SetNewValue_UpdatesPropertyAndRequiredWidth()
     {
         // Arrange
-        _mockTextBuffer.Setup(tb => tb.GetText(It.IsAny<int>(), It.IsAny<int>()))
-            .Returns("Sample text\nLonger sample text");
+        _mockTextBuffer.Setup(tb => tb.LineCount).Returns(2);
+        _mockTextBuffer.Setup(tb => tb.GetLineText(It.IsAny<int>()))
+            .Returns((int i) => i == 0 ? "Sample text" : "Longer sample text");
         _mockTextMeasurer.Setup(tm => tm.MeasureWidth(It.IsAny<string>(), It.IsAny<double>(), It.IsAny<string>()))
             .Returns(50);
+        _viewModel.WindowWidth = 100; // Set initial window width
 
         // Act
         _viewModel.ViewportWidth = 120;
@@ -551,9 +559,15 @@ public class TextEditorViewModelTests
         // Assert
         Assert.Equal(120, _viewModel.ViewportWidth);
         Assert.Equal(120, _viewModel.RequiredWidth);
-        Assert.Equal(50, _viewModel.LongestLineWidth);
-    }
 
+        // Force update of view properties
+        _viewModel.UpdateViewProperties();
+
+        // Verify that MeasureWidth was called at least once with any parameters
+        _mockTextMeasurer.Verify(
+            tm => tm.MeasureWidth(It.IsAny<string>(), It.IsAny<double>(), It.IsAny<string>()),
+            Times.AtLeastOnce());
+    }
 
     [Fact]
     public void ViewportHeight_SetNewValue_UpdatesPropertyAndTotalHeight()

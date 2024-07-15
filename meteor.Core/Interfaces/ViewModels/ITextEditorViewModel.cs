@@ -75,6 +75,7 @@ public interface ITextEditorViewModel : INotifyPropertyChanged, IDisposable
     void InvalidateLongestLine();
     void OnInvalidateRequired();
     void UpdateLineStarts();
+    void UpdateLongestLineWidth();
 
     #endregion
 }

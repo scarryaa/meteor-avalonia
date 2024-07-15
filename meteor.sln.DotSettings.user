@@ -13,11 +13,29 @@
 	<s:Boolean x:Key="/Default/Environment/Hierarchy/Build/BuildTool/RecentDotNetCliExePaths/=_002Fhome_002Fscarlet_002F_002Edotnet_002Fsdk_002F6_002E0_002E423_002Fdotnet_002Edll/@EntryIndexedValue">True</s:Boolean>
 	<s:Boolean x:Key="/Default/Environment/Hierarchy/Build/BuildTool/RecentDotNetCliExePaths/=_002Fusr_002Fbin_002Fdotnet/@EntryIndexedValue">True</s:Boolean>
 	<s:Boolean x:Key="/Default/Environment/Hierarchy/Build/BuildTool/RecentDotNetCliExePaths/=_002Fusr_002Fshare_002Fdotnet_002Fsdk_002F8_002E0_002E106_002Fdotnet_002Edll/@EntryIndexedValue">True</s:Boolean>
-	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=c91a145e_002D0514_002D4f42_002D978f_002D567554337e71/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" IsActive="True" Name="All tests from &amp;lt;meteor.Core.Tests&amp;gt;" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;
+	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=53657a52_002Db9e5_002D47e1_002D8953_002D32c0e18e1a54/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" Name="All tests from Solution" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;
+  &lt;Solution /&gt;
+&lt;/SessionState&gt;</s:String>
+	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=5e2daae4_002Dc01f_002D457c_002D8e2f_002Db77352ebd2f3/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" IsActive="True" Name="Session" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;
   &lt;Or&gt;
-    &lt;Project Location="/home/scarlet/Documents/Coding/meteor-avalonia/meteor.Core.Tests" Presentation="&amp;lt;meteor.Core.Tests&amp;gt;" /&gt;
-    &lt;Project Location="/home/scarlet/Documents/Coding/meteor-avalonia/meteor.ViewModels.Tests" Presentation="&amp;lt;meteor.ViewModels.Tests&amp;gt;" /&gt;
-    &lt;Project Location="/home/scarlet/Documents/Coding/meteor-avalonia/meteor.Services.Tests" Presentation="&amp;lt;meteor.Services.Tests&amp;gt;" /&gt;
+    &lt;And&gt;
+      &lt;Or&gt;
+        &lt;Project Location="/home/scarlet/Documents/Coding/meteor-avalonia/meteor.Core.Tests" Presentation="&amp;lt;meteor.Core.Tests&amp;gt;" /&gt;
+        &lt;Project Location="/home/scarlet/Documents/Coding/meteor-avalonia/meteor.Services.Tests" Presentation="&amp;lt;meteor.Services.Tests&amp;gt;" /&gt;
+        &lt;Project Location="/home/scarlet/Documents/Coding/meteor-avalonia/meteor.ViewModels.Tests" Presentation="&amp;lt;meteor.ViewModels.Tests&amp;gt;" /&gt;
+        &lt;Nothing /&gt;
+      &lt;/Or&gt;
+      &lt;Not&gt;
+        &lt;TestAncestor&gt;
+          &lt;TestId&gt;xUnit::0C2561F0-D268-4F74-8396-F14A78E4ABBE::net9.0::meteor.ViewModels.Tests.TextEditorViewModelTests.UpdateLongestLineWidth_UpdatesLongestLineWidthProperty&lt;/TestId&gt;
+        &lt;/TestAncestor&gt;
+      &lt;/Not&gt;
+    &lt;/And&gt;
+    &lt;TestAncestor&gt;
+      &lt;TestId&gt;xUnit::0C2561F0-D268-4F74-8396-F14A78E4ABBE::net9.0::meteor.ViewModels.Tests.TextEditorViewModelTests.UpdateLongestLineWidth_UpdatesLongestLineWidthProperty&lt;/TestId&gt;
+    &lt;/TestAncestor&gt;
   &lt;/Or&gt;
 &lt;/SessionState&gt;</s:String>
+	
+	
 	<s:Boolean x:Key="/Default/UserDictionary/Words/=buttonless/@EntryIndexedValue">True</s:Boolean></wpf:ResourceDictionary>
