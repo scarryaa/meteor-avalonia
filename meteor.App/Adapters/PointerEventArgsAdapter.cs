@@ -1,3 +1,4 @@
+using Avalonia;
 using Avalonia.Input;
 using meteor.Core.Interfaces.Events;
 using meteor.Core.Interfaces.Rendering;
@@ -16,8 +17,8 @@ public class PointerEventArgsAdapter(PointerEventArgs args) : IPointerEventArgs
         set => args.Handled = value;
     }
 
-    public IPoint? GetPosition()
+    public IPoint? GetPosition(object? relativeTo = null)
     {
-        return new PointAdapter(args.GetPosition(null));
+        return new PointAdapter(args.GetPosition(relativeTo as Visual));
     }
 }

@@ -6,7 +6,7 @@ namespace meteor.Core.Interfaces.Contexts;
 
 public interface ITextEditorContext
 {
-    ITextEditorViewModel TextEditorViewModel { get; set; }
+    ITextEditorViewModel TextEditorViewModel { get; set; }  
     IBrush BackgroundBrush { get; }
     double LineHeight { get; }
     IBrush LineHighlightBrush { get; }
@@ -20,4 +20,5 @@ public interface ITextEditorContext
     FontStyle FontStyle { get; }
     FontWeight FontWeight { get; }
     IBrush ForegroundBrush { get; }
+    double VerticalOffset { get; }  
 }

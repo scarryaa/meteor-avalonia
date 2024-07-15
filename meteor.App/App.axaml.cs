@@ -107,7 +107,8 @@ public class App : Application
                 textEditorViewModel,
                 FontStyle.Normal,
                 FontWeight.Normal,
-                new BrushAdapter(new SolidColorBrush(Colors.Black))
+                new BrushAdapter(new SolidColorBrush(Colors.Black)),
+                0
             );
         });
 

@@ -44,7 +44,7 @@ public class InputManagerTests
         // Arrange
         var mockEventArgs = new Mock<IPointerPressedEventArgs>();
         var point = new Mock<IPoint>();
-        mockEventArgs.Setup(e => e.GetPosition()).Returns(point.Object);
+        mockEventArgs.Setup(e => e.GetPosition(null)).Returns(point.Object);
         _mockEditorCommands.Setup(ec => ec.GetPositionFromPoint(It.IsAny<IPoint>())).Returns(5);
 
         // Act
@@ -65,7 +65,7 @@ public class InputManagerTests
         var point = new Mock<IPoint>();
         point.Setup(p => p.X).Returns(0);
         point.Setup(p => p.Y).Returns(0);
-        mockEventArgs.Setup(e => e.GetPosition()).Returns(point.Object);
+        mockEventArgs.Setup(e => e.GetPosition(null)).Returns(point.Object);
         _mockEditorCommands.Setup(ec => ec.GetPositionFromPoint(It.IsAny<IPoint>())).Returns(5);
 
         // Simulate first click
@@ -86,7 +86,7 @@ public class InputManagerTests
         // Arrange
         var mockEventArgs = new Mock<IPointerEventArgs>();
         var point = new Mock<IPoint>();
-        mockEventArgs.Setup(e => e.GetPosition()).Returns(point.Object);
+        mockEventArgs.Setup(e => e.GetPosition(null)).Returns(point.Object);
         _mockEditorCommands.Setup(ec => ec.GetPositionFromPoint(It.IsAny<IPoint>())).Returns(10);
         _mockSelectionHandler.Setup(sh => sh.IsSelecting).Returns(true);
 

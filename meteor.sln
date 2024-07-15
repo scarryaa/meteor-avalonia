@@ -1,6 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# 
+#
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "meteor", "meteor\meteor.csproj", "{8E92C1D9-EF6D-4865-8AAA-18504403CE72}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "tests", "tests\tests.csproj", "{157E5DFB-110E-45B8-85B3-BFC4949D6AEE}"

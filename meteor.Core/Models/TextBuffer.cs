@@ -1,3 +1,4 @@
+using System.Text;
 using meteor.Core.Interfaces;
 using meteor.Core.Models.Events;
 
@@ -56,9 +57,38 @@ public class TextBuffer : ITextBuffer
         if (start < 0 || start >= Length || length <= 0)
             return string.Empty;
 
-        return Text.Substring(start, Math.Min(length, Length - start));
-    }
+        var startLine = GetLineIndexFromPosition(start);
+        var endLine = GetLineIndexFromPosition(start + length - 1);
 
+        if (startLine == endLine)
+        {
+            var lineStart = GetLineStartPosition(startLine);
+            return _lines[startLine].Substring(start - lineStart,
+                Math.Min(length, _lines[startLine].Length - (start - lineStart)));
+        }
+
+        var result = new StringBuilder();
+        for (var i = startLine; i <= endLine; i++)
+        {
+            if (i == startLine)
+            {
+                var lineStart = GetLineStartPosition(i);
+                result.Append(_lines[i].Substring(start - lineStart));
+            }
+            else if (i == endLine)
+            {
+                result.Append(_lines[i].Substring(0, Math.Min(length - result.Length, _lines[i].Length)));
+            }
+            else
+            {
+                result.Append(_lines[i]);
+            }
+
+            if (i < endLine) result.Append(Environment.NewLine);
+        }
+
+        return result.ToString();
+    }
     public void InsertText(int position, string text)
     {
         if (string.IsNullOrEmpty(text))

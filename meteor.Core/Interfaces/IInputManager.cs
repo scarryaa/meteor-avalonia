@@ -12,4 +12,5 @@ public interface IInputManager : IDisposable
 
     bool IsTripleClickDrag { get; }
     bool IsDoubleClickDrag { get; }
+    object? VisualReference { get; set; }
 }

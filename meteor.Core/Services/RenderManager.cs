@@ -61,7 +61,7 @@ namespace meteor.Core.Services
         {
             RenderBackground(context, viewportHeight);
             RenderVisibleLines(context, verticalOffset, viewportHeight);
-            RenderSelection(context);
+            RenderSelection(context, verticalOffset, viewportHeight);
             RenderCursor(context);
         }
 
@@ -111,15 +111,21 @@ namespace meteor.Core.Services
             }
         }
 
-        private void RenderSelection(IDrawingContext context)
+        private void RenderSelection(IDrawingContext context, double verticalOffset, double viewportHeight)
         {
             var viewModel = _context.TextEditorViewModel;
             var (selectionStart, selectionEnd) = GetClampedSelection(viewModel);
             var (startLine, endLine) = GetSelectionLines(viewModel, selectionStart, selectionEnd);
-            _logger.LogDebug(
-                $"Selection: startLine: {startLine}, endLine: {endLine}, selectionStart: {selectionStart}, selectionEnd: {selectionEnd}");
-            for (var i = startLine; i <= endLine; i++)
-                RenderSelectionForLine(context, viewModel, i, selectionStart, selectionEnd);
+
+            // Calculate visible lines
+            var firstVisibleLine = (int)(verticalOffset / _context.LineHeight);
+            var lastVisibleLine = (int)((verticalOffset + viewportHeight) / _context.LineHeight);
+
+            // Clamp to visible range
+            var visibleStartLine = Math.Max(startLine, firstVisibleLine);
+            var visibleEndLine = Math.Min(endLine, lastVisibleLine);
+
+            for (var i = visibleStartLine; i <= visibleEndLine; i++) RenderSelectionForLine(context, viewModel, i, selectionStart, selectionEnd);
         }
 
         private void RenderSelectionForLine(IDrawingContext context, ITextEditorViewModel viewModel, int lineIndex,

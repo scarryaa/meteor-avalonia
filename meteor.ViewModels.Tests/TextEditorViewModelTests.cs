@@ -1,4 +1,5 @@
 using meteor.Core.Interfaces;
+using meteor.Core.Interfaces.Commands;
 using meteor.Core.Interfaces.Events;
 using meteor.Core.Interfaces.ViewModels;
 using meteor.Core.Models;

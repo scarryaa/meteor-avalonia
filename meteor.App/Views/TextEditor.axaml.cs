@@ -9,6 +9,7 @@ using Avalonia.Media;
 using meteor.App.Adapters;
 using meteor.App.Rendering;
 using meteor.Core.Contexts;
+using meteor.Core.Interfaces.Commands;
 using meteor.Core.Interfaces.ViewModels;
 using meteor.Core.Services;
 using meteor.Services;
@@ -78,7 +79,8 @@ public partial class TextEditor : UserControl
                 _viewModel,
                 Core.Models.Rendering.FontStyle.Normal,
                 Core.Models.Rendering.FontWeight.Normal,
-                new BrushAdapter(new SolidColorBrush(Colors.Black))
+                new BrushAdapter(new SolidColorBrush(Colors.Black)),
+                0
             );
 
         throw new InvalidOperationException("ViewModel not available");
@@ -103,6 +105,11 @@ public partial class TextEditor : UserControl
 
         _viewModel.PropertyChanged += ViewModel_PropertyChanged;
         _viewModel.InvalidateRequired += (_, _) => InvalidateVisual();
+
+        if (_inputManager != null) _inputManager.VisualReference = ScrollViewer.Content;
+
+        var textCommands = App.Current?.Services?.GetRequiredService<ITextEditorCommands>();
+        if (textCommands != null) textCommands.TextChanged += (s, _) => InvalidateVisual();
 
         Loaded += OnLoaded;
     }
@@ -165,7 +172,6 @@ public partial class TextEditor : UserControl
 
         _viewModel.ViewportWidth = ScrollViewer.Viewport.Width;
         _viewModel.ViewportHeight = ScrollViewer.Viewport.Height;
-        _logger.LogDebug($"Updated viewport size: {_viewModel.ViewportWidth}x{_viewModel.ViewportHeight}");
     }
 
     private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -208,6 +214,12 @@ public partial class TextEditor : UserControl
     {
         _inputManager.OnPointerMoved(new PointerEventArgsAdapter(e));
         InvalidateVisual();
+    }
+
+    public new void InvalidateVisual()
+    {
+        base.InvalidateVisual();
+        (ScrollViewer?.Content as TextEditorContent)?.ForceInvalidate();
     }
 
     private void OnPointerReleased(object? sender, PointerReleasedEventArgs e)

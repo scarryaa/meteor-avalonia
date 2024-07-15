@@ -24,12 +24,13 @@ public class InputManager(
     private const int TripleClickTimeThreshold = 600;
     private const double DoubleClickDistanceThreshold = 5;
 
+    public object? VisualReference { get; set; }
     public bool IsTripleClickDrag { get; set; }
     public bool IsDoubleClickDrag { get; set; }
 
     public void OnPointerPressed(IPointerPressedEventArgs e)
     {
-        var currentPosition = e.GetPosition();
+        var currentPosition = e.GetPosition(VisualReference);
         var currentTime = DateTime.Now;
         var textPosition = editorCommands.GetPositionFromPoint(currentPosition);
 
@@ -61,7 +62,7 @@ public class InputManager(
     {
         if (selectionHandler.IsSelecting || IsDoubleClickDrag || IsTripleClickDrag)
         {
-            var position = editorCommands.GetPositionFromPoint(e.GetPosition());
+            var position = editorCommands.GetPositionFromPoint(e.GetPosition(VisualReference));
             selectionHandler.UpdateSelectionDuringDrag(position, IsDoubleClickDrag, IsTripleClickDrag);
 
             PublishCursorPositionChanged(position);

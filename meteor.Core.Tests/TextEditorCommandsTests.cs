@@ -1,5 +1,6 @@
 using meteor.Core.Interfaces;
 using meteor.Core.Interfaces.Contexts;
+using meteor.Core.Interfaces.Events;
 using meteor.Core.Models.Commands;
 using Moq;
 
@@ -15,6 +16,7 @@ public class TextEditorCommandsTests
     private readonly Mock<ITextEditorContext> _mockContext;
     private readonly Mock<ITextMeasurer> _mockTextMeasurer;
     private readonly TextEditorCommands _commands;
+    private readonly Mock<IEventAggregator> _mockEventAggregator;
 
     public TextEditorCommandsTests()
     {
@@ -25,6 +27,7 @@ public class TextEditorCommandsTests
         _mockUndoRedoManager = new Mock<IUndoRedoManager<ITextBuffer>>();
         _mockContext = new Mock<ITextEditorContext>();
         _mockTextMeasurer = new Mock<ITextMeasurer>();
+        _mockEventAggregator = new Mock<IEventAggregator>();
 
         _commands = new TextEditorCommands(
             _mockTextBuffer.Object,
@@ -33,7 +36,8 @@ public class TextEditorCommandsTests
             _mockClipboardService.Object,
             _mockUndoRedoManager.Object,
             _mockContext.Object,
-            _mockTextMeasurer.Object
+            _mockTextMeasurer.Object,
+            _mockEventAggregator.Object
         );
     }
 

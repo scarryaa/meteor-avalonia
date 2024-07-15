@@ -14,6 +14,11 @@ public class TextEditorContent(TextEditor parentEditor, ILogger<TextEditorConten
     private double WidthPadding;
     private double HeightPadding;
 
+    public void ForceInvalidate()
+    {
+        InvalidateVisual();
+    }
+    
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);

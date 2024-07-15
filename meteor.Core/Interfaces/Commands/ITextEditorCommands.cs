@@ -14,4 +14,5 @@ public interface ITextEditorCommands
     void Undo();
     void Redo();
     int GetPositionFromPoint(IPoint? point);
+    event EventHandler? TextChanged;
 }

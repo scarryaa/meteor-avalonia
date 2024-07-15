@@ -20,7 +20,8 @@ public class TextEditorContext(
     ITextEditorViewModel viewModel,
     FontStyle fontStyle,
     FontWeight fontWeight,
-    IBrush foregroundBrush)
+    IBrush foregroundBrush,
+    double verticalOffset)
     : ITextEditorContext
 {
     public double LineHeight { get; set; } = lineHeight;
@@ -37,4 +38,5 @@ public class TextEditorContext(
     public FontStyle FontStyle { get; set; } = fontStyle;
     public FontWeight FontWeight { get; set; } = fontWeight;
     public IBrush ForegroundBrush { get; set; } = foregroundBrush;
+    public double VerticalOffset { get; set; }
 }

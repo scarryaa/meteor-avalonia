@@ -235,7 +235,7 @@ public sealed class TextEditorViewModel : ITextEditorViewModel
                 _offset = (Vector)_offset.WithY(value);
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(Offset));
-                LineCountViewModel.VerticalOffset = value;
+                LineCountViewModel.VerticalOffset = value;      
             }
         }
     }
@@ -340,6 +340,12 @@ public sealed class TextEditorViewModel : ITextEditorViewModel
         _eventAggregator.Subscribe<CursorPositionChangedEventArgs>(OnCursorPositionChanged);
         _eventAggregator.Subscribe<SelectionChangedEventArgs>(OnSelectionChanged);
         _eventAggregator.Subscribe<IsSelectingChangedEventArgs>(OnIsSelectingChanged);
+        _eventAggregator.Subscribe<TextEditorCommandTextChangedEventArgs>(OnTextEditorCommandTextChanged);
+    }
+
+    private void OnTextEditorCommandTextChanged(TextEditorCommandTextChangedEventArgs args)
+    {
+        UpdateViewProperties();
     }
 
     private void OnCursorPositionChanged(CursorPositionChangedEventArgs e)

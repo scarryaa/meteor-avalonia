@@ -12,14 +12,8 @@ public class WordBoundaryService : IWordBoundaryService
         var text = textBuffer.Text;
         if (position < 0 || position >= text.Length) return (position, position);
 
-        var start = position;
-        var end = position;
-
-        // Find start of the word
-        while (start > 0 && !WordBoundaryRegex.IsMatch(text[start - 1].ToString())) start--;
-
-        // Find end of the word
-        while (end < text.Length && !WordBoundaryRegex.IsMatch(text[end].ToString())) end++;
+        var start = FindWordStart(text, position);
+        var end = FindWordEnd(text, position);
 
         return (start, end);
     }
@@ -29,10 +23,7 @@ public class WordBoundaryService : IWordBoundaryService
         var text = textBuffer.Text;
         if (position <= 0) return 0;
 
-        var newPosition = position - 1;
-        while (newPosition > 0 && !WordBoundaryRegex.IsMatch(text[newPosition].ToString())) newPosition--;
-
-        return newPosition;
+        return FindPreviousWordBoundary(text, position - 1);
     }
 
     public int GetNextWordBoundary(ITextBuffer textBuffer, int position)
@@ -40,9 +31,39 @@ public class WordBoundaryService : IWordBoundaryService
         var text = textBuffer.Text;
         if (position >= text.Length) return text.Length;
 
-        var newPosition = position + 1;
-        while (newPosition < text.Length && !WordBoundaryRegex.IsMatch(text[newPosition].ToString())) newPosition++;
+        return FindNextWordBoundary(text, position + 1);
+    }
 
+    private int FindWordStart(string text, int position)
+    {
+        var start = position;
+        while (start > 0 && !IsWordBoundary(text[start - 1])) start--;
+        return start;
+    }
+
+    private int FindWordEnd(string text, int position)
+    {
+        var end = position;
+        while (end < text.Length && !IsWordBoundary(text[end])) end++;
+        return end;
+    }
+
+    private int FindPreviousWordBoundary(string text, int position)
+    {
+        var newPosition = position;
+        while (newPosition > 0 && !IsWordBoundary(text[newPosition])) newPosition--;
         return newPosition;
+    }
+
+    private int FindNextWordBoundary(string text, int position)
+    {
+        var newPosition = position;
+        while (newPosition < text.Length && !IsWordBoundary(text[newPosition])) newPosition++;
+        return newPosition;
+    }
+
+    private bool IsWordBoundary(char c)
+    {
+        return WordBoundaryRegex.IsMatch(c.ToString());
     }
 }
