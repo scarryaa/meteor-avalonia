@@ -5,9 +5,9 @@
              xmlns:viewModels="clr-namespace:meteor.ViewModels;assembly=meteor.ViewModels"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="meteor.App.Views.TextEditor"
-             x:DataType="viewModels:TextEditorViewModel"
+             x:DataType="viewModels:ScrollableTextEditorViewModel"
              Foreground="{Binding Foreground, RelativeSource={RelativeSource Self}}"
              FontFamily="{Binding FontFamily, RelativeSource={RelativeSource Self}}"
              FontSize="{Binding FontSize, RelativeSource={RelativeSource Self}}">
-
+    
 </UserControl>

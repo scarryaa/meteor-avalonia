@@ -18,5 +18,7 @@
         Cursor="Arrow"
         x:DataType="viewModels:MainWindowViewModel">
 
-        <views:TextEditor />
+        <views:ScrollableTextEditor x:Name="ScrollableTextEditor">
+                <views:TextEditor x:Name="TextEditor" />
+        </views:ScrollableTextEditor>
 </Window>

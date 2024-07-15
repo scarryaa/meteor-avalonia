@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using meteor.Core.Interfaces.ViewModels;
+using meteor.Core.Models;
 
 namespace meteor.ViewModels;
 
@@ -15,10 +16,14 @@ public class ScrollableTextEditorViewModel : IScrollableTextEditorViewModel
     private double _lineHeight;
     private double _windowHeight;
     private double _windowWidth;
+    private Vector _offset;
 
     public ITextEditorViewModel TextEditorViewModel { get; }
     public ILineCountViewModel LineCountViewModel { get; }
     public IGutterViewModel GutterViewModel { get; }
+
+    public double RequiredWidth => Math.Max(LongestLineWidth, ViewportWidth);
+    public double RequiredHeight => Math.Max(TotalHeight, ViewportHeight);
 
     public ScrollableTextEditorViewModel(
         ITextEditorViewModel textEditorViewModel,
@@ -143,15 +148,31 @@ public class ScrollableTextEditorViewModel : IScrollableTextEditorViewModel
         }
     }
 
-    public double VerticalOffset
+    public Vector Offset
     {
-        get => _verticalOffset;
+        get => _offset;
         set
         {
-            if (_verticalOffset != value)
+            if (_offset != value)
             {
-                _verticalOffset = value;
+                _offset = value;
                 OnPropertyChanged();
+                VerticalOffset = value.Y;
+                HorizontalOffset = value.X;
+            }
+        }
+    }
+    
+    public double VerticalOffset
+    {
+        get => _offset.Y;
+        set
+        {
+            if (_offset.Y != value)
+            {
+                _offset = (Vector)_offset.WithY(value);
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(Offset));
                 LineCountViewModel.VerticalOffset = value;
             }
         }
@@ -159,13 +180,14 @@ public class ScrollableTextEditorViewModel : IScrollableTextEditorViewModel
 
     public double HorizontalOffset
     {
-        get => _horizontalOffset;
+        get => _offset.X;
         set
         {
-            if (_horizontalOffset != value)
+            if (_offset.X != value)
             {
-                _horizontalOffset = value;
+                _offset = (Vector)_offset.WithX(value);
                 OnPropertyChanged();
+                OnPropertyChanged(nameof(Offset));
             }
         }
     }
@@ -177,26 +199,29 @@ public class ScrollableTextEditorViewModel : IScrollableTextEditorViewModel
         UpdateTotalHeight();
     }
 
+
     private void UpdateLongestLineWidth()
     {
         var longestLineLength = TextEditorViewModel.LongestLineLength;
         var charWidth = TextEditorViewModel.CharWidth;
         var calculatedWidth = longestLineLength * charWidth;
 
-        LongestLineWidth = Math.Max(calculatedWidth, WindowWidth);
+        LongestLineWidth = calculatedWidth;
+        OnPropertyChanged(nameof(RequiredWidth));
     }
 
     private void UpdateTotalHeight()
     {
         if (TextEditorViewModel?.TextBuffer == null)
         {
-            TotalHeight = WindowHeight;
+            TotalHeight = 0;
+            OnPropertyChanged(nameof(RequiredHeight));
             return;
         }
 
         var lineCount = TextEditorViewModel.TextBuffer.LineCount;
-        var calculatedHeight = lineCount * LineHeight;
-        TotalHeight = Math.Max(calculatedHeight, WindowHeight);
+        TotalHeight = lineCount * LineHeight;
+        OnPropertyChanged(nameof(RequiredHeight));
     }
 
     private void TextEditorViewModel_PropertyChanged(object sender, PropertyChangedEventArgs e)

@@ -73,19 +73,20 @@ public class RenderManager : IRenderManager
 
     private void RenderVisibleLines(IDrawingContext context)
     {
-        var firstVisibleLine = (int)(_context.ScrollableViewModel.VerticalOffset / _context.LineHeight);
-        var lastVisibleLine = Math.Min(
-            firstVisibleLine + (int)(_context.ScrollableViewModel.ViewportHeight / _context.LineHeight) + 1,
-            _context.ScrollableViewModel.TextEditorViewModel.TextBuffer.LineCount - 1);
+        var viewModel = _context.ScrollableViewModel;
+        var firstVisibleLine = (int)(viewModel.VerticalOffset / _context.LineHeight);
+        var visibleLineCount = (int)(viewModel.ViewportHeight / _context.LineHeight) + 1;
+        var lastVisibleLine = Math.Min(firstVisibleLine + visibleLineCount,
+            viewModel.TextEditorViewModel.TextBuffer.LineCount - 1);
 
-        for (var i = firstVisibleLine; i <= lastVisibleLine; i++) RenderLine(context, i);
+        for (var i = firstVisibleLine; i <= lastVisibleLine; i++) RenderLine(context, i, firstVisibleLine);
     }
 
-    private void RenderLine(IDrawingContext context, int lineIndex)
+    private void RenderLine(IDrawingContext context, int lineIndex, int firstVisibleLine)
     {
         var viewModel = _context.ScrollableViewModel.TextEditorViewModel;
         var lineText = viewModel.TextBuffer.GetLineText(lineIndex);
-        var y = lineIndex * _context.LineHeight;
+        var y = (lineIndex - firstVisibleLine) * _context.LineHeight;
 
         // Render background
         var lineRect = new Rect(0, y, _context.ScrollableViewModel.ViewportWidth, _context.LineHeight);

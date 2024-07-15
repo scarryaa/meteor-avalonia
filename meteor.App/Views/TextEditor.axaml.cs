@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Reactive;
+using System.ComponentModel;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -8,6 +8,7 @@ using Avalonia.Interactivity;
 using Avalonia.Media;
 using meteor.App.Adapters;
 using meteor.App.Rendering;
+using meteor.App.Services;
 using meteor.Core.Contexts;
 using meteor.Core.Interfaces;
 using meteor.Core.Models;
@@ -29,7 +30,7 @@ public partial class TextEditor : UserControl
     public TextEditor()
     {
         Focusable = true;
-        
+
         InitializeComponent();
         Initialize();
     }
@@ -39,8 +40,7 @@ public partial class TextEditor : UserControl
         DataContextChanged += OnDataContextChanged;
 
         var textBuffer = new TextBuffer();
-        var clipboardService = new ClipboardService();
-        // TODO set the initial state to loaded content if needed
+        var clipboardService = new AvaloniaClipboardService(this);
         var undoRedoManager = new UndoRedoManager<ITextBuffer>(textBuffer);
         var wordBoundaryService = new WordBoundaryService();
 
@@ -107,7 +107,7 @@ public partial class TextEditor : UserControl
 
         // Create InputManager
         _inputManager = new InputManager(cursorManager, selectionHandler, textEditorCommands);
-        
+
         _renderManager.AttachToViewModel(_viewModel);
 
         PointerPressed += OnPointerPressed;
@@ -117,19 +117,37 @@ public partial class TextEditor : UserControl
         TextInput += OnTextInput;
     }
 
-    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
-    {
-        base.OnAttachedToVisualTree(e);
-        UpdateViewportSize();
-        this.GetObservable(BoundsProperty).Subscribe(Observer.Create<Rect>(_ => UpdateViewportSize()));
-    }
-
-    private void UpdateViewportSize()
+    private void OnScrollChanged(object sender, ScrollChangedEventArgs e)
     {
         if (_viewModel != null)
         {
-            _viewModel.ViewportWidth = Bounds.Width;
-            _viewModel.ViewportHeight = Bounds.Height;
+            _viewModel.HorizontalOffset = ((ScrollViewer)sender).Offset.Y;
+            _viewModel.VerticalOffset = ((ScrollViewer)sender).Offset.X;
+        }
+    }
+
+    protected override Size MeasureOverride(Size availableSize)
+    {
+        var desiredSize = new Size(
+            _viewModel?.RequiredWidth ?? 0,
+            _viewModel?.RequiredHeight ?? 0
+        );
+
+        Console.WriteLine($"Desired size: {desiredSize}");
+        return desiredSize;
+    }
+
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+        UpdateBounds();
+        this.GetObservable(BoundsProperty).Subscribe(_ => UpdateBounds());
+    }
+
+    private void UpdateBounds()
+    {
+        if (_viewModel != null)
+        {
             _viewModel.WindowWidth = Bounds.Width;
             _viewModel.WindowHeight = Bounds.Height;
         }
@@ -140,35 +158,30 @@ public partial class TextEditor : UserControl
         if (DataContext is ScrollableTextEditorViewModel viewModel)
         {
             _viewModel = viewModel;
-            Console.WriteLine("ViewModel assigned in OnDataContextChanged");
-            if (_context != null)
-            {
-                _context.ScrollableViewModel = _viewModel;
-                Console.WriteLine("ViewModel assigned to _context");
-            }
-            if (_renderManager != null)
-            {
-                _renderManager.AttachToViewModel(_viewModel);
-                Console.WriteLine("ViewModel attached to RenderManager");
-            }
+            if (_context != null) _context.ScrollableViewModel = _viewModel;
+            if (_renderManager != null) _renderManager.AttachToViewModel(_viewModel);
+
+            _viewModel.PropertyChanged += ViewModel_PropertyChanged;
             InvalidateVisual();
+            InvalidateMeasure();
         }
-        else
-        {
-            Console.WriteLine("DataContext is not ScrollableTextEditorViewModel");
-        }
+    }
+
+    private void ViewModel_PropertyChanged(object sender, PropertyChangedEventArgs e)
+    {
+        InvalidateVisual();
+        InvalidateMeasure();
     }
 
     public override void Render(DrawingContext context)
     {
+        base.Render(context);
+
         if (_renderManager != null && _viewModel?.TextEditorViewModel?.TextBuffer != null)
         {
             var drawingContext = new AvaloniaDrawingContext(context);
+            context.DrawRectangle(Brushes.White, null, new Rect(0, 0, Bounds.Width, Bounds.Height));
             _renderManager.Render(drawingContext);
-        }
-        else
-        {
-            Console.WriteLine("Skipping render because ViewModel or TextBuffer is not ready");
         }
     }
 
@@ -176,50 +189,80 @@ public partial class TextEditor : UserControl
     {
         Focus();
         var position = e.GetPosition(this);
+        position = position.WithY(position.Y + _viewModel.VerticalOffset)
+            .WithX(position.X + _viewModel.HorizontalOffset);
         _inputManager.OnPointerPressed(new PointerPressedEventArgsAdapter(e));
+        InvalidateVisual();
     }
 
     private void OnPointerMoved(object? sender, PointerEventArgs e)
     {
         var position = e.GetPosition(this);
+        position = position.WithY(position.Y + _viewModel.VerticalOffset)
+            .WithX(position.X + _viewModel.HorizontalOffset);
         _inputManager.OnPointerMoved(new PointerEventArgsAdapter(e));
+        InvalidateVisual();
     }
 
     private void OnPointerReleased(object? sender, PointerReleasedEventArgs e)
     {
         var position = e.GetPosition(this);
+        position = position.WithY(position.Y + _viewModel.VerticalOffset)
+            .WithX(position.X + _viewModel.HorizontalOffset);
         _inputManager.OnPointerReleased(new PointerReleasedEventArgsAdapter(e));
+        InvalidateVisual();
     }
 
     private void OnKeyDown(object? sender, KeyEventArgs e)
     {
-        switch (e.Key)
-        {
-            case Key.Left:
-            case Key.Right:
-            case Key.Up:
-            case Key.Down:
-            case Key.Home:
-            case Key.End:
-            case Key.Back:
-            case Key.Delete:
-            case Key.Enter:
-                _inputManager.OnKeyDown(new KeyEventArgsAdapter(e));
-                e.Handled = true;
-                break;
-        }
+        var handled = false;
+
+        // Handle Ctrl key combinations
+        if (e.KeyModifiers.HasFlag(KeyModifiers.Control))
+            switch (e.Key)
+            {
+                case Key.C:
+                case Key.V:
+                case Key.X:
+                case Key.A:
+                case Key.Z:
+                    _ = _inputManager.OnKeyDown(new KeyEventArgsAdapter(e));
+                    handled = true;
+                    break;
+            }
+        else
+            // Handle other keys
+            switch (e.Key)
+            {
+                case Key.Left:
+                case Key.Right:
+                case Key.Up:
+                case Key.Down:
+                case Key.Home:
+                case Key.End:
+                case Key.Back:
+                case Key.Delete:
+                case Key.Enter:
+                    _ = _inputManager.OnKeyDown(new KeyEventArgsAdapter(e));
+                    handled = true;
+                    break;
+            }
+
+        if (handled) e.Handled = true;
 
         InvalidateVisual();
+        InvalidateMeasure();
     }
 
     private void OnTextInput(object? sender, TextInputEventArgs e)
     {
         _inputManager.OnTextInput(new TextInputEventArgsAdapter(e));
         InvalidateVisual();
+        InvalidateMeasure();
     }
 
     protected override void OnUnloaded(RoutedEventArgs e)
-    {       
+    {
         base.OnUnloaded(e);
         _inputManager.Dispose();
         _renderManager.Dispose();
@@ -229,5 +272,7 @@ public partial class TextEditor : UserControl
         PointerReleased -= OnPointerReleased;
         KeyDown -= OnKeyDown;
         TextInput -= OnTextInput;
+
+        if (_viewModel != null) _viewModel.PropertyChanged -= ViewModel_PropertyChanged;
     }
 }

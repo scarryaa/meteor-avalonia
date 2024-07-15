@@ -74,7 +74,7 @@ public class InputManager : IInputManager
         e.Handled = true;
     }
 
-    public void OnKeyDown(IKeyEventArgs e)
+    public async Task OnKeyDown(IKeyEventArgs e)
     {
         switch (e.Key)
         {
@@ -108,7 +108,7 @@ public class InputManager : IInputManager
         }
 
         if (e.IsControlPressed)
-            HandleControlKeyCombo(e);
+            await HandleControlKeyCombo(e);
 
         e.Handled = true;
     }
@@ -136,18 +136,18 @@ public class InputManager : IInputManager
                DistanceBetweenPoints(currentPosition, _lastClickPosition) <= DoubleClickDistanceThreshold;
     }
 
-    private void HandleControlKeyCombo(IKeyEventArgs e)
+    private async Task HandleControlKeyCombo(IKeyEventArgs e)
     {
         switch (e.Key)
         {
             case Key.C:
-                _editorCommands.CopyText();
+                await _editorCommands.CopyText();
                 break;
             case Key.V:
-                _editorCommands.PasteText();
+                await _editorCommands.PasteText();
                 break;
             case Key.X:
-                _editorCommands.CutText();
+                await _editorCommands.CutText();
                 break;
             case Key.A:
                 _selectionHandler.SelectAll();
