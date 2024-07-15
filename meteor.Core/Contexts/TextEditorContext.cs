@@ -18,7 +18,7 @@ public class TextEditorContext : ITextEditorContext
     public IFontFamily FontFamily { get; set; }
     public double FontSize { get; set; }
     public IBrush Foreground { get; set; }
-    public IScrollableTextEditorViewModel ScrollableViewModel { get; set; }
+    public ITextEditorViewModel TextEditorViewModel { get; set; }
     public FontStyle FontStyle { get; set; }
     public FontWeight FontWeight { get; set; }
     public IBrush ForegroundBrush { get; set; }
@@ -34,7 +34,7 @@ public class TextEditorContext : ITextEditorContext
         IFontFamily fontFamily,
         double fontSize,
         IBrush foreground,
-        IScrollableTextEditorViewModel scrollableViewModel,
+        ITextEditorViewModel viewModel,
         FontStyle fontStyle,
         FontWeight fontWeight,
         IBrush foregroundBrush)
@@ -49,7 +49,7 @@ public class TextEditorContext : ITextEditorContext
         FontFamily = fontFamily;
         FontSize = fontSize;
         Foreground = foreground;
-        ScrollableViewModel = scrollableViewModel;
+        TextEditorViewModel = viewModel;
         FontStyle = fontStyle;
         FontWeight = fontWeight;
         ForegroundBrush = foregroundBrush;

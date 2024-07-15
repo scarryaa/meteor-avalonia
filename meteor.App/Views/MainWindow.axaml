@@ -6,10 +6,7 @@
         xmlns:views="clr-namespace:meteor.App.Views"
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
         x:Class="meteor.App.Views.MainWindow"
-        Width="500"
-        Height="500"
-        MinWidth="500"
-        MinHeight="500"
+        Width="500" Height="500" MinWidth="500" MinHeight="500"
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource WindowBackground}"
         Title="meteor"
@@ -18,7 +15,6 @@
         Cursor="Arrow"
         x:DataType="viewModels:MainWindowViewModel">
 
-        <views:ScrollableTextEditor x:Name="ScrollableTextEditor">
-                <views:TextEditor x:Name="TextEditor" />
-        </views:ScrollableTextEditor>
+    <views:TextEditor HorizontalAlignment="Stretch"
+                      VerticalAlignment="Stretch" DataContext="{Binding TextEditorViewModel}" />
 </Window>

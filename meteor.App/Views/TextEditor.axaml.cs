@@ -1,91 +1,67 @@
 using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using meteor.App.Adapters;
 using meteor.App.Rendering;
-using meteor.App.Services;
 using meteor.Core.Contexts;
-using meteor.Core.Interfaces;
-using meteor.Core.Models;
-using meteor.Core.Models.Commands;
-using meteor.Core.Models.Resources;
+using meteor.Core.Interfaces.ViewModels;
 using meteor.Core.Services;
 using meteor.Services;
-using meteor.ViewModels;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace meteor.App.Views;
 
 public partial class TextEditor : UserControl
 {
-    private ScrollableTextEditorViewModel _viewModel;
+    private ITextEditorViewModel _viewModel;
     private TextEditorContext _context;
-    private RenderManager _renderManager;
     private InputManager _inputManager;
+
+    public RenderManager RenderManager { get; private set; }
+
+    public ScrollViewer ScrollViewer { get; private set; }
 
     public TextEditor()
     {
         Focusable = true;
-
         InitializeComponent();
         Initialize();
     }
 
+    private void InitializeComponent()
+    {
+        var content = new TextEditorContent(this);
+
+        ScrollViewer = new ScrollViewer
+        {
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            Content = content
+        };
+
+        Content = ScrollViewer;
+    }
+
     private void Initialize()
     {
-        DataContextChanged += OnDataContextChanged;
+        var services = App.Current.Services;
+        if (services == null) return;
 
-        var textBuffer = new TextBuffer();
-        var clipboardService = new AvaloniaClipboardService(this);
-        var undoRedoManager = new UndoRedoManager<ITextBuffer>(textBuffer);
-        var wordBoundaryService = new WordBoundaryService();
-
-        var selectionHandler = new SelectionHandler(textBuffer, wordBoundaryService);
-        var cursorManager = new CursorManager(textBuffer, selectionHandler, wordBoundaryService);
-
-        var textEditorCommands = new TextEditorCommands(
-            textBuffer,
-            cursorManager,
-            selectionHandler,
-            clipboardService,
-            undoRedoManager
-        );
-
-        var textEditorViewModel = new TextEditorViewModel(
-            textBuffer,
-            clipboardService,
-            undoRedoManager,
-            cursorManager,
-            selectionHandler
-        );
-
-        var lineCountViewModel = new LineCountViewModel();
-
-        var applicationResourceProvider = new ApplicationResourceProvider();
-        var themeService = new ThemeService(applicationResourceProvider);
-        var cursorPositionService = new CursorPositionService();
-        var gutterViewModel = new GutterViewModel(
-            cursorPositionService,
-            lineCountViewModel,
-            textEditorViewModel,
-            themeService
-        );
-
-        _viewModel = new ScrollableTextEditorViewModel(textEditorViewModel, lineCountViewModel, gutterViewModel);
+        _viewModel = services.GetRequiredService<ITextEditorViewModel>();
         DataContext = _viewModel;
 
-        // Create TextEditorContext
         _context = new TextEditorContext(
-            20,
+            _viewModel.LineHeight,
             new BrushAdapter(new SolidColorBrush(Colors.White)),
             new BrushAdapter(new SolidColorBrush(Colors.LightGray)),
             new BrushAdapter(new SolidColorBrush(Colors.LightBlue)),
             new BrushAdapter(new SolidColorBrush(Colors.Black)),
-            2,
+            0,
             1,
             new FontFamilyAdapter(new FontFamily("Consolas")),
             13,
@@ -96,44 +72,56 @@ public partial class TextEditor : UserControl
             new BrushAdapter(new SolidColorBrush(Colors.Black))
         );
 
-        var languageDefinitions = new Dictionary<string, ILanguageDefinition>();
+        _inputManager = services.GetRequiredService<InputManager>();
+        RenderManager = services.GetRequiredService<RenderManager>();
+        RenderManager.AttachToViewModel(_viewModel);
 
-        // Create RenderManager
-        _renderManager = new RenderManager(
-            _context,
-            themeService,
-            () => new SyntaxHighlighter(languageDefinitions)
-        );
+        ScrollViewer.ScrollChanged += OnScrollChanged;
+        ScrollViewer.LayoutUpdated += OnLayoutUpdated;
 
-        // Create InputManager
-        _inputManager = new InputManager(cursorManager, selectionHandler, textEditorCommands);
+        var editorContent = ScrollViewer.Content as TextEditorContent;
+        if (editorContent != null)
+        {
+            editorContent.PointerPressed += OnPointerPressed;
+            editorContent.PointerMoved += OnPointerMoved;
+            editorContent.PointerReleased += OnPointerReleased;
+        }
 
-        _renderManager.AttachToViewModel(_viewModel);
-
-        PointerPressed += OnPointerPressed;
-        PointerMoved += OnPointerMoved;
-        PointerReleased += OnPointerReleased;
         KeyDown += OnKeyDown;
         TextInput += OnTextInput;
+
+        _viewModel.PropertyChanged += ViewModel_PropertyChanged;
+
+        Loaded += OnLoaded;
+    }
+
+    private void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        UpdateViewportSize();
+        InvalidateVisual();
     }
 
     private void OnScrollChanged(object sender, ScrollChangedEventArgs e)
     {
-        if (_viewModel != null)
-        {
-            _viewModel.HorizontalOffset = ((ScrollViewer)sender).Offset.Y;
-            _viewModel.VerticalOffset = ((ScrollViewer)sender).Offset.X;
-        }
+        UpdateViewportSize();
+        InvalidateVisual();
+    }
+
+    private void OnLayoutUpdated(object sender, EventArgs e)
+    {
+        UpdateViewportSize();
+        InvalidateVisual();
     }
 
     protected override Size MeasureOverride(Size availableSize)
     {
-        var desiredSize = new Size(
-            _viewModel?.RequiredWidth ?? 0,
-            _viewModel?.RequiredHeight ?? 0
-        );
+        if (_viewModel == null) return new Size(0, 0);
 
-        Console.WriteLine($"Desired size: {desiredSize}");
+        var width = Math.Max(_viewModel.RequiredWidth, availableSize.Width);
+        var height = Math.Max(_viewModel.RequiredHeight, availableSize.Height);
+
+        var desiredSize = new Size(width, height);
+        Console.WriteLine($"TextEditor Desired size: {desiredSize.Width}, {desiredSize.Height}");
         return desiredSize;
     }
 
@@ -150,74 +138,63 @@ public partial class TextEditor : UserControl
         {
             _viewModel.WindowWidth = Bounds.Width;
             _viewModel.WindowHeight = Bounds.Height;
+            UpdateViewportSize();
         }
     }
 
-    private void OnDataContextChanged(object? sender, EventArgs e)
+    private void UpdateViewportSize()
     {
-        if (DataContext is ScrollableTextEditorViewModel viewModel)
+        if (ScrollViewer != null && _viewModel != null)
         {
-            _viewModel = viewModel;
-            if (_context != null) _context.ScrollableViewModel = _viewModel;
-            if (_renderManager != null) _renderManager.AttachToViewModel(_viewModel);
-
-            _viewModel.PropertyChanged += ViewModel_PropertyChanged;
-            InvalidateVisual();
-            InvalidateMeasure();
+            _viewModel.ViewportWidth = ScrollViewer.Viewport.Width;
+            _viewModel.ViewportHeight = ScrollViewer.Viewport.Height;
+            Console.WriteLine($"Updated viewport size: {_viewModel.ViewportWidth}x{_viewModel.ViewportHeight}");
         }
     }
 
     private void ViewModel_PropertyChanged(object sender, PropertyChangedEventArgs e)
     {
-        InvalidateVisual();
-        InvalidateMeasure();
-    }
-
-    public override void Render(DrawingContext context)
-    {
-        base.Render(context);
-
-        if (_renderManager != null && _viewModel?.TextEditorViewModel?.TextBuffer != null)
+        if (e.PropertyName == nameof(ITextEditorViewModel.RequiredWidth) ||
+            e.PropertyName == nameof(ITextEditorViewModel.RequiredHeight))
         {
-            var drawingContext = new AvaloniaDrawingContext(context);
-            context.DrawRectangle(Brushes.White, null, new Rect(0, 0, Bounds.Width, Bounds.Height));
-            _renderManager.Render(drawingContext);
+            InvalidateMeasure();
+            (ScrollViewer.Content as TextEditorContent)?.UpdateSize();
         }
+        InvalidateVisual();
     }
 
-    private void OnPointerPressed(object? sender, PointerPressedEventArgs e)
+    private void OnPointerPressed(object sender, PointerPressedEventArgs e)
     {
         Focus();
-        var position = e.GetPosition(this);
-        position = position.WithY(position.Y + _viewModel.VerticalOffset)
-            .WithX(position.X + _viewModel.HorizontalOffset);
+        var position = e.GetPosition(ScrollViewer.Content as Visual);
+        position = position.WithY(position.Y + ScrollViewer.Offset.Y)
+            .WithX(position.X + ScrollViewer.Offset.X);
         _inputManager.OnPointerPressed(new PointerPressedEventArgsAdapter(e));
         InvalidateVisual();
     }
 
-    private void OnPointerMoved(object? sender, PointerEventArgs e)
+    private void OnPointerMoved(object sender, PointerEventArgs e)
     {
-        var position = e.GetPosition(this);
-        position = position.WithY(position.Y + _viewModel.VerticalOffset)
-            .WithX(position.X + _viewModel.HorizontalOffset);
+        var position = e.GetPosition(ScrollViewer.Content as Visual);
+        position = position.WithY(position.Y + ScrollViewer.Offset.Y)
+            .WithX(position.X + ScrollViewer.Offset.X);
         _inputManager.OnPointerMoved(new PointerEventArgsAdapter(e));
         InvalidateVisual();
     }
 
-    private void OnPointerReleased(object? sender, PointerReleasedEventArgs e)
+    private void OnPointerReleased(object sender, PointerReleasedEventArgs e)
     {
-        var position = e.GetPosition(this);
-        position = position.WithY(position.Y + _viewModel.VerticalOffset)
-            .WithX(position.X + _viewModel.HorizontalOffset);
+        var position = e.GetPosition(ScrollViewer.Content as Visual);
+        position = position.WithY(position.Y + ScrollViewer.Offset.Y)
+            .WithX(position.X + ScrollViewer.Offset.X);
         _inputManager.OnPointerReleased(new PointerReleasedEventArgsAdapter(e));
         InvalidateVisual();
     }
 
-    private void OnKeyDown(object? sender, KeyEventArgs e)
+    private void OnKeyDown(object sender, KeyEventArgs e)
     {
         var handled = false;
 
-        // Handle Ctrl key combinations
         if (e.KeyModifiers.HasFlag(KeyModifiers.Control))
             switch (e.Key)
             {
@@ -231,7 +208,6 @@ public partial class TextEditor : UserControl
                     break;
             }
         else
-            // Handle other keys
             switch (e.Key)
             {
                 case Key.Left:
@@ -254,7 +230,7 @@ public partial class TextEditor : UserControl
         InvalidateMeasure();
     }
 
-    private void OnTextInput(object? sender, TextInputEventArgs e)
+    private void OnTextInput(object sender, TextInputEventArgs e)
     {
         _inputManager.OnTextInput(new TextInputEventArgsAdapter(e));
         InvalidateVisual();
@@ -265,14 +241,25 @@ public partial class TextEditor : UserControl
     {
         base.OnUnloaded(e);
         _inputManager.Dispose();
-        _renderManager.Dispose();
+        RenderManager.Dispose();
 
-        PointerPressed -= OnPointerPressed;
-        PointerMoved -= OnPointerMoved;
-        PointerReleased -= OnPointerReleased;
+        var editorContent = ScrollViewer.Content as TextEditorContent;
+        if (editorContent != null)
+        {
+            editorContent.PointerPressed -= OnPointerPressed;
+            editorContent.PointerMoved -= OnPointerMoved;
+            editorContent.PointerReleased -= OnPointerReleased;
+        }
+
         KeyDown -= OnKeyDown;
         TextInput -= OnTextInput;
 
         if (_viewModel != null) _viewModel.PropertyChanged -= ViewModel_PropertyChanged;
+
+        if (ScrollViewer != null)
+        {
+            ScrollViewer.ScrollChanged -= OnScrollChanged;
+            ScrollViewer.LayoutUpdated -= OnLayoutUpdated;
+        }
     }
 }

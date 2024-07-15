@@ -14,6 +14,9 @@ public class MainWindowViewModel
     private readonly IUndoRedoManager<ITextBuffer> _undoRedoManager;
     private readonly ICursorManager _cursorManager;
     private readonly ISelectionHandler _selectionHandler;
+    private readonly ITextMeasurer _textMeasurer;
+
+    public TextEditorViewModel TextEditorViewModel { get; }
 
     public MainWindowViewModel(
         ITextBufferFactory textBufferFactory,
@@ -21,7 +24,9 @@ public class MainWindowViewModel
         IClipboardService clipboardService,
         IUndoRedoManager<ITextBuffer> undoRedoManager,
         ICursorManager cursorManager,
-        ISelectionHandler selectionHandler)
+        ISelectionHandler selectionHandler,
+        ITextMeasurer textMeasurer,
+        TextEditorViewModel textEditorViewModel)
     {
         _textBufferFactory = textBufferFactory;
         _dialogService = dialogService;
@@ -29,9 +34,11 @@ public class MainWindowViewModel
         _undoRedoManager = undoRedoManager;
         _cursorManager = cursorManager;
         _selectionHandler = selectionHandler;
+        _textMeasurer = textMeasurer;
+        TextEditorViewModel = textEditorViewModel;
         Tabs = new ObservableCollection<TabViewModel?>();
     }
-
+    
     public ObservableCollection<TabViewModel?> Tabs { get; }
 
     public TabViewModel? SelectedTab
@@ -63,12 +70,18 @@ public class MainWindowViewModel
     public async Task NewTabAsync(string filePath = null)
     {
         var textBuffer = _textBufferFactory.Create();
+        var lineCountViewModel = new LineCountViewModel();
+        // TODO fix this
+        var gutterViewModel = new GutterViewModel(null, null, null, null);
         var textEditorViewModel = new TextEditorViewModel(
             textBuffer,
             _clipboardService,
             _undoRedoManager,
             _cursorManager,
-            _selectionHandler
+            _selectionHandler,
+            _textMeasurer,
+            lineCountViewModel,
+            gutterViewModel
         );
 
         if (!string.IsNullOrEmpty(filePath))

@@ -6,16 +6,20 @@ namespace meteor.Core.Interfaces.ViewModels;
 public interface ITextEditorViewModel : INotifyPropertyChanged, IDisposable
 {
     double FontSize { get; set; }
-    IScrollableTextEditorViewModel ParentViewModel { get; set; }
     ITextBuffer TextBuffer { get; }
-    double CharWidth { get; set; }
+    public string FontFamily { get; set; }
     double WindowWidth { get; set; }
     double WindowHeight { get; set; }
     int CursorPosition { get; set; }
+    double ViewportWidth { get; set; }
+    double ViewportHeight { get; set; }
     int SelectionStart { get; set; }
     int SelectionEnd { get; set; }
     bool IsSelecting { get; set; }
-    int LongestLineLength { get; }
+    double LongestLineLength { get; }
+    double RequiredWidth { get; }
+    double RequiredHeight { get; }
+    double LineHeight { get; set; }
 
     event EventHandler<TextChangedEventArgs> TextChanged;
     event EventHandler CursorPositionChanged;
@@ -23,7 +27,6 @@ public interface ITextEditorViewModel : INotifyPropertyChanged, IDisposable
     event EventHandler InvalidateRequired;
 
     void InvalidateLongestLine();
-    void OnSelectionChanged(int selectionStart, int selectionEnd);
     void InsertText(int position, string text);
     void DeleteText(int start, int length);
     void HandleBackspace();

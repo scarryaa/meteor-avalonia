@@ -6,7 +6,7 @@ namespace meteor.Core.Interfaces.Contexts;
 
 public interface ITextEditorContext
 {
-    IScrollableTextEditorViewModel ScrollableViewModel { get; set; }
+    ITextEditorViewModel TextEditorViewModel { get; set; }
     IBrush BackgroundBrush { get; }
     double LineHeight { get; }
     IBrush LineHighlightBrush { get; }

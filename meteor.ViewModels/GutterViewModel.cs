@@ -9,7 +9,7 @@ namespace meteor.ViewModels;
 public class GutterViewModel : IGutterViewModel, INotifyPropertyChanged, IDisposable
 {
     private readonly IThemeService _themeService;
-    private readonly ITextEditorViewModel _textEditorViewModel;
+    private readonly Lazy<ITextEditorViewModel> _textEditorViewModel;
     private double _lineHeight;
     private IScrollManager _scrollManager;
 
@@ -83,15 +83,15 @@ public class GutterViewModel : IGutterViewModel, INotifyPropertyChanged, IDispos
     public GutterViewModel(
         ICursorPositionService cursorPositionService,
         ILineCountViewModel lineCountViewModel,
-        ITextEditorViewModel textEditorViewModel,
+        Lazy<ITextEditorViewModel> textEditorViewModel,
         IThemeService themeService)
     {
+        Console.WriteLine("GutterViewModel initialized");
         _themeService = themeService;
         LineCountViewModel = lineCountViewModel;
         _textEditorViewModel = textEditorViewModel;
 
         cursorPositionService.CursorPositionChanged += OnCursorPositionChanged;
-        _textEditorViewModel.SelectionChanged += OnTextEditorSelectionChanged;
         _themeService.ThemeChanged += OnThemeChanged;
 
         UpdateBrushes();
@@ -150,7 +150,8 @@ public class GutterViewModel : IGutterViewModel, INotifyPropertyChanged, IDispos
     public void Dispose()
     {
         _themeService.ThemeChanged -= OnThemeChanged;
-        _textEditorViewModel.SelectionChanged -= OnTextEditorSelectionChanged;
+        if (_textEditorViewModel.IsValueCreated)
+            _textEditorViewModel.Value.SelectionChanged -= OnTextEditorSelectionChanged;
     }
 
     protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
