@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 using meteor.Interfaces;
 using Microsoft.Extensions.Logging;
 
-namespace meteor.Views.Services;
+namespace meteor.Services;
 
 public class ErrorLoggingService : IErrorLoggingService
 {

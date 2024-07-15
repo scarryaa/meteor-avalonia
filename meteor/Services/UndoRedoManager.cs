@@ -1,9 +1,10 @@
 using System;
 using System.Collections.Generic;
 using meteor.Interfaces;
+using meteor.Models;
 using Microsoft.Extensions.Logging;
 
-namespace meteor.Models;
+namespace meteor.Services;
 
 public class UndoRedoManager<T> : IUndoRedoManager<T>
 {

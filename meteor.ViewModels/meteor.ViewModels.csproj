@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\meteor.Core\meteor.Core.csproj" />
+    <ProjectReference Include="..\meteor.Services\meteor.Services.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="ReactiveUI">
+      <HintPath>..\..\..\..\.nuget\packages\reactiveui\18.3.1\lib\net6.0\ReactiveUI.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

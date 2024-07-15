@@ -30,6 +30,8 @@ using TextDocumentIdentifier = Microsoft.VisualStudio.LanguageServer.Protocol.Te
 using TextDocumentItem = Microsoft.VisualStudio.LanguageServer.Protocol.TextDocumentItem;
 using VersionedTextDocumentIdentifier = Microsoft.VisualStudio.LanguageServer.Protocol.VersionedTextDocumentIdentifier;
 
+namespace meteor.Views.Services;
+
 public class LspClient : IDisposable, ILspClient
 {
     private readonly JsonRpc _rpc;

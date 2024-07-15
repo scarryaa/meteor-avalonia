@@ -42,13 +42,14 @@
     </ItemGroup>
 
     <ItemGroup>
-        <Folder Include="Assets\Fonts\SanFrancisco\"/>
+        <None Remove="languageServers.json"/>
     </ItemGroup>
 
     <ItemGroup>
-        <None Update="appsettings.json">
-            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        </None>
-        <None Remove="languageServers.json"/>
+        <UpToDateCheckInput Remove="Assets\avalonia-logo.ico"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <Folder Include="Converters\"/>
     </ItemGroup>
 </Project>

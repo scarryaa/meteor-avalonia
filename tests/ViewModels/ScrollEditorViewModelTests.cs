@@ -5,7 +5,7 @@ using meteor.Interfaces;
 using meteor.ViewModels;
 using Moq;
 
-namespace meteor.Tests.ViewModels;
+namespace tests.ViewModels;
 
 public class ScrollableTextEditorViewModelTests
 {

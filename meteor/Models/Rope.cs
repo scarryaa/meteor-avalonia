@@ -4,6 +4,8 @@ using System.Linq;
 using System.Text;
 using meteor.Interfaces;
 
+namespace meteor.Models;
+
 public class Rope : IRope
 {
     // Cache variables

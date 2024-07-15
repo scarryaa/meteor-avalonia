@@ -1,7 +1,8 @@
 using System;
 using System.Threading.Tasks;
 using Avalonia.Threading;
-using meteor.ViewModels;
+
+namespace meteor.Views.Services;
 
 public class TextManipulator
 {

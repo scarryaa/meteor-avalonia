@@ -2,7 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using meteor.Enums;
-using meteor.Models;
+
+namespace meteor.Models;
 
 public class CSharpLanguageDefinition : LanguageDefinition
 {

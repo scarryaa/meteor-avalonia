@@ -1,4 +1,5 @@
 using meteor.Models;
+using meteor.Services;
 
 namespace tests.Services;
 
