@@ -5,27 +5,44 @@ using Avalonia.Controls;
 using Avalonia.Input.Platform;
 using meteor.Core.Interfaces;
 
-namespace meteor.App.Services;
-
-public class AvaloniaClipboardService(Visual visual) : IClipboardService
+namespace meteor.App.Services
 {
-    private IClipboard? _clipboard;
-
-    private IClipboard Clipboard => _clipboard ??= GetClipboard();
-
-    private IClipboard GetClipboard()
+    public class AvaloniaClipboardService : IClipboardService
     {
-        var clipboard = TopLevel.GetTopLevel(visual)?.Clipboard;
-        return clipboard ?? throw new InvalidOperationException("Clipboard is not available.");
-    }
+        private readonly Func<Visual?> _getVisual;
+        private IClipboard? _clipboard;
 
-    public async Task<string> GetTextAsync()
-    {
-        return await Clipboard.GetTextAsync() ?? string.Empty;
-    }
+        public AvaloniaClipboardService(Func<Visual?> getVisual)
+        {
+            _getVisual = getVisual;
+        }
 
-    public Task SetTextAsync(string text)
-    {
-        return Clipboard.SetTextAsync(text);
+        private IClipboard Clipboard => _clipboard ??= GetClipboard();
+
+        private IClipboard GetClipboard()
+        {
+            var visual = _getVisual() ?? throw new InvalidOperationException("Visual is not available.");
+            var clipboard = TopLevel.GetTopLevel(visual)?.Clipboard;
+            return clipboard ?? throw new InvalidOperationException("Clipboard is not available.");
+        }
+
+        public async Task<string> GetTextAsync()
+        {
+            try
+            {
+                var clipboardText = await Clipboard.GetTextAsync();
+                return clipboardText ?? string.Empty;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error getting text from clipboard: {ex.Message}");
+                return string.Empty;
+            }
+        }
+
+        public Task SetTextAsync(string text)
+        {
+            return Clipboard.SetTextAsync(text);
+        }
     }
 }

@@ -156,6 +156,7 @@ public class InputManager(
 
     private async Task HandleControlKeyCombo(IKeyEventArgs e)
     {
+        Console.WriteLine($"Control key combo: {e.Key}");
         switch (e.Key)
         {
             case Key.C:

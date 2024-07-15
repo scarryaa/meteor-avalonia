@@ -354,7 +354,6 @@ public sealed class TextEditorViewModel : ITextEditorViewModel
         SelectionStart = e.NewStart;
         SelectionEnd = e.NewEnd;
         IsSelecting = e.IsSelecting;
-        Console.WriteLine($"Selection changed: {e.NewStart}-{e.NewEnd}");
         OnInvalidateRequired();
     }
 
@@ -366,11 +365,19 @@ public sealed class TextEditorViewModel : ITextEditorViewModel
 
     private void UpdateLongestLineWidth()
     {
-        var longestLine = TextBuffer.GetText(0, TextBuffer.Length).Split('\n')
-            .OrderByDescending(line => _textMeasurer.MeasureWidth(line, FontSize, FontFamily))
-            .First();
-        _logger.LogDebug("Longest line : " + longestLine);
-        LongestLineWidth = _textMeasurer.MeasureWidth(longestLine, FontSize, FontFamily);
+        double maxWidth = 0;
+        for (var i = 0; i < TextBuffer.LineCount; i++)
+        {
+            var line = TextBuffer.GetLineText(i);
+            var lineWidth = _textMeasurer.MeasureWidth(line, FontSize, FontFamily);
+            if (lineWidth > maxWidth)
+            {
+                maxWidth = lineWidth;
+                _logger.LogDebug($"New longest line (index {i}): {line}");
+            }
+        }
+
+        LongestLineWidth = maxWidth;
         OnPropertyChanged(nameof(RequiredWidth));
     }
 
@@ -543,8 +550,31 @@ public sealed class TextEditorViewModel : ITextEditorViewModel
     private void OnTextChanged(TextChangedEventArgs e)
     {
         InvalidateLongestLine();
-        UpdateViewProperties();
+        UpdateAffectedLines(e);
+        UpdateTotalHeight();
         OnInvalidateRequired();
+    }
+    
+    private void UpdateAffectedLines(TextChangedEventArgs e)
+    {
+        int startLine = TextBuffer.GetLineIndexFromPosition(e.Position);
+        int endLine = TextBuffer.GetLineIndexFromPosition(e.Position + Math.Max(e.InsertedText.Length, e.DeletedLength));
+    
+        for (int i = startLine; i <= endLine; i++)
+        {
+            UpdateLineWidth(i);
+        }
+    }
+
+    private void UpdateLineWidth(int lineIndex)
+    {
+        var line = TextBuffer.GetLineText(lineIndex);
+        var lineWidth = _textMeasurer.MeasureWidth(line, FontSize, FontFamily);
+        if (lineWidth > LongestLineWidth)
+        {
+            LongestLineWidth = lineWidth;
+            OnPropertyChanged(nameof(RequiredWidth));
+        }
     }
 
     private void OnCursorPositionChanged()

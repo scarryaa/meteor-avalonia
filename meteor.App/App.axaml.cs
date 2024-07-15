@@ -62,18 +62,12 @@ public class App : Application
         services.AddLogging(configure =>
         {
             configure.AddConsole();
-            configure.SetMinimumLevel(LogLevel.Debug);
+            configure.SetMinimumLevel(LogLevel.Information);
         });
         
         // Register services
         services.AddSingleton<ITextBuffer, TextBuffer>();
-        services.AddSingleton<IClipboardService>(_ =>
-        {
-            var mainWindow = ((IClassicDesktopStyleApplicationLifetime?)Application.Current?.ApplicationLifetime)
-                ?.MainWindow;
-            var topLevel = mainWindow != null ? TopLevel.GetTopLevel(mainWindow) : null;
-            return new AvaloniaClipboardService(topLevel!);
-        });
+        services.AddSingleton<IClipboardService>(_ => new AvaloniaClipboardService(GetMainWindow));
         services.AddSingleton<IImageFactory, AvaloniaImageFactory>();
         services.AddSingleton<ICacheManager, CacheManager>();
         services.AddSingleton<ITextMeasurer, AvaloniaTextMeasurer>();
@@ -85,11 +79,9 @@ public class App : Application
         services.AddSingleton<ICursorPositionService, CursorPositionService>();
         services.AddSingleton<ISyntaxHighlighter, SyntaxHighlighter>();
         services.AddSingleton<ITextBufferFactory, TextBufferFactory>();
-        services.AddSingleton<IDialogService>(sp =>
+        services.AddSingleton<IDialogService>(_ =>
         {
-            var mainWindow = ((IClassicDesktopStyleApplicationLifetime?)Application.Current?.ApplicationLifetime)
-                ?.MainWindow;
-            return new DialogService(mainWindow);
+            return new Lazy<IDialogService>(() => new DialogService(GetMainWindow)).Value;
         });
 
         // Register IApplicationResourceProvider
@@ -151,5 +143,11 @@ public class App : Application
         services.AddSingleton<IInputManager, InputManager>();
         services.AddSingleton<InputManager>();
         services.AddSingleton<IEventAggregator, EventAggregator>();
+    }
+
+    private static Window? GetMainWindow()
+    {
+        if (Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop) return desktop.MainWindow;
+        return null;
     }
 }

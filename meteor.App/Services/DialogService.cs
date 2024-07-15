@@ -1,3 +1,4 @@
+using System;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using meteor.App.Dialogs;
@@ -6,13 +7,15 @@ using meteor.Core.Interfaces;
 
 namespace meteor.App.Services;
 
-public class DialogService(Window mainWindow) : IDialogService
+public class DialogService(Func<Window?> getMainWindow) : IDialogService
 {
-    private readonly Window _mainWindow = mainWindow;
+    private Func<Window?> _getMainWindow;
 
     public async Task<DialogResult> ShowConfirmationDialogAsync(string message, string title, string yesText,
         string noText, string cancelText)
     {
+        _getMainWindow = getMainWindow;
+        
         var dialog = new ContentDialog
         {
             Title = title,
