@@ -25,6 +25,8 @@ public class RenderManager : IRenderManager
         _themeService = themeService;
         _syntaxHighlighter = new Lazy<ISyntaxHighlighter>(syntaxHighlighterFactory);
         _lineCache = new ConcurrentDictionary<int, IRenderedLine>();
+        _filePath = string.Empty;
+        _highlightCancellationTokenSource = new CancellationTokenSource();
     }
 
     public void UpdateFilePath(string filePath)
@@ -78,7 +80,7 @@ public class RenderManager : IRenderManager
 
         for (var i = firstVisibleLine; i <= lastVisibleLine; i++) RenderLine(context, i);
     }
-
+    
     private void RenderLine(IDrawingContext context, int lineIndex)
     {
         // TODO Implement line rendering logic here

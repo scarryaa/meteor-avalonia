@@ -28,16 +28,13 @@ public class ThemeService : IThemeService
         {
             var newTheme = new ResourceDictionary();
 
-            var baseResources =
-                _applicationResourceProvider.LoadResource("avares://meteor/Resources/BaseResources.axaml");
-            newTheme.MergedDictionaries.Add(baseResources);
-
             var themeResources = _applicationResourceProvider.LoadResource(themeSource);
             newTheme.MergedDictionaries.Add(themeResources);
 
             _applicationResourceProvider.Resources = newTheme;
             _currentTheme = newTheme;
 
+            Console.WriteLine("Theme set successfully.");
             ThemeChanged?.Invoke(this, EventArgs.Empty);
         }
         catch (Exception ex)

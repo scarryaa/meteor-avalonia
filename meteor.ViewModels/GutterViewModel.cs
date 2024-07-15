@@ -6,7 +6,7 @@ using meteor.Core.Models.Events;
 
 namespace meteor.ViewModels;
 
-public class GutterViewModel : IGutterViewModel
+public class GutterViewModel : IGutterViewModel, INotifyPropertyChanged, IDisposable
 {
     private readonly IThemeService _themeService;
     private readonly ITextEditorViewModel _textEditorViewModel;
@@ -24,10 +24,37 @@ public class GutterViewModel : IGutterViewModel
         set => SetProperty(ref _lineHeight, value);
     }
 
-    public object BackgroundBrush { get; set; }
-    public object ForegroundBrush { get; set; }
-    public object LineHighlightBrush { get; set; }
-    public object SelectedBrush { get; set; }
+    private object _backgroundBrush;
+
+    public object BackgroundBrush
+    {
+        get => _backgroundBrush;
+        set => SetProperty(ref _backgroundBrush, value);
+    }
+
+    private object _foregroundBrush;
+
+    public object ForegroundBrush
+    {
+        get => _foregroundBrush;
+        set => SetProperty(ref _foregroundBrush, value);
+    }
+
+    private object _lineHighlightBrush;
+
+    public object LineHighlightBrush
+    {
+        get => _lineHighlightBrush;
+        set => SetProperty(ref _lineHighlightBrush, value);
+    }
+
+    private object _selectedBrush;
+
+    public object SelectedBrush
+    {
+        get => _selectedBrush;
+        set => SetProperty(ref _selectedBrush, value);
+    }
 
     public double VerticalOffset
     {
@@ -88,10 +115,10 @@ public class GutterViewModel : IGutterViewModel
 
     private void UpdateBrushes()
     {
-        BackgroundBrush = GetResourceBrush("GutterBackground");
-        ForegroundBrush = GetResourceBrush("GutterDefault");
-        LineHighlightBrush = GetResourceBrush("GutterHighlight");
-        SelectedBrush = GetResourceBrush("GutterSelected");
+        // BackgroundBrush = GetResourceBrush("GutterBackground");
+        // ForegroundBrush = GetResourceBrush("GutterDefault");
+        // LineHighlightBrush = GetResourceBrush("GutterHighlight");
+        // SelectedBrush = GetResourceBrush("GutterSelected");
 
         OnInvalidateRequired();
     }

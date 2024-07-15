@@ -1,10 +1,13 @@
 using System;
+using System.Globalization;
 using Avalonia.Media;
 using meteor.Core.Interfaces.Rendering;
 using meteor.Core.Models.Rendering;
+using Color = meteor.Core.Models.Rendering.Color;
 using IBrush = meteor.Core.Interfaces.Rendering.IBrush;
 using IImage = meteor.Core.Interfaces.Rendering.IImage;
 using IPen = meteor.Core.Interfaces.Rendering.IPen;
+using SolidColorBrush = Avalonia.Media.SolidColorBrush;
 
 namespace meteor.App.Rendering;
 
@@ -49,26 +52,44 @@ public class AvaloniaDrawingContext : IDrawingContext
 
     private Avalonia.Media.IBrush ConvertBrush(IBrush brush)
     {
-        // Implement brush conversion
-        throw new NotImplementedException();
+        if (brush is Core.Models.Rendering.SolidColorBrush solidColorBrush)
+            return new SolidColorBrush(ConvertColor(solidColorBrush.Color));
+        if (brush is BrushAdapter brushAdapter)
+            return brushAdapter.ToAvaloniaBrush();
+        throw new NotSupportedException($"Brush type {brush.GetType()} is not supported.");
     }
-
+    
     private Avalonia.Media.IPen ConvertPen(IPen pen)
     {
-        // Implement pen conversion
-        throw new NotImplementedException();
+        return new Pen(
+            ConvertBrush(pen.Brush),
+            pen.Thickness,
+            new DashStyle(pen.DashArray, pen.DashOffset)
+        );
     }
 
     private FormattedText ConvertFormattedText(IFormattedText formattedText)
     {
-        // Implement formatted text conversion
-        throw new NotImplementedException();
+        return new FormattedText(
+            formattedText.Text,
+            CultureInfo.CurrentCulture,
+            FlowDirection.LeftToRight,
+            new Typeface(formattedText.FontFamily),
+            formattedText.FontSize,
+            ConvertBrush(formattedText.Foreground)
+        );
     }
 
     private Avalonia.Media.IImage ConvertImage(IImage image)
     {
-        // Implement image conversion
-        throw new NotImplementedException();
+        if (image is Avalonia.Media.IImage avaloniaImage) return avaloniaImage;
+        // If it's not already an Avalonia image, you might need to create one from raw data
+        throw new NotSupportedException($"Image type {image.GetType()} is not supported.");
+    }
+
+    private Avalonia.Media.Color ConvertColor(Color color)
+    {
+        return new Avalonia.Media.Color(color.A, color.R, color.G, color.B);
     }
 
     private Avalonia.Rect ConvertRect(Rect rect)

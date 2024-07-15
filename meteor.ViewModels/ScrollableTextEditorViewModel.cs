@@ -163,6 +163,12 @@ public class ScrollableTextEditorViewModel : IScrollableTextEditorViewModel
 
     private void UpdateTotalHeight()
     {
+        if (TextEditorViewModel?.TextBuffer == null)
+        {
+            TotalHeight = WindowHeight;
+            return;
+        }
+
         var lineCount = TextEditorViewModel.TextBuffer.LineCount;
         var calculatedHeight = lineCount * LineHeight;
         TotalHeight = Math.Max(calculatedHeight, WindowHeight);

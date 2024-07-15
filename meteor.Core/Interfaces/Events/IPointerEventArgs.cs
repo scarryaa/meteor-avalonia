@@ -4,6 +4,9 @@ namespace meteor.Core.Interfaces.Events;
 
 public interface IPointerEventArgs
 {
-    IPoint GetPosition();
+    double X { get; }
+    double Y { get; }
+    int ClickCount { get; }
     bool Handled { get; set; }
+    IPoint GetPosition();
 }
