@@ -3,6 +3,7 @@ using System.Runtime.CompilerServices;
 using meteor.Core.Interfaces;
 using meteor.Core.Interfaces.ViewModels;
 using meteor.Core.Models.Events;
+using Microsoft.Extensions.Logging;
 
 namespace meteor.ViewModels;
 
@@ -12,6 +13,7 @@ public class GutterViewModel : IGutterViewModel, INotifyPropertyChanged, IDispos
     private readonly Lazy<ITextEditorViewModel> _textEditorViewModel;
     private double _lineHeight;
     private IScrollManager _scrollManager;
+    private readonly ILogger<GutterViewModel> _logger;
 
     public ILineCountViewModel LineCountViewModel { get; }
     public int CursorPosition { get; set; }
@@ -84,9 +86,12 @@ public class GutterViewModel : IGutterViewModel, INotifyPropertyChanged, IDispos
         ICursorPositionService cursorPositionService,
         ILineCountViewModel lineCountViewModel,
         Lazy<ITextEditorViewModel> textEditorViewModel,
-        IThemeService themeService)
+        IThemeService themeService,
+        ILogger<GutterViewModel> logger)
     {
-        Console.WriteLine("GutterViewModel initialized");
+        _logger = logger;
+        _logger.LogDebug("Initializing GutterViewModel");
+        
         _themeService = themeService;
         LineCountViewModel = lineCountViewModel;
         _textEditorViewModel = textEditorViewModel;

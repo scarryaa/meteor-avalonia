@@ -25,10 +25,6 @@ public class ContentDialog
 
     private ContentDialogResult SimulateUserInput()
     {
-        Console.WriteLine($"Dialog: {Title}");
-        Console.WriteLine($"Content: {Content}");
-        Console.WriteLine($"Options: {PrimaryButtonText} | {SecondaryButtonText} | {CloseButtonText}");
-
         var random = new Random();
         var choice = random.Next(3);
         return (ContentDialogResult)choice;

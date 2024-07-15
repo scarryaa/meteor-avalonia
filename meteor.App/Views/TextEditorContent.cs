@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using Avalonia.Media;
 using meteor.App.Rendering;
 using meteor.Core.Interfaces.ViewModels;
+using Microsoft.Extensions.Logging;
 
 namespace meteor.App.Views;
 
@@ -13,9 +14,11 @@ public class TextEditorContent : Control
     private ITextEditorViewModel _viewModel;
     private double WidthPadding;
     private double HeightPadding;
+    private readonly ILogger<TextEditorContent> _logger;
 
-    public TextEditorContent(TextEditor parentEditor)
+    public TextEditorContent(TextEditor parentEditor, ILogger<TextEditorContent> logger)
     {
+        _logger = logger;
         _parentEditor = parentEditor;
     }
 
@@ -37,7 +40,7 @@ public class TextEditorContent : Control
         var width = Math.Max(_viewModel.RequiredWidth, _parentEditor.ScrollViewer?.Viewport.Width ?? 0);
         var height = Math.Max(_viewModel.RequiredHeight, _parentEditor.ScrollViewer?.Viewport.Height ?? 0);
 
-        Console.WriteLine($"TextEditor Content Desired size: {width}, {height}");
+        _logger.LogDebug($"TextEditor Content Desired size: {width}, {height}");
         return new Size(width, height);
     }
 

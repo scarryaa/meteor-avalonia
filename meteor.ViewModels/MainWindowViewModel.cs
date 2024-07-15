@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using meteor.Core.Enums;
 using meteor.Core.Interfaces;
+using Microsoft.Extensions.Logging;
 
 namespace meteor.ViewModels;
 
@@ -15,7 +16,9 @@ public class MainWindowViewModel
     private readonly ICursorManager _cursorManager;
     private readonly ISelectionHandler _selectionHandler;
     private readonly ITextMeasurer _textMeasurer;
-
+    private readonly IServiceProvider _serviceProvider;
+    private readonly ILogger<MainWindowViewModel> _logger;
+    
     public TextEditorViewModel TextEditorViewModel { get; }
 
     public MainWindowViewModel(
@@ -26,8 +29,12 @@ public class MainWindowViewModel
         ICursorManager cursorManager,
         ISelectionHandler selectionHandler,
         ITextMeasurer textMeasurer,
-        TextEditorViewModel textEditorViewModel)
+        TextEditorViewModel textEditorViewModel,
+        IServiceProvider serviceProvider)
     {
+        _logger = serviceProvider.GetService(typeof(ILogger<MainWindowViewModel>)) as ILogger<MainWindowViewModel> ??
+                  throw new InvalidOperationException("Logger not found");
+        _serviceProvider = serviceProvider;
         _textBufferFactory = textBufferFactory;
         _dialogService = dialogService;
         _clipboardService = clipboardService;
@@ -69,20 +76,7 @@ public class MainWindowViewModel
 
     public async Task NewTabAsync(string filePath = null)
     {
-        var textBuffer = _textBufferFactory.Create();
-        var lineCountViewModel = new LineCountViewModel();
-        // TODO fix this
-        var gutterViewModel = new GutterViewModel(null, null, null, null);
-        var textEditorViewModel = new TextEditorViewModel(
-            textBuffer,
-            _clipboardService,
-            _undoRedoManager,
-            _cursorManager,
-            _selectionHandler,
-            _textMeasurer,
-            lineCountViewModel,
-            gutterViewModel
-        );
+        var textEditorViewModel = _serviceProvider.GetService(typeof(TextEditorViewModel)) as TextEditorViewModel;
 
         if (!string.IsNullOrEmpty(filePath))
             await LoadFileContentAsync(textEditorViewModel, filePath);

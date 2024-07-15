@@ -13,6 +13,7 @@ using meteor.Core.Interfaces.ViewModels;
 using meteor.Core.Services;
 using meteor.Services;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace meteor.App.Views;
 
@@ -21,7 +22,8 @@ public partial class TextEditor : UserControl
     private ITextEditorViewModel _viewModel;
     private TextEditorContext _context;
     private InputManager _inputManager;
-
+    private ILogger<TextEditor> _logger;
+    
     public RenderManager RenderManager { get; private set; }
 
     public ScrollViewer ScrollViewer { get; private set; }
@@ -35,7 +37,10 @@ public partial class TextEditor : UserControl
 
     private void InitializeComponent()
     {
-        var content = new TextEditorContent(this);
+        _logger = App.Current.Services.GetRequiredService<ILogger<TextEditor>>();
+        var textContentLogger = App.Current.Services.GetRequiredService<ILogger<TextEditorContent>>();
+
+        var content = new TextEditorContent(this, textContentLogger);
 
         ScrollViewer = new ScrollViewer
         {
@@ -121,7 +126,7 @@ public partial class TextEditor : UserControl
         var height = Math.Max(_viewModel.RequiredHeight, availableSize.Height);
 
         var desiredSize = new Size(width, height);
-        Console.WriteLine($"TextEditor Desired size: {desiredSize.Width}, {desiredSize.Height}");
+        _logger.LogDebug($"TextEditor Desired size: {desiredSize.Width}, {desiredSize.Height}");
         return desiredSize;
     }
 
@@ -148,7 +153,7 @@ public partial class TextEditor : UserControl
         {
             _viewModel.ViewportWidth = ScrollViewer.Viewport.Width;
             _viewModel.ViewportHeight = ScrollViewer.Viewport.Height;
-            Console.WriteLine($"Updated viewport size: {_viewModel.ViewportWidth}x{_viewModel.ViewportHeight}");
+            _logger.LogDebug($"Updated viewport size: {_viewModel.ViewportWidth}x{_viewModel.ViewportHeight}");
         }
     }
 

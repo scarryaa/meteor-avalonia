@@ -4,6 +4,7 @@ using meteor.Core.Interfaces.Contexts;
 using meteor.Core.Interfaces.Rendering;
 using meteor.Core.Interfaces.ViewModels;
 using meteor.Core.Models.Rendering;
+using Microsoft.Extensions.Logging;
 
 namespace meteor.Core.Services;
 
@@ -18,13 +19,16 @@ public class RenderManager : IRenderManager
     private string _filePath;
     private CancellationTokenSource _highlightCancellationTokenSource;
     private const int DebounceDelay = 300;
+    private readonly ILogger<RenderManager> _logger;
 
     public RenderManager(
         ITextEditorContext context,
         IThemeService themeService,
         Func<ISyntaxHighlighter> syntaxHighlighterFactory,
-        ITextMeasurer textMeasurer)
+        ITextMeasurer textMeasurer,
+        ILogger<RenderManager> logger)
     {
+        _logger = logger;
         _context = context;
         _themeService = themeService;
         _syntaxHighlighter = new Lazy<ISyntaxHighlighter>(syntaxHighlighterFactory);
@@ -78,7 +82,7 @@ public class RenderManager : IRenderManager
     private void RenderVisibleLines(IDrawingContext context, double verticalOffset, double viewportHeight)
     {
         var firstVisibleLine = (int)(verticalOffset / _context.LineHeight);
-        Console.WriteLine(
+        _logger.LogDebug(
             $"verticalOffset: {verticalOffset}, viewportHeight: {viewportHeight}, firstVisibleLine: {firstVisibleLine}");
         var visibleLineCount = (int)(viewportHeight / _context.LineHeight) + 1;
         var lastVisibleLine = Math.Min(firstVisibleLine + visibleLineCount,

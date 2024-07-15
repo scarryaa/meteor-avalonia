@@ -20,6 +20,7 @@ using meteor.Core.Services;
 using meteor.Services;
 using meteor.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using FontStyle = meteor.Core.Models.Rendering.FontStyle;
 using FontWeight = meteor.Core.Models.Rendering.FontWeight;
 
@@ -54,6 +55,9 @@ public class App : Application
 
     private void ConfigureServices(IServiceCollection services)
     {
+        // Register logging
+        services.AddLogging(configure => configure.AddConsole());
+        
         // Register services
         services.AddSingleton<ITextBuffer, TextBuffer>();
         services.AddSingleton<IClipboardService>(_ =>
@@ -118,7 +122,9 @@ public class App : Application
             var textEditorViewModel =
                 new Lazy<ITextEditorViewModel>(sp.GetRequiredService<ITextEditorViewModel>);
             var themeService = sp.GetRequiredService<IThemeService>();
-            return new GutterViewModel(cursorPositionService, lineCountViewModel, textEditorViewModel, themeService);
+            var gutterLogger = sp.GetRequiredService<ILogger<GutterViewModel>>();
+            return new GutterViewModel(cursorPositionService, lineCountViewModel, textEditorViewModel, themeService,
+                gutterLogger);
         });
 
         // Register other dependencies
@@ -129,7 +135,8 @@ public class App : Application
                 new Func<ISyntaxHighlighter>(sp.GetRequiredService<ISyntaxHighlighter>);
             return new RenderManager(sp.GetRequiredService<ITextEditorContext>(),
                 sp.GetRequiredService<IThemeService>(), syntaxHighlighterFactory,
-                sp.GetRequiredService<ITextMeasurer>());
+                sp.GetRequiredService<ITextMeasurer>(),
+                sp.GetRequiredService<ILogger<RenderManager>>());
         });
         services.AddSingleton<ITextEditorCommands, TextEditorCommands>();
         services.AddSingleton<InputManager>();

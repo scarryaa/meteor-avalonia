@@ -1,6 +1,7 @@
 using meteor.Core.Interfaces;
 using meteor.Core.Interfaces.Resources;
 using meteor.Core.Models.Resources;
+using Microsoft.Extensions.Logging;
 
 namespace meteor.Services;
 
@@ -8,6 +9,7 @@ public class ThemeService : IThemeService
 {
     private readonly IApplicationResourceProvider _applicationResourceProvider;
     private IResourceProvider _currentTheme;
+    private readonly ILogger<ThemeService> _logger;
 
     public event EventHandler ThemeChanged;
 
@@ -16,8 +18,11 @@ public class ThemeService : IThemeService
         return _currentTheme.GetResource(key);
     }
 
-    public ThemeService(IApplicationResourceProvider applicationResourceProvider)
+    public ThemeService(IApplicationResourceProvider applicationResourceProvider, ILogger<ThemeService> logger)
     {
+        _logger = logger;
+        _logger.LogDebug("Initializing ThemeService");
+        
         _applicationResourceProvider = applicationResourceProvider;
         _currentTheme = _applicationResourceProvider.Resources;
     }
@@ -34,12 +39,12 @@ public class ThemeService : IThemeService
             _applicationResourceProvider.Resources = newTheme;
             _currentTheme = newTheme;
 
-            Console.WriteLine("Theme set successfully.");
+            _logger.LogDebug("Theme set successfully.");
             ThemeChanged?.Invoke(this, EventArgs.Empty);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error setting theme from source {themeSource}: {ex.Message}");
+            _logger.LogError($"Error setting theme from source {themeSource}: {ex.Message}");
         }
     }
 
@@ -52,13 +57,13 @@ public class ThemeService : IThemeService
     {
         if (resources == null)
         {
-            Console.WriteLine($"Warning: ResourceProvider is null when trying to get {key}");
+            _logger.LogWarning($"Warning: ResourceProvider is null when trying to get {key}");
             return null;
         }
 
         if (TryGetResourceRecursive(resources, key, out var resource)) return resource;
 
-        Console.WriteLine($"Warning: Resource {key} not found in the theme");
+        _logger.LogWarning($"Warning: Resource {key} not found in the theme");
         return null;
     }
 

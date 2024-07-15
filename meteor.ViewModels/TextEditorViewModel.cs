@@ -4,6 +4,7 @@ using meteor.Core.Interfaces;
 using meteor.Core.Interfaces.ViewModels;
 using meteor.Core.Models;
 using meteor.Core.Models.Events;
+using Microsoft.Extensions.Logging;
 
 namespace meteor.ViewModels;
 
@@ -28,6 +29,7 @@ public class TextEditorViewModel : ITextEditorViewModel, IDisposable
     private double _totalHeight;
     private double _lineHeight;
     private Vector _offset;
+    private readonly ILogger<TextEditorViewModel> _logger;
 
     public ILineCountViewModel LineCountViewModel { get; }
     public IGutterViewModel GutterViewModel { get; }
@@ -40,8 +42,10 @@ public class TextEditorViewModel : ITextEditorViewModel, IDisposable
         ISelectionHandler selectionHandler,
         ITextMeasurer textMeasurer,
         ILineCountViewModel lineCountViewModel,
-        IGutterViewModel gutterViewModel)
+        IGutterViewModel gutterViewModel,
+        ILogger<TextEditorViewModel> logger)
     {
+        _logger = logger;
         _textBuffer = textBuffer ?? throw new ArgumentNullException(nameof(textBuffer));
         _clipboardService = clipboardService ?? throw new ArgumentNullException(nameof(clipboardService));
         _undoRedoManager = undoRedoManager ?? throw new ArgumentNullException(nameof(undoRedoManager));
@@ -301,7 +305,7 @@ public class TextEditorViewModel : ITextEditorViewModel, IDisposable
         var longestLine = TextBuffer.GetText(0, TextBuffer.Length).Split('\n')
             .OrderByDescending(line => _textMeasurer.MeasureWidth(line, FontSize, FontFamily))
             .First();
-        Console.WriteLine("Longest line : " + longestLine);
+        _logger.LogDebug("Longest line : " + longestLine);
         LongestLineWidth = _textMeasurer.MeasureWidth(longestLine, FontSize, FontFamily);
         OnPropertyChanged(nameof(RequiredWidth));
     }
@@ -309,8 +313,8 @@ public class TextEditorViewModel : ITextEditorViewModel, IDisposable
     private void UpdateTotalHeight()
     {
         TotalHeight = TextBuffer.LineCount * LineHeight;
-        Console.WriteLine("Line height : " + LineHeight);
-        Console.WriteLine("total lines : " + TextBuffer.LineCount);
+        _logger.LogDebug("Line height : " + LineHeight);
+        _logger.LogDebug("total lines : " + TextBuffer.LineCount);
         OnPropertyChanged(nameof(RequiredHeight));
     }
 

@@ -1,20 +1,23 @@
 using System.Text.Json;
 using meteor.Core.Interfaces.Resources;
+using Microsoft.Extensions.Logging;
 
 namespace meteor.Core.Models.Resources;
 
 public class ApplicationResourceProvider : IApplicationResourceProvider
 {
     public IResourceProvider Resources { get; set; }
+    private ILogger<ApplicationResourceProvider> _logger { get; }
 
-    public ApplicationResourceProvider()
+    public ApplicationResourceProvider(ILogger<ApplicationResourceProvider> logger)
     {
+        _logger = logger;
         Resources = new ResourceDictionary();
     }
 
     public IResourceProvider LoadResource(string source)
     {
-        Console.WriteLine($"Loading resource from: {source}");
+        _logger.LogDebug($"Loading resource from: {source}");
         if (File.Exists(source))
         {
             var resourceDictionary = new ResourceDictionary();
@@ -24,7 +27,7 @@ public class ApplicationResourceProvider : IApplicationResourceProvider
             if (resources != null && resources.TryGetValue("Resources", out var resourceValues))
                 foreach (var kvp in resourceValues)
                 {
-                    Console.WriteLine($"Adding resource: {kvp.Key} = {kvp.Value}");
+                    _logger.LogDebug($"Adding resource: {kvp.Key} = {kvp.Value}");
                     resourceDictionary.AddResource(kvp.Key, kvp.Value);
                 }
 

@@ -3,6 +3,7 @@ using meteor.Core.Interfaces;
 using meteor.Core.Interfaces.Commands;
 using meteor.Core.Interfaces.Events;
 using meteor.Core.Interfaces.Rendering;
+using Microsoft.Extensions.Logging;
 
 namespace meteor.Services;
 
@@ -13,6 +14,7 @@ public class InputManager : IInputManager
     private readonly ITextEditorCommands _editorCommands;
     private IPoint _lastClickPosition;
     private DateTime _lastClickTime;
+    private readonly ILogger<InputManager> _logger;
 
     private const int DoubleClickTimeThreshold = 300;
     private const int TripleClickTimeThreshold = 600;
@@ -22,8 +24,9 @@ public class InputManager : IInputManager
     public bool IsDoubleClickDrag { get; private set; }
 
     public InputManager(ICursorManager cursorManager, ISelectionHandler selectionHandler,
-        ITextEditorCommands editorCommands)
+        ITextEditorCommands editorCommands, ILogger<InputManager> logger)
     {
+        _logger = logger;
         _cursorManager = cursorManager;
         _selectionHandler = selectionHandler;
         _editorCommands = editorCommands;
@@ -115,7 +118,7 @@ public class InputManager : IInputManager
 
     public void OnTextInput(ITextInputEventArgs e)
     {
-        Console.WriteLine($"Text input: {e.Text}"); 
+        _logger.LogDebug($"Text input: {e.Text}");
         if (!string.IsNullOrEmpty(e.Text))
         {
             _editorCommands.InsertText(_cursorManager.Position, e.Text);
