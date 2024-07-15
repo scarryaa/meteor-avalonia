@@ -4,9 +4,11 @@ using Avalonia.Media;
 using meteor.Core.Interfaces.Rendering;
 using meteor.Core.Models.Rendering;
 using Color = meteor.Core.Models.Rendering.Color;
+using FormattedText = Avalonia.Media.FormattedText;
 using IBrush = meteor.Core.Interfaces.Rendering.IBrush;
 using IImage = meteor.Core.Interfaces.Rendering.IImage;
 using IPen = meteor.Core.Interfaces.Rendering.IPen;
+using Pen = Avalonia.Media.Pen;
 using SolidColorBrush = Avalonia.Media.SolidColorBrush;
 
 namespace meteor.App.Rendering;

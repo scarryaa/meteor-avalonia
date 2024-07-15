@@ -2,6 +2,7 @@ using meteor.Core.Interfaces;
 using meteor.Core.Interfaces.Contexts;
 using meteor.Core.Interfaces.Rendering;
 using meteor.Core.Interfaces.ViewModels;
+using meteor.Core.Models.Rendering;
 
 namespace meteor.Core.Contexts;
 
@@ -18,6 +19,9 @@ public class TextEditorContext : ITextEditorContext
     public double FontSize { get; set; }
     public IBrush Foreground { get; set; }
     public IScrollableTextEditorViewModel ScrollableViewModel { get; set; }
+    public FontStyle FontStyle { get; set; }
+    public FontWeight FontWeight { get; set; }
+    public IBrush ForegroundBrush { get; set; }
 
     public TextEditorContext(
         double lineHeight,
@@ -30,7 +34,10 @@ public class TextEditorContext : ITextEditorContext
         IFontFamily fontFamily,
         double fontSize,
         IBrush foreground,
-        IScrollableTextEditorViewModel scrollableViewModel)
+        IScrollableTextEditorViewModel scrollableViewModel,
+        FontStyle fontStyle,
+        FontWeight fontWeight,
+        IBrush foregroundBrush)
     {
         LineHeight = lineHeight;
         BackgroundBrush = backgroundBrush;
@@ -43,5 +50,8 @@ public class TextEditorContext : ITextEditorContext
         FontSize = fontSize;
         Foreground = foreground;
         ScrollableViewModel = scrollableViewModel;
+        FontStyle = fontStyle;
+        FontWeight = fontWeight;
+        ForegroundBrush = foregroundBrush;
     }
 }

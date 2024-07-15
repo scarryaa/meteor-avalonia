@@ -115,6 +115,7 @@ public class InputManager : IInputManager
 
     public void OnTextInput(ITextInputEventArgs e)
     {
+        Console.WriteLine($"Text input: {e.Text}"); 
         if (!string.IsNullOrEmpty(e.Text))
         {
             _editorCommands.InsertText(_cursorManager.Position, e.Text);

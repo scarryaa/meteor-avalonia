@@ -55,5 +55,8 @@
     <Reference Include="Microsoft.Extensions.Logging.Abstractions">
       <HintPath>..\..\..\..\.nuget\packages\microsoft.extensions.logging.abstractions\8.0.0\lib\net6.0\Microsoft.Extensions.Logging.Abstractions.dll</HintPath>
     </Reference>
+    <Reference Include="System.Reactive">
+      <HintPath>..\..\..\..\.nuget\packages\system.reactive\6.0.0\lib\net6.0\System.Reactive.dll</HintPath>
+    </Reference>
   </ItemGroup>
 </Project>

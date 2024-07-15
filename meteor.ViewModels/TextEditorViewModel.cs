@@ -8,7 +8,7 @@ namespace meteor.ViewModels;
 
 public class TextEditorViewModel : ITextEditorViewModel
 {
-    private readonly ITextBuffer _textBuffer;
+    private ITextBuffer _textBuffer;
     private readonly IClipboardService _clipboardService;
     private readonly IUndoRedoManager<ITextBuffer> _undoRedoManager;
     private readonly ICursorManager _cursorManager;
@@ -62,7 +62,19 @@ public class TextEditorViewModel : ITextEditorViewModel
 
     public double FontSize { get; set; } = 13;
     public IScrollableTextEditorViewModel ParentViewModel { get; set; }
-    public ITextBuffer TextBuffer { get; }
+
+    public ITextBuffer TextBuffer
+    {
+        get => _textBuffer;
+        set
+        {
+            if (_textBuffer != value)
+            {
+                _textBuffer = value;
+                OnPropertyChanged();
+            }
+        }
+    }
 
     public double CharWidth { get; set; } = 7; // TODO calculate this based on font size
 

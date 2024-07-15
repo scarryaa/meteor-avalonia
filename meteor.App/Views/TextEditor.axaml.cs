@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Reactive;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -86,9 +88,12 @@ public partial class TextEditor : UserControl
             2,
             1,
             new FontFamilyAdapter(new FontFamily("Consolas")),
-            14,
+            13,
             new BrushAdapter(new SolidColorBrush(Colors.Black)),
-            _viewModel
+            _viewModel,
+            Core.Models.Rendering.FontStyle.Normal,
+            Core.Models.Rendering.FontWeight.Normal,
+            new BrushAdapter(new SolidColorBrush(Colors.Black))
         );
 
         var languageDefinitions = new Dictionary<string, ILanguageDefinition>();
@@ -110,6 +115,24 @@ public partial class TextEditor : UserControl
         PointerReleased += OnPointerReleased;
         KeyDown += OnKeyDown;
         TextInput += OnTextInput;
+    }
+
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+        UpdateViewportSize();
+        this.GetObservable(BoundsProperty).Subscribe(Observer.Create<Rect>(_ => UpdateViewportSize()));
+    }
+
+    private void UpdateViewportSize()
+    {
+        if (_viewModel != null)
+        {
+            _viewModel.ViewportWidth = Bounds.Width;
+            _viewModel.ViewportHeight = Bounds.Height;
+            _viewModel.WindowWidth = Bounds.Width;
+            _viewModel.WindowHeight = Bounds.Height;
+        }
     }
 
     private void OnDataContextChanged(object? sender, EventArgs e)
@@ -170,17 +193,33 @@ public partial class TextEditor : UserControl
 
     private void OnKeyDown(object? sender, KeyEventArgs e)
     {
-        Console.WriteLine($"Key pressed: {e.Key}");
-        _inputManager.OnKeyDown(new KeyEventArgsAdapter(e));
+        switch (e.Key)
+        {
+            case Key.Left:
+            case Key.Right:
+            case Key.Up:
+            case Key.Down:
+            case Key.Home:
+            case Key.End:
+            case Key.Back:
+            case Key.Delete:
+            case Key.Enter:
+                _inputManager.OnKeyDown(new KeyEventArgsAdapter(e));
+                e.Handled = true;
+                break;
+        }
+
+        InvalidateVisual();
     }
 
     private void OnTextInput(object? sender, TextInputEventArgs e)
     {
         _inputManager.OnTextInput(new TextInputEventArgsAdapter(e));
+        InvalidateVisual();
     }
 
     protected override void OnUnloaded(RoutedEventArgs e)
-    {
+    {       
         base.OnUnloaded(e);
         _inputManager.Dispose();
         _renderManager.Dispose();

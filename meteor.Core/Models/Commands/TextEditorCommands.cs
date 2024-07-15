@@ -28,6 +28,7 @@ public class TextEditorCommands : ITextEditorCommands
 
     public void InsertText(int position, string text)
     {
+        Console.WriteLine($"Inserting text at position {position}: {text}");
         if (_selectionHandler.HasSelection) DeleteSelectedText();
         _textBuffer.InsertText(position, text);
         _cursorManager.SetPosition(position + text.Length);

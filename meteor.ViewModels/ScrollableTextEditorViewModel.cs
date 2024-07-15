@@ -115,8 +115,33 @@ public class ScrollableTextEditorViewModel : IScrollableTextEditorViewModel
         }
     }
 
-    public double ViewportHeight { get; set; }
-    public double ViewportWidth { get; set; }
+    public double ViewportHeight
+    {
+        get => _viewportHeight;
+        set
+        {
+            if (_viewportHeight != value)
+            {
+                _viewportHeight = value;
+                OnPropertyChanged();
+                UpdateTotalHeight();
+            }
+        }
+    }
+
+    public double ViewportWidth
+    {
+        get => _viewportWidth;
+        set
+        {
+            if (_viewportWidth != value)
+            {
+                _viewportWidth = value;
+                OnPropertyChanged();
+                UpdateLongestLineWidth();
+            }
+        }
+    }
 
     public double VerticalOffset
     {

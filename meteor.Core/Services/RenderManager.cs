@@ -80,20 +80,76 @@ public class RenderManager : IRenderManager
 
         for (var i = firstVisibleLine; i <= lastVisibleLine; i++) RenderLine(context, i);
     }
-    
+
     private void RenderLine(IDrawingContext context, int lineIndex)
     {
-        // TODO Implement line rendering logic here
+        var viewModel = _context.ScrollableViewModel.TextEditorViewModel;
+        var lineText = viewModel.TextBuffer.GetLineText(lineIndex);
+        var y = lineIndex * _context.LineHeight;
+
+        // Render background
+        var lineRect = new Rect(0, y, _context.ScrollableViewModel.ViewportWidth, _context.LineHeight);
+        context.FillRectangle(_context.BackgroundBrush, lineRect);
+
+        // Render text
+        Console.WriteLine($"Rendering line {lineIndex}: {lineText}");
+        if (!string.IsNullOrEmpty(lineText))
+        {
+            var formattedText = new FormattedText(
+                lineText,
+                _context.FontFamily.ToString(),
+                _context.FontStyle,
+                _context.FontWeight,
+                _context.FontSize,
+                _context.ForegroundBrush
+            );
+            context.DrawText(formattedText, new Point(0, y));
+        }
     }
 
     private void RenderSelection(IDrawingContext context)
     {
-        // TODO Implement selection rendering logic here
+        var viewModel = _context.ScrollableViewModel.TextEditorViewModel;
+        if (viewModel.SelectionStart == viewModel.SelectionEnd) return;
+
+        var selectionStart = Math.Min(viewModel.SelectionStart, viewModel.SelectionEnd);
+        var selectionEnd = Math.Max(viewModel.SelectionStart, viewModel.SelectionEnd);
+
+        var startLine = viewModel.TextBuffer.GetLineIndexFromPosition(selectionStart);
+        var endLine = viewModel.TextBuffer.GetLineIndexFromPosition(selectionEnd);
+
+        for (var i = startLine; i <= endLine; i++)
+        {
+            var lineStartOffset = i == startLine ? selectionStart - viewModel.TextBuffer.GetLineStartPosition(i) : 0;
+            var lineEndOffset = i == endLine
+                ? selectionEnd - viewModel.TextBuffer.GetLineStartPosition(i)
+                : viewModel.TextBuffer.GetLineLength(i);
+
+            var xStart = lineStartOffset * viewModel.CharWidth;
+            var xEnd = lineEndOffset * viewModel.CharWidth;
+            var y = i * _context.LineHeight;
+
+            var selectionRect = new Rect(xStart, y, xEnd - xStart, _context.LineHeight);
+            context.FillRectangle(_context.SelectionBrush, selectionRect);
+        }
     }
 
     private void RenderCursor(IDrawingContext context)
     {
-        // TODO Implement cursor rendering logic here
+        var viewModel = _context.ScrollableViewModel.TextEditorViewModel;
+        var cursorLine = viewModel.TextBuffer.GetLineIndexFromPosition(viewModel.CursorPosition);
+        var cursorColumn = viewModel.CursorPosition - viewModel.TextBuffer.GetLineStartPosition(cursorLine);
+
+        var x = cursorColumn * viewModel.CharWidth;
+        var y = cursorLine * _context.LineHeight;
+
+        var cursorPen = new Pen(_context.CursorBrush, 1);
+
+        context.DrawLine(
+            cursorPen,
+            new Point(x, y),
+            new Point(x, y + _context.LineHeight)
+        );
     }
 
     public void InvalidateLine(int lineIndex)
