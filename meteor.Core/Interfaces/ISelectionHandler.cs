@@ -15,4 +15,5 @@ public interface ISelectionHandler
     void SelectAll();
     void SelectWord(int position);
     void SelectLine(int position);
+    void UpdateSelection(int cursorPosition);
 }

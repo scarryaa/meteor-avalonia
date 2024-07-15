@@ -39,9 +39,10 @@ public interface ITextEditorViewModel : INotifyPropertyChanged, IDisposable
     #endregion
 
     #region Events
-    event EventHandler<TextChangedEventArgs> TextChanged;
-    event EventHandler CursorPositionChanged;
-    event EventHandler SelectionChanged;
+
+    event EventHandler<TextChangedEventArgs>? TextChanged;
+    event EventHandler<CursorPositionChangedEventArgs>? CursorPositionChanged;
+    event EventHandler<SelectionChangedEventArgs>? SelectionChanged;
     event EventHandler InvalidateRequired;
 
     #endregion

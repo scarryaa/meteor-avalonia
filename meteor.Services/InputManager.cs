@@ -24,8 +24,8 @@ public class InputManager(
     private const int TripleClickTimeThreshold = 600;
     private const double DoubleClickDistanceThreshold = 5;
 
-    public bool IsTripleClickDrag { get; private set; }
-    public bool IsDoubleClickDrag { get; private set; }
+    public bool IsTripleClickDrag { get; set; }
+    public bool IsDoubleClickDrag { get; set; }
 
     public void OnPointerPressed(IPointerPressedEventArgs e)
     {

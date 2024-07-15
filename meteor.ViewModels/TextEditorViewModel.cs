@@ -317,8 +317,8 @@ public sealed class TextEditorViewModel : ITextEditorViewModel
     }
 
     public event EventHandler<TextChangedEventArgs>? TextChanged;
-    public event EventHandler? CursorPositionChanged;
-    public event EventHandler? SelectionChanged;
+    public event EventHandler<CursorPositionChangedEventArgs>? CursorPositionChanged;
+    public event EventHandler<SelectionChangedEventArgs>? SelectionChanged;
     public event EventHandler? InvalidateRequired;
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -403,7 +403,7 @@ public sealed class TextEditorViewModel : ITextEditorViewModel
     {
         _textBuffer.InsertText(position, text);
         CursorPosition = position + text.Length;
-        ClearSelection();
+        _selectionHandler.ClearSelection();
         InvalidateLongestLine();
         _eventAggregator.Publish(new TextChangedEventArgs(position, text, 0));
     }
@@ -443,6 +443,7 @@ public sealed class TextEditorViewModel : ITextEditorViewModel
         else if (_cursorManager.Position < _textBuffer.Length)
         {
             _textBuffer.DeleteText(_cursorManager.Position, 1);
+            _cursorManager.SetPosition(_cursorManager.Position);
             _eventAggregator.Publish(new TextChangedEventArgs(_cursorManager.Position, "", 1));
         }           
     }
@@ -509,6 +510,7 @@ public sealed class TextEditorViewModel : ITextEditorViewModel
         {
             SelectionEnd = Math.Clamp(CursorPosition, 0, _textBuffer.Length);
             NormalizeSelection();
+            _selectionHandler.UpdateSelection(SelectionEnd);
             _eventAggregator.Publish(
                 new SelectionChangedEventArgs(SelectionStart, SelectionEnd, true));
         }
@@ -547,14 +549,15 @@ public sealed class TextEditorViewModel : ITextEditorViewModel
 
     private void OnCursorPositionChanged()
     {
-        CursorPositionChanged?.Invoke(this, EventArgs.Empty);
-        UpdateSelection();
+        CursorPositionChanged?.Invoke(this,
+            new CursorPositionChangedEventArgs(CursorPosition, _textBuffer.GetLineStarts(),
+                _textBuffer.GetLineLength(_textBuffer.GetLineIndexFromPosition(CursorPosition))));
         OnInvalidateRequired();
     }
 
     private void OnSelectionChanged()
     {
-        SelectionChanged?.Invoke(this, EventArgs.Empty);
+        SelectionChanged?.Invoke(this, new SelectionChangedEventArgs(SelectionStart, SelectionEnd, IsSelecting));
         OnInvalidateRequired();
     }
 

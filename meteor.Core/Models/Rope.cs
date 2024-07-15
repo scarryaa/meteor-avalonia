@@ -78,29 +78,31 @@ public class Rope : IRope
 
     private Node Delete(Node node, int start, int length)
     {
-        if (node == null || length <= 0)
+        if (node == null || length <= 0 || start >= node.Length)
             return node;
 
         if (node.IsLeaf)
         {
-            node.Text = node.Text.Remove(start, Math.Min(length, node.Text.Length - start));
+            var deleteLength = Math.Min(length, node.Length - start);
+            node.Text = node.Text.Remove(start, deleteLength);
             node.UpdateProperties();
             return node.Length > 0 ? node : null;
         }
 
-        if (start < node.Left.Length)
+        var leftLength = node.Left?.Length ?? 0;
+
+        if (start < leftLength)
         {
-            node.Left = Delete(node.Left, start, Math.Min(length, node.Left.Length - start));
-            length -= Math.Min(length, node.Left.Length - start);
+            node.Left = Delete(node.Left, start, Math.Min(length, leftLength - start));
+            length -= leftLength - (node.Left?.Length ?? 0);
             start = 0;
         }
         else
         {
-            start -= node.Left.Length;
+            start -= leftLength;
         }
 
-        if (length > 0 && node.Right != null)
-            node.Right = Delete(node.Right, start, length);
+        if (length > 0 && node.Right != null) node.Right = Delete(node.Right, start, length);
 
         if (node.Left == null)
             return node.Right;
