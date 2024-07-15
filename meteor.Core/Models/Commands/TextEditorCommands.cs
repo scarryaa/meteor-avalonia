@@ -1,84 +1,73 @@
 using meteor.Core.Interfaces;
 using meteor.Core.Interfaces.Commands;
+using meteor.Core.Interfaces.Contexts;
 using meteor.Core.Interfaces.Rendering;
 
 namespace meteor.Core.Models.Commands;
 
-public class TextEditorCommands : ITextEditorCommands
+public class TextEditorCommands(
+    ITextBuffer textBuffer,
+    ICursorManager cursorManager,
+    ISelectionHandler selectionHandler,
+    IClipboardService clipboardService,
+    IUndoRedoManager<ITextBuffer> undoRedoManager,
+    ITextEditorContext context,
+    ITextMeasurer textMeasurer)
+    : ITextEditorCommands
 {
-    private readonly ITextBuffer _textBuffer;
-    private readonly ICursorManager _cursorManager;
-    private readonly ISelectionHandler _selectionHandler;
-    private readonly IClipboardService _clipboardService;
-    private readonly IUndoRedoManager<ITextBuffer> _undoRedoManager;
-
-    public TextEditorCommands(
-        ITextBuffer textBuffer,
-        ICursorManager cursorManager,
-        ISelectionHandler selectionHandler,
-        IClipboardService clipboardService,
-        IUndoRedoManager<ITextBuffer> undoRedoManager)
-    {
-        _textBuffer = textBuffer;
-        _cursorManager = cursorManager;
-        _selectionHandler = selectionHandler;
-        _clipboardService = clipboardService;
-        _undoRedoManager = undoRedoManager;
-    }
-
     public void InsertText(int position, string text)
     {
-        if (_selectionHandler.HasSelection) DeleteSelectedText();
-        _textBuffer.InsertText(position, text);
-        _cursorManager.SetPosition(position + text.Length);
+        if (selectionHandler.HasSelection) DeleteSelectedText();
+        textBuffer.InsertText(position, text);
+        cursorManager.SetPosition(position + text.Length);
     }
 
     public void HandleBackspace()
     {
-        if (_selectionHandler.HasSelection)
+        if (selectionHandler.HasSelection)
         {
             DeleteSelectedText();
         }
-        else if (_cursorManager.Position > 0)
+        else if (cursorManager.Position > 0)
         {
-            _textBuffer.DeleteText(_cursorManager.Position - 1, 1);
-            _cursorManager.MoveCursorLeft(false);
+            textBuffer.DeleteText(cursorManager.Position - 1, 1);
+            cursorManager.MoveCursorLeft(false);
         }
     }
 
     public void HandleDelete()
     {
-        if (_selectionHandler.HasSelection)
+        if (selectionHandler.HasSelection)
             DeleteSelectedText();
-        else if (_cursorManager.Position < _textBuffer.Length) _textBuffer.DeleteText(_cursorManager.Position, 1);
+        else if (cursorManager.Position < textBuffer.Length) textBuffer.DeleteText(cursorManager.Position, 1);
     }
 
     public void InsertNewLine()
     {
-        InsertText(_cursorManager.Position, Environment.NewLine);
+        InsertText(cursorManager.Position, Environment.NewLine);
     }
 
     public async Task CopyText()
     {
-        if (_selectionHandler.HasSelection)
+        if (selectionHandler.HasSelection)
         {
-            var selectedText = _textBuffer.GetText(
-                _selectionHandler.SelectionStart,
-                _selectionHandler.SelectionEnd - _selectionHandler.SelectionStart
+            var selectedText = textBuffer.GetText(
+                selectionHandler.SelectionStart,
+                selectionHandler.SelectionEnd - selectionHandler.SelectionStart
             );
-            await _clipboardService.SetTextAsync(selectedText);
+            await clipboardService.SetTextAsync(selectedText);
         }
     }
 
     public async Task PasteText()
     {
-        var text = await _clipboardService.GetTextAsync();
-        if (!string.IsNullOrEmpty(text)) InsertText(_cursorManager.Position, text);
+        var text = await clipboardService.GetTextAsync();
+        if (!string.IsNullOrEmpty(text)) InsertText(cursorManager.Position, text);
     }
 
     public async Task CutText()
     {
-        if (_selectionHandler.HasSelection)
+        if (selectionHandler.HasSelection)
         {
             await CopyText();
             DeleteSelectedText();
@@ -87,30 +76,44 @@ public class TextEditorCommands : ITextEditorCommands
 
     public void Undo()
     {
-        _undoRedoManager.Undo();
+        undoRedoManager.Undo();
     }
 
     public void Redo()
     {
-        _undoRedoManager.Redo();
+        undoRedoManager.Redo();
     }
 
-    public int GetPositionFromPoint(IPoint point)
+    public int GetPositionFromPoint(IPoint? point)
     {
-        // TODO implement
-        return 0;
+        if (point != null)
+        {
+            var line = Math.Min(Math.Max((int)(point.Y / context.LineHeight), 0), textBuffer.LineCount - 1);
+            var lineText = textBuffer.GetLineText(line);
+            var maxWidth = textMeasurer.MeasureWidth(lineText, context.FontSize, context.FontFamily.Name);
+            var column = Math.Min(Math.Max((int)(point.X * lineText.Length / maxWidth), 0), lineText.Length);
+
+            var position = 0;
+            for (var i = 0; i < line; i++) position += textBuffer.GetLineLength(i) + 1;
+
+            position += column;
+
+            return Math.Min(position, textBuffer.Length);
+        }
+
+        throw new ArgumentNullException(nameof(point));
     }
 
     private void DeleteSelectedText()
     {
-        if (_selectionHandler.HasSelection)
+        if (selectionHandler.HasSelection)
         {
-            _textBuffer.DeleteText(
-                _selectionHandler.SelectionStart,
-                _selectionHandler.SelectionEnd - _selectionHandler.SelectionStart
+            textBuffer.DeleteText(
+                selectionHandler.SelectionStart,
+                selectionHandler.SelectionEnd - selectionHandler.SelectionStart
             );
-            _cursorManager.SetPosition(_selectionHandler.SelectionStart);
-            _selectionHandler.ClearSelection();
+            cursorManager.SetPosition(selectionHandler.SelectionStart);
+            selectionHandler.ClearSelection();
         }
     }
 }

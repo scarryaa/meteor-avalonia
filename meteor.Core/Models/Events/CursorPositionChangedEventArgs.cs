@@ -1,15 +1,8 @@
 namespace meteor.Core.Models.Events;
 
-public class CursorPositionChangedEventArgs : EventArgs
+public class CursorPositionChangedEventArgs(int position, List<int> lineStarts, int lastLineLength) : EventArgs
 {
-    public int Position { get; }
-    public List<int> LineStarts { get; }
-    public int LastLineLength { get; }
-
-    public CursorPositionChangedEventArgs(int position, List<int> lineStarts, int lastLineLength)
-    {
-        Position = position;
-        LineStarts = lineStarts;
-        LastLineLength = lastLineLength;
-    }
+    public int Position { get; } = position;
+    public List<int> LineStarts { get; } = lineStarts;
+    public int LastLineLength { get; } = lastLineLength;
 }

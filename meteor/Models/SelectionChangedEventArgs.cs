@@ -2,14 +2,8 @@ using System;
 
 namespace meteor.Models;
 
-public class SelectionChangedEventArgs : EventArgs
+public class SelectionChangedEventArgs(long? selectionStart = null, long? selectionEnd = null) : EventArgs
 {
-    public long? SelectionStart { get; }
-    public long? SelectionEnd { get; }
-
-    public SelectionChangedEventArgs(long? selectionStart = null, long? selectionEnd = null)
-    {
-        SelectionStart = selectionStart;
-        SelectionEnd = selectionEnd;
-    }
+    public long? SelectionStart { get; } = selectionStart;
+    public long? SelectionEnd { get; } = selectionEnd;
 }

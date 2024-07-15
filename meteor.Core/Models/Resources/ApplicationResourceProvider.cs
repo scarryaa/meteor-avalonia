@@ -4,16 +4,10 @@ using Microsoft.Extensions.Logging;
 
 namespace meteor.Core.Models.Resources;
 
-public class ApplicationResourceProvider : IApplicationResourceProvider
+public class ApplicationResourceProvider(ILogger<ApplicationResourceProvider> logger) : IApplicationResourceProvider
 {
-    public IResourceProvider Resources { get; set; }
-    private ILogger<ApplicationResourceProvider> _logger { get; }
-
-    public ApplicationResourceProvider(ILogger<ApplicationResourceProvider> logger)
-    {
-        _logger = logger;
-        Resources = new ResourceDictionary();
-    }
+    public IResourceProvider Resources { get; set; } = new ResourceDictionary();
+    private ILogger<ApplicationResourceProvider> _logger { get; } = logger;
 
     public IResourceProvider LoadResource(string source)
     {

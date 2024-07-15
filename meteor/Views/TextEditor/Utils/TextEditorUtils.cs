@@ -3,19 +3,13 @@ using System.Collections.Generic;
 using System.Globalization;
 using Avalonia;
 using Avalonia.Media;
-using meteor.ViewModels;
 
 namespace meteor.Views.Utils;
 
-public class TextEditorUtils
+public class TextEditorUtils(TextEditorViewModel viewModel)
 {
-    private TextEditorViewModel _viewModel;
+    private TextEditorViewModel _viewModel = viewModel;
     private readonly HashSet<char> _commonCodingSymbols = new("(){}[]<>.,;:'\"\\|`~!@#$%^&*-+=/?");
-
-    public TextEditorUtils(TextEditorViewModel viewModel)
-    {
-        _viewModel = viewModel;
-    }
 
     public void UpdateViewModel(TextEditorViewModel viewModel)
     {

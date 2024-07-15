@@ -4,23 +4,16 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using meteor.Models;
-using meteor.ViewModels;
 using Microsoft.Extensions.Logging;
 
 namespace meteor.Views.Services;
 
-public class SelectionManager
+public class SelectionManager(TextEditorViewModel viewModel)
 {
-    private TextEditorViewModel _viewModel;
-    private readonly ILogger<SelectionManager> _logger;
+    private TextEditorViewModel _viewModel = viewModel;
+    private readonly ILogger<SelectionManager> _logger = ServiceLocator.GetService<ILogger<SelectionManager>>();
     
     public long SelectionAnchor { get; set; }
-
-    public SelectionManager(TextEditorViewModel viewModel)
-    {
-        _logger = ServiceLocator.GetService<ILogger<SelectionManager>>();
-        _viewModel = viewModel;
-    }
 
     public void UpdateViewModel(TextEditorViewModel viewModel)
     {

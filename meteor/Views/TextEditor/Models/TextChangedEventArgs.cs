@@ -2,18 +2,11 @@ using System;
 
 namespace meteor.Views.Models;
 
-public class TextChangedEventArgs : EventArgs
+public class TextChangedEventArgs(long position, string insertedText, long deletedLength, int version)
+    : EventArgs
 {
-    public long Position { get; }
-    public string InsertedText { get; }
-    public int? DeletedLength { get; }
-    public int Version { get; }
-
-    public TextChangedEventArgs(long position, string insertedText, long deletedLength, int version)
-    {
-        Position = position;
-        InsertedText = insertedText;
-        DeletedLength = (int)deletedLength;
-        Version = version;
-    }
+    public long Position { get; } = position;
+    public string InsertedText { get; } = insertedText;
+    public int? DeletedLength { get; } = (int)deletedLength;
+    public int Version { get; } = version;
 }

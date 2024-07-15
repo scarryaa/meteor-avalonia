@@ -6,7 +6,7 @@ namespace meteor.App.Services;
 
 public class AvaloniaTextMeasurer : ITextMeasurer
 {
-    public double MeasureWidth(string text, double fontSize, string fontFamily)
+    public double MeasureWidth(string? text, double fontSize, string fontFamily)
     {
         var formattedText = new FormattedText(
             text,

@@ -2,16 +2,10 @@ using meteor.Core.Interfaces;
 
 namespace meteor.Core.Models;
 
-public struct Vector : IVector
+public struct Vector(double x, double y) : IVector
 {
-    public double X { get; }
-    public double Y { get; }
-
-    public Vector(double x, double y)
-    {
-        X = x;
-        Y = y;
-    }
+    public double X { get; } = x;
+    public double Y { get; } = y;
 
     public IVector WithX(double x)
     {

@@ -1,15 +1,9 @@
 namespace meteor.Models;
 
-public class AVLTreeNode
+public class AVLTreeNode(string value)
 {
-    public string Value;
-    public int Height;
+    public string Value = value;
+    public int Height = 1;
     public AVLTreeNode Left;
     public AVLTreeNode Right;
-
-    public AVLTreeNode(string value)
-    {
-        Value = value;
-        Height = 1;
-    }
 }

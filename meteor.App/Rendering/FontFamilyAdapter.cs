@@ -3,19 +3,12 @@ using meteor.Core.Interfaces;
 
 namespace meteor.App.Rendering;
 
-public class FontFamilyAdapter : IFontFamily
+public class FontFamilyAdapter(FontFamily avaloniaFontFamily) : IFontFamily
 {
-    private readonly FontFamily _avaloniaFontFamily;
-
-    public FontFamilyAdapter(FontFamily avaloniaFontFamily)
-    {
-        _avaloniaFontFamily = avaloniaFontFamily;
-    }
-
-    public string Name => _avaloniaFontFamily.Name;
+    public string Name => avaloniaFontFamily.Name;
 
     public FontFamily ToAvaloniaFontFamily()
     {
-        return _avaloniaFontFamily;
+        return avaloniaFontFamily;
     }
 }

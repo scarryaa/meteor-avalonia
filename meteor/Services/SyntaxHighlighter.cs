@@ -9,17 +9,12 @@ namespace meteor.Services;
 
 public class SyntaxHighlighter : ISyntaxHighlighter
 {
-    private readonly Dictionary<string, LanguageDefinition> _languageDefinitions;
-
-    public SyntaxHighlighter()
+    private readonly Dictionary<string, LanguageDefinition> _languageDefinitions = new()
     {
-        _languageDefinitions = new Dictionary<string, LanguageDefinition>
-        {
-            { "cs", new CSharpLanguageDefinition() },
-            { "py", new PythonLanguageDefinition() },
-            { "js", new JavaScriptLanguageDefinition() }
-        };
-    }
+        { "cs", new CSharpLanguageDefinition() },
+        { "py", new PythonLanguageDefinition() },
+        { "js", new JavaScriptLanguageDefinition() }
+    };
 
     public List<SyntaxToken> HighlightSyntax(string text, string filePath)
     {

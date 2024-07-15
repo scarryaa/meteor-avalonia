@@ -1,4 +1,6 @@
 using meteor.Core.Interfaces;
+using meteor.Core.Interfaces.Events;
+using meteor.Core.Models.Events;
 
 namespace meteor.Services;
 
@@ -7,11 +9,14 @@ public class SelectionHandler : ISelectionHandler
     private int _selectionEnd;
     private readonly ITextBuffer _textBuffer;
     private readonly IWordBoundaryService _wordBoundaryService;
+    private readonly IEventAggregator _eventAggregator;
 
-    public SelectionHandler(ITextBuffer textBuffer, IWordBoundaryService wordBoundaryService)
+    public SelectionHandler(ITextBuffer textBuffer, IWordBoundaryService wordBoundaryService,
+        IEventAggregator eventAggregator)
     {
         _textBuffer = textBuffer;
         _wordBoundaryService = wordBoundaryService;
+        _eventAggregator = eventAggregator;
         ClearSelection();
     }
 
@@ -25,6 +30,13 @@ public class SelectionHandler : ISelectionHandler
     {
         SelectionAnchor = _selectionEnd = position;
         IsSelecting = true;
+        PublishSelectionChanged();
+    }
+
+    public void UpdateSelection(int position)
+    {
+        _selectionEnd = position;
+        PublishSelectionChanged();
     }
 
     public void UpdateSelectionDuringDrag(int position, bool isDoubleClick, bool isTripleClick)
@@ -36,30 +48,35 @@ public class SelectionHandler : ISelectionHandler
         }
         else if (isDoubleClick)
         {
-            var (_, end) = _wordBoundaryService.GetWordBoundaries(_textBuffer, position);
-            _selectionEnd = end;
+            var (start, end) = _wordBoundaryService.GetWordBoundaries(_textBuffer, position);
+            _selectionEnd = SelectionAnchor < position ? end : start;
         }
         else
         {
             _selectionEnd = position;
         }
+
+        PublishSelectionChanged();
     }
 
     public void EndSelection()
     {
         IsSelecting = false;
+        PublishSelectionChanged();
     }
 
     public void ClearSelection()
     {
         SelectionAnchor = _selectionEnd = -1;
         IsSelecting = false;
+        PublishSelectionChanged();
     }
 
     public void SelectAll()
     {
         SelectionAnchor = 0;
         _selectionEnd = _textBuffer.Length;
+        PublishSelectionChanged();
     }
 
     public void SelectWord(int position)
@@ -67,6 +84,7 @@ public class SelectionHandler : ISelectionHandler
         var (start, end) = _wordBoundaryService.GetWordBoundaries(_textBuffer, position);
         SelectionAnchor = start;
         _selectionEnd = end;
+        PublishSelectionChanged();
     }
 
     public void SelectLine(int position)
@@ -74,5 +92,11 @@ public class SelectionHandler : ISelectionHandler
         var lineIndex = _textBuffer.GetLineIndexFromPosition(position);
         SelectionAnchor = _textBuffer.GetLineStartPosition(lineIndex);
         _selectionEnd = _textBuffer.GetLineEndPosition(lineIndex);
+        PublishSelectionChanged();
+    }
+
+    private void PublishSelectionChanged()
+    {
+        _eventAggregator.Publish(new SelectionChangedEventArgs(SelectionStart, SelectionEnd, IsSelecting));
     }
 }

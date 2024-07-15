@@ -11,10 +11,13 @@ using meteor.Core.Contexts;
 using meteor.Core.Interfaces;
 using meteor.Core.Interfaces.Commands;
 using meteor.Core.Interfaces.Contexts;
+using meteor.Core.Interfaces.Events;
+using meteor.Core.Interfaces.Rendering;
 using meteor.Core.Interfaces.Resources;
 using meteor.Core.Interfaces.ViewModels;
 using meteor.Core.Models;
 using meteor.Core.Models.Commands;
+using meteor.Core.Models.Events;
 using meteor.Core.Models.Resources;
 using meteor.Core.Services;
 using meteor.Services;
@@ -56,7 +59,11 @@ public class App : Application
     private void ConfigureServices(IServiceCollection services)
     {
         // Register logging
-        services.AddLogging(configure => configure.AddConsole());
+        services.AddLogging(configure =>
+        {
+            configure.AddConsole();
+            configure.SetMinimumLevel(LogLevel.Debug);
+        });
         
         // Register services
         services.AddSingleton<ITextBuffer, TextBuffer>();
@@ -67,6 +74,8 @@ public class App : Application
             var topLevel = mainWindow != null ? TopLevel.GetTopLevel(mainWindow) : null;
             return new AvaloniaClipboardService(topLevel!);
         });
+        services.AddSingleton<IImageFactory, AvaloniaImageFactory>();
+        services.AddSingleton<ICacheManager, CacheManager>();
         services.AddSingleton<ITextMeasurer, AvaloniaTextMeasurer>();
         services.AddSingleton<IUndoRedoManager<ITextBuffer>, UndoRedoManager<ITextBuffer>>();
         services.AddSingleton<ICursorManager, CursorManager>();
@@ -139,6 +148,8 @@ public class App : Application
                 sp.GetRequiredService<ILogger<RenderManager>>());
         });
         services.AddSingleton<ITextEditorCommands, TextEditorCommands>();
+        services.AddSingleton<IInputManager, InputManager>();
         services.AddSingleton<InputManager>();
-}
+        services.AddSingleton<IEventAggregator, EventAggregator>();
+    }
 }

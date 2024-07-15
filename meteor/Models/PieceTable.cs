@@ -220,17 +220,10 @@ public class PieceTable
         Add
     }
 
-    private struct Piece
+    private struct Piece(int start, int length, BufferType type)
     {
-        public int Start { get; }
-        public int Length { get; }
-        public BufferType Type { get; }
-
-        public Piece(int start, int length, BufferType type)
-        {
-            Start = start;
-            Length = length;
-            Type = type;
-        }
+        public int Start { get; } = start;
+        public int Length { get; } = length;
+        public BufferType Type { get; } = type;
     }
 }

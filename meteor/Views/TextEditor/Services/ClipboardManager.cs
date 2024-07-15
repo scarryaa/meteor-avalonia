@@ -2,20 +2,12 @@ using System;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 using meteor.Interfaces;
-using meteor.ViewModels;
 
 namespace meteor.Views.Services;
 
-public class ClipboardManager
+public class ClipboardManager(TextEditorViewModel viewModel, IClipboardService clipboardService)
 {
-    private TextEditorViewModel _viewModel;
-    private readonly IClipboardService _clipboardService;
-
-    public ClipboardManager(TextEditorViewModel viewModel, IClipboardService clipboardService)
-    {
-        _viewModel = viewModel;
-        _clipboardService = clipboardService;
-    }
+    private TextEditorViewModel _viewModel = viewModel;
 
     public void UpdateViewModel(TextEditorViewModel viewModel)
     {
@@ -31,7 +23,7 @@ public class ClipboardManager
 
         var selectedText = _viewModel.TextBuffer.GetText(selectionStart, selectionEnd - selectionStart);
 
-        await _clipboardService.SetTextAsync(selectedText);
+        await clipboardService.SetTextAsync(selectedText);
     }
 
     public async Task CutText()
@@ -42,7 +34,7 @@ public class ClipboardManager
 
     public async Task PasteText()
     {
-        var text = await _clipboardService.GetTextAsync();
+        var text = await clipboardService.GetTextAsync();
         if (string.IsNullOrEmpty(text)) return;
 
         await Dispatcher.UIThread.InvokeAsync(async () => { await _viewModel.TextManipulator.InsertTextAsync(text); },

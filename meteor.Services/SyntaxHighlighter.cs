@@ -3,14 +3,11 @@ using meteor.Core.Models;
 
 namespace meteor.Services;
 
-public class SyntaxHighlighter : ISyntaxHighlighter
+public class SyntaxHighlighter(Dictionary<string, ILanguageDefinition> languageDefinitions)
+    : ISyntaxHighlighter
 {
-    private readonly Dictionary<string, ILanguageDefinition> _languageDefinitions;
-
-    public SyntaxHighlighter(Dictionary<string, ILanguageDefinition> languageDefinitions)
-    {
-        _languageDefinitions = languageDefinitions ?? throw new ArgumentNullException(nameof(languageDefinitions));
-    }
+    private readonly Dictionary<string, ILanguageDefinition> _languageDefinitions =
+        languageDefinitions ?? throw new ArgumentNullException(nameof(languageDefinitions));
 
     public IEnumerable<SyntaxToken> HighlightSyntax(string text, string filePath)
     {

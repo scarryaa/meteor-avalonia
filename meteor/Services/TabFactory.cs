@@ -7,15 +7,8 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace meteor.Services;
 
-public class TabFactory : ITabFactory
+public class TabFactory(IServiceProvider serviceProvider) : ITabFactory
 {
-    private readonly IServiceProvider _serviceProvider;
-
-    public TabFactory(IServiceProvider serviceProvider)
-    {
-        _serviceProvider = serviceProvider;
-    }
-
     public TabViewModel CreateTab()
     {
         var services = GetTabViewModelServices();
@@ -54,18 +47,18 @@ public class TabFactory : ITabFactory
         ICommand CloseAllTabsCommand
         ) GetTabViewModelServices()
     {
-        var mainWindowViewModel = _serviceProvider.GetRequiredService<MainWindowViewModel>();
+        var mainWindowViewModel = serviceProvider.GetRequiredService<MainWindowViewModel>();
 
         return (
-            CursorPositionService: _serviceProvider.GetRequiredService<ICursorPositionService>(),
-            UndoRedoManager: _serviceProvider.GetRequiredService<IUndoRedoManager<TextState>>(),
-            FileSystemWatcherFactory: _serviceProvider.GetRequiredService<IFileSystemWatcherFactory>(),
-            TextBufferFactory: _serviceProvider.GetRequiredService<ITextBufferFactory>(),
-            FontPropertiesViewModel: _serviceProvider.GetRequiredService<FontPropertiesViewModel>(),
-            LineCountViewModel: _serviceProvider.GetRequiredService<LineCountViewModel>(),
-            ClipboardService: _serviceProvider.GetRequiredService<IClipboardService>(),
-            AutoSaveService: _serviceProvider.GetRequiredService<IAutoSaveService>(),
-            ThemeService: _serviceProvider.GetRequiredService<IThemeService>(),
+            CursorPositionService: serviceProvider.GetRequiredService<ICursorPositionService>(),
+            UndoRedoManager: serviceProvider.GetRequiredService<IUndoRedoManager<TextState>>(),
+            FileSystemWatcherFactory: serviceProvider.GetRequiredService<IFileSystemWatcherFactory>(),
+            TextBufferFactory: serviceProvider.GetRequiredService<ITextBufferFactory>(),
+            FontPropertiesViewModel: serviceProvider.GetRequiredService<FontPropertiesViewModel>(),
+            LineCountViewModel: serviceProvider.GetRequiredService<LineCountViewModel>(),
+            ClipboardService: serviceProvider.GetRequiredService<IClipboardService>(),
+            AutoSaveService: serviceProvider.GetRequiredService<IAutoSaveService>(),
+            ThemeService: serviceProvider.GetRequiredService<IThemeService>(),
             mainWindowViewModel.CloseTabCommand,
             mainWindowViewModel.CloseOtherTabsCommand,
             mainWindowViewModel.CloseAllTabsCommand

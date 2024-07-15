@@ -5,48 +5,33 @@ using Microsoft.Extensions.Logging;
 
 namespace meteor.ViewModels;
 
-public class MainWindowViewModel
+public class MainWindowViewModel(
+    ITextBufferFactory textBufferFactory,
+    IDialogService dialogService,
+    IClipboardService clipboardService,
+    IUndoRedoManager<ITextBuffer> undoRedoManager,
+    ICursorManager cursorManager,
+    ISelectionHandler selectionHandler,
+    ITextMeasurer textMeasurer,
+    TextEditorViewModel textEditorViewModel,
+    IServiceProvider serviceProvider)
 {
     private TabViewModel? _selectedTab;
     private string _selectedPath;
-    private readonly ITextBufferFactory _textBufferFactory;
-    private readonly IDialogService _dialogService;
-    private readonly IClipboardService _clipboardService;
-    private readonly IUndoRedoManager<ITextBuffer> _undoRedoManager;
-    private readonly ICursorManager _cursorManager;
-    private readonly ISelectionHandler _selectionHandler;
-    private readonly ITextMeasurer _textMeasurer;
-    private readonly IServiceProvider _serviceProvider;
-    private readonly ILogger<MainWindowViewModel> _logger;
-    
-    public TextEditorViewModel TextEditorViewModel { get; }
+    private readonly ITextBufferFactory _textBufferFactory = textBufferFactory;
+    private readonly IClipboardService _clipboardService = clipboardService;
+    private readonly IUndoRedoManager<ITextBuffer> _undoRedoManager = undoRedoManager;
+    private readonly ICursorManager _cursorManager = cursorManager;
+    private readonly ISelectionHandler _selectionHandler = selectionHandler;
+    private readonly ITextMeasurer _textMeasurer = textMeasurer;
 
-    public MainWindowViewModel(
-        ITextBufferFactory textBufferFactory,
-        IDialogService dialogService,
-        IClipboardService clipboardService,
-        IUndoRedoManager<ITextBuffer> undoRedoManager,
-        ICursorManager cursorManager,
-        ISelectionHandler selectionHandler,
-        ITextMeasurer textMeasurer,
-        TextEditorViewModel textEditorViewModel,
-        IServiceProvider serviceProvider)
-    {
-        _logger = serviceProvider.GetService(typeof(ILogger<MainWindowViewModel>)) as ILogger<MainWindowViewModel> ??
-                  throw new InvalidOperationException("Logger not found");
-        _serviceProvider = serviceProvider;
-        _textBufferFactory = textBufferFactory;
-        _dialogService = dialogService;
-        _clipboardService = clipboardService;
-        _undoRedoManager = undoRedoManager;
-        _cursorManager = cursorManager;
-        _selectionHandler = selectionHandler;
-        _textMeasurer = textMeasurer;
-        TextEditorViewModel = textEditorViewModel;
-        Tabs = new ObservableCollection<TabViewModel?>();
-    }
-    
-    public ObservableCollection<TabViewModel?> Tabs { get; }
+    private readonly ILogger<MainWindowViewModel> _logger =
+        serviceProvider.GetService(typeof(ILogger<MainWindowViewModel>)) as ILogger<MainWindowViewModel> ??
+        throw new InvalidOperationException("Logger not found");
+
+    public TextEditorViewModel TextEditorViewModel { get; } = textEditorViewModel;
+
+    public ObservableCollection<TabViewModel?> Tabs { get; } = new();
 
     public TabViewModel? SelectedTab
     {
@@ -76,7 +61,7 @@ public class MainWindowViewModel
 
     public async Task NewTabAsync(string filePath = null)
     {
-        var textEditorViewModel = _serviceProvider.GetService(typeof(TextEditorViewModel)) as TextEditorViewModel;
+        var textEditorViewModel = serviceProvider.GetService(typeof(TextEditorViewModel)) as TextEditorViewModel;
 
         if (!string.IsNullOrEmpty(filePath))
             await LoadFileContentAsync(textEditorViewModel, filePath);
@@ -159,7 +144,7 @@ public class MainWindowViewModel
 
     private async Task<SaveConfirmationResult> ShowSaveConfirmationDialogAsync(TabViewModel tab)
     {
-        var result = await _dialogService.ShowConfirmationDialogAsync(
+        var result = await dialogService.ShowConfirmationDialogAsync(
             $"Do you want to save changes to {tab.Title}?",
             "Save Changes",
             "Save",
@@ -177,7 +162,7 @@ public class MainWindowViewModel
 
     private async Task ShowErrorDialogAsync(string message)
     {
-        await _dialogService.ShowErrorDialogAsync(message);
+        await dialogService.ShowErrorDialogAsync(message);
     }
 
     private void UpdateSelectedTabAfterClose(TabViewModel closedTab)

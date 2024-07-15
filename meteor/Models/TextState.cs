@@ -1,13 +1,7 @@
 namespace meteor.Models;
 
-public class TextState
+public class TextState(string text, int cursorPosition)
 {
-    public string Text { get; }
-    public int CursorPosition { get; }
-
-    public TextState(string text, int cursorPosition)
-    {
-        Text = text;
-        CursorPosition = cursorPosition;
-    }
+    public string Text { get; } = text;
+    public int CursorPosition { get; } = cursorPosition;
 }

@@ -4,7 +4,7 @@ namespace meteor.Core.Interfaces.Rendering;
 
 public interface IFormattedText
 {
-    string Text { get; }
+    string? Text { get; }
     string FontFamily { get; }
     FontStyle FontStyle { get; }
     FontWeight FontWeight { get; }

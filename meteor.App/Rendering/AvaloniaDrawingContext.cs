@@ -1,6 +1,7 @@
 using System;
 using System.Globalization;
 using Avalonia.Media;
+using meteor.App.Models;
 using meteor.Core.Interfaces.Rendering;
 using meteor.Core.Models.Rendering;
 using Color = meteor.Core.Models.Rendering.Color;
@@ -60,7 +61,7 @@ public class AvaloniaDrawingContext : IDrawingContext
             return brushAdapter.ToAvaloniaBrush();
         throw new NotSupportedException($"Brush type {brush.GetType()} is not supported.");
     }
-    
+
     private Avalonia.Media.IPen ConvertPen(IPen pen)
     {
         return new Pen(
@@ -84,8 +85,8 @@ public class AvaloniaDrawingContext : IDrawingContext
 
     private Avalonia.Media.IImage ConvertImage(IImage image)
     {
-        if (image is Avalonia.Media.IImage avaloniaImage) return avaloniaImage;
-        // If it's not already an Avalonia image, you might need to create one from raw data
+        if (image is AvaloniaImage avaloniaImage) return avaloniaImage.GetAvaloniaImage();
+        if (image is Avalonia.Media.IImage avaloniaIImage) return avaloniaIImage;
         throw new NotSupportedException($"Image type {image.GetType()} is not supported.");
     }
 

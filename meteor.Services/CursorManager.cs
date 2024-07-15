@@ -2,37 +2,28 @@ using meteor.Core.Interfaces;
 
 namespace meteor.Services;
 
-public class CursorManager : ICursorManager
+public class CursorManager(
+    ITextBuffer textBuffer,
+    ISelectionHandler selectionHandler,
+    IWordBoundaryService wordBoundaryService)
+    : ICursorManager
 {
-    private readonly ITextBuffer _textBuffer;
-    private readonly ISelectionHandler _selectionHandler;
-    private readonly IWordBoundaryService _wordBoundaryService;
-    private int _desiredColumn;
-
-    public CursorManager(ITextBuffer textBuffer, ISelectionHandler selectionHandler,
-        IWordBoundaryService wordBoundaryService)
-    {
-        _textBuffer = textBuffer;
-        _selectionHandler = selectionHandler;
-        _wordBoundaryService = wordBoundaryService;
-        _desiredColumn = -1;
-        Position = 0;
-    }
+    private int _desiredColumn = -1;
 
     public int Position { get; private set; }
 
     public void SetPosition(int position)
     {
-        Position = Math.Max(0, Math.Min(position, _textBuffer.Length));
+        Position = Math.Max(0, Math.Min(position, textBuffer.Length));
         UpdateDesiredColumn();
     }
 
     public void MoveCursorLeft(bool isShiftPressed)
     {
-        if (_selectionHandler.HasSelection && !isShiftPressed)
+        if (selectionHandler.HasSelection && !isShiftPressed)
         {
-            SetPosition(_selectionHandler.SelectionStart);
-            _selectionHandler.ClearSelection();
+            SetPosition(selectionHandler.SelectionStart);
+            selectionHandler.ClearSelection();
             return;
         }
 
@@ -45,14 +36,14 @@ public class CursorManager : ICursorManager
 
     public void MoveCursorRight(bool isShiftPressed)
     {
-        if (_selectionHandler.HasSelection && !isShiftPressed)
+        if (selectionHandler.HasSelection && !isShiftPressed)
         {
-            SetPosition(_selectionHandler.SelectionEnd);
-            _selectionHandler.ClearSelection();
+            SetPosition(selectionHandler.SelectionEnd);
+            selectionHandler.ClearSelection();
             return;
         }
 
-        if (Position < _textBuffer.Length)
+        if (Position < textBuffer.Length)
         {
             SetPosition(Position + 1);
             UpdateSelection(isShiftPressed);
@@ -61,17 +52,17 @@ public class CursorManager : ICursorManager
 
     public void MoveCursorUp(bool isShiftPressed)
     {
-        var currentLineIndex = _textBuffer.GetLineIndexFromPosition(Position);
+        var currentLineIndex = textBuffer.GetLineIndexFromPosition(Position);
         if (currentLineIndex > 0)
         {
-            var currentLineStart = _textBuffer.GetLineStartPosition(currentLineIndex);
+            var currentLineStart = textBuffer.GetLineStartPosition(currentLineIndex);
             var currentColumn = Position - currentLineStart;
 
             _desiredColumn = Math.Max(_desiredColumn, currentColumn);
 
             var previousLineIndex = currentLineIndex - 1;
-            var previousLineStart = _textBuffer.GetLineStartPosition(previousLineIndex);
-            var previousLineLength = _textBuffer.GetLineLength(previousLineIndex);
+            var previousLineStart = textBuffer.GetLineStartPosition(previousLineIndex);
+            var previousLineLength = textBuffer.GetLineLength(previousLineIndex);
 
             SetPosition(previousLineStart + Math.Min(_desiredColumn, previousLineLength));
             UpdateSelection(isShiftPressed);
@@ -80,17 +71,17 @@ public class CursorManager : ICursorManager
 
     public void MoveCursorDown(bool isShiftPressed)
     {
-        var currentLineIndex = _textBuffer.GetLineIndexFromPosition(Position);
-        if (currentLineIndex < _textBuffer.LineCount - 1)
+        var currentLineIndex = textBuffer.GetLineIndexFromPosition(Position);
+        if (currentLineIndex < textBuffer.LineCount - 1)
         {
-            var currentLineStart = _textBuffer.GetLineStartPosition(currentLineIndex);
+            var currentLineStart = textBuffer.GetLineStartPosition(currentLineIndex);
             var currentColumn = Position - currentLineStart;
 
             _desiredColumn = Math.Max(_desiredColumn, currentColumn);
 
             var nextLineIndex = currentLineIndex + 1;
-            var nextLineStart = _textBuffer.GetLineStartPosition(nextLineIndex);
-            var nextLineLength = _textBuffer.GetLineLength(nextLineIndex);
+            var nextLineStart = textBuffer.GetLineStartPosition(nextLineIndex);
+            var nextLineLength = textBuffer.GetLineLength(nextLineIndex);
 
             SetPosition(nextLineStart + Math.Min(_desiredColumn, nextLineLength));
             UpdateSelection(isShiftPressed);
@@ -99,8 +90,8 @@ public class CursorManager : ICursorManager
 
     public void MoveCursorToLineStart(bool isShiftPressed)
     {
-        var currentLineIndex = _textBuffer.GetLineIndexFromPosition(Position);
-        var lineStartPosition = _textBuffer.GetLineStartPosition(currentLineIndex);
+        var currentLineIndex = textBuffer.GetLineIndexFromPosition(Position);
+        var lineStartPosition = textBuffer.GetLineStartPosition(currentLineIndex);
         SetPosition(lineStartPosition);
         _desiredColumn = 0;
         UpdateSelection(isShiftPressed);
@@ -108,22 +99,22 @@ public class CursorManager : ICursorManager
 
     public void MoveCursorToLineEnd(bool isShiftPressed)
     {
-        var currentLineIndex = _textBuffer.GetLineIndexFromPosition(Position);
-        var lineEndPosition = _textBuffer.GetLineEndPosition(currentLineIndex);
+        var currentLineIndex = textBuffer.GetLineIndexFromPosition(Position);
+        var lineEndPosition = textBuffer.GetLineEndPosition(currentLineIndex);
         SetPosition(lineEndPosition);
         UpdateSelection(isShiftPressed);
     }
 
     public void MoveWordLeft(bool isShiftPressed)
     {
-        var newPosition = _wordBoundaryService.GetPreviousWordBoundary(_textBuffer, Position);
+        var newPosition = wordBoundaryService.GetPreviousWordBoundary(textBuffer, Position);
         SetPosition(newPosition);
         UpdateSelection(isShiftPressed);
     }
 
     public void MoveWordRight(bool isShiftPressed)
     {
-        var newPosition = _wordBoundaryService.GetNextWordBoundary(_textBuffer, Position);
+        var newPosition = wordBoundaryService.GetNextWordBoundary(textBuffer, Position);
         SetPosition(newPosition);
         UpdateSelection(isShiftPressed);
     }
@@ -136,14 +127,14 @@ public class CursorManager : ICursorManager
 
     public void MoveToDocumentEnd(bool isShiftPressed)
     {
-        SetPosition(_textBuffer.Length);
+        SetPosition(textBuffer.Length);
         UpdateSelection(isShiftPressed);
     }
 
     private void UpdateDesiredColumn()
     {
-        var lineIndex = _textBuffer.GetLineIndexFromPosition(Position);
-        var lineStart = _textBuffer.GetLineStartPosition(lineIndex);
+        var lineIndex = textBuffer.GetLineIndexFromPosition(Position);
+        var lineStart = textBuffer.GetLineStartPosition(lineIndex);
         _desiredColumn = Position - lineStart;
     }
 
@@ -151,12 +142,12 @@ public class CursorManager : ICursorManager
     {
         if (isShiftPressed)
         {
-            if (!_selectionHandler.IsSelecting) _selectionHandler.StartSelection(Position);
-            _selectionHandler.UpdateSelectionDuringDrag(Position, false, false);
+            if (!selectionHandler.IsSelecting) selectionHandler.StartSelection(Position);
+            selectionHandler.UpdateSelectionDuringDrag(Position, false, false);
         }
         else
         {
-            _selectionHandler.ClearSelection();
+            selectionHandler.ClearSelection();
         }
     }
 }

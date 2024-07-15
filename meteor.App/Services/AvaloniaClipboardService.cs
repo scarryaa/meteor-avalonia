@@ -7,21 +7,15 @@ using meteor.Core.Interfaces;
 
 namespace meteor.App.Services;
 
-public class AvaloniaClipboardService : IClipboardService
+public class AvaloniaClipboardService(Visual visual) : IClipboardService
 {
-    private readonly Visual _visual;
     private IClipboard? _clipboard;
-
-    public AvaloniaClipboardService(Visual visual)
-    {
-        _visual = visual;
-    }
 
     private IClipboard Clipboard => _clipboard ??= GetClipboard();
 
     private IClipboard GetClipboard()
     {
-        var clipboard = TopLevel.GetTopLevel(_visual)?.Clipboard;
+        var clipboard = TopLevel.GetTopLevel(visual)?.Clipboard;
         return clipboard ?? throw new InvalidOperationException("Clipboard is not available.");
     }
 

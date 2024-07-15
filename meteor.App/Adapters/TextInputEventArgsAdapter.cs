@@ -3,20 +3,13 @@ using meteor.Core.Interfaces.Events;
 
 namespace meteor.App.Adapters;
 
-public class TextInputEventArgsAdapter : ITextInputEventArgs
+public class TextInputEventArgsAdapter(TextInputEventArgs args) : ITextInputEventArgs
 {
-    private readonly TextInputEventArgs _args;
-
-    public TextInputEventArgsAdapter(TextInputEventArgs args)
-    {
-        _args = args;
-    }
-
-    public string Text => _args.Text;
+    public string Text => args.Text;
 
     public bool Handled
     {
-        get => _args.Handled;
-        set => _args.Handled = value;
+        get => args.Handled;
+        set => args.Handled = value;
     }
 }

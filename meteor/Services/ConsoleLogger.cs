@@ -3,15 +3,8 @@ using Microsoft.Extensions.Logging;
 
 namespace meteor.Services;
 
-public class ConsoleLogger : ILogger
+public class ConsoleLogger(string categoryName) : ILogger
 {
-    private readonly string _categoryName;
-
-    public ConsoleLogger(string categoryName)
-    {
-        _categoryName = categoryName;
-    }
-
     public IDisposable BeginScope<TState>(TState state)
     {
         return null;
@@ -26,7 +19,7 @@ public class ConsoleLogger : ILogger
         Func<TState, Exception, string> formatter)
     {
         Console.WriteLine(
-            $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} [{logLevel}] {_categoryName}: {formatter(state, exception)}");
+            $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} [{logLevel}] {categoryName}: {formatter(state, exception)}");
         if (exception != null) Console.WriteLine($"Exception: {exception}");
     }
 }

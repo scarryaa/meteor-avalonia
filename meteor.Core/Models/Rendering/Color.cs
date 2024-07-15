@@ -1,17 +1,9 @@
 namespace meteor.Core.Models.Rendering;
 
-public struct Color
+public struct Color(byte r, byte g, byte b, byte a = 255)
 {
-    public byte R { get; set; }
-    public byte G { get; set; }
-    public byte B { get; set; }
-    public byte A { get; set; }
-
-    public Color(byte r, byte g, byte b, byte a = 255)
-    {
-        R = r;
-        G = g;
-        B = b;
-        A = a;
-    }
+    public byte R { get; set; } = r;
+    public byte G { get; set; } = g;
+    public byte B { get; set; } = b;
+    public byte A { get; set; } = a;
 }

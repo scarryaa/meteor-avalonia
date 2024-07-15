@@ -6,52 +6,35 @@ using meteor.Core.Models.Rendering;
 
 namespace meteor.Core.Contexts;
 
-public class TextEditorContext : ITextEditorContext
+public class TextEditorContext(
+    double lineHeight,
+    IBrush backgroundBrush,
+    IBrush lineHighlightBrush,
+    IBrush selectionBrush,
+    IBrush cursorBrush,
+    double linePadding,
+    double selectionEndPadding,
+    IFontFamily fontFamily,
+    double fontSize,
+    IBrush foreground,
+    ITextEditorViewModel viewModel,
+    FontStyle fontStyle,
+    FontWeight fontWeight,
+    IBrush foregroundBrush)
+    : ITextEditorContext
 {
-    public double LineHeight { get; set; }
-    public IBrush BackgroundBrush { get; set; }
-    public IBrush LineHighlightBrush { get; set; }
-    public IBrush SelectionBrush { get; set; }
-    public IBrush CursorBrush { get; set; }
-    public double LinePadding { get; set; }
-    public double SelectionEndPadding { get; set; }
-    public IFontFamily FontFamily { get; set; }
-    public double FontSize { get; set; }
-    public IBrush Foreground { get; set; }
-    public ITextEditorViewModel TextEditorViewModel { get; set; }
-    public FontStyle FontStyle { get; set; }
-    public FontWeight FontWeight { get; set; }
-    public IBrush ForegroundBrush { get; set; }
-
-    public TextEditorContext(
-        double lineHeight,
-        IBrush backgroundBrush,
-        IBrush lineHighlightBrush,
-        IBrush selectionBrush,
-        IBrush cursorBrush,
-        double linePadding,
-        double selectionEndPadding,
-        IFontFamily fontFamily,
-        double fontSize,
-        IBrush foreground,
-        ITextEditorViewModel viewModel,
-        FontStyle fontStyle,
-        FontWeight fontWeight,
-        IBrush foregroundBrush)
-    {
-        LineHeight = lineHeight;
-        BackgroundBrush = backgroundBrush;
-        LineHighlightBrush = lineHighlightBrush;
-        SelectionBrush = selectionBrush;
-        CursorBrush = cursorBrush;
-        LinePadding = linePadding;
-        SelectionEndPadding = selectionEndPadding;
-        FontFamily = fontFamily;
-        FontSize = fontSize;
-        Foreground = foreground;
-        TextEditorViewModel = viewModel;
-        FontStyle = fontStyle;
-        FontWeight = fontWeight;
-        ForegroundBrush = foregroundBrush;
-    }
+    public double LineHeight { get; set; } = lineHeight;
+    public IBrush BackgroundBrush { get; set; } = backgroundBrush;
+    public IBrush LineHighlightBrush { get; set; } = lineHighlightBrush;
+    public IBrush SelectionBrush { get; set; } = selectionBrush;
+    public IBrush CursorBrush { get; set; } = cursorBrush;
+    public double LinePadding { get; set; } = linePadding;
+    public double SelectionEndPadding { get; set; } = selectionEndPadding;
+    public IFontFamily FontFamily { get; set; } = fontFamily;
+    public double FontSize { get; set; } = fontSize;
+    public IBrush Foreground { get; set; } = foreground;
+    public ITextEditorViewModel TextEditorViewModel { get; set; } = viewModel;
+    public FontStyle FontStyle { get; set; } = fontStyle;
+    public FontWeight FontWeight { get; set; } = fontWeight;
+    public IBrush ForegroundBrush { get; set; } = foregroundBrush;
 }

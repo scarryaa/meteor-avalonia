@@ -450,15 +450,13 @@ public class RenderManager : IDisposable
     }
 }
 
-public class ObjectPool<T> where T : class, new()
+public class ObjectPool<T>(Func<T> objectGenerator)
+    where T : class, new()
 {
     private readonly ConcurrentBag<T> _objects = new();
-    private readonly Func<T> _objectGenerator;
 
-    public ObjectPool(Func<T> objectGenerator)
-    {
-        _objectGenerator = objectGenerator ?? throw new ArgumentNullException(nameof(objectGenerator));
-    }
+    private readonly Func<T> _objectGenerator =
+        objectGenerator ?? throw new ArgumentNullException(nameof(objectGenerator));
 
     public T Get()
     {

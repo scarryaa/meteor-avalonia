@@ -6,14 +6,9 @@ using meteor.Core.Interfaces;
 
 namespace meteor.App.Services;
 
-public class DialogService : IDialogService
+public class DialogService(Window mainWindow) : IDialogService
 {
-    private readonly Window _mainWindow;
-
-    public DialogService(Window mainWindow)
-    {
-        _mainWindow = mainWindow;
-    }
+    private readonly Window _mainWindow = mainWindow;
 
     public async Task<DialogResult> ShowConfirmationDialogAsync(string message, string title, string yesText,
         string noText, string cancelText)

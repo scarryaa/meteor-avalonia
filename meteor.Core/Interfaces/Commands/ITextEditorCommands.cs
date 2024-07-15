@@ -13,5 +13,5 @@ public interface ITextEditorCommands
     Task CutText();
     void Undo();
     void Redo();
-    int GetPositionFromPoint(IPoint point);
+    int GetPositionFromPoint(IPoint? point);
 }

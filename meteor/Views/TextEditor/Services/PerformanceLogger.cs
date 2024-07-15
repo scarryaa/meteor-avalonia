@@ -3,20 +3,13 @@ using System.Diagnostics;
 
 namespace meteor.Views.Services;
 
-public class PerformanceLogger : IDisposable
+public class PerformanceLogger(string operationName) : IDisposable
 {
-    private readonly string _operationName;
-    private readonly Stopwatch _stopwatch;
-
-    public PerformanceLogger(string operationName)
-    {
-        _operationName = operationName;
-        _stopwatch = Stopwatch.StartNew();
-    }
+    private readonly Stopwatch _stopwatch = Stopwatch.StartNew();
 
     public void Dispose()
     {
         _stopwatch.Stop();
-        Debug.WriteLine($"{_operationName} took {_stopwatch.ElapsedMilliseconds}ms");
+        Debug.WriteLine($"{operationName} took {_stopwatch.ElapsedMilliseconds}ms");
     }
 }

@@ -8,16 +8,10 @@ using meteor.Views.Services;
 
 namespace meteor.Models;
 
-public class LspClientFactory
+public class LspClientFactory(string configPath)
 {
-    private readonly LanguageServerManager _languageServerManager;
-    private readonly Dictionary<string, ILspClient> _activeClients;
-
-    public LspClientFactory(string configPath)
-    {
-        _languageServerManager = new LanguageServerManager(configPath);
-        _activeClients = new Dictionary<string, ILspClient>();
-    }
+    private readonly LanguageServerManager _languageServerManager = new(configPath);
+    private readonly Dictionary<string, ILspClient> _activeClients = new();
 
     public ILspClient GetOrCreateClient(string filePath)
     {

@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using meteor.Core.Interfaces;
+using meteor.Core.Interfaces.Events;
 using meteor.Core.Interfaces.ViewModels;
 using meteor.Core.Models;
 using meteor.Core.Models.Events;
@@ -8,18 +9,21 @@ using Microsoft.Extensions.Logging;
 
 namespace meteor.ViewModels;
 
-public class TextEditorViewModel : ITextEditorViewModel, IDisposable
+public sealed class TextEditorViewModel : ITextEditorViewModel
 {
-    private ITextBuffer _textBuffer;
     private readonly IClipboardService _clipboardService;
     private readonly IUndoRedoManager<ITextBuffer> _undoRedoManager;
     private readonly ICursorManager _cursorManager;
     private readonly ISelectionHandler _selectionHandler;
     private readonly ITextMeasurer _textMeasurer;
+    private readonly ILogger<TextEditorViewModel> _logger;
+    private readonly IEventAggregator _eventAggregator;
+
+    private ITextBuffer _textBuffer;
     private double? _cachedLongestLineLength;
     private int _cursorPosition;
     private int _selectionStart = -1;
-    private int _selectionEnd = -1;
+    private int _selectionEnd = -1; 
     private bool _isSelecting;
     private double _windowWidth;
     private double _windowHeight;
@@ -29,7 +33,9 @@ public class TextEditorViewModel : ITextEditorViewModel, IDisposable
     private double _totalHeight;
     private double _lineHeight;
     private Vector _offset;
-    private readonly ILogger<TextEditorViewModel> _logger;
+    private string _fontFamily = "Consolas";
+    private double _fontSize = 13;
+    private const double Tolerance = 0.0001;
 
     public ILineCountViewModel LineCountViewModel { get; }
     public IGutterViewModel GutterViewModel { get; }
@@ -43,9 +49,9 @@ public class TextEditorViewModel : ITextEditorViewModel, IDisposable
         ITextMeasurer textMeasurer,
         ILineCountViewModel lineCountViewModel,
         IGutterViewModel gutterViewModel,
-        ILogger<TextEditorViewModel> logger)
+        ILogger<TextEditorViewModel> logger,
+        IEventAggregator eventAggregator)
     {
-        _logger = logger;
         _textBuffer = textBuffer ?? throw new ArgumentNullException(nameof(textBuffer));
         _clipboardService = clipboardService ?? throw new ArgumentNullException(nameof(clipboardService));
         _undoRedoManager = undoRedoManager ?? throw new ArgumentNullException(nameof(undoRedoManager));
@@ -54,16 +60,13 @@ public class TextEditorViewModel : ITextEditorViewModel, IDisposable
         _textMeasurer = textMeasurer ?? throw new ArgumentNullException(nameof(textMeasurer));
         LineCountViewModel = lineCountViewModel ?? throw new ArgumentNullException(nameof(lineCountViewModel));
         GutterViewModel = gutterViewModel ?? throw new ArgumentNullException(nameof(gutterViewModel));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _eventAggregator = eventAggregator ?? throw new ArgumentNullException(nameof(eventAggregator));
 
-        _textBuffer.TextChanged += OnTextChanged;
         LineHeight = _textMeasurer.GetLineHeight(FontSize, FontFamily);
+
+        SubscribeToEvents();
     }
-
-    public double RequiredWidth => Math.Max(LongestLineWidth, ViewportWidth);
-    public double RequiredHeight => Math.Max(TotalHeight, ViewportHeight);
-
-    public string FontFamily { get; set; } = "Consolas";
-    public double FontSize { get; set; } = 13;
 
     public ITextBuffer TextBuffer
     {
@@ -79,12 +82,43 @@ public class TextEditorViewModel : ITextEditorViewModel, IDisposable
         }
     }
 
+    public double RequiredWidth => Math.Max(LongestLineWidth, ViewportWidth);
+    public double RequiredHeight => Math.Max(TotalHeight, ViewportHeight);
+
+    public string FontFamily
+    {
+        get => _fontFamily;
+        set
+        {
+            if (_fontFamily != value)
+            {
+                _fontFamily = value;
+                OnPropertyChanged();
+                UpdateLineHeight();
+            }
+        }
+    }
+
+    public double FontSize
+    {
+        get => _fontSize;
+        set
+        {
+            if (Math.Abs(_fontSize - value) > Tolerance)
+            {
+                _fontSize = value;
+                OnPropertyChanged();
+                UpdateLineHeight();
+            }
+        }
+    }
+
     public double WindowWidth
     {
         get => _windowWidth;
         set
         {
-            if (_windowWidth != value)
+            if (Math.Abs(_windowWidth - value) > Tolerance)
             {
                 _windowWidth = value;
                 OnPropertyChanged();
@@ -98,7 +132,7 @@ public class TextEditorViewModel : ITextEditorViewModel, IDisposable
         get => _windowHeight;
         set
         {
-            if (_windowHeight != value)
+            if (Math.Abs(_windowHeight - value) > Tolerance)
             {
                 _windowHeight = value;
                 OnPropertyChanged();
@@ -112,7 +146,7 @@ public class TextEditorViewModel : ITextEditorViewModel, IDisposable
         get => _viewportWidth;
         set
         {
-            if (_viewportWidth != value)
+            if (Math.Abs(_viewportWidth - value) > Tolerance)
             {
                 _viewportWidth = value;
                 OnPropertyChanged();
@@ -126,7 +160,7 @@ public class TextEditorViewModel : ITextEditorViewModel, IDisposable
         get => _viewportHeight;
         set
         {
-            if (_viewportHeight != value)
+            if (Math.Abs(_viewportHeight - value) > Tolerance)
             {
                 _viewportHeight = value;
                 OnPropertyChanged();
@@ -140,7 +174,7 @@ public class TextEditorViewModel : ITextEditorViewModel, IDisposable
         get => Math.Max(_longestLineWidth, WindowWidth);
         private set
         {
-            if (_longestLineWidth != value)
+            if (Math.Abs(_longestLineWidth - value) > Tolerance)
             {
                 _longestLineWidth = value;
                 OnPropertyChanged();
@@ -153,7 +187,7 @@ public class TextEditorViewModel : ITextEditorViewModel, IDisposable
         get => Math.Max(_totalHeight, WindowHeight);
         private set
         {
-            if (_totalHeight != value)
+            if (Math.Abs(_totalHeight - value) > Tolerance)
             {
                 _totalHeight = value;
                 OnPropertyChanged();
@@ -166,7 +200,7 @@ public class TextEditorViewModel : ITextEditorViewModel, IDisposable
         get => _lineHeight;
         set
         {
-            if (_lineHeight != value)
+            if (Math.Abs(_lineHeight - value) > Tolerance)
             {
                 _lineHeight = value;
                 OnPropertyChanged();
@@ -180,7 +214,7 @@ public class TextEditorViewModel : ITextEditorViewModel, IDisposable
         get => _offset;
         set
         {
-            if (_offset != value)
+            if (Math.Abs(_offset.X - value.X) > Tolerance || Math.Abs(_offset.Y - value.Y) > Tolerance)
             {
                 _offset = value;
                 OnPropertyChanged();
@@ -196,7 +230,7 @@ public class TextEditorViewModel : ITextEditorViewModel, IDisposable
         get => _offset.Y;
         set
         {
-            if (_offset.Y != value)
+            if (Math.Abs(_offset.Y - value) > Tolerance)
             {
                 _offset = (Vector)_offset.WithY(value);
                 OnPropertyChanged();
@@ -211,7 +245,7 @@ public class TextEditorViewModel : ITextEditorViewModel, IDisposable
         get => _offset.X;
         set
         {
-            if (_offset.X != value)
+            if (Math.Abs(_offset.X - value) > Tolerance)
             {
                 _offset = (Vector)_offset.WithX(value);
                 OnPropertyChanged();
@@ -225,6 +259,7 @@ public class TextEditorViewModel : ITextEditorViewModel, IDisposable
         get => _cursorPosition;
         set
         {
+            value = Math.Clamp(value, 0, _textBuffer.Length);
             if (_cursorPosition != value)
             {
                 _cursorPosition = value;
@@ -276,17 +311,16 @@ public class TextEditorViewModel : ITextEditorViewModel, IDisposable
     {
         get
         {
-            if (!_cachedLongestLineLength.HasValue)
-                _cachedLongestLineLength = CalculateLongestLineLength();
+            _cachedLongestLineLength ??= CalculateLongestLineLength();
             return _cachedLongestLineLength.Value;
         }
     }
 
-    public event EventHandler<TextChangedEventArgs> TextChanged;
-    public event EventHandler CursorPositionChanged;
-    public event EventHandler SelectionChanged;
-    public event EventHandler InvalidateRequired;
-    public event PropertyChangedEventHandler PropertyChanged;
+    public event EventHandler<TextChangedEventArgs>? TextChanged;
+    public event EventHandler? CursorPositionChanged;
+    public event EventHandler? SelectionChanged;
+    public event EventHandler? InvalidateRequired;
+    public event PropertyChangedEventHandler? PropertyChanged;
 
     public void UpdateViewProperties()
     {
@@ -297,7 +331,37 @@ public class TextEditorViewModel : ITextEditorViewModel, IDisposable
 
     public void UpdateLineStarts()
     {
-        // TODO Implement line starts update logic here
+        // TODO: Implement line starts update logic here
+    }
+
+    private void SubscribeToEvents()
+    {
+        _eventAggregator.Subscribe<TextChangedEventArgs>(OnTextChanged);
+        _eventAggregator.Subscribe<CursorPositionChangedEventArgs>(OnCursorPositionChanged);
+        _eventAggregator.Subscribe<SelectionChangedEventArgs>(OnSelectionChanged);
+        _eventAggregator.Subscribe<IsSelectingChangedEventArgs>(OnIsSelectingChanged);
+    }
+
+    private void OnCursorPositionChanged(CursorPositionChangedEventArgs e)
+    {
+        CursorPosition = e.Position;
+        UpdateSelection();
+        OnInvalidateRequired();
+    }
+
+    private void OnSelectionChanged(SelectionChangedEventArgs e)
+    {
+        SelectionStart = e.NewStart;
+        SelectionEnd = e.NewEnd;
+        IsSelecting = e.IsSelecting;
+        Console.WriteLine($"Selection changed: {e.NewStart}-{e.NewEnd}");
+        OnInvalidateRequired();
+    }
+
+    private void OnIsSelectingChanged(IsSelectingChangedEventArgs e)
+    {
+        IsSelecting = e.IsSelecting;
+        OnInvalidateRequired();
     }
 
     private void UpdateLongestLineWidth()
@@ -318,16 +382,15 @@ public class TextEditorViewModel : ITextEditorViewModel, IDisposable
         OnPropertyChanged(nameof(RequiredHeight));
     }
 
+    private void UpdateLineHeight()
+    {
+        LineHeight = _textMeasurer.GetLineHeight(FontSize, FontFamily);
+    }
+
     private double CalculateLongestLineLength()
     {
-        var maxLength = 0.0;
-        for (var i = 0; i < TextBuffer.LineCount; i++)
-        {
-            var lineLength = TextBuffer.GetLineLength(i);
-            if (lineLength > maxLength) maxLength = lineLength;
-        }
-
-        return maxLength;
+        return Enumerable.Range(0, TextBuffer.LineCount)
+            .Max(i => TextBuffer.GetLineLength(i));
     }
 
     public void InvalidateLongestLine()
@@ -342,7 +405,7 @@ public class TextEditorViewModel : ITextEditorViewModel, IDisposable
         CursorPosition = position + text.Length;
         ClearSelection();
         InvalidateLongestLine();
-        OnInvalidateRequired();
+        _eventAggregator.Publish(new TextChangedEventArgs(position, text, 0));
     }
 
     public void DeleteText(int start, int length)
@@ -351,7 +414,7 @@ public class TextEditorViewModel : ITextEditorViewModel, IDisposable
         CursorPosition = start;
         ClearSelection();
         InvalidateLongestLine();
-        OnInvalidateRequired();
+        _eventAggregator.Publish(new TextChangedEventArgs(start, "", length));
     }
 
     public void HandleBackspace()
@@ -364,15 +427,24 @@ public class TextEditorViewModel : ITextEditorViewModel, IDisposable
         {
             _textBuffer.DeleteText(_cursorManager.Position - 1, 1);
             _cursorManager.MoveCursorLeft(false);
+            _eventAggregator.Publish(new TextChangedEventArgs(_cursorManager.Position, "", 1));
+            _eventAggregator.Publish(new CursorPositionChangedEventArgs(_cursorManager.Position,
+                _textBuffer.GetLineStarts(),
+                _textBuffer.GetLineLength(_textBuffer.GetLineIndexFromPosition(_cursorManager.Position))));
         }
     }
 
     public void HandleDelete()
     {
         if (_selectionHandler.HasSelection)
+        {
             DeleteSelection();
+        }
         else if (_cursorManager.Position < _textBuffer.Length)
+        {
             _textBuffer.DeleteText(_cursorManager.Position, 1);
+            _eventAggregator.Publish(new TextChangedEventArgs(_cursorManager.Position, "", 1));
+        }           
     }
 
     public void InsertNewLine()
@@ -380,6 +452,11 @@ public class TextEditorViewModel : ITextEditorViewModel, IDisposable
         if (_selectionHandler.HasSelection) DeleteSelection();
         _textBuffer.InsertText(_cursorManager.Position, Environment.NewLine);
         _cursorManager.MoveCursorRight(false);
+        _eventAggregator.Publish(new TextChangedEventArgs(_cursorManager.Position - Environment.NewLine.Length,
+            Environment.NewLine, 0));
+        _eventAggregator.Publish(new CursorPositionChangedEventArgs(_cursorManager.Position,
+            _textBuffer.GetLineStarts(),
+            _textBuffer.GetLineLength(_textBuffer.GetLineIndexFromPosition(_cursorManager.Position))));
     }
 
     private void DeleteSelection()
@@ -389,6 +466,11 @@ public class TextEditorViewModel : ITextEditorViewModel, IDisposable
         _textBuffer.DeleteText(start, end - start);
         _cursorManager.SetPosition(start);
         _selectionHandler.ClearSelection();
+        _eventAggregator.Publish(new TextChangedEventArgs(start, "", end - start));
+        _eventAggregator.Publish(new CursorPositionChangedEventArgs(start, _textBuffer.GetLineStarts(),
+            _textBuffer.GetLineLength(_textBuffer.GetLineIndexFromPosition(start))));
+        _eventAggregator.Publish(new SelectionChangedEventArgs(start, -1, false));
+        _eventAggregator.Publish(new IsSelectingChangedEventArgs(false));
     }
 
     public async Task CopyText()
@@ -417,12 +499,24 @@ public class TextEditorViewModel : ITextEditorViewModel, IDisposable
         IsSelecting = true;
         SelectionStart = CursorPosition;
         SelectionEnd = CursorPosition;
+        _eventAggregator.Publish(new IsSelectingChangedEventArgs(true));
+        _eventAggregator.Publish(new SelectionChangedEventArgs(SelectionStart, SelectionEnd, true));
     }
 
     public void UpdateSelection()
     {
         if (IsSelecting)
-            SelectionEnd = CursorPosition;
+        {
+            SelectionEnd = Math.Clamp(CursorPosition, 0, _textBuffer.Length);
+            NormalizeSelection();
+            _eventAggregator.Publish(
+                new SelectionChangedEventArgs(SelectionStart, SelectionEnd, true));
+        }
+    }
+
+    private void NormalizeSelection()
+    {
+        if (SelectionStart > SelectionEnd) (SelectionStart, SelectionEnd) = (SelectionEnd, SelectionStart);
     }
 
     public void ClearSelection()
@@ -430,6 +524,8 @@ public class TextEditorViewModel : ITextEditorViewModel, IDisposable
         IsSelecting = false;
         SelectionStart = -1;
         SelectionEnd = -1;
+        _eventAggregator.Publish(new IsSelectingChangedEventArgs(false));
+        _eventAggregator.Publish(new SelectionChangedEventArgs(-1, -1, false));
     }
 
     public string GetSelectedText()
@@ -442,11 +538,10 @@ public class TextEditorViewModel : ITextEditorViewModel, IDisposable
         return TextBuffer.GetText(start, end - start);
     }
 
-    private void OnTextChanged(object sender, TextChangedEventArgs e)
+    private void OnTextChanged(TextChangedEventArgs e)
     {
         InvalidateLongestLine();
         UpdateViewProperties();
-        TextChanged?.Invoke(this, e);
         OnInvalidateRequired();
     }
 
@@ -468,14 +563,16 @@ public class TextEditorViewModel : ITextEditorViewModel, IDisposable
         InvalidateRequired?.Invoke(this, EventArgs.Empty);
     }
 
-    protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
+    private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
 
     public void Dispose()
     {
-        _textBuffer.TextChanged -= OnTextChanged;
-        // Dispose of other resources as needed
+        _eventAggregator.Unsubscribe<TextChangedEventArgs>(OnTextChanged);
+        _eventAggregator.Unsubscribe<CursorPositionChangedEventArgs>(OnCursorPositionChanged);
+        _eventAggregator.Unsubscribe<SelectionChangedEventArgs>(OnSelectionChanged);
+        _eventAggregator.Unsubscribe<IsSelectingChangedEventArgs>(OnIsSelectingChanged);
     }
 }

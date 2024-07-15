@@ -5,11 +5,14 @@ namespace meteor.Core.Models;
 
 public class TextBuffer : ITextBuffer
 {
-    private List<string> _lines;
+    private List<string?> _lines = new() { "" };
+    private readonly List<int> _cachedLineStarts = new() { 0 };
+    private bool _isLineStartsCacheValid = true;
 
-    public TextBuffer()
+    public List<int> GetLineStarts()
     {
-        _lines = new List<string> { "" };
+        if (!_isLineStartsCacheValid) UpdateLineStartsCache();
+        return _cachedLineStarts;
     }
 
     public string Text => string.Join(Environment.NewLine, _lines);
@@ -51,6 +54,7 @@ public class TextBuffer : ITextBuffer
             _lines.Insert(lineIndex + newLines.Length - 1, newLines[^1] + afterInsertion);
         }
 
+        _isLineStartsCacheValid = false;
         OnTextChanged(position, text, 0);
     }
 
@@ -79,6 +83,7 @@ public class TextBuffer : ITextBuffer
             _lines.RemoveRange(startLineIndex + 1, endLineIndex - startLineIndex);
         }
 
+        _isLineStartsCacheValid = false;
         OnTextChanged(start, string.Empty, length);
     }
 
@@ -88,17 +93,19 @@ public class TextBuffer : ITextBuffer
         if (_lines.Count == 0)
             _lines.Add(string.Empty);
 
+        _isLineStartsCacheValid = false;
         OnTextChanged(0, newText, Length);
     }
 
     public void Clear()
     {
         var oldLength = Length;
-        _lines = new List<string> { "" };
+        _lines = new List<string?> { "" };
+        _isLineStartsCacheValid = false;
         OnTextChanged(0, string.Empty, oldLength);
     }
 
-    public string GetLineText(int lineIndex)
+    public string? GetLineText(int lineIndex)
     {
         if (lineIndex < 0 || lineIndex >= LineCount)
             return string.Empty;
@@ -145,6 +152,21 @@ public class TextBuffer : ITextBuffer
         }
 
         return LineCount - 1;
+    }
+
+    private void UpdateLineStartsCache()
+    {
+        _cachedLineStarts.Clear();
+        _cachedLineStarts.Add(0);
+
+        var currentPosition = 0;
+        for (var i = 0; i < _lines.Count - 1; i++)
+        {
+            currentPosition += _lines[i].Length + Environment.NewLine.Length;
+            _cachedLineStarts.Add(currentPosition);
+        }
+
+        _isLineStartsCacheValid = true;
     }
 
     protected virtual void OnTextChanged(int position, string insertedText, int deletedLength)

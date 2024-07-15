@@ -82,17 +82,14 @@ public class UndoRedoManager<T> : IUndoRedoManager<T>
         StateChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    private class UndoRedoAction<TState>
+    private class UndoRedoAction<TState>(TState oldState, TState newState, string description)
     {
-        public TState OldState { get; }
-        public TState NewState { get; }
-        public string Description { get; }
+        public TState OldState { get; } =
+            oldState ?? throw new ArgumentNullException(nameof(oldState), "oldState cannot be null");
 
-        public UndoRedoAction(TState oldState, TState newState, string description)
-        {
-            OldState = oldState ?? throw new ArgumentNullException(nameof(oldState), "oldState cannot be null");
-            NewState = newState ?? throw new ArgumentNullException(nameof(newState), "newState cannot be null");
-            Description = description;
-        }
+        public TState NewState { get; } =
+            newState ?? throw new ArgumentNullException(nameof(newState), "newState cannot be null");
+
+        public string Description { get; } = description;
     }
 }

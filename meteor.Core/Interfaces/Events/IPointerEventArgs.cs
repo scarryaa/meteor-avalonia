@@ -8,5 +8,5 @@ public interface IPointerEventArgs
     double Y { get; }
     int ClickCount { get; }
     bool Handled { get; set; }
-    IPoint GetPosition();
+    IPoint? GetPosition();
 }

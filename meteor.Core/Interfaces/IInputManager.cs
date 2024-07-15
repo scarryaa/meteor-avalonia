@@ -9,4 +9,7 @@ public interface IInputManager : IDisposable
     void OnPointerReleased(IPointerReleasedEventArgs e);
     Task OnKeyDown(IKeyEventArgs e);
     void OnTextInput(ITextInputEventArgs e);
+
+    bool IsTripleClickDrag { get; }
+    bool IsDoubleClickDrag { get; }
 }

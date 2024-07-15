@@ -4,27 +4,20 @@ using meteor.Core.Interfaces.Rendering;
 
 namespace meteor.App.Adapters;
 
-public class PointerEventArgsAdapter : IPointerEventArgs
+public class PointerEventArgsAdapter(PointerEventArgs args) : IPointerEventArgs
 {
-    private readonly PointerEventArgs _args;
-
-    public PointerEventArgsAdapter(PointerEventArgs args)
-    {
-        _args = args;
-    }
-
-    public double X => _args.GetPosition(null).X;
-    public double Y => _args.GetPosition(null).Y;
+    public double X => args.GetPosition(null).X;
+    public double Y => args.GetPosition(null).Y;
     public int ClickCount => 0;
 
     public bool Handled
     {
-        get => _args.Handled;
-        set => _args.Handled = value;
+        get => args.Handled;
+        set => args.Handled = value;
     }
 
-    public IPoint GetPosition()
+    public IPoint? GetPosition()
     {
-        return new PointAdapter(_args.GetPosition(null));
+        return new PointAdapter(args.GetPosition(null));
     }
 }

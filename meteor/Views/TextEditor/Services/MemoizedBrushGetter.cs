@@ -5,15 +5,9 @@ using meteor.Interfaces;
 
 namespace meteor.Views.Services;
 
-public class MemoizedBrushGetter
+public class MemoizedBrushGetter(IThemeService themeService)
 {
     private readonly ConcurrentDictionary<SyntaxTokenType, IBrush> _brushCache = new();
-    private readonly IThemeService _themeService;
-
-    public MemoizedBrushGetter(IThemeService themeService)
-    {
-        _themeService = themeService;
-    }
 
     public IBrush GetBrushForTokenType(SyntaxTokenType type)
     {
@@ -21,12 +15,12 @@ public class MemoizedBrushGetter
         {
             return t switch
             {
-                SyntaxTokenType.Keyword => _themeService.GetResourceBrush("KeywordColor"),
-                SyntaxTokenType.Comment => _themeService.GetResourceBrush("CommentColor"),
-                SyntaxTokenType.String => _themeService.GetResourceBrush("StringColor"),
-                SyntaxTokenType.Type => _themeService.GetResourceBrush("TypeColor"),
-                SyntaxTokenType.Number => _themeService.GetResourceBrush("NumberColor"),
-                _ => _themeService.GetResourceBrush("DefaultColor")
+                SyntaxTokenType.Keyword => themeService.GetResourceBrush("KeywordColor"),
+                SyntaxTokenType.Comment => themeService.GetResourceBrush("CommentColor"),
+                SyntaxTokenType.String => themeService.GetResourceBrush("StringColor"),
+                SyntaxTokenType.Type => themeService.GetResourceBrush("TypeColor"),
+                SyntaxTokenType.Number => themeService.GetResourceBrush("NumberColor"),
+                _ => themeService.GetResourceBrush("DefaultColor")
             };
         });
     }

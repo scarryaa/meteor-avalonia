@@ -1,18 +1,11 @@
 using System;
-using meteor.ViewModels;
 
 namespace meteor.Views.Services;
 
-public class CursorManager
+public class CursorManager(TextEditorViewModel viewModel)
 {
-    private TextEditorViewModel _viewModel;
-    private long _desiredColumn;
-
-    public CursorManager(TextEditorViewModel viewModel)
-    {
-        _viewModel = viewModel;
-        _desiredColumn = -1;
-    }
+    private TextEditorViewModel _viewModel = viewModel;
+    private long _desiredColumn = -1;
 
     public void UpdateViewModel(TextEditorViewModel viewModel)
     {

@@ -3,18 +3,22 @@ using meteor.Core.Interfaces;
 using meteor.Core.Interfaces.Commands;
 using meteor.Core.Interfaces.Events;
 using meteor.Core.Interfaces.Rendering;
+using meteor.Core.Models.Events;
 using Microsoft.Extensions.Logging;
 
 namespace meteor.Services;
 
-public class InputManager : IInputManager
+public class InputManager(
+    ICursorManager cursorManager,
+    ISelectionHandler selectionHandler,
+    ITextEditorCommands editorCommands,
+    ILogger<InputManager> logger,
+    IEventAggregator eventAggregator,
+    ITextBuffer textBuffer)
+    : IInputManager
 {
-    private readonly ICursorManager _cursorManager;
-    private readonly ISelectionHandler _selectionHandler;
-    private readonly ITextEditorCommands _editorCommands;
-    private IPoint _lastClickPosition;
+    private IPoint? _lastClickPosition;
     private DateTime _lastClickTime;
-    private readonly ILogger<InputManager> _logger;
 
     private const int DoubleClickTimeThreshold = 300;
     private const int TripleClickTimeThreshold = 600;
@@ -23,35 +27,29 @@ public class InputManager : IInputManager
     public bool IsTripleClickDrag { get; private set; }
     public bool IsDoubleClickDrag { get; private set; }
 
-    public InputManager(ICursorManager cursorManager, ISelectionHandler selectionHandler,
-        ITextEditorCommands editorCommands, ILogger<InputManager> logger)
-    {
-        _logger = logger;
-        _cursorManager = cursorManager;
-        _selectionHandler = selectionHandler;
-        _editorCommands = editorCommands;
-    }
-
     public void OnPointerPressed(IPointerPressedEventArgs e)
     {
         var currentPosition = e.GetPosition();
         var currentTime = DateTime.Now;
-        var textPosition = _editorCommands.GetPositionFromPoint(currentPosition);
+        var textPosition = editorCommands.GetPositionFromPoint(currentPosition);
 
         if (IsTripleClick(currentTime, currentPosition))
         {
-            _selectionHandler.SelectLine(textPosition);
+            selectionHandler.SelectLine(textPosition);
             IsTripleClickDrag = true;
         }
         else if (IsDoubleClick(currentTime, currentPosition))
         {
-            _selectionHandler.SelectWord(textPosition);
+            selectionHandler.SelectWord(textPosition);
             IsDoubleClickDrag = true;
         }
         else
         {
-            _cursorManager.SetPosition(textPosition);
-            _selectionHandler.StartSelection(textPosition);
+            cursorManager.SetPosition(textPosition);
+            selectionHandler.StartSelection(textPosition);
+
+            PublishCursorPositionChanged(textPosition);
+            eventAggregator.Publish(new IsSelectingChangedEventArgs(true));
         }
 
         _lastClickPosition = currentPosition;
@@ -61,19 +59,24 @@ public class InputManager : IInputManager
 
     public void OnPointerMoved(IPointerEventArgs e)
     {
-        if (_selectionHandler.IsSelecting || IsDoubleClickDrag || IsTripleClickDrag)
+        if (selectionHandler.IsSelecting || IsDoubleClickDrag || IsTripleClickDrag)
         {
-            var position = _editorCommands.GetPositionFromPoint(e.GetPosition());
-            _selectionHandler.UpdateSelectionDuringDrag(position, IsDoubleClickDrag, IsTripleClickDrag);
+            var position = editorCommands.GetPositionFromPoint(e.GetPosition());
+            selectionHandler.UpdateSelectionDuringDrag(position, IsDoubleClickDrag, IsTripleClickDrag);
+
+            PublishCursorPositionChanged(position);
             e.Handled = true;
         }
     }
 
     public void OnPointerReleased(IPointerReleasedEventArgs e)
     {
-        _selectionHandler.EndSelection();
+        selectionHandler.EndSelection();
         IsTripleClickDrag = false;
         IsDoubleClickDrag = false;
+
+        eventAggregator.Publish(new IsSelectingChangedEventArgs(false));
+    
         e.Handled = true;
     }
 
@@ -82,33 +85,35 @@ public class InputManager : IInputManager
         switch (e.Key)
         {
             case Key.Left:
-                _cursorManager.MoveCursorLeft(e.IsShiftPressed);
+                cursorManager.MoveCursorLeft(e.IsShiftPressed);
                 break;
             case Key.Right:
-                _cursorManager.MoveCursorRight(e.IsShiftPressed);
+                cursorManager.MoveCursorRight(e.IsShiftPressed);
                 break;
             case Key.Up:
-                _cursorManager.MoveCursorUp(e.IsShiftPressed);
+                cursorManager.MoveCursorUp(e.IsShiftPressed);
                 break;
             case Key.Down:
-                _cursorManager.MoveCursorDown(e.IsShiftPressed);
+                cursorManager.MoveCursorDown(e.IsShiftPressed);
                 break;
             case Key.Home:
-                _cursorManager.MoveCursorToLineStart(e.IsShiftPressed);
+                cursorManager.MoveCursorToLineStart(e.IsShiftPressed);
                 break;
             case Key.End:
-                _cursorManager.MoveCursorToLineEnd(e.IsShiftPressed);
+                cursorManager.MoveCursorToLineEnd(e.IsShiftPressed);
                 break;
             case Key.Back:
-                _editorCommands.HandleBackspace();
+                editorCommands.HandleBackspace();
                 break;
             case Key.Delete:
-                _editorCommands.HandleDelete();
+                editorCommands.HandleDelete();
                 break;
             case Key.Enter:
-                _editorCommands.InsertNewLine();
+                editorCommands.InsertNewLine();
                 break;
         }
+
+        PublishCursorPositionChanged(cursorManager.Position);
 
         if (e.IsControlPressed)
             await HandleControlKeyCombo(e);
@@ -118,22 +123,32 @@ public class InputManager : IInputManager
 
     public void OnTextInput(ITextInputEventArgs e)
     {
-        _logger.LogDebug($"Text input: {e.Text}");
+        logger.LogDebug($"Text input: {e.Text}");
         if (!string.IsNullOrEmpty(e.Text))
         {
-            _editorCommands.InsertText(_cursorManager.Position, e.Text);
+            var oldPosition = cursorManager.Position;
+            editorCommands.InsertText(cursorManager.Position, e.Text);
+            eventAggregator.Publish(new TextChangedEventArgs(oldPosition, e.Text, 0));
+            PublishCursorPositionChanged(cursorManager.Position);
             e.Handled = true;
         }
     }
 
-    private bool IsTripleClick(DateTime currentTime, IPoint currentPosition)
+    private void PublishCursorPositionChanged(int newPosition)
+    {
+        var lineStarts = textBuffer.GetLineStarts();
+        var lastLineLength = textBuffer.GetLineLength(textBuffer.LineCount - 1);
+        eventAggregator.Publish(new CursorPositionChangedEventArgs(newPosition, lineStarts, lastLineLength));
+    }
+
+    private bool IsTripleClick(DateTime currentTime, IPoint? currentPosition)
     {
         return (currentTime - _lastClickTime).TotalMilliseconds <= TripleClickTimeThreshold &&
                DistanceBetweenPoints(currentPosition, _lastClickPosition) <= DoubleClickDistanceThreshold &&
                (currentTime - _lastClickTime).TotalMilliseconds > DoubleClickTimeThreshold;
     }
 
-    private bool IsDoubleClick(DateTime currentTime, IPoint currentPosition)
+    private bool IsDoubleClick(DateTime currentTime, IPoint? currentPosition)
     {
         return (currentTime - _lastClickTime).TotalMilliseconds <= DoubleClickTimeThreshold &&
                DistanceBetweenPoints(currentPosition, _lastClickPosition) <= DoubleClickDistanceThreshold;
@@ -144,33 +159,34 @@ public class InputManager : IInputManager
         switch (e.Key)
         {
             case Key.C:
-                await _editorCommands.CopyText();
+                await editorCommands.CopyText();
                 break;
             case Key.V:
-                await _editorCommands.PasteText();
+                await editorCommands.PasteText();
                 break;
             case Key.X:
-                await _editorCommands.CutText();
+                await editorCommands.CutText();
                 break;
             case Key.A:
-                _selectionHandler.SelectAll();
+                selectionHandler.SelectAll();
                 break;
             case Key.Z:
                 if (e.IsShiftPressed)
-                    _editorCommands.Redo();
+                    editorCommands.Redo();
                 else
-                    _editorCommands.Undo();
+                    editorCommands.Undo();
                 break;
         }
     }
 
-    private double DistanceBetweenPoints(IPoint p1, IPoint p2)
+    private double DistanceBetweenPoints(IPoint? p1, IPoint? p2)
     {
-        return Math.Sqrt(Math.Pow(p1.X - p2.X, 2) + Math.Pow(p1.Y - p2.Y, 2));
+        if (p1 != null && p2 != null) return Math.Sqrt(Math.Pow(p1.X - p2.X, 2) + Math.Pow(p1.Y - p2.Y, 2));
+        throw new ArgumentNullException(nameof(p1));
     }
 
     public void Dispose()
     {
-        // TODO release managed resources here
+        // TODO dispose of resources
     }
 }

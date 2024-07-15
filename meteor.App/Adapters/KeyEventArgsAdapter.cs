@@ -4,23 +4,16 @@ using Key = meteor.Core.Enums.Key;
 
 namespace meteor.App.Adapters;
 
-public class KeyEventArgsAdapter : IKeyEventArgs
+public class KeyEventArgsAdapter(KeyEventArgs args) : IKeyEventArgs
 {
-    private readonly KeyEventArgs _args;
-
-    public KeyEventArgsAdapter(KeyEventArgs args)
-    {
-        _args = args;
-    }
-
-    public Key Key => ConvertKey(_args.Key);
-    public bool IsShiftPressed => _args.KeyModifiers.HasFlag(KeyModifiers.Shift);
-    public bool IsControlPressed => _args.KeyModifiers.HasFlag(KeyModifiers.Control);
+    public Key Key => ConvertKey(args.Key);
+    public bool IsShiftPressed => args.KeyModifiers.HasFlag(KeyModifiers.Shift);
+    public bool IsControlPressed => args.KeyModifiers.HasFlag(KeyModifiers.Control);
 
     public bool Handled
     {
-        get => _args.Handled;
-        set => _args.Handled = value;
+        get => args.Handled;
+        set => args.Handled = value;
     }
 
     private Key ConvertKey(Avalonia.Input.Key key)

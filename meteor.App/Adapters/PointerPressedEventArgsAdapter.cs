@@ -3,15 +3,8 @@ using meteor.Core.Interfaces.Events;
 
 namespace meteor.App.Adapters;
 
-public class PointerPressedEventArgsAdapter : PointerEventArgsAdapter, IPointerPressedEventArgs
+public class PointerPressedEventArgsAdapter(PointerPressedEventArgs args)
+    : PointerEventArgsAdapter(args), IPointerPressedEventArgs
 {
-    private readonly PointerPressedEventArgs _args;
-
-    public PointerPressedEventArgsAdapter(PointerPressedEventArgs args)
-        : base(args)
-    {
-        _args = args;
-    }
-
-    public int ClickCount => _args.ClickCount;
+    public int ClickCount => args.ClickCount;
 }

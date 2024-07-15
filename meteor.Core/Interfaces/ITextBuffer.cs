@@ -15,9 +15,10 @@ public interface ITextBuffer
     void DeleteText(int start, int length);
     void SetText(string newText);
     void Clear();
-    string GetLineText(int lineIndex);
+    string? GetLineText(int lineIndex);
     int GetLineStartPosition(int lineIndex);
     int GetLineEndPosition(int lineIndex);
     int GetLineLength(int lineIndex);
     int GetLineIndexFromPosition(int position);
+    List<int> GetLineStarts();
 }
