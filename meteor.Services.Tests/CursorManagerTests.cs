@@ -260,4 +260,90 @@ public class CursorManagerTests
         // Assert
         _mockSelectionHandler.Verify(sh => sh.ClearSelection(), Times.Once);
     }
+
+    [Fact]
+    public void MoveCursorLeft_AtDocumentStart_ShouldNotMove()
+    {
+        // Arrange
+        _cursorManager.SetPosition(0);
+
+        // Act
+        _cursorManager.MoveCursorLeft(false);
+
+        // Assert
+        Assert.Equal(0, _cursorManager.Position);
+    }
+
+    [Fact]
+    public void MoveCursorRight_AtDocumentEnd_ShouldNotMove()
+    {
+        // Arrange
+        _mockTextBuffer.Setup(tb => tb.Length).Returns(10);
+        _cursorManager.SetPosition(10);
+
+        // Act
+        _cursorManager.MoveCursorRight(false);
+
+        // Assert
+        Assert.Equal(10, _cursorManager.Position);
+    }
+
+    [Fact]
+    public void MoveCursorUp_AtDocumentStart_ShouldNotMove()
+    {
+        // Arrange
+        _mockTextBuffer.Setup(tb => tb.GetLineIndexFromPosition(0)).Returns(0);
+        _cursorManager.SetPosition(0);
+
+        // Act
+        _cursorManager.MoveCursorUp(false);
+
+        // Assert
+        Assert.Equal(0, _cursorManager.Position);
+    }
+
+    [Fact]
+    public void MoveCursorDown_AtDocumentEnd_ShouldNotMove()
+    {
+        // Arrange
+        _mockTextBuffer.Setup(tb => tb.Length).Returns(10);
+        _mockTextBuffer.Setup(tb => tb.GetLineIndexFromPosition(10)).Returns(1);
+        _mockTextBuffer.Setup(tb => tb.LineCount).Returns(2);
+        _cursorManager.SetPosition(10);
+
+        // Act
+        _cursorManager.MoveCursorDown(false);
+
+        // Assert
+        Assert.Equal(10, _cursorManager.Position);
+    }
+
+    [Fact]
+    public void MoveWordLeft_AtDocumentStart_ShouldNotMove()
+    {
+        // Arrange
+        _mockWordBoundaryService.Setup(wbs => wbs.GetPreviousWordBoundary(_mockTextBuffer.Object, 0)).Returns(0);
+        _cursorManager.SetPosition(0);
+
+        // Act
+        _cursorManager.MoveWordLeft(false);
+
+        // Assert
+        Assert.Equal(0, _cursorManager.Position);
+    }
+
+    [Fact]
+    public void MoveWordRight_AtDocumentEnd_ShouldNotMove()
+    {
+        // Arrange
+        _mockTextBuffer.Setup(tb => tb.Length).Returns(10);
+        _mockWordBoundaryService.Setup(wbs => wbs.GetNextWordBoundary(_mockTextBuffer.Object, 10)).Returns(10);
+        _cursorManager.SetPosition(10);
+
+        // Act
+        _cursorManager.MoveWordRight(false);
+
+        // Assert
+        Assert.Equal(10, _cursorManager.Position);
+    }
 }

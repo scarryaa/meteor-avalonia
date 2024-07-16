@@ -142,11 +142,19 @@ public class CursorManager(
     {
         if (isShiftPressed)
         {
-            if (!selectionHandler.IsSelecting) selectionHandler.StartSelection(Position);
+            if (!selectionHandler.IsSelecting)
+            {
+                selectionHandler.StartSelection(Position);
+            }
             selectionHandler.UpdateSelectionDuringDrag(Position, false, false);
         }
         else
         {
+            if (selectionHandler.HasSelection)
+            {
+                // If there's a selection, move the cursor to the end of the selection
+                SetPosition(Math.Max(selectionHandler.SelectionStart, selectionHandler.SelectionEnd));
+            }
             selectionHandler.ClearSelection();
         }
     }

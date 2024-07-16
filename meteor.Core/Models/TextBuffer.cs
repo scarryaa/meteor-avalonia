@@ -149,7 +149,7 @@ public class TextBuffer : ITextBuffer
     {
         _logger.LogDebug($"GetLineIndexFromPosition called with position {position}");
 
-        if (Length == 0) return 0; // If the buffer is empty, return 0 as the line index
+        if (Length == 0) return 0;
 
         // Clamp the position to valid range
         position = Math.Clamp(position, 0, Length);

@@ -644,4 +644,118 @@ public class TextEditorViewModelTests
             ea => ea.Unsubscribe(It.IsAny<Action<IsSelectingChangedEventArgs>>()),
             Times.Once);
     }
+
+    [Fact]
+    public void InsertText_WithSelection_ReplacesSelectedText()
+    {
+        // Arrange
+        _mockTextBuffer.Setup(tb => tb.Length).Returns(10);
+        _mockSelectionHandler.Setup(sh => sh.HasSelection).Returns(true);
+        _mockSelectionHandler.Setup(sh => sh.SelectionStart).Returns(2);
+        _mockSelectionHandler.Setup(sh => sh.SelectionEnd).Returns(5);
+
+        // Act
+        _viewModel.InsertText(2, "New");
+
+        // Assert
+        _mockTextBuffer.Verify(tb => tb.DeleteText(2, 3), Times.Once);
+        _mockTextBuffer.Verify(tb => tb.InsertText(2, "New"), Times.Once);
+        _mockCursorManager.Verify(cm => cm.SetPosition(5), Times.Once);
+        _mockSelectionHandler.Verify(sh => sh.ClearSelection(), Times.Once);
+    }
+
+    [Fact]
+    public void HandleDelete_AtEndOfText_DoesNothing()
+    {
+        // Arrange
+        _mockSelectionHandler.Setup(sh => sh.HasSelection).Returns(false);
+        _mockCursorManager.Setup(cm => cm.Position).Returns(10);
+        _mockTextBuffer.Setup(tb => tb.Length).Returns(10);
+
+        // Act
+        _viewModel.HandleDelete();
+
+        // Assert
+        _mockTextBuffer.Verify(tb => tb.DeleteText(It.IsAny<int>(), It.IsAny<int>()), Times.Never);
+        _mockCursorManager.Verify(cm => cm.SetPosition(It.IsAny<int>()), Times.Never);
+        _mockEventAggregator.Verify(ea => ea.Publish(It.IsAny<TextChangedEventArgs>()), Times.Never);
+    }
+
+    // [Fact]
+    // public void UpdateViewProperties_UpdatesGutterViewModel()
+    // {
+    //     // Arrange
+    //     _mockTextBuffer.Setup(tb => tb.LineCount).Returns(10);
+    //     _viewModel.LineHeight = 15;
+    //     _viewModel.WindowHeight = 300;
+    //
+    //     // Act
+    //     _viewModel.UpdateViewProperties();
+    //
+    //     // Assert
+    //     _mockGutterViewModel.VerifySet(gvm => gvm.LineCount = 10, Times.Once);
+    //     _mockGutterViewModel.VerifySet(gvm => gvm.LineHeight = 15, Times.Once);
+    //     _mockGutterViewModel.VerifySet(gvm => gvm.ViewportHeight = 300, Times.Once);
+    // }
+
+    [Fact]
+    public void LongestLineLength_CachesValue()
+    {
+        // Arrange
+        _mockTextBuffer.Setup(tb => tb.LineCount).Returns(3);
+        _mockTextBuffer.Setup(tb => tb.GetLineLength(It.IsAny<int>())).Returns(10);
+
+        // Act
+        var firstCall = _viewModel.LongestLineLength;
+        var secondCall = _viewModel.LongestLineLength;
+
+        // Assert
+        Assert.Equal(10, firstCall);
+        Assert.Equal(10, secondCall);
+        _mockTextBuffer.Verify(tb => tb.GetLineLength(It.IsAny<int>()), Times.Exactly(3));
+    }
+
+    [Fact]
+    public void UpdateLongestLineWidth_UpdatesRequiredWidth()
+    {
+        // Arrange
+        _mockTextBuffer.Setup(tb => tb.LineCount).Returns(1);
+        _mockTextBuffer.Setup(tb => tb.GetLineText(0)).Returns("Long line of text");
+        _mockTextMeasurer.Setup(tm => tm.MeasureWidth(It.IsAny<string>(), It.IsAny<double>(), It.IsAny<string>()))
+            .Returns(200);
+        _viewModel.WindowWidth = 100;
+        _viewModel.ViewportWidth = 150;
+
+        // Act
+        _viewModel.UpdateLongestLineWidth();
+
+        // Assert
+        Assert.Equal(200, _viewModel.LongestLineWidth);
+        Assert.Equal(200, _viewModel.RequiredWidth);
+    }
+
+    [Fact]
+    public void OnTextChanged_UpdatesViewProperties()
+    {
+        // Arrange
+        var textChangedArgs = new TextChangedEventArgs(0, "New text", 0);
+        _mockTextBuffer.Setup(tb => tb.LineCount).Returns(5);
+        _mockTextBuffer.Setup(tb => tb.GetText(It.IsAny<int>(), It.IsAny<int>())).Returns("New text");
+        _mockTextMeasurer.Setup(tm => tm.MeasureWidth(It.IsAny<string>(), It.IsAny<double>(), It.IsAny<string>()))
+            .Returns(100);
+        _viewModel.LineHeight = 20;
+        _viewModel.WindowWidth = 500;
+        _viewModel.WindowHeight = 300;
+
+        // Act
+        _viewModel.OnTextChanged(textChangedArgs);
+
+        // Assert
+        Assert.Equal(100, _viewModel.TotalHeight); // 5 lines * 20 line height
+        Assert.Equal(100, _viewModel.LongestLineWidth);
+        Assert.Equal(500, _viewModel.RequiredWidth);
+        Assert.Equal(300, _viewModel.RequiredHeight);
+        _mockEventAggregator.Verify(ea => ea.Publish(It.IsAny<TextChangedEventArgs>()), Times.Once);
+        _mockLineCountViewModel.Verify(lcvm => lcvm.UpdateLineCount(_mockTextBuffer.Object.LineCount), Times.Once);
+    }
 }

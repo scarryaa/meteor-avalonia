@@ -414,10 +414,26 @@ public sealed class TextEditorViewModel : ITextEditorViewModel
 
     public void InsertText(int position, string text)
     {
-        _textBuffer.InsertText(position, text);
-        CursorPosition = position + text.Length;
+        if (_selectionHandler.HasSelection)
+        {
+            var selectionStart = Math.Min(_selectionHandler.SelectionStart, _selectionHandler.SelectionEnd);
+            var selectionEnd = Math.Max(_selectionHandler.SelectionStart, _selectionHandler.SelectionEnd);
+            var selectionLength = selectionEnd - selectionStart;
+
+            _textBuffer.DeleteText(selectionStart, selectionLength);
+            _textBuffer.InsertText(selectionStart, text);
+            _cursorManager.SetPosition(selectionStart + text.Length);
+            Console.WriteLine("New cursor position: " + _cursorManager.Position);
+        }
+        else
+        {
+            _textBuffer.InsertText(position, text);
+            _cursorManager.SetPosition(position + text.Length);
+        }
+
         _selectionHandler.ClearSelection();
-        InvalidateLongestLine();
+
+        // Publish text changed event
         _eventAggregator.Publish(new TextChangedEventArgs(position, text, 0));
     }
 
@@ -567,11 +583,14 @@ public sealed class TextEditorViewModel : ITextEditorViewModel
         return TextBuffer.GetText(start, end - start);
     }
 
-    private void OnTextChanged(TextChangedEventArgs e)
+    public void OnTextChanged(TextChangedEventArgs e)
     {
         InvalidateLongestLine();
         UpdateAffectedLines(e);
         UpdateTotalHeight();
+
+        LineCountViewModel.LineCount = TextBuffer.LineCount;
+
         OnInvalidateRequired();
     }
     
