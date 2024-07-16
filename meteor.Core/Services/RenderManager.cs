@@ -188,12 +188,20 @@ namespace meteor.Core.Services
             var cursorLine = viewModel.TextBuffer.GetLineIndexFromPosition(viewModel.CursorPosition);
             var cursorColumn = viewModel.CursorPosition - viewModel.TextBuffer.GetLineStartPosition(cursorLine);
             var lineText = viewModel.TextBuffer.GetLineText(cursorLine);
-            var x = _textMeasurer.MeasureWidth(lineText.Substring(0, cursorColumn), _context.FontSize,
-                _context.FontFamily.Name);
+
+            // Ensure cursorColumn doesn't exceed the line length
+            cursorColumn = Math.Min(cursorColumn, lineText.Length);
+
+            var x = _textMeasurer.MeasureWidth(
+                lineText.Substring(0, cursorColumn),
+                _context.FontSize,
+                _context.FontFamily.Name
+            );
             var y = cursorLine * _context.LineHeight;
             var cursorPen = new Pen(_context.CursorBrush, 1);
             context.DrawLine(cursorPen, new Point(x, y), new Point(x, y + _context.LineHeight));
         }
+
 
         public void InvalidateLine(int lineIndex)
         {

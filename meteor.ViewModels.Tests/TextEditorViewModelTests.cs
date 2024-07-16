@@ -1,5 +1,4 @@
 using meteor.Core.Interfaces;
-using meteor.Core.Interfaces.Commands;
 using meteor.Core.Interfaces.Events;
 using meteor.Core.Interfaces.ViewModels;
 using meteor.Core.Models;
@@ -311,18 +310,60 @@ public class TextEditorViewModelTests
     }
 
     [Fact]
-    public async Task PasteText_InsertsClipboardText()
+    public void PasteText_InsertsClipboardText()
     {
         // Arrange
-        _mockClipboardService.Setup(cs => cs.GetTextAsync()).ReturnsAsync("Pasted");
-        _mockCursorManager.Setup(cm => cm.Position).Returns(5);
+        _mockTextBuffer.Setup(tb => tb.Length).Returns(10);
+        _viewModel.CursorPosition = 5;
+        _viewModel.SelectionStart = 5;
+        _viewModel.SelectionEnd = 5;
 
         // Act
-        await _viewModel.PasteText();
+        _viewModel.PasteText("Pasted");
 
         // Assert
         _mockTextBuffer.Verify(tb => tb.InsertText(5, "Pasted"), Times.Once);
-        _mockCursorManager.Verify(cm => cm.SetPosition(11), Times.Once);
+        Assert.Equal(10, _viewModel.CursorPosition);
+        Assert.Equal(10, _viewModel.SelectionStart);
+        Assert.Equal(10, _viewModel.SelectionEnd);
+    }
+
+    [Fact]
+    public void PasteText_HandlesSelectionDeletion()
+    {
+        // Arrange
+        _mockTextBuffer.Setup(tb => tb.Length).Returns(15);
+        _viewModel.SelectionStart = 5;
+        _viewModel.SelectionEnd = 10;
+
+        // Act
+        _viewModel.PasteText("Pasted");
+
+        // Assert
+        _mockTextBuffer.Verify(tb => tb.DeleteText(5, 5), Times.Once);
+        _mockTextBuffer.Verify(tb => tb.InsertText(5, "Pasted"), Times.Once);
+        Assert.Equal(11, _viewModel.CursorPosition);
+        Assert.Equal(11, _viewModel.SelectionStart);
+        Assert.Equal(11, _viewModel.SelectionEnd);
+    }
+
+    [Fact]
+    public void PasteText_HandlesEmptyText()
+    {
+        // Arrange
+        _mockTextBuffer.Setup(tb => tb.Length).Returns(10);
+        _viewModel.CursorPosition = 5;
+        _viewModel.SelectionStart = 5;
+        _viewModel.SelectionEnd = 5;
+
+        // Act
+        _viewModel.PasteText("");
+
+        // Assert
+        _mockTextBuffer.Verify(tb => tb.InsertText(It.IsAny<int>(), It.IsAny<string>()), Times.Never);
+        Assert.Equal(5, _viewModel.CursorPosition);
+        Assert.Equal(5, _viewModel.SelectionStart);
+        Assert.Equal(5, _viewModel.SelectionEnd);
     }
 
     [Fact]

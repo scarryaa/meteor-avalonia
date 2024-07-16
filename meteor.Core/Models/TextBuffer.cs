@@ -1,121 +1,64 @@
-using System.Text;
 using meteor.Core.Interfaces;
 using meteor.Core.Models.Events;
+using Microsoft.Extensions.Logging;
 
 namespace meteor.Core.Models;
 
 public class TextBuffer : ITextBuffer
 {
-    private List<string?> _lines = new() { "" };
+    private IRope _rope;
     private readonly List<int> _cachedLineStarts = new() { 0 };
     private bool _isLineStartsCacheValid = true;
-    private string _cachedText = "";
-    private bool _isTextCacheValid = true;
-    private int _cachedLength;
-    private bool _isLengthCacheValid = true;
+    private readonly ILogger<Rope> _logger;
+
+    public TextBuffer(IRope rope, ILogger<Rope> logger)
+    {
+        _rope = rope ?? throw new ArgumentNullException(nameof(rope));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+
+        UpdateLineStartsCache();
+    }
+
+    public int Length => _rope.Length;
+    public int LineCount => Math.Max(1, _rope.LineCount);
+
+    public event EventHandler<TextChangedEventArgs> TextChanged;
 
     public List<int> GetLineStarts()
     {
         if (!_isLineStartsCacheValid) UpdateLineStartsCache();
-        return _cachedLineStarts;
+        return new List<int>(_cachedLineStarts);
     }
 
     public string Text
     {
-        get
+        get => _rope.GetText() ?? "";
+        set
         {
-            if (!_isTextCacheValid)
-            {
-                _cachedText = string.Join(Environment.NewLine, _lines);
-                _isTextCacheValid = true;
-            }
-
-            return _cachedText;
+            var oldLength = Length;
+            _rope = new Rope(value ?? "", _logger);
+            InvalidateCache();
+            OnTextChanged(0, value ?? "", oldLength);
         }
     }
-
-    public int Length
-    {
-        get
-        {
-            if (!_isLengthCacheValid)
-            {
-                _cachedLength = _lines.Sum(l => l.Length) + Environment.NewLine.Length * (_lines.Count - 1);
-                _isLengthCacheValid = true;
-            }
-
-            return _cachedLength;
-        }
-    }
-
-    public int LineCount => _lines.Count;
-
-    public event EventHandler<TextChangedEventArgs> TextChanged;
 
     public string GetText(int start, int length)
     {
-        if (start < 0 || start >= Length || length <= 0)
-            return string.Empty;
-
-        var startLine = GetLineIndexFromPosition(start);
-        var endLine = GetLineIndexFromPosition(start + length - 1);
-
-        if (startLine == endLine)
-        {
-            var lineStart = GetLineStartPosition(startLine);
-            return _lines[startLine].Substring(start - lineStart,
-                Math.Min(length, _lines[startLine].Length - (start - lineStart)));
-        }
-
-        var result = new StringBuilder();
-        for (var i = startLine; i <= endLine; i++)
-        {
-            if (i == startLine)
-            {
-                var lineStart = GetLineStartPosition(i);
-                result.Append(_lines[i].Substring(start - lineStart));
-            }
-            else if (i == endLine)
-            {
-                result.Append(_lines[i].Substring(0, Math.Min(length - result.Length, _lines[i].Length)));
-            }
-            else
-            {
-                result.Append(_lines[i]);
-            }
-
-            if (i < endLine) result.Append(Environment.NewLine);
-        }
-
-        return result.ToString();
+        return _rope.GetText(start, length);
     }
+
     public void InsertText(int position, string text)
     {
         if (string.IsNullOrEmpty(text))
             return;
 
-        // Ensure position is within valid range
-        position = Math.Max(0, Math.Min(position, Length));
+        _logger.LogDebug($"Inserting text '{text}' at position {position}");
 
-        var lineIndex = GetLineIndexFromPosition(position);
-        var linePosition = position - GetLineStartPosition(lineIndex);
-
-        var newLines = text.Split(["\r\n", "\r", "\n"], StringSplitOptions.None);
-
-        if (newLines.Length == 1)
-        {
-            _lines[lineIndex] = (_lines[lineIndex] ?? "").Insert(linePosition, text);
-        }
-        else
-        {
-            var currentLine = _lines[lineIndex] ?? "";
-            _lines[lineIndex] = currentLine[..linePosition] + newLines[0];
-            _lines.InsertRange(lineIndex + 1, newLines.Skip(1).Take(newLines.Length - 2));
-            _lines.Insert(lineIndex + newLines.Length - 1, newLines[^1] + currentLine[linePosition..]);
-        }
-
+        _rope.Insert(position, text);
         InvalidateCache();
         OnTextChanged(position, text, 0);
+
+        _logger.LogDebug($"After insertion, Text is now: '{Text}', Length: {Length}, LineCount: {LineCount}");
     }
 
     public void DeleteText(int start, int length)
@@ -123,114 +66,107 @@ public class TextBuffer : ITextBuffer
         if (length <= 0 || start < 0 || start >= Length)
             return;
 
-        var startLineIndex = GetLineIndexFromPosition(start);
-        var endLineIndex = GetLineIndexFromPosition(start + length);
-
-        if (startLineIndex == endLineIndex)
-        {
-            var lineStart = GetLineStartPosition(startLineIndex);
-            _lines[startLineIndex] = _lines[startLineIndex].Remove(start - lineStart, length);
-        }
-        else
-        {
-            var startLinePosition = start - GetLineStartPosition(startLineIndex);
-            var endLinePosition = start + length - GetLineStartPosition(endLineIndex);
-
-            var startLine = _lines[startLineIndex].Substring(0, startLinePosition);
-            var endLine = _lines[endLineIndex].Substring(endLinePosition);
-
-            _lines[startLineIndex] = startLine + endLine;
-            _lines.RemoveRange(startLineIndex + 1, endLineIndex - startLineIndex);
-        }
-
+        _rope.Delete(start, length);
         InvalidateCache();
         OnTextChanged(start, string.Empty, length);
     }
 
     public void SetText(string newText)
     {
-        _lines = newText.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None).ToList();
-        if (_lines.Count == 0)
-            _lines.Add(string.Empty);
-
+        var oldLength = Length;
+        _rope = new Rope(newText, _logger);
         InvalidateCache();
-        OnTextChanged(0, newText, Length);
+        OnTextChanged(0, newText, oldLength);
     }
 
     public void Clear()
     {
         var oldLength = Length;
-        _lines = new List<string?> { "" };
+        _rope = new Rope(string.Empty, _logger);
         InvalidateCache();
         OnTextChanged(0, string.Empty, oldLength);
     }
 
-    public string? GetLineText(int lineIndex)
+    public string GetLineText(int lineIndex)
     {
         if (lineIndex < 0 || lineIndex >= LineCount)
+        {
+            _logger.LogWarning($"Attempted to get text for invalid line index: {lineIndex}. Returning empty string.");
             return string.Empty;
+        }
 
-        return _lines[lineIndex];
+        var lineText = _rope.GetLineText(lineIndex);
+        return lineText.TrimEnd('\r', '\n');
+    }
+
+    public int GetLineText(int lineIndex, char[] buffer)
+    {
+        var lineText = _rope.GetLineText(lineIndex);
+        var length = Math.Min(lineText.Length, buffer.Length);
+        lineText.CopyTo(0, buffer, 0, length);
+        return length;
+    }
+
+    public int GetLineText(int lineIndex, Span<char> destination)
+    {
+        var lineText = _rope.GetLineText(lineIndex);
+        var length = Math.Min(lineText.Length, destination.Length);
+        lineText.AsSpan(0, length).CopyTo(destination);
+        return length;
     }
 
     public int GetLineStartPosition(int lineIndex)
     {
         if (lineIndex < 0 || lineIndex >= LineCount)
-            throw new ArgumentOutOfRangeException(nameof(lineIndex));
+        {
+            _logger.LogError(
+                $"Invalid line index {lineIndex} for GetLineStartPosition. Valid range is 0 to {LineCount - 1}.");
+            throw new ArgumentOutOfRangeException(nameof(lineIndex),
+                $"Line index must be between 0 and {LineCount - 1}");
+        }
 
-        return _lines.Take(lineIndex).Sum(line => line.Length + Environment.NewLine.Length);
+        return _rope.GetLineStartPosition(lineIndex);
     }
 
     public int GetLineEndPosition(int lineIndex)
     {
-        if (lineIndex < 0 || lineIndex >= LineCount)
-            throw new ArgumentOutOfRangeException(nameof(lineIndex));
+        if (lineIndex < 0 || lineIndex >= LineCount) throw new ArgumentOutOfRangeException(nameof(lineIndex));
 
-        return GetLineStartPosition(lineIndex) + GetLineLength(lineIndex);
+        if (lineIndex == LineCount - 1) return Length;
+
+        return _rope.GetLineEndPosition(lineIndex);
     }
+
 
     public int GetLineLength(int lineIndex)
     {
-        if (lineIndex < 0 || lineIndex >= LineCount)
-            throw new ArgumentOutOfRangeException(nameof(lineIndex));
-
-        return _lines[lineIndex].Length;
+        return _rope.GetLineLength(lineIndex);
     }
 
     public int GetLineIndexFromPosition(int position)
     {
         if (position < 0 || position > Length)
-            throw new ArgumentOutOfRangeException(nameof(position));
-
-        if (_isLineStartsCacheValid)
-            return _cachedLineStarts.BinarySearch(position) switch
-            {
-                var i when i >= 0 => i,
-                var i => ~i - 1
-            };
-
-        var currentPosition = 0;
-        for (var i = 0; i < LineCount; i++)
         {
-            var lineLength = GetLineLength(i) + Environment.NewLine.Length;
-            if (currentPosition + lineLength > position)
-                return i;
-            currentPosition += lineLength;
+            _logger.LogError(
+                $"Invalid position {position} for GetLineIndexFromPosition. Valid range is 0 to {Length}.");
+            throw new ArgumentOutOfRangeException(nameof(position), $"Position must be between 0 and {Length}");
         }
 
-        return LineCount - 1;
+        if (position == Length) return LineCount - 1;
+
+        var lineIndex = _rope.GetLineIndexFromPosition(position);
+        return Math.Max(0, lineIndex); // Ensure non-negative
     }
+
 
     private void UpdateLineStartsCache()
     {
         _cachedLineStarts.Clear();
         _cachedLineStarts.Add(0);
 
-        var currentPosition = 0;
-        for (var i = 0; i < _lines.Count - 1; i++)
+        for (var i = 0; i < Math.Max(1, _rope.LineCount) - 1; i++)
         {
-            currentPosition += _lines[i].Length + Environment.NewLine.Length;
-            _cachedLineStarts.Add(currentPosition);
+            _cachedLineStarts.Add(_rope.GetLineEndPosition(i) + 1);
         }
 
         _isLineStartsCacheValid = true;
@@ -239,8 +175,6 @@ public class TextBuffer : ITextBuffer
     private void InvalidateCache()
     {
         _isLineStartsCacheValid = false;
-        _isTextCacheValid = false;
-        _isLengthCacheValid = false;
     }
 
     protected virtual void OnTextChanged(int position, string insertedText, int deletedLength)

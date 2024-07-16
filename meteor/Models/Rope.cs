@@ -24,7 +24,14 @@ public class Rope : IRope
         InvalidateCache();
     }
 
-    public int Length => root?.Length ?? 0;
+    public int Length
+    {
+        get => root?.Length ?? 0;
+        private set
+        {
+            if (root != null) root.Length = value;
+        }
+    }
 
     public int LineCount =>
         _cachedLineCount >= 0 ? _cachedLineCount : _cachedLineCount = Math.Max(1, CalculateLineCount());
@@ -99,10 +106,13 @@ public class Rope : IRope
         if (lineIndex < 0 || lineIndex >= LineCount)
             throw new ArgumentOutOfRangeException(nameof(lineIndex), "Line index is out of range");
 
-        if (lineIndex == LineCount - 1)
-            return Length;
+        var start = GetLineStartPosition(lineIndex);
+        var end = lineIndex == LineCount - 1 ? Length : GetLineStartPosition(lineIndex + 1);
 
-        return GetLineStartPosition(lineIndex + 1) - 1;
+        // Adjust for newline characters
+        while (end > start && (GetText(end - 1, 1) == "\n" || GetText(end - 1, 1) == "\r")) end--;
+
+        return end - 1;
     }
 
     public int GetLineLength(int lineIndex)
@@ -153,49 +163,48 @@ public class Rope : IRope
 
     public void Delete(int start, int length)
     {
-        if (length <= 0) return;
+        if (start < 0)
+            start = 0;
 
-        start = Math.Max(0, Math.Min(start, Length));
-        length = Math.Min(length, Length - start);
+        if (start >= Length)
+            return;
 
-        root = Delete(root, start, length);
+        var end = Math.Min(start + length, Length);
+        var actualLength = end - start;
+
+        root = Delete(root, start, actualLength);
         root = Balance(root);
-        InvalidateCache();
+        Length -= actualLength;
         _changeCounter++;
     }
-
+    
     private Node Delete(Node node, int start, int length)
     {
-        if (node == null || length <= 0)
-            return node;
+        if (node == null) return null;
 
         if (node.IsLeaf)
         {
-            node.Text = node.Text.Remove(start, Math.Min(length, node.Text.Length - start));
+            var sb = new StringBuilder(node.Text);
+            sb.Remove(start, length);
+            node.Text = sb.ToString();
             node.UpdateProperties();
-            return node.Length > 0 ? node : null;
-        }
-
-        if (start < node.Left.Length)
-        {
-            node.Left = Delete(node.Left, start, Math.Min(length, node.Left.Length - start));
-            length -= Math.Min(length, node.Left.Length - start);
-            start = 0;
         }
         else
         {
-            start -= node.Left.Length;
+            if (start <= node.Left.Length)
+            {
+                node.Left = Delete(node.Left, start, length);
+            }
+            else
+            {
+                start -= node.Left.Length;
+                length -= node.Left.Length;
+                node.Right = Delete(node.Right, start, length);
+            }
+
+            node.UpdateProperties();
         }
 
-        if (length > 0 && node.Right != null)
-            node.Right = Delete(node.Right, start, length);
-
-        if (node.Left == null)
-            return node.Right;
-        if (node.Right == null)
-            return node.Left;
-
-        node.UpdateProperties();
         return node;
     }
 
@@ -345,7 +354,7 @@ public class Rope : IRope
         public string Text { get; set; }
         public Node Left { get; set; }
         public Node Right { get; set; }
-        public int Length { get; private set; }
+        public int Length { get; set; }
         public int LineCount { get; private set; }
         public List<int> LinePositions { get; } = new();
         public bool IsLeaf => Text != null;

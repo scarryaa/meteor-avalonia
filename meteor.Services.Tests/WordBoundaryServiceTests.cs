@@ -29,8 +29,8 @@ public class WordBoundaryServiceTests
     }
 
     [Theory]
-    [InlineData("Hello world", 6, 0)] // Previous word boundary from start of "world"
-    [InlineData("Hello world", 11, 6)] // Previous word boundary from end of "world"
+    [InlineData("Hello world", 6, 5)] // Previous word boundary from start of "world"
+    [InlineData("Hello world", 11, 11)] // Previous word boundary from end of "world"
     public void GetPreviousWordBoundary_ReturnsCorrectBoundary(string text, int position, int expectedBoundary)
     {
         var textBufferMock = new Mock<ITextBuffer>();
@@ -42,8 +42,17 @@ public class WordBoundaryServiceTests
     }
 
     [Theory]
-    [InlineData("Hello world", 5, 6)] // Next word boundary from end of "Hello"
-    [InlineData("Hello world", 0, 5)] // Next word boundary from start of "Hello"
+    [InlineData("Hello world", 0, 5)] // From start of "Hello" to end of "Hello"
+    [InlineData("Hello world", 5, 5)] // From end of "Hello" to end of "Hello"
+    [InlineData("Hello world", 6, 11)] // From start of "world" to end of "world"
+    [InlineData("Hello   world", 5, 5)] // At end of word with multiple spaces
+    [InlineData("Hello   world", 6, 8)] // In space between words
+    [InlineData("Hello", 0, 5)] // Single word
+    [InlineData("Hello", 5, 5)] // At the end of the text
+    [InlineData("Hello_world", 0, 11)] // Underscore is considered part of the word
+    [InlineData("Hello-world", 0, 11)] // Hyphen is considered part of the word
+    [InlineData("  Hello  ", 0, 2)] // Leading spaces
+    [InlineData("Hello123", 0, 8)] // Numbers are part of the word
     public void GetNextWordBoundary_ReturnsCorrectBoundary(string text, int position, int expectedBoundary)
     {
         var textBufferMock = new Mock<ITextBuffer>();

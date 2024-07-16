@@ -2,7 +2,7 @@ namespace meteor.Core.Interfaces;
 
 public interface IRope
 {
-    int Length { get; }
+    int Length { get; set; }
     int LineCount { get; }
     void Insert(int index, string text);
     void Delete(int start, int length);

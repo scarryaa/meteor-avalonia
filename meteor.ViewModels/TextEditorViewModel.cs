@@ -497,15 +497,29 @@ public sealed class TextEditorViewModel : ITextEditorViewModel
         }
     }
 
-    public async Task PasteText()
+    public void PasteText(string text)
     {
-        var clipboardText = await _clipboardService.GetTextAsync();
-        if (!string.IsNullOrEmpty(clipboardText))
+        if (string.IsNullOrEmpty(text)) return;
+
+        var insertPosition = Math.Min(SelectionStart, SelectionEnd);
+        var deleteLength = Math.Abs(SelectionEnd - SelectionStart);
+
+        if (insertPosition == -1) insertPosition = CursorPosition;
+
+        if (deleteLength > 0)
         {
-            if (_selectionHandler.HasSelection) DeleteSelection();
-            _textBuffer.InsertText(_cursorManager.Position, clipboardText);
-            _cursorManager.SetPosition(_cursorManager.Position + clipboardText.Length);
+            TextBuffer.DeleteText(insertPosition, deleteLength);
         }
+
+        TextBuffer.InsertText(insertPosition, text);
+
+        // Update cursor position and selection
+        CursorPosition = insertPosition + text.Length;
+        SelectionStart = CursorPosition;
+        SelectionEnd = CursorPosition;
+
+        _logger.LogDebug(
+            $"After paste: CursorPosition={CursorPosition}, TextLength={TextBuffer.Length}, LineCount={TextBuffer.LineCount}");
     }
 
     public void StartSelection()

@@ -64,9 +64,12 @@ public class App : Application
             configure.AddConsole();
             configure.SetMinimumLevel(LogLevel.Information);
         });
-        
+
         // Register services
-        services.AddSingleton<ITextBuffer, TextBuffer>();
+        services.AddSingleton<IRope, Rope>(provider =>
+            new Rope(string.Empty, provider.GetRequiredService<ILogger<Rope>>()));
+        services.AddSingleton<ITextBuffer>(provider =>
+            new TextBuffer(provider.GetRequiredService<IRope>(), provider.GetRequiredService<ILogger<Rope>>()));
         services.AddSingleton<IClipboardService>(_ => new AvaloniaClipboardService(GetMainWindow));
         services.AddSingleton<IImageFactory, AvaloniaImageFactory>();
         services.AddSingleton<ICacheManager, CacheManager>();

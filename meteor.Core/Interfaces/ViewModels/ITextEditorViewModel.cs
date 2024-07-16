@@ -58,7 +58,7 @@ public interface ITextEditorViewModel : INotifyPropertyChanged, IDisposable
 
     #region Clipboard Operations
     Task CopyText();
-    Task PasteText();
+    void PasteText(string text);
 
     #endregion
 
