@@ -245,4 +245,67 @@ public class RopeTests
         _output.WriteLine($"After deletion beyond length, rope length: {rope.Length}");
         Assert.Equal(5000, rope.Length);
     }
+
+    [Fact]
+    public void Insert_MultipleTimes_ShouldUpdateCorrectly()
+    {
+        var rope = new Rope("Hello", _logger);
+        rope.Insert(5, " World");
+        rope.Insert(0, "Say: ");
+        rope.Insert(10, "Beautiful ");
+        Assert.Equal("Say: HelloBeautiful  World", rope.GetText());
+    }
+
+    [Fact]
+    public void Delete_MultipleTimes_ShouldUpdateCorrectly()
+    {
+        var rope = new Rope("Hello Beautiful World", _logger);
+        rope.Delete(5, 10);
+        rope.Delete(0, 1);
+        rope.Delete(rope.Length - 1, 1);
+        Assert.Equal("ello Worl", rope.GetText());
+    }
+
+    [Fact]
+    public void Insert_AndDelete_ShouldWorkTogether()
+    {
+        var rope = new Rope("Hello World", _logger);
+        rope.Insert(6, "Beautiful ");
+        rope.Delete(0, 6);
+        Assert.Equal("Beautiful World", rope.GetText());
+    }
+
+    [Theory]
+    [InlineData("Hello\nWorld\n", 3)]
+    [InlineData("\n\n\n", 4)]
+    [InlineData("No newlines", 1)]
+    public void LineCount_VariousInputs_ShouldReturnCorrectCount(string input, int expectedLineCount)
+    {
+        var rope = new Rope(input, _logger);
+        Assert.Equal(expectedLineCount, rope.LineCount);
+    }
+
+    [Fact]
+    public void GetLineText_EmptyLines_ShouldReturnEmptyString()
+    {
+        var rope = new Rope("\n\n\n", _logger);
+        Assert.Equal("", rope.GetLineText(1));
+    }
+
+    [Fact]
+    public void GetLineIndexFromPosition_EndOfFile_ShouldReturnLastLineIndex()
+    {
+        var rope = new Rope("Hello\nWorld\n", _logger);
+        Assert.Equal(2, rope.GetLineIndexFromPosition(rope.Length));
+    }
+
+    [Fact]
+    public void Insert_NewlineCharacters_ShouldUpdateLineCount()
+    {
+        var rope = new Rope("Hello World", _logger);
+        rope.Insert(5, "\n");
+        Assert.Equal(2, rope.LineCount);
+        rope.Insert(0, "\n\n");
+        Assert.Equal(4, rope.LineCount);
+    }
 }

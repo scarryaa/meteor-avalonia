@@ -182,4 +182,93 @@ public class InputManagerTests
             e.Position == 5 && e.InsertedText == "a" && e.DeletedLength == 0)), Times.Once);
         mockEventArgs.VerifySet(e => e.Handled = true, Times.Once);
     }
+
+    [Fact]
+    public void OnPointerPressed_TripleClick_ShouldSelectLine()
+    {
+        // Arrange
+        var mockEventArgs = new Mock<IPointerPressedEventArgs>();
+        var point = new Mock<IPoint>();
+        point.Setup(p => p.X).Returns(0);
+        point.Setup(p => p.Y).Returns(0);
+        mockEventArgs.Setup(e => e.GetPosition(null)).Returns(point.Object);
+        _mockEditorCommands.Setup(ec => ec.GetPositionFromPoint(It.IsAny<IPoint>())).Returns(5);
+
+        // Act - Simulate three clicks in quick succession
+        _inputManager.OnPointerPressed(mockEventArgs.Object);
+        _inputManager.OnPointerPressed(mockEventArgs.Object);
+        _inputManager.OnPointerPressed(mockEventArgs.Object);
+
+        // Assert
+        _mockSelectionHandler.Verify(sh => sh.SelectLine(5), Times.Once);
+        Assert.True(_inputManager.IsTripleClickDrag);
+        mockEventArgs.VerifySet(e => e.Handled = true, Times.Exactly(3));
+    }
+
+    [Fact]
+    public void OnPointerMoved_WhileDoubleClickDragging_ShouldUpdateSelectionWithWordSelection()
+    {
+        // Arrange
+        var mockEventArgs = new Mock<IPointerEventArgs>();
+        var point = new Mock<IPoint>();
+        mockEventArgs.Setup(e => e.GetPosition(null)).Returns(point.Object);
+        _mockEditorCommands.Setup(ec => ec.GetPositionFromPoint(It.IsAny<IPoint>())).Returns(10);
+        _inputManager.IsDoubleClickDrag = true;
+
+        // Act
+        _inputManager.OnPointerMoved(mockEventArgs.Object);
+
+        // Assert
+        _mockSelectionHandler.Verify(sh => sh.UpdateSelectionDuringDrag(10, true, false), Times.Once);
+        mockEventArgs.VerifySet(e => e.Handled = true, Times.Once);
+    }
+
+    [Fact]
+    public async Task OnKeyDown_CtrlA_ShouldSelectAll()
+    {
+        // Arrange
+        var mockEventArgs = new Mock<IKeyEventArgs>();
+        mockEventArgs.Setup(e => e.Key).Returns(Key.A);
+        mockEventArgs.Setup(e => e.IsControlPressed).Returns(true);
+
+        // Act
+        await _inputManager.OnKeyDown(mockEventArgs.Object);
+
+        // Assert
+        _mockSelectionHandler.Verify(sh => sh.SelectAll(), Times.Once);
+        mockEventArgs.VerifySet(e => e.Handled = true, Times.Once);
+    }
+
+    [Fact]
+    public async Task OnKeyDown_CtrlZ_ShouldUndo()
+    {
+        // Arrange
+        var mockEventArgs = new Mock<IKeyEventArgs>();
+        mockEventArgs.Setup(e => e.Key).Returns(Key.Z);
+        mockEventArgs.Setup(e => e.IsControlPressed).Returns(true);
+
+        // Act
+        await _inputManager.OnKeyDown(mockEventArgs.Object);
+
+        // Assert
+        _mockEditorCommands.Verify(ec => ec.Undo(), Times.Once);
+        mockEventArgs.VerifySet(e => e.Handled = true, Times.Once);
+    }
+
+    [Fact]
+    public async Task OnKeyDown_CtrlShiftZ_ShouldRedo()
+    {
+        // Arrange
+        var mockEventArgs = new Mock<IKeyEventArgs>();
+        mockEventArgs.Setup(e => e.Key).Returns(Key.Z);
+        mockEventArgs.Setup(e => e.IsControlPressed).Returns(true);
+        mockEventArgs.Setup(e => e.IsShiftPressed).Returns(true);
+
+        // Act
+        await _inputManager.OnKeyDown(mockEventArgs.Object);
+
+        // Assert
+        _mockEditorCommands.Verify(ec => ec.Redo(), Times.Once);
+        mockEventArgs.VerifySet(e => e.Handled = true, Times.Once);
+    }
 }

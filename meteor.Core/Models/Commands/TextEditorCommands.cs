@@ -101,19 +101,22 @@ public class TextEditorCommands(
 
     public int GetPositionFromPoint(IPoint? point)
     {
-        if (point != null)
-        {
-            var adjustedY = point.Y + context.VerticalOffset;
-            var line = Math.Min(Math.Max((int)(adjustedY / context.LineHeight), 0), textBuffer.LineCount - 1);
-            var lineText = textBuffer.GetLineText(line);
-            var maxWidth = textMeasurer.MeasureWidth(lineText, context.FontSize, context.FontFamily.Name);
-            var column = Math.Min(Math.Max((int)(point.X * lineText.Length / maxWidth), 0), lineText.Length);
-            var position = 0;
-            for (var i = 0; i < line; i++) position += textBuffer.GetLineLength(i) + 1;
-            position += column;
-            return Math.Min(position, textBuffer.Length);
-        }
-        throw new ArgumentNullException(nameof(point));
+        if (point == null)
+            throw new ArgumentNullException(nameof(point));
+
+        var adjustedY = Math.Max(point.Y + context.VerticalOffset, 0);
+        var line = Math.Min((int)(adjustedY / context.LineHeight), textBuffer.LineCount - 1);
+        var lineText = textBuffer.GetLineText(line);
+
+        if (string.IsNullOrEmpty(lineText))
+            return textBuffer.GetLineStartPosition(line);
+
+        var maxWidth = textMeasurer.MeasureWidth(lineText, context.FontSize, context.FontFamily.Name);
+        var relativeX = Math.Max(Math.Min(point.X, maxWidth), 0);
+        var column = (int)Math.Round(relativeX * lineText.Length / maxWidth);
+
+        var position = textBuffer.GetLineStartPosition(line) + Math.Min(column, lineText.Length);
+        return Math.Min(position, textBuffer.Length);
     }
 
     private void PublishTextChangedEvent(int position, string insertedText, int deletedLength)

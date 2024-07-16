@@ -10,8 +10,9 @@ public class Rope : IRope
     private Node _root;
     private readonly List<List<int>> _cachedLineStarts = new();
     private bool _isLineStartsCacheValid;
-    private const int LineCacheChunkSize = 1000;
     private const int RebalanceThreshold = 2;
+    private const int LineCacheChunkSize = 1000;
+    private const int MaxLeafSize = 4096;
 
     private readonly ILogger _logger;
 
@@ -121,17 +122,25 @@ public class Rope : IRope
     
     private Node Insert(Node node, int index, string text)
     {
-        if (node == null) return new Node(text.ToCharArray());
+        if (node == null) return CreateLeafNode(text);
 
         if (node.IsLeaf)
         {
             if (index < 0 || index > node.Length) return node;
 
-            var newContent = new char[node.Length + text.Length];
-            Array.Copy(node.Chunk, 0, newContent, 0, index);
-            text.CopyTo(0, newContent, index, text.Length);
-            Array.Copy(node.Chunk, index, newContent, index + text.Length, node.Length - index);
-            return new Node(newContent);
+            var totalLength = node.Length + text.Length;
+            if (totalLength <= MaxLeafSize)
+            {
+                // Modify existing node if the result fits
+                var newContent = new char[totalLength];
+                Array.Copy(node.Chunk, 0, newContent, 0, index);
+                text.CopyTo(0, newContent, index, text.Length);
+                Array.Copy(node.Chunk, index, newContent, index + text.Length, node.Length - index);
+                return new Node(newContent);
+            }
+
+            // Split the node if it becomes too large
+            return SplitAndInsert(node, index, text);
         }
 
         if (index <= node.Left.Length)
@@ -141,6 +150,54 @@ public class Rope : IRope
 
         node.UpdateProperties();
         return Balance(node);
+    }
+
+    private Node CreateLeafNode(string text)
+    {
+        if (text.Length <= MaxLeafSize)
+        {
+            return new Node(text.ToCharArray());
+        }
+
+        // Split large text into multiple nodes
+        var left = CreateLeafNode(text.Substring(0, text.Length / 2));
+        var right = CreateLeafNode(text.Substring(text.Length / 2));
+        return new Node(left, right);
+    }
+
+    private Node SplitAndInsert(Node leaf, int index, string text)
+    {
+        var leftSize = index;
+        var rightSize = leaf.Length - index;
+        var insertSize = text.Length;
+
+        Node left, middle, right;
+
+        if (leftSize > 0)
+        {
+            left = new Node(new char[leftSize]);
+            Array.Copy(leaf.Chunk, 0, left.Chunk, 0, leftSize);
+        }
+        else
+        {
+            left = null;
+        }
+
+        middle = CreateLeafNode(text);
+
+        if (rightSize > 0)
+        {
+            right = new Node(new char[rightSize]);
+            Array.Copy(leaf.Chunk, index, right.Chunk, 0, rightSize);
+        }
+        else
+        {
+            right = null;
+        }
+
+        if (left == null) return new Node(middle, right);
+        if (right == null) return new Node(left, middle);
+        return new Node(new Node(left, middle), right);
     }
 
     private Node BuildBalancedTree(List<Node> nodes, int start, int end)

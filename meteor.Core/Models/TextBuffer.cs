@@ -53,6 +53,7 @@ public class TextBuffer : ITextBuffer
             return;
 
         _logger.LogDebug($"Inserting text '{text}' at position {position}");
+        position = Math.Min(position, Length); // Ensure position does not exceed buffer length
 
         _rope.Insert(position, text);
         InvalidateCache();
@@ -65,6 +66,8 @@ public class TextBuffer : ITextBuffer
     {
         if (length <= 0 || start < 0 || start >= Length)
             return;
+
+        length = Math.Min(length, Length - start); // Ensure length does not exceed remaining text length
 
         _rope.Delete(start, length);
         InvalidateCache();
@@ -137,7 +140,6 @@ public class TextBuffer : ITextBuffer
         return _rope.GetLineEndPosition(lineIndex);
     }
 
-
     public int GetLineLength(int lineIndex)
     {
         return _rope.GetLineLength(lineIndex);
@@ -145,19 +147,18 @@ public class TextBuffer : ITextBuffer
 
     public int GetLineIndexFromPosition(int position)
     {
-        if (position < 0 || position > Length)
-        {
-            _logger.LogError(
-                $"Invalid position {position} for GetLineIndexFromPosition. Valid range is 0 to {Length}.");
-            throw new ArgumentOutOfRangeException(nameof(position), $"Position must be between 0 and {Length}");
-        }
+        _logger.LogDebug($"GetLineIndexFromPosition called with position {position}");
+
+        if (Length == 0) return 0; // If the buffer is empty, return 0 as the line index
+
+        // Clamp the position to valid range
+        position = Math.Clamp(position, 0, Length);
 
         if (position == Length) return LineCount - 1;
 
         var lineIndex = _rope.GetLineIndexFromPosition(position);
         return Math.Max(0, lineIndex); // Ensure non-negative
     }
-
 
     private void UpdateLineStartsCache()
     {
@@ -179,6 +180,8 @@ public class TextBuffer : ITextBuffer
 
     protected virtual void OnTextChanged(int position, string insertedText, int deletedLength)
     {
+        _logger.LogDebug(
+            $"OnTextChanged called with position {position}, insertedText '{insertedText}', deletedLength {deletedLength}");
         TextChanged?.Invoke(this, new TextChangedEventArgs(position, insertedText, deletedLength));
     }
 }

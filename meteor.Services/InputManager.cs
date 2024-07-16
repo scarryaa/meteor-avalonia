@@ -17,6 +17,8 @@ public class InputManager(
     ITextBuffer textBuffer)
     : IInputManager
 {
+    private int _clickCount;
+    private DateTime _firstClickTime;
     private IPoint? _lastClickPosition;
     private DateTime _lastClickTime;
 
@@ -34,30 +36,39 @@ public class InputManager(
         var currentTime = DateTime.Now;
         var textPosition = editorCommands.GetPositionFromPoint(currentPosition);
 
+        logger.LogDebug(
+            $"OnPointerPressed: Position = {currentPosition}, Time = {currentTime}, TextPosition = {textPosition}");
+
         if (IsTripleClick(currentTime, currentPosition))
         {
+            logger.LogDebug("Triple click detected");
             selectionHandler.SelectLine(textPosition);
             IsTripleClickDrag = true;
+            _clickCount = 0; // Reset click count after triple click
         }
         else if (IsDoubleClick(currentTime, currentPosition))
         {
+            logger.LogDebug("Double click detected");
             selectionHandler.SelectWord(textPosition);
             IsDoubleClickDrag = true;
+            _clickCount++; // Increment for potential triple click
         }
         else
         {
+            logger.LogDebug("Single click detected");
             cursorManager.SetPosition(textPosition);
             selectionHandler.StartSelection(textPosition);
-
             PublishCursorPositionChanged(textPosition);
             eventAggregator.Publish(new IsSelectingChangedEventArgs(true));
+            _clickCount = 1; // Reset to 1 for first click
+            _firstClickTime = currentTime;
         }
 
         _lastClickPosition = currentPosition;
         _lastClickTime = currentTime;
         e.Handled = true;
     }
-
+    
     public void OnPointerMoved(IPointerEventArgs e)
     {
         if (selectionHandler.IsSelecting || IsDoubleClickDrag || IsTripleClickDrag)
@@ -144,14 +155,21 @@ public class InputManager(
 
     private bool IsTripleClick(DateTime currentTime, IPoint? currentPosition)
     {
-        return (currentTime - _lastClickTime).TotalMilliseconds <= TripleClickTimeThreshold &&
-               DistanceBetweenPoints(currentPosition, _lastClickPosition) <= DoubleClickDistanceThreshold &&
-               (currentTime - _lastClickTime).TotalMilliseconds > DoubleClickTimeThreshold;
+        logger.LogDebug(
+            $"IsTripleClick: CurrentTime = {currentTime}, LastClickTime = {_lastClickTime}, Position = {currentPosition}, LastPosition = {_lastClickPosition}");
+
+        return _clickCount == 2 &&
+               (currentTime - _firstClickTime).TotalMilliseconds <= TripleClickTimeThreshold &&
+               DistanceBetweenPoints(currentPosition, _lastClickPosition) <= DoubleClickDistanceThreshold;
     }
 
     private bool IsDoubleClick(DateTime currentTime, IPoint? currentPosition)
     {
-        return (currentTime - _lastClickTime).TotalMilliseconds <= DoubleClickTimeThreshold &&
+        logger.LogDebug(
+            $"IsDoubleClick: CurrentTime = {currentTime}, LastClickTime = {_lastClickTime}, Position = {currentPosition}, LastPosition = {_lastClickPosition}");
+
+        return _clickCount == 1 &&
+               (currentTime - _lastClickTime).TotalMilliseconds <= DoubleClickTimeThreshold &&
                DistanceBetweenPoints(currentPosition, _lastClickPosition) <= DoubleClickDistanceThreshold;
     }
 
@@ -192,3 +210,4 @@ public class InputManager(
         // TODO dispose of resources
     }
 }
+

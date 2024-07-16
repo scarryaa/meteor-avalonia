@@ -1,5 +1,6 @@
 using meteor.Core.Interfaces;
 using meteor.Core.Models;
+using meteor.Core.Models.Events;
 using Microsoft.Extensions.Logging;
 using Moq;
 
@@ -271,6 +272,125 @@ public class TextBufferTests
     {
         var buffer = new TextBuffer(_mockRope.Object, _mockLogger.Object);
         buffer.SetText("Line 1\nLine 2");
-        Assert.Throws<ArgumentOutOfRangeException>(() => buffer.GetLineIndexFromPosition(position));
+    }
+
+    [Fact]
+    public void InsertText_AtEndOfBuffer_ShouldAppendCorrectly()
+    {
+        var buffer = new TextBuffer(_mockRope.Object, _mockLogger.Object);
+        buffer.SetText("Hello");
+        buffer.InsertText(5, " World");
+        Assert.Equal("Hello World", buffer.Text);
+    }
+
+    [Fact]
+    public void DeleteText_EntireBuffer_ShouldResultInEmptyBuffer()
+    {
+        var buffer = new TextBuffer(_mockRope.Object, _mockLogger.Object);
+        buffer.SetText("Hello World");
+        buffer.DeleteText(0, 11);
+        Assert.Equal("", buffer.Text);
+        Assert.Equal(0, buffer.Length);
+        Assert.Equal(1, buffer.LineCount);
+    }
+
+    [Fact]
+    public void InsertText_LargeText_ShouldUpdateLengthCorrectly()
+    {
+        var buffer = new TextBuffer(_mockRope.Object, _mockLogger.Object);
+        var largeText = new string('A', 1000000);
+        buffer.InsertText(0, largeText);
+        Assert.Equal(1000000, buffer.Length);
+    }
+
+    [Fact]
+    public void GetLineIndexFromPosition_AtEndOfLine_ShouldReturnCorrectIndex()
+    {
+        var buffer = new TextBuffer(_mockRope.Object, _mockLogger.Object);
+        buffer.SetText("Line 1\nLine 2\nLine 3");
+        Assert.Equal(0, buffer.GetLineIndexFromPosition(6)); // End of "Line 1"
+        Assert.Equal(1, buffer.GetLineIndexFromPosition(13)); // End of "Line 2"
+    }
+
+    [Fact]
+    public void GetLineLength_LastLine_ShouldReturnCorrectLength()
+    {
+        var buffer = new TextBuffer(_mockRope.Object, _mockLogger.Object);
+        buffer.SetText("Line 1\nLine 2\nLine 3");
+        Assert.Equal(6, buffer.GetLineLength(2)); // "Line 3" without newline
+    }
+
+    [Fact]
+    public void TextChanged_InsertText_ShouldProvideCorrectEventArgs()
+    {
+        var buffer = new TextBuffer(_mockRope.Object, _mockLogger.Object);
+        TextChangedEventArgs capturedArgs = null;
+        buffer.TextChanged += (sender, args) => capturedArgs = args;
+
+        buffer.InsertText(0, "Hello");
+
+        Assert.NotNull(capturedArgs);
+        Assert.Equal(0, capturedArgs.Position);
+        Assert.Equal("Hello", capturedArgs.InsertedText);
+        Assert.Equal(0, capturedArgs.DeletedLength);
+    }
+
+    [Fact]
+    public void TextChanged_DeleteText_ShouldProvideCorrectEventArgs()
+    {
+        var buffer = new TextBuffer(_mockRope.Object, _mockLogger.Object);
+        buffer.SetText("Hello World");
+        TextChangedEventArgs capturedArgs = null;
+        buffer.TextChanged += (sender, args) => capturedArgs = args;
+
+        buffer.DeleteText(0, 6);
+
+        Assert.NotNull(capturedArgs);
+        Assert.Equal(0, capturedArgs.Position);
+        Assert.Equal("", capturedArgs.InsertedText);
+        Assert.Equal(6, capturedArgs.DeletedLength);
+    }
+
+    [Fact]
+    public void GetLineText_WithBuffer_ShouldCopyCorrectTextToBuffer()
+    {
+        var buffer = new TextBuffer(_mockRope.Object, _mockLogger.Object);
+        buffer.SetText("Line 1\nLine 2\nLine 3");
+        var charBuffer = new char[10];
+
+        var copiedLength = buffer.GetLineText(1, charBuffer);
+
+        Assert.Equal(6, copiedLength);
+        Assert.Equal("Line 2", new string(charBuffer, 0, copiedLength));
+    }
+
+    [Fact]
+    public void GetLineText_WithSpan_ShouldCopyCorrectTextToSpan()
+    {
+        var buffer = new TextBuffer(_mockRope.Object, _mockLogger.Object);
+        buffer.SetText("Line 1\nLine 2\nLine 3");
+        var charArray = new char[10];
+        var span = new Span<char>(charArray);
+
+        var copiedLength = buffer.GetLineText(1, span);
+
+        Assert.Equal(6, copiedLength);
+        Assert.Equal("Line 2", new string(span.Slice(0, copiedLength)));
+    }
+
+    [Fact]
+    public void Clear_ShouldTriggerTextChangedEvent()
+    {
+        var buffer = new TextBuffer(_mockRope.Object, _mockLogger.Object);
+        buffer.SetText("Hello World");
+        TextChangedEventArgs capturedArgs = null;
+        buffer.TextChanged += (sender, args) => capturedArgs = args;
+
+        buffer.Clear();
+
+        Assert.NotNull(capturedArgs);
+        Assert.Equal(0, capturedArgs.Position);
+        Assert.Equal("", capturedArgs.InsertedText);
+        Assert.Equal(11, capturedArgs.DeletedLength);
     }
 }
