@@ -1,7 +1,7 @@
-using meteor.Application.Services;
 using meteor.Core.Enums;
 using meteor.Core.Interfaces.Services;
 using meteor.Core.Models.Events;
+using meteor.Core.Services;
 using Moq;
 using Xunit.Abstractions;
 
@@ -261,7 +261,7 @@ public class InputServiceTests
         // Arrange
         var e = new PointerPressedEventArgs { X = 10, Y = 20 };
         _textBufferServiceMock.Setup(t => t.Length).Returns(11);
-        _textMeasurerMock.Setup(m => m.GetIndexAtPosition(It.IsAny<string>(), 10, 20)).Returns(5);
+        _textMeasurerMock.Setup(m => m.GetIndexAtPosition(It.IsAny<ITextBufferService>(), 10, 20, 0, 0)).Returns(5);
 
         // Act
         _inputService.HandlePointerPressed(e);
@@ -277,7 +277,7 @@ public class InputServiceTests
         // Arrange
         var pressEvent = new PointerPressedEventArgs { X = 10, Y = 20 };
         _textBufferServiceMock.Setup(t => t.Length).Returns(11);
-        _textMeasurerMock.Setup(m => m.GetIndexAtPosition(It.IsAny<string>(), 10, 20)).Returns(5);
+        _textMeasurerMock.Setup(m => m.GetIndexAtPosition(It.IsAny<ITextBufferService>(), 10, 20, 0, 0)).Returns(5);
 
         // Act
         _inputService.HandlePointerPressed(pressEvent);
@@ -327,7 +327,7 @@ public class InputServiceTests
         // Arrange
         var e = new PointerEventArgs { X = 10, Y = 20, IsLeftButtonPressed = false };
         _textBufferServiceMock.Setup(t => t.Length).Returns(11);
-        _textMeasurerMock.Setup(m => m.GetIndexAtPosition(It.IsAny<string>(), 10, 20)).Returns(5);
+        _textMeasurerMock.Setup(m => m.GetIndexAtPosition(It.IsAny<ITextBufferService>(), 10, 20, 0, 0)).Returns(5);
 
         // Act
         _inputService.HandlePointerMoved(e);
@@ -343,7 +343,7 @@ public class InputServiceTests
         // Arrange
         var e = new PointerPressedEventArgs { X = 10, Y = 20 };
         _textBufferServiceMock.Setup(t => t.Length).Returns(11);
-        _textMeasurerMock.Setup(m => m.GetIndexAtPosition(It.IsAny<string>(), 10, 20)).Returns(5);
+        _textMeasurerMock.Setup(m => m.GetIndexAtPosition(It.IsAny<ITextBufferService>(), 10, 20, 0, 0)).Returns(5);
 
         // Act
         _inputService.HandlePointerPressed(e);
@@ -391,11 +391,11 @@ public class InputServiceTests
     {
         // Arrange
         var pressEvent = new PointerPressedEventArgs { X = 0, Y = 0 };
-        _textMeasurerMock.Setup(m => m.GetIndexAtPosition(It.IsAny<string>(), 0, 0)).Returns(0);
+        _textMeasurerMock.Setup(m => m.GetIndexAtPosition(It.IsAny<ITextBufferService>(), 0, 0, 0, 0)).Returns(0);
 
         var moveEvent = new PointerEventArgs { X = 10, Y = 20, IsLeftButtonPressed = true };
         _textBufferServiceMock.Setup(t => t.Length).Returns(11);
-        _textMeasurerMock.Setup(m => m.GetIndexAtPosition(It.IsAny<string>(), 10, 20)).Returns(5);
+        _textMeasurerMock.Setup(m => m.GetIndexAtPosition(It.IsAny<ITextBufferService>(), 10, 20, 0, 0)).Returns(5);
 
         // Act
         _inputService.HandlePointerPressed(pressEvent);
@@ -412,7 +412,7 @@ public class InputServiceTests
         // Arrange
         var moveEvent = new PointerEventArgs { X = 10, Y = 20, IsLeftButtonPressed = false };
         _textBufferServiceMock.Setup(t => t.Length).Returns(11);
-        _textMeasurerMock.Setup(m => m.GetIndexAtPosition(It.IsAny<string>(), 10, 20)).Returns(5);
+        _textMeasurerMock.Setup(m => m.GetIndexAtPosition(It.IsAny<ITextBufferService>(), 10, 20, 0, 0)).Returns(5);
 
         // Act
         _inputService.HandlePointerMoved(moveEvent);
@@ -443,15 +443,15 @@ public class InputServiceTests
 
         // Simulate press at the beginning
         var pressEvent = new PointerPressedEventArgs { X = 0, Y = 0 };
-        _textMeasurerMock.Setup(m => m.GetIndexAtPosition(It.IsAny<string>(), 0, 0)).Returns(0);
+        _textMeasurerMock.Setup(m => m.GetIndexAtPosition(It.IsAny<ITextBufferService>(), 0, 0, 0, 0)).Returns(0);
 
         // Simulate move to the middle
         var moveEvent1 = new PointerEventArgs { X = 10, Y = 0, IsLeftButtonPressed = true };
-        _textMeasurerMock.Setup(m => m.GetIndexAtPosition(It.IsAny<string>(), 10, 0)).Returns(10);
+        _textMeasurerMock.Setup(m => m.GetIndexAtPosition(It.IsAny<ITextBufferService>(), 10, 0, 0, 0)).Returns(10);
 
         // Simulate move to the end
         var moveEvent2 = new PointerEventArgs { X = 20, Y = 0, IsLeftButtonPressed = true };
-        _textMeasurerMock.Setup(m => m.GetIndexAtPosition(It.IsAny<string>(), 20, 0)).Returns(19);
+        _textMeasurerMock.Setup(m => m.GetIndexAtPosition(It.IsAny<ITextBufferService>(), 20, 0, 0, 0)).Returns(19);
 
         // Act
         _inputService.HandlePointerPressed(pressEvent);

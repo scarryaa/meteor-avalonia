@@ -1,16 +1,21 @@
 using System.Diagnostics;
+using System.Text;
 using Avalonia.Headless.XUnit;
 using Avalonia.Media;
+using meteor.Core.Interfaces.Services;
 using meteor.UI.Services;
+using Moq;
 
 namespace meteor.UnitTests.Application.Services;
 
 public class AvaloniaTextMeasurerTests
 {
     private readonly AvaloniaTextMeasurer _measurer;
+    private readonly Mock<ITextBufferService> _textBufferService;
 
     public AvaloniaTextMeasurerTests()
     {
+        _textBufferService = new Mock<ITextBufferService>();
         _measurer = new AvaloniaTextMeasurer(new Typeface("Arial"), 12);
     }
 
@@ -18,9 +23,44 @@ public class AvaloniaTextMeasurerTests
     [InlineData("Hello", 0, 0, 0)]
     [InlineData("Hello", 100, 0, 5)]
     [InlineData("Hello\nWorld", 0, 15, 6)]
+    [InlineData("Line1\nLine2\nLine3", 0, 25, 12)]
+    [InlineData("LongWord", 3.5, 0, 0)]
+    [InlineData("Short", 100, 100, 5)]
+    [InlineData("", 10, 10, 1)]
     public void GetIndexAtPosition_ReturnsCorrectIndex(string text, double x, double y, int expectedIndex)
     {
-        var result = _measurer.GetIndexAtPosition(text, x, y);
+        _textBufferService.Setup(s => s.Length).Returns(text.Length);
+        _textBufferService.Setup(s => s.IndexOf('\n', It.IsAny<int>()))
+            .Returns((char c, int startIndex) => text.IndexOf('\n', startIndex));
+        _textBufferService.Setup(s => s.GetTextSegment(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<StringBuilder>()))
+            .Callback((int start, int length, StringBuilder sb) =>
+            {
+                sb.Clear();
+                sb.Append(text.Substring(start, Math.Min(length, text.Length - start)));
+            });
+
+        var result = _measurer.GetIndexAtPosition(_textBufferService.Object, x, y, 0, 0);
+        Assert.Equal(expectedIndex, result);
+    }
+
+    [AvaloniaTheory]
+    [InlineData("Line1\nLine2\nLine3", 0, 25, 12)] // Position on third line
+    [InlineData("LongWord", 3.5, 0, 0)] // Position between characters
+    [InlineData("Short", 100, 100, 5)] // Position beyond end of text
+    [InlineData("", 10, 10, 1)] // Empty text buffer
+    public void GetIndexAtPosition_AdditionalScenarios(string text, double x, double y, int expectedIndex)
+    {
+        _textBufferService.Setup(s => s.Length).Returns(text.Length);
+        _textBufferService.Setup(s => s.IndexOf('\n', It.IsAny<int>()))
+            .Returns((char c, int startIndex) => text.IndexOf('\n', startIndex));
+        _textBufferService.Setup(s => s.GetTextSegment(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<StringBuilder>()))
+            .Callback((int start, int length, StringBuilder sb) =>
+            {
+                sb.Clear();
+                sb.Append(text.Substring(start, Math.Min(length, text.Length - start)));
+            });
+
+        var result = _measurer.GetIndexAtPosition(_textBufferService.Object, x, y, 0, 0);
         Assert.Equal(expectedIndex, result);
     }
 
@@ -66,8 +106,8 @@ public class AvaloniaTextMeasurerTests
     public void ConsistentResultsAcrossMultipleCalls()
     {
         const string text = "Consistency Test";
-        var firstResult = _measurer.GetIndexAtPosition(text, 50, 0);
-        var secondResult = _measurer.GetIndexAtPosition(text, 50, 0);
+        var firstResult = _measurer.GetIndexAtPosition(_textBufferService.Object, 50, 0, 0, 0);
+        var secondResult = _measurer.GetIndexAtPosition(_textBufferService.Object, 50, 0, 0, 0);
 
         Assert.Equal(firstResult, secondResult);
     }

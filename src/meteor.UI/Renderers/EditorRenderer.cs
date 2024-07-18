@@ -28,6 +28,11 @@ public class EditorRenderer
     private DispatcherTimer _cursorBlinkTimer;
     private readonly Action _invalidateView;
 
+    private const int BufferLines = 5; // Number of extra lines to render above and below the visible area
+
+    private readonly List<(int start, int length)> _lineInfo = new();
+    private int _totalLines;
+
     public EditorRenderer(Action invalidateView)
     {
         _textMeasurer = new AvaloniaTextMeasurer(_typeface, _fontSize);
@@ -45,36 +50,46 @@ public class EditorRenderer
         _cursorBlinkTimer.Start();
     }
 
-    public void Render(DrawingContext context, Rect bounds, ITextBufferService textBufferService,
-        IEnumerable<SyntaxHighlightingResult> highlightingResults,
-        (int start, int length) selection, int cursorPosition,
-        int firstVisibleLine, int visibleLineCount,
-        double offsetX, double offsetY)
+    public void UpdateLineInfo(ITextBufferService textBufferService)
     {
-        context.DrawRectangle(Brushes.White, null, bounds);
-
-        var lineHeight = _textMeasurer.GetLineHeight();
+        _lineInfo.Clear();
+        _totalLines = 0;
         var currentIndex = 0;
-        var lineNumber = 0;
 
-        while (currentIndex < textBufferService.Length && lineNumber < firstVisibleLine + visibleLineCount)
+        while (currentIndex < textBufferService.Length)
         {
             var lineEndIndex = textBufferService.IndexOf('\n', currentIndex);
             if (lineEndIndex == -1) lineEndIndex = textBufferService.Length;
 
-            if (lineNumber >= firstVisibleLine)
-            {
-                var lineLength = lineEndIndex - currentIndex;
-                var lineY = (lineNumber - firstVisibleLine) * lineHeight + offsetY;
-
-                if (lineY >= bounds.Top && lineY < bounds.Bottom)
-                    RenderLine(context, textBufferService, lineNumber, currentIndex, lineLength, lineY,
-                        highlightingResults, selection,
-                        cursorPosition, offsetX);
-            }
+            var lineLength = lineEndIndex - currentIndex;
+            _lineInfo.Add((currentIndex, lineLength));
+            _totalLines++;
 
             currentIndex = lineEndIndex + 1;
-            lineNumber++;
+        }
+    }
+
+    public void Render(DrawingContext context, Rect bounds, ITextBufferService textBufferService,
+        IEnumerable<SyntaxHighlightingResult> highlightingResults,
+        (int start, int length) selection, int cursorPosition,
+        double scrollOffset, double offsetX)
+    {
+        context.DrawRectangle(Brushes.White, null, bounds);
+
+        var lineHeight = _textMeasurer.GetLineHeight();
+        var firstVisibleLine = Math.Max(0, (int)(scrollOffset / lineHeight) - BufferLines);
+        var lastVisibleLine =
+            Math.Min(_totalLines - 1, (int)((scrollOffset + bounds.Height) / lineHeight) + BufferLines);
+
+        for (var lineNumber = firstVisibleLine; lineNumber <= lastVisibleLine; lineNumber++)
+        {
+            if (lineNumber >= _lineInfo.Count) break;
+
+            var (lineStart, lineLength) = _lineInfo[lineNumber];
+            var lineY = lineNumber * lineHeight - scrollOffset;
+
+            RenderLine(context, textBufferService, lineNumber, lineStart, lineLength, lineY,
+                highlightingResults, selection, cursorPosition, offsetX);
         }
     }
 
@@ -100,16 +115,17 @@ public class EditorRenderer
 
         ApplySyntaxHighlighting(formattedText, lineStart, lineLength, highlightingResults);
 
-        context.DrawText(formattedText, new Point(offsetX, lineY));
+        context.DrawText(formattedText, new Point(-offsetX, lineY));
 
         if (_showCursor && cursorPosition >= lineStart && cursorPosition <= lineStart + lineLength)
         {
             var cursorX = _textMeasurer.GetPositionAtIndex(sb.ToString(), cursorPosition - lineStart).x;
             context.DrawLine(_cursorPen,
-                new Point(cursorX + offsetX, lineY),
-                new Point(cursorX + offsetX, lineY + _textMeasurer.GetLineHeight()));
+                new Point(cursorX - offsetX, lineY),
+                new Point(cursorX - offsetX, lineY + _textMeasurer.GetLineHeight()));
         }
     }
+
 
     private void DrawLineSelection(DrawingContext context, ITextBufferService textBufferService, int lineStart,
         int lineLength, double lineY, (int start, int length) selection, double offsetX)
@@ -131,7 +147,7 @@ public class EditorRenderer
                     : GetXPositionForIndex(textBufferService, lineStart, lineLength);
 
                 context.DrawRectangle(_selectionBrush, null,
-                    new Rect(startX + offsetX, lineY, endX - startX, _textMeasurer.GetLineHeight()));
+                    new Rect(startX - offsetX, lineY, endX - startX, _textMeasurer.GetLineHeight()));
             }
         }
     }

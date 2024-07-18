@@ -7,6 +7,7 @@ using meteor.Core.Interfaces.Services;
 using meteor.Core.Interfaces.ViewModels;
 using meteor.Core.Models.Events;
 using meteor.Core.Models.SyntaxHighlighting;
+using meteor.Core.Services;
 
 namespace meteor.UI.ViewModels;
 
@@ -23,6 +24,8 @@ public class EditorViewModel : IEditorViewModel
     private readonly StringBuilder _stringBuilder = new();
     private string _cachedText;
     private bool _isTextDirty = true;
+    private double _verticalScrollOffset;
+    private double _horizontalScrollOffset;
     
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -112,6 +115,13 @@ public class EditorViewModel : IEditorViewModel
         }
     }
 
+    public void UpdateScrollOffset(double horizontalScrollOffset, double verticalScrollOffset)
+    {
+        _verticalScrollOffset = verticalScrollOffset;
+        _horizontalScrollOffset = horizontalScrollOffset;
+        (_inputService as InputService)?.UpdateScrollOffset(verticalScrollOffset, horizontalScrollOffset);
+    }
+    
     public void UpdateWindowSize(double width, double height)
     {
         _sizeCalculator.UpdateWindowSize(width, height);

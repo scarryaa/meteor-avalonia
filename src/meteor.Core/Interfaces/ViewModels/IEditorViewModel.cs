@@ -19,6 +19,7 @@ public interface IEditorViewModel : INotifyPropertyChanged
     void InsertText(int index, string text);
     void DeleteText(int index, int length);
 
+    void UpdateScrollOffset(double horizontalScrollOffset, double verticalScrollOffset);
     void UpdateWindowSize(double width, double height);
     void OnPointerPressed(PointerPressedEventArgs e);
     void OnPointerMoved(PointerEventArgs e);

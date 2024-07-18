@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.Text;
 using Avalonia;
 using Avalonia.Media;
 using Avalonia.Media.TextFormatting;
@@ -12,6 +14,7 @@ public class AvaloniaTextMeasurer : ITextMeasurer
 {
     private readonly Typeface _typeface;
     private readonly double _fontSize;
+    private readonly double _lineHeight;
     private readonly LruCache<string, TextLayout> _textLayoutCache;
     private readonly TextLayout _singleCharLayout;
     private readonly Dictionary<char, double> _charWidthCache;
@@ -23,16 +26,62 @@ public class AvaloniaTextMeasurer : ITextMeasurer
     {
         _typeface = typeface;
         _fontSize = fontSize;
+
+        var formattedText = new FormattedText(
+            "X",
+            CultureInfo.CurrentCulture,
+            FlowDirection.LeftToRight,
+            _typeface,
+            _fontSize,
+            Brushes.Transparent
+        );
+        _lineHeight = formattedText.Height;
+        
         _textLayoutCache = new LruCache<string, TextLayout>(MaxCacheSize);
         _singleCharLayout = CreateTextLayout("X");
         _charWidthCache = new Dictionary<char, double>();
     }
 
-    public int GetIndexAtPosition(string text, double x, double y)
+    public int GetIndexAtPosition(ITextBufferService textBufferService, double x, double y, double verticalScrollOffset,
+        double horizontalScrollOffset)
     {
-        var textLayout = GetOrCreateTextLayout(text);
-        var hitTestResult = textLayout.HitTestPoint(new Point(x, y));
-        return hitTestResult.TextPosition;
+        var adjustedY = y + verticalScrollOffset;
+        var adjustedX = x + horizontalScrollOffset;
+        var lineNumber = Math.Max(0, (int)(adjustedY / _lineHeight));
+        var currentIndex = 0;
+        var currentLine = 0;
+
+        while (currentIndex < textBufferService.Length && currentLine < lineNumber)
+        {
+            var nextNewLine = textBufferService.IndexOf('\n', currentIndex);
+            if (nextNewLine == -1)
+                break;
+            currentIndex = nextNewLine + 1;
+            currentLine++;
+        }
+
+        // Find the end of the current line
+        var lineEndIndex = textBufferService.IndexOf('\n', currentIndex);
+        if (lineEndIndex == -1)
+            lineEndIndex = textBufferService.Length;
+
+        var lineLength = lineEndIndex - currentIndex;
+        var sb = new StringBuilder(lineLength);
+        textBufferService.GetTextSegment(currentIndex, lineLength, sb);
+        var lineText = sb.ToString();
+
+        var textLayout = new TextLayout(
+            lineText,
+            _typeface,
+            _fontSize,
+            Brushes.Black,
+            TextAlignment.Left,
+            TextWrapping.NoWrap,
+            TextTrimming.None
+        );
+
+        var hitTestResult = textLayout.HitTestPoint(new Point(adjustedX, 0));
+        return currentIndex + hitTestResult.TextPosition;
     }
 
     public (double x, double y) GetPositionAtIndex(string text, int index)
@@ -68,7 +117,7 @@ public class AvaloniaTextMeasurer : ITextMeasurer
 
     public double GetLineHeight()
     {
-        return _singleCharLayout.Height;
+        return _lineHeight;
     }
 
     public double GetCharWidth()

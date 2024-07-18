@@ -30,7 +30,13 @@ public partial class EditorView : UserControl
         _scrollViewer = this.FindControl<ScrollViewer>("ScrollViewer");
         _editorPanel = this.FindControl<Panel>("EditorPanel");
 
-        if (_scrollViewer != null) _scrollViewer.ScrollChanged += (_, _) => InvalidateVisual();
+        if (_scrollViewer != null && _viewModel != null)
+            _scrollViewer.ScrollChanged += (sender, _) =>
+            {
+                _viewModel.UpdateScrollOffset((sender as ScrollViewer)?.Offset.X ?? 0,
+                    (sender as ScrollViewer)?.Offset.Y ?? 0);
+                InvalidateVisual();
+            };
 
         PointerPressed += OnEditorPointerPressed;
         PointerMoved += OnEditorPointerMoved;
@@ -133,6 +139,7 @@ public partial class EditorView : UserControl
     {
         base.OnTextInput(e);
         _viewModel?.OnTextInput(EventArgsAdapters.ToTextInputEventArgsModel(e));
+        _editorRenderer.UpdateLineInfo(_viewModel.TextBufferService);
     }
 
     protected override async void OnKeyDown(KeyEventArgs e)
@@ -149,6 +156,8 @@ public partial class EditorView : UserControl
                 new Core.Models.Events.KeyEventArgs(meteorKey, (Core.Enums.KeyModifiers?)e.KeyModifiers);
             await _viewModel?.OnKeyDown(meteorKeyEventArgs);
         }
+
+        _editorRenderer.UpdateLineInfo(_viewModel.TextBufferService);
     }
     
     public override void Render(DrawingContext context)
@@ -159,22 +168,15 @@ public partial class EditorView : UserControl
         {
             var offset = _scrollViewer.Offset;
             var viewport = _scrollViewer.Viewport;
-            var (firstVisibleLine, visibleLineCount) =
-                _editorRenderer.CalculateVisibleLines(viewport.Height, offset.Y);
 
             // Adjust the clip rectangle to match the viewport
             var clipRect = new Rect(0, 0, viewport.Width, viewport.Height);
 
-            // Adjust the render rectangle to account for scrolling
-            var renderRect = new Rect(-offset.X, -offset.Y, _editorPanel.Width, _editorPanel.Height);
-
             using (context.PushClip(clipRect))
             {
                 // Render the content
-                _editorRenderer.Render(context, renderRect, _viewModel.TextBufferService,
-                    _viewModel.HighlightingResults,
-                    _viewModel.Selection, _viewModel.CursorPosition, firstVisibleLine, visibleLineCount,
-                    0, 0);
+                _editorRenderer.Render(context, Bounds, _viewModel.TextBufferService, _viewModel.HighlightingResults,
+                    _viewModel.Selection, _viewModel.CursorPosition, offset.Y, offset.X);
             }
         }
     }

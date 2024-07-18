@@ -3,7 +3,7 @@ using meteor.Core.Enums;
 using meteor.Core.Interfaces.Services;
 using meteor.Core.Models.Events;
 
-namespace meteor.Application.Services;
+namespace meteor.Core.Services;
 
 public class InputService : IInputService
 {
@@ -18,6 +18,8 @@ public class InputService : IInputService
     private bool _isSelecting;
     private int _selectionStart = -1;
     private readonly StringBuilder _stringBuilder = new();
+    private double _verticalScrollOffset;
+    private double _horizontalScrollOffset;
 
     public InputService(
         ITextBufferService textBufferService,
@@ -33,6 +35,12 @@ public class InputService : IInputService
         _selectionService = selectionService;
         _clipboardService = clipboardService;
         _textMeasurer = textMeasurer;
+    }
+
+    public void UpdateScrollOffset(double verticalScrollOffset, double horizontalScrollOffset)
+    {
+        _verticalScrollOffset = verticalScrollOffset;
+        _horizontalScrollOffset = horizontalScrollOffset;
     }
 
     public void InsertText(string text)
@@ -334,9 +342,8 @@ public class InputService : IInputService
         int index;
         if (e.X != 0 || e.Y != 0)
         {
-            _stringBuilder.Clear();
-            _textBufferService.AppendTo(_stringBuilder);
-            index = ClampIndex(_textMeasurer.GetIndexAtPosition(_stringBuilder.ToString(), e.X, e.Y));
+            index = ClampIndex(_textMeasurer.GetIndexAtPosition(_textBufferService, e.X, e.Y, _verticalScrollOffset,
+                _horizontalScrollOffset));
         }
         else
         {
@@ -371,9 +378,8 @@ public class InputService : IInputService
     {
         if (!_isSelecting) return;
 
-        _stringBuilder.Clear();
-        _textBufferService.AppendTo(_stringBuilder);
-        var index = ClampIndex(_textMeasurer.GetIndexAtPosition(_stringBuilder.ToString(), e.X, e.Y));
+        var index = ClampIndex(_textMeasurer.GetIndexAtPosition(_textBufferService, e.X, e.Y, _verticalScrollOffset,
+            _horizontalScrollOffset));
 
         if (e.IsLeftButtonPressed)
         {
@@ -417,7 +423,6 @@ public class InputService : IInputService
     private void UpdateSelectionAndCursor(int index)
     {
         if (_selectionStart == -1) _selectionStart = index;
-
         _cursorService.SetCursorPosition(index);
         _selectionService.SetSelection(Math.Min(_selectionStart, index), Math.Abs(_selectionStart - index));
     }

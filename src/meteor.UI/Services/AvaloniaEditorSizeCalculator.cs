@@ -28,8 +28,7 @@ public class AvaloniaEditorSizeCalculator : IEditorSizeCalculator
 
         var contentWidth = Math.Max(_cachedMaxLineWidth, _windowWidth);
         var contentHeight = Math.Max(_cachedLineHeight * _cachedLineCount, _windowHeight);
-
-        Console.WriteLine($"Content size: {contentWidth}x{contentHeight}");
+        
         return (contentWidth, contentHeight);
     }
 

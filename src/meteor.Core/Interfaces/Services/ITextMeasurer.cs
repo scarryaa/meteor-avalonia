@@ -2,7 +2,8 @@ namespace meteor.Core.Interfaces.Services;
 
 public interface ITextMeasurer
 {
-    int GetIndexAtPosition(string text, double x, double y);
+    int GetIndexAtPosition(ITextBufferService textBufferService, double x, double y, double verticalScrollOffset,
+        double horizontalScrollOffset);
     (double x, double y) GetPositionAtIndex(string text, int index);
     double GetStringWidth(string text);
     double GetStringWidth(char[] buffer, int start, int length);

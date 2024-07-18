@@ -97,11 +97,11 @@ public class RopeTests
     }
 
     [Fact]
-    public void Substring_InvalidStartOrLength_ThrowsIndexOutOfRangeException()
+    public void Substring_InvalidStartOrLength_ThrowsArgumentOutOfRangeException()
     {
         var rope = new Rope("hello world");
-        Assert.Throws<IndexOutOfRangeException>(() => rope.Substring(-1, 5));
-        Assert.Throws<IndexOutOfRangeException>(() => rope.Substring(6, 6));
+        Assert.Throws<ArgumentOutOfRangeException>(() => rope.Substring(-1, 5));
+        Assert.Throws<ArgumentOutOfRangeException>(() => rope.Substring(40, 6));
     }
 
     [Fact]
