@@ -4,6 +4,7 @@ using Avalonia;
 using Avalonia.Media;
 using Avalonia.Media.TextFormatting;
 using meteor.Core.Interfaces.Services;
+using meteor.Core.Models;
 
 namespace meteor.UI.Services;
 
@@ -11,13 +12,20 @@ public class AvaloniaTextMeasurer : ITextMeasurer
 {
     private readonly Typeface _typeface;
     private readonly double _fontSize;
-    private readonly Dictionary<string, TextLayout> _textLayoutCache;
+    private readonly LruCache<string, TextLayout> _textLayoutCache;
+    private readonly TextLayout _singleCharLayout;
+    private readonly Dictionary<char, double> _charWidthCache;
+
+    private const int MaxCacheSize = 1000;
+    private const int ChunkSize = 100;
 
     public AvaloniaTextMeasurer(Typeface typeface, double fontSize)
     {
         _typeface = typeface;
         _fontSize = fontSize;
-        _textLayoutCache = new Dictionary<string, TextLayout>();
+        _textLayoutCache = new LruCache<string, TextLayout>(MaxCacheSize);
+        _singleCharLayout = CreateTextLayout("X");
+        _charWidthCache = new Dictionary<char, double>();
     }
 
     public int GetIndexAtPosition(string text, double x, double y)
@@ -36,56 +44,98 @@ public class AvaloniaTextMeasurer : ITextMeasurer
 
     public double GetStringWidth(string text)
     {
-        var textLayout = GetOrCreateTextLayout(text);
-        return textLayout.WidthIncludingTrailingWhitespace;
+        if (string.IsNullOrEmpty(text)) return 0;
+        if (text.Length == 1) return GetCharWidth(text[0]);
+
+        return GetStringWidth(text.ToCharArray(), 0, text.Length);
+    }
+
+    public double GetStringWidth(char[] buffer, int start, int length)
+    {
+        if (length == 0) return 0;
+        if (length == 1) return GetCharWidth(buffer[start]);
+
+        double width = 0;
+        for (var i = start; i < start + length; i++) width += GetCharWidth(buffer[i]);
+        return width;
     }
 
     public double GetStringHeight(string text)
     {
-        var textLayout = GetOrCreateTextLayout(text);
-        return textLayout.Height;
+        if (string.IsNullOrEmpty(text)) return 0;
+        return _singleCharLayout.Height * text.Split('\n').Length;
     }
 
     public double GetLineHeight()
     {
-        return GetOrCreateTextLayout("X").Height;
+        return _singleCharLayout.Height;
     }
 
     public double GetCharWidth()
     {
-        return GetOrCreateTextLayout("X").WidthIncludingTrailingWhitespace;
+        return _singleCharLayout.WidthIncludingTrailingWhitespace;
+    }
+
+    private double GetCharWidth(char c)
+    {
+        if (_charWidthCache.TryGetValue(c, out var width)) return width;
+
+        var layout = CreateTextLayout(c.ToString());
+        width = layout.WidthIncludingTrailingWhitespace;
+        _charWidthCache[c] = width;
+        return width;
     }
 
     public (int line, int column) GetLineAndColumnFromIndex(string text, int index)
     {
-        var lines = text.Split('\n');
+        var line = 0;
         var currentIndex = 0;
-        for (var i = 0; i < lines.Length; i++)
+
+        while (currentIndex < index)
         {
-            if (currentIndex + lines[i].Length >= index) return (i, index - currentIndex);
-            currentIndex += lines[i].Length + 1;
+            var nextNewLine = text.IndexOf('\n', currentIndex);
+            if (nextNewLine == -1 || nextNewLine >= index)
+                return (line, index - currentIndex);
+
+            line++;
+            currentIndex = nextNewLine + 1;
         }
 
-        return (lines.Length - 1, lines[lines.Length - 1].Length);
+        return (line, 0);
     }
 
     public int GetIndexFromLineAndColumn(string text, int line, int column)
     {
-        var lines = text.Split('\n');
-        var index = 0;
-        for (var i = 0; i < line && i < lines.Length; i++) index += lines[i].Length + 1;
-        return index + Math.Min(column, lines[Math.Min(line, lines.Length - 1)].Length);
+        var currentLine = 0;
+        var currentIndex = 0;
+
+        while (currentLine < line && currentIndex < text.Length)
+        {
+            var nextNewLine = text.IndexOf('\n', currentIndex);
+            if (nextNewLine == -1)
+                return Math.Min(currentIndex + column, text.Length);
+
+            currentLine++;
+            currentIndex = nextNewLine + 1;
+        }
+
+        return Math.Min(currentIndex + column, text.Length);
     }
 
     private TextLayout GetOrCreateTextLayout(string text)
     {
-        if (!_textLayoutCache.TryGetValue(text, out var textLayout))
+        if (text.Length <= ChunkSize)
         {
-            textLayout = CreateTextLayout(text);
-            _textLayoutCache[text] = textLayout;
+            if (!_textLayoutCache.TryGet(text, out var textLayout))
+            {
+                textLayout = CreateTextLayout(text);
+                _textLayoutCache.Add(text, textLayout);
+            }
+
+            return textLayout;
         }
 
-        return textLayout;
+        return CreateTextLayout(text);
     }
 
     private TextLayout CreateTextLayout(string text)
@@ -104,5 +154,6 @@ public class AvaloniaTextMeasurer : ITextMeasurer
     public void ClearCache()
     {
         _textLayoutCache.Clear();
+        _charWidthCache.Clear();
     }
 }

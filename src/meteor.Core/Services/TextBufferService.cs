@@ -7,6 +7,7 @@ namespace meteor.Core.Services;
 public class TextBufferService : ITextBufferService
 {
     private readonly TextBuffer _textBuffer;
+    private char[] _spanBuffer = new char[1024];
     private readonly StringBuilder _stringBuilder = new();
 
     public TextBufferService(string initialText = "")
@@ -56,6 +57,11 @@ public class TextBufferService : ITextBufferService
         _textBuffer.GetTextSegment(start, length, output);
     }
 
+    public void GetTextSegment(int start, int length, char[] output)
+    {
+        _textBuffer.GetTextSegment(start, length, output);
+    }
+
     public void ReplaceAll(string newText)
     {
         _textBuffer.ReplaceAll(newText);
@@ -68,13 +74,13 @@ public class TextBufferService : ITextBufferService
 
     public ReadOnlySpan<char> AsSpan(int start, int length)
     {
-        _stringBuilder.Clear();
-        _textBuffer.GetTextSegment(start, length, _stringBuilder);
-        return _stringBuilder.ToString().AsSpan();
+        if (length > _spanBuffer.Length) _spanBuffer = new char[Math.Max(length, _spanBuffer.Length * 2)];
+        _textBuffer.GetTextSegment(start, length, _spanBuffer);
+        return new ReadOnlySpan<char>(_spanBuffer, 0, length);
     }
 
     public void AppendTo(StringBuilder sb)
     {
-        _textBuffer.Iterate(c => sb.Append(c));
+        _textBuffer.GetTextSegment(0, _textBuffer.Length, sb);
     }
 }

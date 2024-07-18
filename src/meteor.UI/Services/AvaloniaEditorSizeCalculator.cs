@@ -1,5 +1,4 @@
 using System;
-using System.Text;
 using meteor.Core.Interfaces.Services;
 
 namespace meteor.UI.Services;
@@ -13,7 +12,8 @@ public class AvaloniaEditorSizeCalculator : IEditorSizeCalculator
     private int _cachedTextLength;
     private double _windowWidth;
     private double _windowHeight;
-    private readonly StringBuilder _stringBuilder = new();
+    private const int ChunkSize = 4096;
+    private readonly char[] _buffer = new char[ChunkSize];
 
     public AvaloniaEditorSizeCalculator(ITextMeasurer textMeasurer)
     {
@@ -37,35 +37,48 @@ public class AvaloniaEditorSizeCalculator : IEditorSizeCalculator
     {
         _cachedLineCount = 0;
         _cachedMaxLineWidth = 0;
-        _stringBuilder.Clear();
+        var bufferIndex = 0;
+        var lineStartIndex = 0;
+
+        void ProcessLine()
+        {
+            if (bufferIndex > lineStartIndex)
+            {
+                var lineWidth = _textMeasurer.GetStringWidth(_buffer, lineStartIndex, bufferIndex - lineStartIndex);
+                if (lineWidth > _cachedMaxLineWidth) _cachedMaxLineWidth = lineWidth;
+            }
+
+            _cachedLineCount++;
+            lineStartIndex = bufferIndex;
+        }
 
         textBufferService.Iterate(c =>
         {
+            if (bufferIndex == ChunkSize)
+            {
+                ProcessLine();
+                bufferIndex = 0;
+                lineStartIndex = 0;
+            }
+
             if (c == '\n')
             {
-                UpdateLine(_stringBuilder.ToString());
-                _stringBuilder.Clear();
-                _cachedLineCount++;
+                ProcessLine();
+                bufferIndex = 0;
+                lineStartIndex = 0;
             }
             else
             {
-                _stringBuilder.Append(c);
+                _buffer[bufferIndex++] = c;
             }
         });
 
-        if (_stringBuilder.Length > 0)
+        if (bufferIndex > lineStartIndex)
         {
-            UpdateLine(_stringBuilder.ToString());
-            _cachedLineCount++;
+            ProcessLine();
         }
 
         _cachedTextLength = textBufferService.Length;
-    }
-
-    private void UpdateLine(string line)
-    {
-        var lineWidth = _textMeasurer.GetStringWidth(line);
-        if (lineWidth > _cachedMaxLineWidth) _cachedMaxLineWidth = lineWidth;
     }
 
     public void UpdateWindowSize(double width, double height)

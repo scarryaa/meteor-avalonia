@@ -171,7 +171,7 @@ public partial class EditorView : UserControl
             using (context.PushClip(clipRect))
             {
                 // Render the content
-                _editorRenderer.Render(context, renderRect, _viewModel.Text,
+                _editorRenderer.Render(context, renderRect, _viewModel.TextBufferService,
                     _viewModel.HighlightingResults,
                     _viewModel.Selection, _viewModel.CursorPosition, firstVisibleLine, visibleLineCount,
                     0, 0);

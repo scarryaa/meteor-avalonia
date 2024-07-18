@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Text;
 using Avalonia;
 using Avalonia.Media;
 using Avalonia.Threading;
 using meteor.Core.Enums.SyntaxHighlighting;
+using meteor.Core.Interfaces.Services;
 using meteor.Core.Models.SyntaxHighlighting;
 using meteor.UI.Services;
 
@@ -43,7 +45,7 @@ public class EditorRenderer
         _cursorBlinkTimer.Start();
     }
 
-    public void Render(DrawingContext context, Rect bounds, string text,
+    public void Render(DrawingContext context, Rect bounds, ITextBufferService textBufferService,
         IEnumerable<SyntaxHighlightingResult> highlightingResults,
         (int start, int length) selection, int cursorPosition,
         int firstVisibleLine, int visibleLineCount,
@@ -55,18 +57,19 @@ public class EditorRenderer
         var currentIndex = 0;
         var lineNumber = 0;
 
-        while (currentIndex < text.Length && lineNumber < firstVisibleLine + visibleLineCount)
+        while (currentIndex < textBufferService.Length && lineNumber < firstVisibleLine + visibleLineCount)
         {
-            var lineEndIndex = text.IndexOf('\n', currentIndex);
-            if (lineEndIndex == -1) lineEndIndex = text.Length;
+            var lineEndIndex = textBufferService.IndexOf('\n', currentIndex);
+            if (lineEndIndex == -1) lineEndIndex = textBufferService.Length;
 
             if (lineNumber >= firstVisibleLine)
             {
-                var line = text.Substring(currentIndex, lineEndIndex - currentIndex);
+                var lineLength = lineEndIndex - currentIndex;
                 var lineY = (lineNumber - firstVisibleLine) * lineHeight + offsetY;
 
                 if (lineY >= bounds.Top && lineY < bounds.Bottom)
-                    RenderLine(context, text, line, lineNumber, currentIndex, lineY, highlightingResults, selection,
+                    RenderLine(context, textBufferService, lineNumber, currentIndex, lineLength, lineY,
+                        highlightingResults, selection,
                         cursorPosition, offsetX);
             }
 
@@ -75,15 +78,17 @@ public class EditorRenderer
         }
     }
 
-    private void RenderLine(DrawingContext context, string fullText, string line, int lineNumber, int lineStart,
-        double lineY,
-        IEnumerable<SyntaxHighlightingResult> highlightingResults,
+    private void RenderLine(DrawingContext context, ITextBufferService textBufferService, int lineNumber, int lineStart,
+        int lineLength, double lineY, IEnumerable<SyntaxHighlightingResult> highlightingResults,
         (int start, int length) selection, int cursorPosition, double offsetX)
     {
-        DrawLineSelection(context, fullText, line, lineStart, lineY, selection, offsetX);
+        DrawLineSelection(context, textBufferService, lineStart, lineLength, lineY, selection, offsetX);
 
+        var sb = new StringBuilder(lineLength);
+        textBufferService.GetTextSegment(lineStart, lineLength, sb);
+        
         var formattedText = new FormattedText(
-            line,
+            sb.ToString(),
             CultureInfo.CurrentCulture,
             FlowDirection.LeftToRight,
             _typeface,
@@ -91,23 +96,25 @@ public class EditorRenderer
             _plainTextBrush
         );
 
-        ApplySyntaxHighlighting(formattedText, line, lineStart, highlightingResults);
+        formattedText.MaxTextWidth = double.PositiveInfinity;
+
+        ApplySyntaxHighlighting(formattedText, lineStart, lineLength, highlightingResults);
 
         context.DrawText(formattedText, new Point(offsetX, lineY));
 
-        if (_showCursor && cursorPosition >= lineStart && cursorPosition <= lineStart + line.Length)
+        if (_showCursor && cursorPosition >= lineStart && cursorPosition <= lineStart + lineLength)
         {
-            var cursorX = _textMeasurer.GetPositionAtIndex(line, cursorPosition - lineStart).x;
+            var cursorX = _textMeasurer.GetPositionAtIndex(sb.ToString(), cursorPosition - lineStart).x;
             context.DrawLine(_cursorPen,
                 new Point(cursorX + offsetX, lineY),
                 new Point(cursorX + offsetX, lineY + _textMeasurer.GetLineHeight()));
         }
     }
 
-    private void DrawLineSelection(DrawingContext context, string fullText, string line, int lineStart, double lineY,
-        (int start, int length) selection, double offsetX)
+    private void DrawLineSelection(DrawingContext context, ITextBufferService textBufferService, int lineStart,
+        int lineLength, double lineY, (int start, int length) selection, double offsetX)
     {
-        var lineEnd = lineStart + line.Length;
+        var lineEnd = lineStart + lineLength;
 
         if (selection.length != 0)
         {
@@ -117,11 +124,11 @@ public class EditorRenderer
             if (!(selectionEnd <= lineStart || selectionStart >= lineEnd))
             {
                 var startX = selectionStart > lineStart
-                    ? _textMeasurer.GetPositionAtIndex(line, selectionStart - lineStart).x
+                    ? GetXPositionForIndex(textBufferService, lineStart, selectionStart - lineStart)
                     : 0;
                 var endX = selectionEnd < lineEnd
-                    ? _textMeasurer.GetPositionAtIndex(line, selectionEnd - lineStart).x
-                    : _textMeasurer.GetStringWidth(line);
+                    ? GetXPositionForIndex(textBufferService, lineStart, selectionEnd - lineStart)
+                    : GetXPositionForIndex(textBufferService, lineStart, lineLength);
 
                 context.DrawRectangle(_selectionBrush, null,
                     new Rect(startX + offsetX, lineY, endX - startX, _textMeasurer.GetLineHeight()));
@@ -129,14 +136,21 @@ public class EditorRenderer
         }
     }
 
-    private void ApplySyntaxHighlighting(FormattedText formattedText, string line, int lineStart,
+    private double GetXPositionForIndex(ITextBufferService textBufferService, int start, int length)
+    {
+        var sb = new StringBuilder(length);
+        textBufferService.GetTextSegment(start, length, sb);
+        return _textMeasurer.GetStringWidth(sb.ToString());
+    }
+
+    private void ApplySyntaxHighlighting(FormattedText formattedText, int lineStart, int lineLength,
         IEnumerable<SyntaxHighlightingResult> highlightingResults)
     {
         foreach (var result in highlightingResults)
-            if (result.StartIndex + result.Length > lineStart && result.StartIndex < lineStart + line.Length)
+            if (result.StartIndex + result.Length > lineStart && result.StartIndex < lineStart + lineLength)
             {
                 var highlightStart = Math.Max(0, result.StartIndex - lineStart);
-                var highlightEnd = Math.Min(line.Length, result.StartIndex + result.Length - lineStart);
+                var highlightEnd = Math.Min(lineLength, result.StartIndex + result.Length - lineStart);
                 var brush = GetBrushForHighlightingType(result.Type);
                 formattedText.SetForegroundBrush(brush, highlightStart, highlightEnd - highlightStart);
             }

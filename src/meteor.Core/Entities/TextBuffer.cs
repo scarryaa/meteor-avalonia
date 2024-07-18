@@ -44,6 +44,15 @@ public class TextBuffer : ITextBuffer
         }
     }
 
+    public void GetTextSegment(int start, int length, char[] output)
+    {
+        lock (_lock)
+        {
+            ProcessQueuedInsertions();
+            for (var i = 0; i < length && i + start < _buffer.Length; i++) output[i] = _buffer[start + i];
+        }
+    }
+
     public void Insert(int index, string text)
     {
         if (string.IsNullOrEmpty(text)) return;
@@ -108,7 +117,7 @@ public class TextBuffer : ITextBuffer
         lock (_lock)
         {
             ProcessQueuedInsertions();
-            foreach (var c in _buffer.ToString()) action(c);
+            for (var i = 0; i < _buffer.Length; i++) action(_buffer[i]);
         }
     }
 

@@ -1,14 +1,17 @@
 using System.Text;
 using meteor.Core.Interfaces;
+using meteor.Core.Models;
 
 namespace meteor.Infrastructure.Data;
 
 public class Rope : IRope
 {
-    private const int ChunkSize = 1024;
+    private const int ChunkSize = 4096;
     private const int RebalanceThreshold = 4;
     private Node _root;
     private readonly ReaderWriterLockSlim _lock = new(LockRecursionPolicy.SupportsRecursion);
+    private readonly LruCache<int, string> _cache = new(100);
+    private static readonly ObjectPool<Node> NodePool = new(() => new Node());
     private int _insertionCount;
 
     private class Node
@@ -18,6 +21,10 @@ public class Rope : IRope
         public Node Left;
         public Node Right;
 
+        public Node()
+        {
+        }
+        
         public Node(string data)
         {
             Data = data;
@@ -258,9 +265,43 @@ public class Rope : IRope
 
     public string Substring(int startIndex, int length)
     {
-        return GetSubstring(startIndex, length).ToString();
+        _lock.EnterReadLock();
+        try
+        {
+            var cacheKey = HashCode.Combine(startIndex, length);
+            if (_cache.TryGet(cacheKey, out var cachedResult)) return cachedResult;
+
+            var result = new StringBuilder(length);
+            SubstringHelper(_root, startIndex, length, result);
+            var substring = result.ToString();
+            _cache.Add(cacheKey, substring);
+            return substring;
+        }
+        finally
+        {
+            _lock.ExitReadLock();
+        }
     }
 
+    private Node CreateNode(string data = null)
+    {
+        var node = NodePool.Get();
+        node.Data = data;
+        node.Left = null;
+        node.Right = null;
+        node.Length = data?.Length ?? 0;
+        return node;
+    }
+
+    private void ReleaseNode(Node node)
+    {
+        node.Data = null;
+        node.Left = null;
+        node.Right = null;
+        node.Length = 0;
+        NodePool.Return(node);
+    }
+    
     private void SubstringHelper(Node node, int start, int length, StringBuilder result)
     {
         if (node == null || length <= 0)
@@ -339,19 +380,9 @@ public class Rope : IRope
 
     public override string ToString()
     {
-        _lock.EnterReadLock();
-        try
-        {
-            var sb = new StringBuilder(_root?.Length ?? 0);
-            BuildString(_root, sb);
-            return sb.ToString();
-        }
-        finally
-        {
-            _lock.ExitReadLock();
-        }
+        return new LazyString(this).ToString();
     }
-
+    
     private void BuildString(Node node, StringBuilder sb)
     {
         if (node == null)
@@ -435,5 +466,28 @@ public class Rope : IRope
     public override int GetHashCode()
     {
         return ToString().GetHashCode();
+    }
+
+    private class LazyString
+    {
+        private readonly Rope _rope;
+        private string _cachedString;
+
+        public LazyString(Rope rope)
+        {
+            _rope = rope;
+        }
+
+        public override string ToString()
+        {
+            if (_cachedString == null)
+            {
+                var sb = new StringBuilder(_rope._root?.Length ?? 0);
+                _rope.BuildString(_rope._root, sb);
+                _cachedString = sb.ToString();
+            }
+
+            return _cachedString;
+        }
     }
 }

@@ -21,6 +21,8 @@ public class EditorViewModel : IEditorViewModel
     private double _editorWidth;
     private double _editorHeight;
     private readonly StringBuilder _stringBuilder = new();
+    private string _cachedText;
+    private bool _isTextDirty = true;
     
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -75,21 +77,28 @@ public class EditorViewModel : IEditorViewModel
     {
         get
         {
-            _stringBuilder.Clear();
-            TextBufferService.AppendTo(_stringBuilder);
-            return _stringBuilder.ToString();
+            if (_isTextDirty)
+            {
+                _stringBuilder.Clear();
+                TextBufferService.AppendTo(_stringBuilder);
+                _cachedText = _stringBuilder.ToString();
+                _isTextDirty = false;
+            }
+
+            return _cachedText;
         }
         set
         {
-            if (Text != value)
+            if (_cachedText != value)
             {
                 TextBufferService.ReplaceAll(value);
+                _cachedText = value;
+                _isTextDirty = false;
                 OnPropertyChanged();
                 UpdateHighlighting();
             }
         }
     }
-
     public ObservableCollection<SyntaxHighlightingResult> HighlightingResults
     {
         get => _highlightingResults;
@@ -119,22 +128,23 @@ public class EditorViewModel : IEditorViewModel
     public void InsertText(int index, string text)
     {
         _inputService.InsertText(text);
+        _isTextDirty = true;
         OnPropertyChanged(nameof(Text));
         UpdateHighlighting();
     }
 
+
     public void DeleteText(int index, int length)
     {
         _inputService.DeleteText(index, length);
+        _isTextDirty = true;
         OnPropertyChanged(nameof(Text));
         UpdateHighlighting();
     }
 
     private void UpdateHighlighting()
     {
-        _stringBuilder.Clear();
-        TextBufferService.AppendTo(_stringBuilder);
-        var results = _syntaxHighlighter.Highlight(_stringBuilder.ToString());
+        var results = _syntaxHighlighter.Highlight(Text);
         HighlightingResults = new ObservableCollection<SyntaxHighlightingResult>(results);
     }
 

@@ -1,5 +1,3 @@
-using System.Text;
-using System.Text.RegularExpressions;
 using meteor.Core.Enums.SyntaxHighlighting;
 using meteor.Core.Interfaces.Services;
 using meteor.Core.Models.SyntaxHighlighting;
@@ -8,15 +6,14 @@ namespace meteor.Application.Services;
 
 public class SyntaxHighlighter : ISyntaxHighlighter
 {
-    private static readonly string[] Keywords = { "if", "else", "for", "while", "return" };
-    private static readonly Regex KeywordRegex =
-        new(@"\b(" + string.Join("|", Keywords) + @")\b", RegexOptions.Compiled);
-    private static readonly Regex CommentRegex =
-        new(@"//.*?$|/\*.*?\*/", RegexOptions.Compiled | RegexOptions.Singleline);
-    private static readonly Regex StringRegex = new(@"""[^""\\]*(?:\\.[^""\\]*)*""", RegexOptions.Compiled);
+    private static readonly HashSet<string> Keywords = new(StringComparer.Ordinal)
+    {
+        "if", "else", "for", "while", "return"
+    };
 
     private readonly ITextBufferService _textBufferService;
-    private readonly StringBuilder _stringBuilder = new();
+    private const int ChunkSize = 4096;
+    private readonly char[] _buffer = new char[ChunkSize];
 
     public SyntaxHighlighter(ITextBufferService textBufferService)
     {
@@ -26,47 +23,110 @@ public class SyntaxHighlighter : ISyntaxHighlighter
     public IEnumerable<SyntaxHighlightingResult> Highlight(string text)
     {
         var results = new List<SyntaxHighlightingResult>();
-        _stringBuilder.Clear();
-        _textBufferService.AppendTo(_stringBuilder);
-        var fullText = _stringBuilder.ToString();
+        var offset = 0;
+        var bufferIndex = 0;
 
-        HighlightKeywords(fullText, results);
-        HighlightComments(fullText, results);
-        HighlightStrings(fullText, results);
-        results.Sort((a, b) => a.StartIndex.CompareTo(b.StartIndex));
+        _textBufferService.Iterate(c =>
+        {
+            _buffer[bufferIndex++] = c;
+            if (bufferIndex == ChunkSize)
+            {
+                ProcessChunk(results, offset);
+                offset += ChunkSize;
+                bufferIndex = 0;
+            }
+        });
+
+        if (bufferIndex > 0) ProcessChunk(results, offset, bufferIndex);
+
         return results;
     }
 
-    private void HighlightKeywords(string text, List<SyntaxHighlightingResult> results)
+    private void ProcessChunk(List<SyntaxHighlightingResult> results, int offset, int length = ChunkSize)
     {
-        foreach (Match match in KeywordRegex.Matches(text))
-            results.Add(new SyntaxHighlightingResult
-            {
-                StartIndex = match.Index,
-                Length = match.Length,
-                Type = SyntaxHighlightingType.Keyword
-            });
+        HighlightKeywords(results, offset, length);
+        HighlightComments(results, offset, length);
+        HighlightStrings(results, offset, length);
     }
 
-    private void HighlightComments(string text, List<SyntaxHighlightingResult> results)
+    private void HighlightKeywords(List<SyntaxHighlightingResult> results, int offset, int length)
     {
-        foreach (Match match in CommentRegex.Matches(text))
-            results.Add(new SyntaxHighlightingResult
+        var start = 0;
+        while (start < length)
+        {
+            while (start < length && !char.IsLetter(_buffer[start])) start++;
+            var end = start;
+            while (end < length && char.IsLetterOrDigit(_buffer[end])) end++;
+            if (end > start)
             {
-                StartIndex = match.Index,
-                Length = match.Length,
-                Type = SyntaxHighlightingType.Comment
-            });
+                var word = new string(_buffer, start, end - start);
+                if (Keywords.Contains(word))
+                    results.Add(new SyntaxHighlightingResult
+                    {
+                        StartIndex = offset + start,
+                        Length = end - start,
+                        Type = SyntaxHighlightingType.Keyword
+                    });
+            }
+
+            start = end;
+        }
     }
 
-    private void HighlightStrings(string text, List<SyntaxHighlightingResult> results)
+    private void HighlightComments(List<SyntaxHighlightingResult> results, int offset, int length)
     {
-        foreach (Match match in StringRegex.Matches(text))
-            results.Add(new SyntaxHighlightingResult
+        for (var i = 0; i < length - 1; i++)
+            if (_buffer[i] == '/' && _buffer[i + 1] == '/')
             {
-                StartIndex = match.Index,
-                Length = match.Length,
-                Type = SyntaxHighlightingType.String
-            });
+                var start = i;
+                while (i < length && _buffer[i] != '\n') i++;
+                results.Add(new SyntaxHighlightingResult
+                {
+                    StartIndex = offset + start,
+                    Length = i - start,
+                    Type = SyntaxHighlightingType.Comment
+                });
+            }
+            else if (_buffer[i] == '/' && _buffer[i + 1] == '*')
+            {
+                var start = i;
+                i += 2;
+                while (i < length - 1 && !(_buffer[i] == '*' && _buffer[i + 1] == '/')) i++;
+                if (i < length - 1)
+                {
+                    i += 2;
+                    results.Add(new SyntaxHighlightingResult
+                    {
+                        StartIndex = offset + start,
+                        Length = i - start,
+                        Type = SyntaxHighlightingType.Comment
+                    });
+                }
+            }
+    }
+
+    private void HighlightStrings(List<SyntaxHighlightingResult> results, int offset, int length)
+    {
+        var inString = false;
+        var start = 0;
+        for (var i = 0; i < length; i++)
+            if (_buffer[i] == '"' && (i == 0 || _buffer[i - 1] != '\\'))
+            {
+                if (!inString)
+                {
+                    start = i;
+                    inString = true;
+                }
+                else
+                {
+                    results.Add(new SyntaxHighlightingResult
+                    {
+                        StartIndex = offset + start,
+                        Length = i - start + 1,
+                        Type = SyntaxHighlightingType.String
+                    });
+                    inString = false;
+                }
+            }
     }
 }

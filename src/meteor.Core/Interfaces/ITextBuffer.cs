@@ -14,4 +14,5 @@ public interface ITextBuffer : IDisposable
     string GetText(int start, int length);
     void ReplaceAll(string newText);
     void Iterate(Action<char> action);
+    void GetTextSegment(int start, int length, char[] output);
 }
