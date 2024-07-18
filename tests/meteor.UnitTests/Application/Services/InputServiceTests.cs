@@ -14,6 +14,8 @@ public class InputServiceTests
     private readonly Mock<ICursorService> _cursorServiceMock;
     private readonly Mock<ITextAnalysisService> _textAnalysisServiceMock;
     private readonly Mock<ISelectionService> _selectionServiceMock;
+    private readonly Mock<IClipboardService> _clipboardServiceMock;
+    private readonly Mock<ITextMeasurer> _textMeasurerMock;
     private readonly InputService _inputService;
     private readonly ITestOutputHelper _output;
 
@@ -23,8 +25,15 @@ public class InputServiceTests
         _cursorServiceMock = new Mock<ICursorService>();
         _textAnalysisServiceMock = new Mock<ITextAnalysisService>();
         _selectionServiceMock = new Mock<ISelectionService>();
-        _inputService = new InputService(_textBufferServiceMock.Object, _cursorServiceMock.Object,
-            _textAnalysisServiceMock.Object, _selectionServiceMock.Object);
+        _clipboardServiceMock = new Mock<IClipboardService>();
+        _textMeasurerMock = new Mock<ITextMeasurer>();
+        _inputService = new InputService(
+            _textBufferServiceMock.Object,
+            _cursorServiceMock.Object,
+            _textAnalysisServiceMock.Object,
+            _selectionServiceMock.Object,
+            _clipboardServiceMock.Object,
+            _textMeasurerMock.Object);
         _output = output;
     }
 
@@ -137,6 +146,7 @@ public class InputServiceTests
     {
         // Arrange
         _textBufferServiceMock.Setup(t => t.Length).Returns(10);
+        _textBufferServiceMock.Setup(t => t.GetText()).Returns(new string('a', 10));
 
         // Act
         _inputService.HandleKeyDown(Key.End);
@@ -255,7 +265,10 @@ public class InputServiceTests
     public void HandlePointerPressed_SingleClick_CallsHandleSingleClick()
     {
         // Arrange
-        var e = new PointerPressedEventArgs { Index = 5 };
+        var e = new PointerPressedEventArgs { X = 10, Y = 20 };
+        _textBufferServiceMock.Setup(t => t.GetText()).Returns("sample text");
+        _textBufferServiceMock.Setup(t => t.Length).Returns(11);
+        _textMeasurerMock.Setup(m => m.GetIndexAtPosition("sample text", 10, 20)).Returns(5);
 
         // Act
         _inputService.HandlePointerPressed(e);
@@ -266,31 +279,53 @@ public class InputServiceTests
     }
 
     [Fact]
+    public void HandlePointerPressed_ClearsExistingSelectionAndStartsNewOne()
+    {
+        // Arrange
+        var pressEvent = new PointerPressedEventArgs { X = 10, Y = 20 };
+        _textBufferServiceMock.Setup(t => t.GetText()).Returns("sample text");
+        _textBufferServiceMock.Setup(t => t.Length).Returns(11);
+        _textMeasurerMock.Setup(m => m.GetIndexAtPosition("sample text", 10, 20)).Returns(5);
+
+        // Act
+        _inputService.HandlePointerPressed(pressEvent);
+
+        // Assert
+        _selectionServiceMock.Verify(s => s.ClearSelection(), Times.Once);
+        _selectionServiceMock.Verify(s => s.StartSelection(5), Times.Once);
+        _cursorServiceMock.Verify(c => c.SetCursorPosition(5), Times.Once);
+    }
+
+    [Fact]
     public void HandlePointerPressed_DoubleClick_CallsHandleDoubleClick()
     {
         // Arrange
-        var e = new PointerPressedEventArgs { Index = 5 };
-        _textBufferServiceMock.Setup(t => t.GetText()).Returns("test text");
-        _textAnalysisServiceMock.Setup(t => t.GetWordBoundariesAt(It.IsAny<string>(), It.IsAny<int>()))
-            .Returns((3, 7));
+        var e = new PointerPressedEventArgs { X = 10, Y = 20 };
+        _textBufferServiceMock.Setup(t => t.GetText()).Returns("sample text");
+        _textBufferServiceMock.Setup(t => t.Length).Returns(11);
+        _textMeasurerMock.Setup(m => m.GetIndexAtPosition("sample text", 10, 20)).Returns(5);
+        _textAnalysisServiceMock.Setup(t => t.GetWordBoundariesAt("sample text", 5))
+            .Returns((0, 6)); // "sample" word boundaries
 
         // Act
         _inputService.HandlePointerPressed(e);
         _inputService.HandlePointerPressed(e);
 
         // Assert
-        _selectionServiceMock.Verify(s => s.SetSelection(3, 4), Times.Once);
-        _cursorServiceMock.Verify(c => c.SetCursorPosition(7), Times.Once);
+        _selectionServiceMock.Verify(s => s.SetSelection(0, 6), Times.Once);
+        _cursorServiceMock.Verify(c => c.SetCursorPosition(6), Times.Once);
     }
 
     [Fact]
     public void HandlePointerPressed_TripleClick_CallsHandleTripleClick()
     {
         // Arrange
-        var e = new PointerPressedEventArgs { Index = 5 };
-        _textBufferServiceMock.Setup(t => t.GetText()).Returns("test\ntext\n");
-        _textAnalysisServiceMock.Setup(t => t.GetLineBoundariesAt(It.IsAny<string>(), It.IsAny<int>()))
-            .Returns((5, 10));
+        var e = new PointerPressedEventArgs { X = 10, Y = 20 };
+        _textBufferServiceMock.Setup(t => t.GetText()).Returns("sample\ntext\n");
+        _textBufferServiceMock.Setup(t => t.Length).Returns(11);
+        _textMeasurerMock.Setup(m => m.GetIndexAtPosition("sample\ntext\n", 10, 20)).Returns(5);
+        _textAnalysisServiceMock.Setup(t => t.GetLineBoundariesAt("sample\ntext\n", 5))
+            .Returns((0, 6)); // First line boundaries
 
         // Act
         _inputService.HandlePointerPressed(e);
@@ -298,34 +333,167 @@ public class InputServiceTests
         _inputService.HandlePointerPressed(e);
 
         // Assert
-        _selectionServiceMock.Verify(s => s.SetSelection(5, 5), Times.Once);
-        _cursorServiceMock.Verify(c => c.SetCursorPosition(10), Times.Once);
+        _selectionServiceMock.Verify(s => s.SetSelection(0, 6), Times.Once);
+        _cursorServiceMock.Verify(c => c.SetCursorPosition(6), Times.Once);
     }
 
     [Fact]
-    public void HandlePointerMoved_UpdatesCursorAndSelection()
+    public void HandlePointerMoved_WithoutLeftButtonPressed_DoesNotUpdateCursorAndSelection()
     {
         // Arrange
-        var e = new PointerEventArgs { X = 10, Y = 20, Index = 5 };
+        var e = new PointerEventArgs { X = 10, Y = 20, IsLeftButtonPressed = false };
+        _textBufferServiceMock.Setup(t => t.GetText()).Returns("sample text");
+        _textBufferServiceMock.Setup(t => t.Length).Returns(11);
+        _textMeasurerMock.Setup(m => m.GetIndexAtPosition("sample text", 10, 20)).Returns(5);
 
         // Act
         _inputService.HandlePointerMoved(e);
 
         // Assert
-        _cursorServiceMock.Verify(c => c.MoveCursor(10, 20), Times.Once);
-        _selectionServiceMock.Verify(s => s.UpdateSelection(5), Times.Once);
+        _cursorServiceMock.Verify(c => c.SetCursorPosition(It.IsAny<int>()), Times.Never);
+        _selectionServiceMock.Verify(s => s.UpdateSelection(It.IsAny<int>()), Times.Never);
     }
 
     [Fact]
-    public void HandlePointerReleased_UpdatesSelection()
+    public void HandlePointerPressed_SingleClick_StartsSelectionAndSetsCursor()
     {
         // Arrange
-        var e = new PointerReleasedEventArgs { Index = 5 };
+        var e = new PointerPressedEventArgs { X = 10, Y = 20 };
+        _textBufferServiceMock.Setup(t => t.GetText()).Returns("sample text");
+        _textBufferServiceMock.Setup(t => t.Length).Returns(11);
+        _textMeasurerMock.Setup(m => m.GetIndexAtPosition("sample text", 10, 20)).Returns(5);
+
+        // Act
+        _inputService.HandlePointerPressed(e);
+
+        // Assert
+        _cursorServiceMock.Verify(c => c.SetCursorPosition(5), Times.Once);
+        _selectionServiceMock.Verify(s => s.StartSelection(5), Times.Once);
+    }
+
+    [Fact]
+    public void HandlePointerPressed_DoubleClick_SelectsWord()
+    {
+        // Arrange
+        var e = new PointerPressedEventArgs { X = 10, Y = 20 };
+        _textBufferServiceMock.Setup(t => t.GetText()).Returns("sample text");
+        _textBufferServiceMock.Setup(t => t.Length).Returns(11);
+        _textMeasurerMock.Setup(m => m.GetIndexAtPosition("sample text", 10, 20)).Returns(5);
+        _textAnalysisServiceMock.Setup(t => t.GetWordBoundariesAt("sample text", 5))
+            .Returns((0, 6)); // "sample" word boundaries
+
+        // Act
+        _inputService.HandlePointerPressed(e);
+        _inputService.HandlePointerPressed(e);
+
+        // Assert
+        _selectionServiceMock.Verify(s => s.SetSelection(0, 6), Times.Once);
+        _cursorServiceMock.Verify(c => c.SetCursorPosition(6), Times.Once);
+    }
+
+    [Fact]
+    public void HandlePointerPressed_TripleClick_SelectsLine()
+    {
+        // Arrange
+        var e = new PointerPressedEventArgs { X = 10, Y = 20 };
+        _textBufferServiceMock.Setup(t => t.GetText()).Returns("sample\ntext\n");
+        _textBufferServiceMock.Setup(t => t.Length).Returns(11);
+        _textMeasurerMock.Setup(m => m.GetIndexAtPosition("sample\ntext\n", 10, 20)).Returns(5);
+        _textAnalysisServiceMock.Setup(t => t.GetLineBoundariesAt("sample\ntext\n", 5))
+            .Returns((0, 7)); // First line boundaries including newline
+
+        // Act
+        _inputService.HandlePointerPressed(e);
+        _inputService.HandlePointerPressed(e);
+        _inputService.HandlePointerPressed(e);
+
+        // Assert
+        _selectionServiceMock.Verify(s => s.SetSelection(0, 7), Times.Once);
+        _cursorServiceMock.Verify(c => c.SetCursorPosition(7), Times.Once);
+    }
+
+    [Fact]
+    public void HandlePointerMoved_WithLeftButtonPressed_UpdatesSelectionAndCursor()
+    {
+        // Arrange
+        var pressEvent = new PointerPressedEventArgs { X = 0, Y = 0 };
+        _textMeasurerMock.Setup(m => m.GetIndexAtPosition("sample text", 0, 0)).Returns(0);
+
+        var moveEvent = new PointerEventArgs { X = 10, Y = 20, IsLeftButtonPressed = true };
+        _textBufferServiceMock.Setup(t => t.GetText()).Returns("sample text");
+        _textBufferServiceMock.Setup(t => t.Length).Returns(11);
+        _textMeasurerMock.Setup(m => m.GetIndexAtPosition("sample text", 10, 20)).Returns(5);
+
+        // Act
+        _inputService.HandlePointerPressed(pressEvent);
+        _inputService.HandlePointerMoved(moveEvent);
+
+        // Assert
+        _cursorServiceMock.Verify(c => c.SetCursorPosition(5), Times.Once);
+        _selectionServiceMock.Verify(s => s.SetSelection(0, 5), Times.Once);
+    }
+
+    [Fact]
+    public void HandlePointerMoved_WithoutLeftButtonPressed_DoesNotUpdateSelectionAndCursor()
+    {
+        // Arrange
+        var moveEvent = new PointerEventArgs { X = 10, Y = 20, IsLeftButtonPressed = false };
+        _textBufferServiceMock.Setup(t => t.GetText()).Returns("sample text");
+        _textBufferServiceMock.Setup(t => t.Length).Returns(11);
+        _textMeasurerMock.Setup(m => m.GetIndexAtPosition("sample text", 10, 20)).Returns(5);
+
+        // Act
+        _inputService.HandlePointerMoved(moveEvent);
+
+        // Assert
+        _cursorServiceMock.Verify(c => c.SetCursorPosition(It.IsAny<int>()), Times.Never);
+        _selectionServiceMock.Verify(s => s.SetSelection(It.IsAny<int>(), It.IsAny<int>()), Times.Never);
+    }
+
+    [Fact]
+    public void HandlePointerReleased_DoesNothing()
+    {
+        // Arrange
+        var e = new PointerReleasedEventArgs { X = 10, Y = 20 };
 
         // Act
         _inputService.HandlePointerReleased(e);
 
         // Assert
-        _selectionServiceMock.Verify(s => s.UpdateSelection(5), Times.Once);
+        _cursorServiceMock.Verify(c => c.SetCursorPosition(It.IsAny<int>()), Times.Never);
+    }
+
+    [Fact]
+    public void HandlePointerEvents_ComplexSelectionScenario()
+    {
+        // Arrange
+        _textBufferServiceMock.Setup(t => t.GetText()).Returns("The quick brown fox");
+        _textBufferServiceMock.Setup(t => t.Length).Returns(19);
+
+        // Simulate press at the beginning
+        var pressEvent = new PointerPressedEventArgs { X = 0, Y = 0 };
+        _textMeasurerMock.Setup(m => m.GetIndexAtPosition("The quick brown fox", 0, 0)).Returns(0);
+
+        // Simulate move to the middle
+        var moveEvent1 = new PointerEventArgs { X = 10, Y = 0, IsLeftButtonPressed = true };
+        _textMeasurerMock.Setup(m => m.GetIndexAtPosition("The quick brown fox", 10, 0)).Returns(10);
+
+        // Simulate move to the end
+        var moveEvent2 = new PointerEventArgs { X = 20, Y = 0, IsLeftButtonPressed = true };
+        _textMeasurerMock.Setup(m => m.GetIndexAtPosition("The quick brown fox", 20, 0)).Returns(19);
+
+        // Act
+        _inputService.HandlePointerPressed(pressEvent);
+        _inputService.HandlePointerMoved(moveEvent1);
+        _inputService.HandlePointerMoved(moveEvent2);
+
+        // Assert
+        _selectionServiceMock.Verify(s => s.ClearSelection(), Times.Once);
+        _selectionServiceMock.Verify(s => s.StartSelection(0), Times.Once);
+        _selectionServiceMock.Verify(s => s.SetSelection(0, 10), Times.Once);
+        _selectionServiceMock.Verify(s => s.SetSelection(0, 19), Times.Once);
+        _cursorServiceMock.Verify(c => c.SetCursorPosition(0), Times.Once);
+        _cursorServiceMock.Verify(c => c.SetCursorPosition(10), Times.Once);
+        _cursorServiceMock.Verify(c => c.SetCursorPosition(19), Times.Once);
     }
 }

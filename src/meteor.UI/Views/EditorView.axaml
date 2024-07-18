@@ -3,4 +3,9 @@
              x:Class="meteor.UI.Views.EditorView"
              Focusable="True">
 
+    <ScrollViewer x:Name="ScrollViewer"
+                  HorizontalScrollBarVisibility="Auto"
+                  VerticalScrollBarVisibility="Auto">
+        <Panel x:Name="EditorPanel" Background="Transparent" />
+    </ScrollViewer>
 </UserControl>

@@ -1,8 +1,12 @@
+using Avalonia.Headless.XUnit;
+using Avalonia.Media;
 using meteor.Application.Interfaces;
 using meteor.Application.Services;
 using meteor.Core.Enums;
 using meteor.Core.Interfaces.Services;
 using meteor.Core.Models.Events;
+using meteor.IntegrationTests.Mocks;
+using meteor.UI.Services;
 using meteor.UI.ViewModels;
 
 namespace meteor.IntegrationTests.UI.ViewModels;
@@ -16,6 +20,9 @@ public class EditorViewModelIntegrationTests : IDisposable
     private readonly IInputService _inputService;
     private readonly EditorViewModel _viewModel;
     private readonly ITextAnalysisService _textAnalysisService;
+    private readonly IClipboardService _clipboardService;
+    private readonly ITextMeasurer _textMeasurer;
+    private readonly IEditorSizeCalculator _editorSizeCalculator;
 
     public EditorViewModelIntegrationTests()
     {
@@ -24,22 +31,27 @@ public class EditorViewModelIntegrationTests : IDisposable
         _cursorService = new CursorService(_textBufferService);
         _selectionService = new SelectionService();
         _textAnalysisService = new TextAnalysisService();
-        _inputService = new InputService(_textBufferService, _cursorService, _textAnalysisService, _selectionService);
+        _clipboardService = new MockClipboardService();
+        _textMeasurer = new AvaloniaTextMeasurer(new Typeface("Consolas"), 13);
+        _inputService = new InputService(_textBufferService, _cursorService, _textAnalysisService, _selectionService,
+            _clipboardService, _textMeasurer);
+        _editorSizeCalculator = new AvaloniaEditorSizeCalculator(_textMeasurer);
 
         _viewModel = new EditorViewModel(
             _textBufferService,
             _syntaxHighlighter,
             _selectionService,
-            _inputService
+            _inputService,
+            _cursorService,
+            _editorSizeCalculator
         );
     }
 
     public void Dispose()
     {
-        // Cleanup code if needed
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void Text_Get_ReturnsTextFromTextBufferService()
     {
         // Arrange
@@ -53,7 +65,7 @@ public class EditorViewModelIntegrationTests : IDisposable
         Assert.Equal(expectedText, result);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void Text_Set_UpdatesTextBufferAndTriggersHighlighting()
     {
         // Arrange
@@ -69,7 +81,7 @@ public class EditorViewModelIntegrationTests : IDisposable
         Assert.Empty(_viewModel.HighlightingResults);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void InsertText_UpdatesTextAndHighlighting()
     {
         // Arrange
@@ -86,7 +98,7 @@ public class EditorViewModelIntegrationTests : IDisposable
         Assert.Empty(_viewModel.HighlightingResults);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void DeleteText_UpdatesTextAndHighlighting()
     {
         // Arrange
@@ -101,10 +113,11 @@ public class EditorViewModelIntegrationTests : IDisposable
         Assert.Empty(_viewModel.HighlightingResults);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void OnPointerPressed_UpdatesCursorAndStartsSelection()
     {
         // Arrange
+        _textBufferService.ReplaceAll("Hello World");
         var args = new PointerPressedEventArgs { Index = 5 };
 
         // Act
@@ -112,36 +125,26 @@ public class EditorViewModelIntegrationTests : IDisposable
 
         // Assert
         Assert.Equal(5, _cursorService.GetCursorPosition());
-        // You might need to add a method to check if selection has started
+        Assert.Equal((5, 0), _selectionService.GetSelection());
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void OnPointerMoved_UpdatesCursorAndSelection()
     {
         // Arrange
-        var args = new PointerEventArgs { X = 10, Y = 20, Index = 15 };
+        _textBufferService.ReplaceAll("Hello World");
+        _viewModel.OnPointerPressed(new PointerPressedEventArgs { X = 0, Y = 0, Index = 0 });
+        var args = new PointerEventArgs { X = 50, Y = 10, Index = 5, IsLeftButtonPressed = true };
 
         // Act
         _viewModel.OnPointerMoved(args);
 
         // Assert
-        // You might need to add methods to check cursor and selection state
+        Assert.Equal(5, _viewModel.CursorPosition);
+        Assert.Equal((0, 5), _viewModel.Selection);
     }
 
-    [Fact]
-    public void OnPointerReleased_UpdatesSelection()
-    {
-        // Arrange
-        var args = new PointerReleasedEventArgs { Index = 25 };
-
-        // Act
-        _viewModel.OnPointerReleased(args);
-
-        // Assert
-        // You might need to add a method to check selection state
-    }
-
-    [Fact]
+    [AvaloniaFact]
     public void Text_Set_UpdatesTextBufferAndTriggersHighlighting_WithKeyword()
     {
         // Arrange
@@ -156,7 +159,7 @@ public class EditorViewModelIntegrationTests : IDisposable
         Assert.NotEmpty(_viewModel.HighlightingResults);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void Text_Set_UpdatesTextBufferAndTriggersHighlighting_WithoutKeyword()
     {
         // Arrange
@@ -171,7 +174,7 @@ public class EditorViewModelIntegrationTests : IDisposable
         Assert.Empty(_viewModel.HighlightingResults);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void OnTextInput_InsertsTextAndUpdatesHighlighting_WithKeyword()
     {
         // Arrange
@@ -187,7 +190,7 @@ public class EditorViewModelIntegrationTests : IDisposable
         Assert.NotEmpty(_viewModel.HighlightingResults);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void OnTextInput_InsertsTextAndUpdatesHighlighting_WithoutKeyword()
     {
         // Arrange
@@ -203,7 +206,7 @@ public class EditorViewModelIntegrationTests : IDisposable
         Assert.Empty(_viewModel.HighlightingResults);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void PropertyChanged_IsRaisedWhenTextChanges()
     {
         // Arrange
@@ -220,22 +223,22 @@ public class EditorViewModelIntegrationTests : IDisposable
         Assert.True(propertyChangedRaised);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void OnPointerPressed_SingleClick_UpdatesCursorAndStartsSelection()
     {
         // Arrange
         _textBufferService.ReplaceAll("Hello World");
-        var args = new PointerPressedEventArgs { Index = 5 };
+        var args = new PointerPressedEventArgs { X = 50, Y = 10, Index = 5 };
 
         // Act
         _viewModel.OnPointerPressed(args);
 
         // Assert
-        Assert.Equal(5, _cursorService.GetCursorPosition());
-        Assert.Equal((5, 0), _selectionService.GetSelection());
+        Assert.Equal(5, _viewModel.CursorPosition);
+        Assert.Equal((5, 0), _viewModel.Selection);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void OnPointerPressed_DoubleClick_SelectsWord()
     {
         // Arrange
@@ -251,12 +254,12 @@ public class EditorViewModelIntegrationTests : IDisposable
         Assert.Equal(5, _cursorService.GetCursorPosition());
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void OnPointerPressed_TripleClick_SelectsLine()
     {
         // Arrange
         _textBufferService.ReplaceAll("Hello\nWorld");
-        var args = new PointerPressedEventArgs { Index = 2 };
+        var args = new PointerPressedEventArgs { X = 10, Y = 0, Index = 2 };
 
         // Act
         _viewModel.OnPointerPressed(args);
@@ -264,11 +267,11 @@ public class EditorViewModelIntegrationTests : IDisposable
         _viewModel.OnPointerPressed(args);
 
         // Assert
-        Assert.Equal((0, 5), _selectionService.GetSelection());
-        Assert.Equal(5, _cursorService.GetCursorPosition());
+        Assert.Equal((0, 5), _viewModel.Selection); // Include newline character
+        Assert.Equal(5, _viewModel.CursorPosition);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void OnPointerMoved_UpdatesSelectionAndCursor()
     {
         // Arrange
@@ -276,29 +279,74 @@ public class EditorViewModelIntegrationTests : IDisposable
         _viewModel.OnPointerPressed(new PointerPressedEventArgs { Index = 0 });
 
         // Act
-        _viewModel.OnPointerMoved(new PointerEventArgs { X = 50, Y = 10, Index = 5 });
+        _viewModel.OnPointerMoved(new PointerEventArgs { X = 50, Y = 10, Index = 5, IsLeftButtonPressed = true });
 
         // Assert
         Assert.Equal((0, 5), _selectionService.GetSelection());
-        Assert.Equal(11, _cursorService.GetCursorPosition());
+        Assert.Equal(5, _cursorService.GetCursorPosition());
     }
 
-    [Fact]
+    [AvaloniaFact]
+    public void OnKeyDown_ShiftArrowLeft_ExtendsSelectionBackwards()
+    {
+        // Arrange
+        _textBufferService.ReplaceAll("Hello");
+        _cursorService.SetCursorPosition(5);
+        _selectionService.StartSelection(5);
+
+        // Act
+        _viewModel.OnKeyDown(new KeyEventArgs(Key.Left, KeyModifiers.Shift));
+
+        // Assert
+        Assert.Equal(4, _viewModel.CursorPosition);
+        Assert.Equal((5, -1), _viewModel.Selection);
+    }
+
+    [AvaloniaFact]
+    public void OnKeyDown_CtrlA_SelectsAllText()
+    {
+        // Arrange
+        _textBufferService.ReplaceAll("Hello World");
+
+        // Act
+        _viewModel.OnKeyDown(new KeyEventArgs(Key.A, KeyModifiers.Ctrl));
+
+        // Assert
+        Assert.Equal((0, 11), _viewModel.Selection);
+        Assert.Equal(11, _viewModel.CursorPosition);
+    }
+
+    [AvaloniaFact]
+    public void ClearSelection_ResetsSelectionToZero()
+    {
+        // Arrange
+        _textBufferService.ReplaceAll("Hello World");
+        _selectionService.SetSelection(0, 5);
+
+        // Act
+        _selectionService.ClearSelection();
+
+        // Assert
+        Assert.Equal((0, 0), _selectionService.GetSelection());
+    }
+
+    [AvaloniaFact]
     public void OnPointerReleased_FinalizesSelection()
     {
         // Arrange
         _textBufferService.ReplaceAll("Hello World");
-        _viewModel.OnPointerPressed(new PointerPressedEventArgs { Index = 0 });
-        _viewModel.OnPointerMoved(new PointerEventArgs { X = 50, Y = 10, Index = 5 });
+        _viewModel.OnPointerPressed(new PointerPressedEventArgs { X = 0, Y = 0, Index = 0 });
+        _viewModel.OnPointerMoved(new PointerEventArgs { X = 50, Y = 10, Index = 5, IsLeftButtonPressed = true });
 
         // Act
-        _viewModel.OnPointerReleased(new PointerReleasedEventArgs { Index = 5 });
+        _viewModel.OnPointerReleased(new PointerReleasedEventArgs { X = 50, Y = 10, Index = 5 });
 
         // Assert
         Assert.Equal((0, 5), _selectionService.GetSelection());
+        Assert.Equal(5, _cursorService.GetCursorPosition());
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void OnKeyDown_ArrowRight_MovesCursor()
     {
         // Arrange
@@ -313,7 +361,7 @@ public class EditorViewModelIntegrationTests : IDisposable
         Assert.Equal((0, 0), _selectionService.GetSelection());
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void OnKeyDown_ShiftArrowRight_ExtendsSelection()
     {
         // Arrange
@@ -328,7 +376,7 @@ public class EditorViewModelIntegrationTests : IDisposable
         Assert.Equal((0, 1), _selectionService.GetSelection());
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void OnKeyDown_Backspace_DeletesCharacterAndUpdatesCursor()
     {
         // Arrange
@@ -343,7 +391,7 @@ public class EditorViewModelIntegrationTests : IDisposable
         Assert.Equal(4, _cursorService.GetCursorPosition());
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void OnKeyDown_Delete_DeletesCharacter()
     {
         // Arrange
@@ -358,7 +406,7 @@ public class EditorViewModelIntegrationTests : IDisposable
         Assert.Equal(2, _cursorService.GetCursorPosition());
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void OnKeyDown_Enter_InsertsNewline()
     {
         // Arrange
@@ -373,7 +421,7 @@ public class EditorViewModelIntegrationTests : IDisposable
         Assert.Equal(6, _cursorService.GetCursorPosition());
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void PropertyChanged_IsRaisedForSelectionChanges()
     {
         // Arrange

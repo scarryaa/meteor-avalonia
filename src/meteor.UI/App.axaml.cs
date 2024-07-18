@@ -1,12 +1,15 @@
 using System;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using Avalonia.Media;
 using meteor.Application.Interfaces;
 using meteor.Application.Services;
 using meteor.Core.Interfaces;
 using meteor.Core.Interfaces.Services;
 using meteor.Core.Interfaces.ViewModels;
 using meteor.Infrastructure.Data;
+using meteor.UI.Services;
 using meteor.UI.ViewModels;
 using meteor.UI.Views;
 using Microsoft.Extensions.DependencyInjection;
@@ -40,12 +43,19 @@ public class App : Avalonia.Application
     private void ConfigureServices(IServiceCollection services)
     {
         services.AddSingleton<IRope, Rope>(sp => new Rope(""));
+        services.AddSingleton<IClipboardService>(_ => new AvaloniaClipboardService(GetMainWindow()));
         services.AddSingleton<ITextBufferService, TextBufferService>();
         services.AddSingleton<ISyntaxHighlighter, SyntaxHighlighter>();
         services.AddSingleton<ICursorService, CursorService>();
         services.AddSingleton<ISelectionService, SelectionService>();
         services.AddSingleton<ITextAnalysisService, TextAnalysisService>();
         services.AddSingleton<IInputService, InputService>();
+        services.AddSingleton<ITextMeasurer>(sp =>
+            new AvaloniaTextMeasurer(
+                new Typeface("Consolas"),
+                13
+            ));
+        services.AddSingleton<IEditorSizeCalculator, AvaloniaEditorSizeCalculator>();
 
         services.AddTransient<IEditorViewModel, EditorViewModel>();
 
@@ -59,5 +69,11 @@ public class App : Avalonia.Application
             };
             return editorView;
         });
+    }
+
+    private static Window? GetMainWindow()
+    {
+        if (Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop) return desktop.MainWindow;
+        return null;
     }
 }

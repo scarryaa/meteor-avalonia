@@ -1,4 +1,5 @@
 using Avalonia;
+using meteor.Core.Enums;
 using KeyEventArgs = meteor.Core.Models.Events.KeyEventArgs;
 using PointerEventArgs = meteor.Core.Models.Events.PointerEventArgs;
 using PointerPressedEventArgs = meteor.Core.Models.Events.PointerPressedEventArgs;
@@ -14,7 +15,11 @@ public static class EventArgsAdapters
     {
         var point = e.GetCurrentPoint(control);
         var index = ConvertPointToIndex(point.Position);
-        return new PointerPressedEventArgs(index);
+        return new PointerPressedEventArgs(index, point.Position.X, point.Position.Y,
+            (KeyModifiers)e.KeyModifiers,
+            point.Properties.IsLeftButtonPressed,
+            point.Properties.IsRightButtonPressed,
+            point.Properties.IsMiddleButtonPressed);
     }
 
     public static PointerReleasedEventArgs ToPointerReleasedEventArgs(Avalonia.Input.PointerReleasedEventArgs e,
@@ -22,14 +27,22 @@ public static class EventArgsAdapters
     {
         var point = e.GetCurrentPoint(control);
         var index = ConvertPointToIndex(point.Position);
-        return new PointerReleasedEventArgs(index);
+        return new PointerReleasedEventArgs(index, point.Position.X, point.Position.Y,
+            (KeyModifiers)e.KeyModifiers,
+            point.Properties.IsLeftButtonPressed,
+            point.Properties.IsRightButtonPressed,
+            point.Properties.IsMiddleButtonPressed);
     }
 
     public static PointerEventArgs ToPointerEventArgsModel(Avalonia.Input.PointerEventArgs e, Visual control)
     {
         var point = e.GetCurrentPoint(control);
         var index = ConvertPointToIndex(point.Position);
-        return new PointerEventArgs((int)point.Position.X, (int)point.Position.Y, index);
+        return new PointerEventArgs((int)point.Position.X, (int)point.Position.Y, index,
+            (KeyModifiers)e.KeyModifiers,
+            point.Properties.IsLeftButtonPressed,
+            point.Properties.IsRightButtonPressed,
+            point.Properties.IsMiddleButtonPressed);
     }
 
     public static TextInputEventArgs ToTextInputEventArgsModel(Avalonia.Input.TextInputEventArgs e)

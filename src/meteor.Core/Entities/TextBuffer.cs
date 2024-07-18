@@ -73,6 +73,15 @@ public class TextBuffer : ITextBuffer
         }
     }
 
+    public string GetText(int start, int length)
+    {
+        lock (_lock)
+        {
+            ProcessQueuedInsertions();
+            return _buffer.ToString(start, length);
+        }
+    }
+
     public void ReplaceAll(string newText)
     {
         lock (_lock)

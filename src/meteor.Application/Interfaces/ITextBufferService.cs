@@ -8,6 +8,7 @@ public interface ITextBufferService
     void Delete(int index, int length);
     string Substring(int start, int length);
     string GetText();
+    string GetText(int start, int length);
     void ReplaceAll(string newText);
     void Iterate(Action<char> action);
 }

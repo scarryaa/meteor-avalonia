@@ -14,7 +14,9 @@ public class EditorViewModelTests
     private readonly Mock<ITextBufferService> _textBufferServiceMock;
     private readonly Mock<ISyntaxHighlighter> _syntaxHighlighterMock;
     private readonly Mock<ISelectionService> _selectionServiceMock;
+    private readonly Mock<ICursorService> _cursorServiceMock;
     private readonly Mock<IInputService> _inputServiceMock;
+    private readonly Mock<IEditorSizeCalculator> _sizeCalculatorMock;
     private readonly EditorViewModel _viewModel;
 
     public EditorViewModelTests()
@@ -23,11 +25,15 @@ public class EditorViewModelTests
         _syntaxHighlighterMock = new Mock<ISyntaxHighlighter>();
         _selectionServiceMock = new Mock<ISelectionService>();
         _inputServiceMock = new Mock<IInputService>();
+        _cursorServiceMock = new Mock<ICursorService>();
+        _sizeCalculatorMock = new Mock<IEditorSizeCalculator>();
         _viewModel = new EditorViewModel(
             _textBufferServiceMock.Object,
             _syntaxHighlighterMock.Object,
             _selectionServiceMock.Object,
-            _inputServiceMock.Object
+            _inputServiceMock.Object,
+            _cursorServiceMock.Object,
+            _sizeCalculatorMock.Object
         );
     }
 
@@ -94,7 +100,7 @@ public class EditorViewModelTests
     [Fact]
     public void OnPointerPressed_CallsHandlePointerPressedAndRaisesPropertyChanged()
     {
-        var e = new PointerPressedEventArgs(5);
+        var e = new PointerPressedEventArgs(5, 0, 0);
         var propertyChanged = false;
         _viewModel.PropertyChanged += (sender, args) =>
         {
@@ -128,7 +134,7 @@ public class EditorViewModelTests
     [Fact]
     public void OnPointerReleased_CallsHandlePointerReleasedAndRaisesPropertyChanged()
     {
-        var e = new PointerReleasedEventArgs(5);
+        var e = new PointerReleasedEventArgs(5, 0, 0);
         var propertyChanged = false;
         _viewModel.PropertyChanged += (_, args) =>
         {

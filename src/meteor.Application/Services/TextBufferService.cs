@@ -36,6 +36,11 @@ public class TextBufferService : ITextBufferService
         return _textBuffer.GetText();
     }
 
+    public string GetText(int start, int length)
+    {
+        return _textBuffer.GetText(start, length);
+    }
+
     public void ReplaceAll(string newText)
     {
         _textBuffer.ReplaceAll(newText);
