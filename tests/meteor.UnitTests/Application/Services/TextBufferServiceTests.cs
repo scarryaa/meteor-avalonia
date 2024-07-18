@@ -1,3 +1,4 @@
+using System.Text;
 using meteor.Core.Services;
 
 namespace meteor.UnitTests.Application.Services;
@@ -9,7 +10,9 @@ public class TextBufferServiceTests
     {
         var service = new TextBufferService("hello");
         Assert.Equal(5, service.Length);
-        Assert.Equal("hello", service.GetText());
+        var sb = new StringBuilder();
+        service.AppendTo(sb);
+        Assert.Equal("hello", sb.ToString());
     }
 
     [Fact]
@@ -32,7 +35,9 @@ public class TextBufferServiceTests
     {
         var service = new TextBufferService("hello");
         service.Insert(2, "world");
-        Assert.Equal("heworldllo", service.GetText());
+        var sb = new StringBuilder();
+        service.AppendTo(sb);
+        Assert.Equal("heworldllo", sb.ToString());
     }
 
     [Fact]
@@ -48,7 +53,9 @@ public class TextBufferServiceTests
     {
         var service = new TextBufferService("hello world");
         service.Delete(6, 5);
-        Assert.Equal("hello ", service.GetText());
+        var sb = new StringBuilder();
+        service.AppendTo(sb);
+        Assert.Equal("hello ", sb.ToString());
     }
 
     [Fact]
@@ -75,18 +82,13 @@ public class TextBufferServiceTests
     }
 
     [Fact]
-    public void GetText_ReturnsText()
-    {
-        var service = new TextBufferService("hello world");
-        Assert.Equal("hello world", service.GetText());
-    }
-
-    [Fact]
     public void ReplaceAll_ReplacesText()
     {
         var service = new TextBufferService("hello world");
         service.ReplaceAll("goodbye world");
-        Assert.Equal("goodbye world", service.GetText());
+        var sb = new StringBuilder();
+        service.AppendTo(sb);
+        Assert.Equal("goodbye world", sb.ToString());
     }
 
     [Fact]
@@ -103,7 +105,9 @@ public class TextBufferServiceTests
     {
         var service = new TextBufferService();
         Assert.Equal(0, service.Length);
-        Assert.Equal("", service.GetText());
+        var sb = new StringBuilder();
+        service.AppendTo(sb);
+        Assert.Equal("", sb.ToString());
     }
 
     [Fact]
@@ -111,7 +115,9 @@ public class TextBufferServiceTests
     {
         var service = new TextBufferService("hello");
         service.Insert(2, "");
-        Assert.Equal("hello", service.GetText());
+        var sb = new StringBuilder();
+        service.AppendTo(sb);
+        Assert.Equal("hello", sb.ToString());
     }
 
     [Fact]
@@ -119,7 +125,9 @@ public class TextBufferServiceTests
     {
         var service = new TextBufferService("hello");
         service.Delete(2, 0);
-        Assert.Equal("hello", service.GetText());
+        var sb = new StringBuilder();
+        service.AppendTo(sb);
+        Assert.Equal("hello", sb.ToString());
     }
 
     [Fact]
@@ -135,7 +143,9 @@ public class TextBufferServiceTests
         var service = new TextBufferService("hello");
         service.ReplaceAll("");
         Assert.Equal(0, service.Length);
-        Assert.Equal("", service.GetText());
+        var sb = new StringBuilder();
+        service.AppendTo(sb);
+        Assert.Equal("", sb.ToString());
     }
 
     [Fact]
@@ -145,5 +155,22 @@ public class TextBufferServiceTests
         var called = false;
         service.Iterate(c => called = true);
         Assert.False(called);
+    }
+
+    [Fact]
+    public void AppendTo_AppendsAllText()
+    {
+        var service = new TextBufferService("hello world");
+        var sb = new StringBuilder();
+        service.AppendTo(sb);
+        Assert.Equal("hello world", sb.ToString());
+    }
+
+    [Fact]
+    public void AsSpan_ReturnsCorrectSpan()
+    {
+        var service = new TextBufferService("hello world");
+        var span = service.AsSpan(6, 5);
+        Assert.Equal("world", new string(span));
     }
 }

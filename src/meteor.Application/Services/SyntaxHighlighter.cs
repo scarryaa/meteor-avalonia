@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.RegularExpressions;
 using meteor.Core.Enums.SyntaxHighlighting;
 using meteor.Core.Interfaces.Services;
@@ -14,12 +15,24 @@ public class SyntaxHighlighter : ISyntaxHighlighter
         new(@"//.*?$|/\*.*?\*/", RegexOptions.Compiled | RegexOptions.Singleline);
     private static readonly Regex StringRegex = new(@"""[^""\\]*(?:\\.[^""\\]*)*""", RegexOptions.Compiled);
 
+    private readonly ITextBufferService _textBufferService;
+    private readonly StringBuilder _stringBuilder = new();
+
+    public SyntaxHighlighter(ITextBufferService textBufferService)
+    {
+        _textBufferService = textBufferService;
+    }
+
     public IEnumerable<SyntaxHighlightingResult> Highlight(string text)
     {
         var results = new List<SyntaxHighlightingResult>();
-        HighlightKeywords(text, results);
-        HighlightComments(text, results);
-        HighlightStrings(text, results);
+        _stringBuilder.Clear();
+        _textBufferService.AppendTo(_stringBuilder);
+        var fullText = _stringBuilder.ToString();
+
+        HighlightKeywords(fullText, results);
+        HighlightComments(fullText, results);
+        HighlightStrings(fullText, results);
         results.Sort((a, b) => a.StartIndex.CompareTo(b.StartIndex));
         return results;
     }

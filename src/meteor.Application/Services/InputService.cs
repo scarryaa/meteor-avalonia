@@ -1,9 +1,9 @@
+using System.Text;
 using meteor.Core.Enums;
 using meteor.Core.Interfaces.Services;
 using meteor.Core.Models.Events;
 
 namespace meteor.Application.Services;
-
 
 public class InputService : IInputService
 {
@@ -17,6 +17,7 @@ public class InputService : IInputService
     private int _clickCount;
     private bool _isSelecting;
     private int _selectionStart = -1;
+    private readonly StringBuilder _stringBuilder = new();
 
     public InputService(
         ITextBufferService textBufferService,
@@ -36,7 +37,7 @@ public class InputService : IInputService
 
     public void InsertText(string text)
     {
-        var (_, selectionLength) = _selectionService.GetSelection();
+        var (selectionStart, selectionLength) = _selectionService.GetSelection();
         if (selectionLength != 0) DeleteSelectedText();
 
         var cursorPosition = _cursorService.GetCursorPosition();
@@ -80,7 +81,7 @@ public class InputService : IInputService
                 break;
             case Key.A:
                 if (isCtrlPressed) HandleSelectAll();
-                else InsertText(key.ToString());
+                else InsertText("A");
                 break;
             case Key.Home:
             case Key.End:
@@ -122,8 +123,7 @@ public class InputService : IInputService
             {
                 if (isCtrlPressed)
                 {
-                    var text = _textBufferService.GetText();
-                    var wordStart = _textAnalysisService.GetWordBoundariesAt(text, cursorPosition - 1).start;
+                    var wordStart = GetWordStart(cursorPosition - 1);
                     DeleteText(wordStart, cursorPosition - wordStart);
                     _cursorService.SetCursorPosition(wordStart);
                 }
@@ -150,8 +150,7 @@ public class InputService : IInputService
             {
                 if (isCtrlPressed)
                 {
-                    var text = _textBufferService.GetText();
-                    var wordEnd = _textAnalysisService.GetWordBoundariesAt(text, cursorPosition).end;
+                    var wordEnd = GetWordEnd(cursorPosition);
                     DeleteText(cursorPosition, wordEnd - cursorPosition);
                 }
                 else
@@ -165,16 +164,15 @@ public class InputService : IInputService
     private void HandleArrowKeys(Key key, bool isShiftPressed, bool isCtrlPressed)
     {
         var currentPosition = _cursorService.GetCursorPosition();
-        var text = _textBufferService.GetText();
         int newPosition;
 
         if (isCtrlPressed)
             newPosition = key switch
             {
-                Key.Left => _textAnalysisService.GetWordBoundariesAt(text, currentPosition).start,
-                Key.Right => _textAnalysisService.GetWordBoundariesAt(text, currentPosition).end,
+                Key.Left => GetWordStart(currentPosition),
+                Key.Right => GetWordEnd(currentPosition),
                 Key.Up => 0,
-                Key.Down => text.Length,
+                Key.Down => _textBufferService.Length,
                 _ => currentPosition
             };
         else
@@ -204,26 +202,24 @@ public class InputService : IInputService
         _cursorService.SetCursorPosition(textLength);
     }
 
-
     private void HandleHomeEnd(Key key, bool isShiftPressed, bool isCtrlPressed)
     {
-        var text = _textBufferService.GetText();
         var currentPosition = _cursorService.GetCursorPosition();
         int newPosition;
 
         if (key == Key.Home)
         {
             if (isCtrlPressed)
-                newPosition = _textAnalysisService.GetLineBoundariesAt(text, currentPosition).start;
+                newPosition = GetLineStart(currentPosition);
             else
                 newPosition = 0;
         }
         else // Key.End
         {
             if (isCtrlPressed)
-                newPosition = _textAnalysisService.GetLineBoundariesAt(text, currentPosition).end;
+                newPosition = GetLineEnd(currentPosition);
             else
-                newPosition = text.Length;
+                newPosition = _textBufferService.Length;
         }
 
         if (isShiftPressed)
@@ -236,16 +232,15 @@ public class InputService : IInputService
 
     private void HandlePageUpDown(Key key, bool isShiftPressed)
     {
-        // TODO Implement page up/down movement based on the number of lines in the viewport
+        // TODO: Implement page up/down movement based on the number of lines in the viewport
         const int linesToMove = 10;
         var currentPosition = _cursorService.GetCursorPosition();
-        var text = _textBufferService.GetText();
         var newPosition = currentPosition;
 
         for (var i = 0; i < linesToMove; i++)
             newPosition = key == Key.PageUp
-                ? _textAnalysisService.GetPositionAbove(text, newPosition)
-                : _textAnalysisService.GetPositionBelow(text, newPosition);
+                ? GetPositionAbove(newPosition)
+                : GetPositionBelow(newPosition);
 
         if (isShiftPressed)
             _selectionService.UpdateSelection(newPosition);
@@ -261,10 +256,9 @@ public class InputService : IInputService
         {
             // Unindent
             var (selectionStart, selectionLength) = _selectionService.GetSelection();
-            var text = _textBufferService.GetText();
-            var (lineStart, lineEnd) = _textAnalysisService.GetLineBoundariesAt(text, selectionStart);
+            var lineStart = GetLineStart(selectionStart);
 
-            if (text[lineStart] == '\t')
+            if (_textBufferService[lineStart] == '\t')
             {
                 DeleteText(lineStart, 1);
                 _selectionService.SetSelection(selectionStart - 1, selectionLength - 1);
@@ -282,21 +276,16 @@ public class InputService : IInputService
         var (selectionStart, selectionLength) = _selectionService.GetSelection();
         if (selectionLength != 0)
         {
-            var selectedText = _textBufferService.GetText();
-            _clipboardService.SetText(selectedText);
+            _stringBuilder.Clear();
+            _textBufferService.GetTextSegment(selectionStart, selectionLength, _stringBuilder);
+            _clipboardService.SetText(_stringBuilder.ToString());
         }
     }
 
     private void HandleCut()
     {
         HandleCopy();
-        var (selectionStart, selectionLength) = _selectionService.GetSelection();
-        if (selectionLength != 0)
-        {
-            DeleteText(selectionStart, Math.Abs(selectionLength));
-            _cursorService.SetCursorPosition(selectionStart);
-            _selectionService.ClearSelection();
-        }
+        DeleteSelectedText();
     }
 
     private async Task HandlePaste()
@@ -307,35 +296,35 @@ public class InputService : IInputService
 
     public int GetNewCursorPosition(Key key, int currentPosition)
     {
-        var text = _textBufferService.GetText();
         return key switch
         {
             Key.Left => Math.Max(0, currentPosition - 1),
-            Key.Right => Math.Min(text.Length, currentPosition + 1),
-            Key.Up => GetVerticalPosition(text, currentPosition, true),
-            Key.Down => GetVerticalPosition(text, currentPosition, false),
+            Key.Right => Math.Min(_textBufferService.Length, currentPosition + 1),
+            Key.Up => GetPositionAbove(currentPosition),
+            Key.Down => GetPositionBelow(currentPosition),
             _ => currentPosition
         };
     }
 
-    private int GetVerticalPosition(string text, int currentPosition, bool isUp)
+    private int GetPositionAbove(int currentPosition)
     {
-        var (lineStart, lineEnd) = _textAnalysisService.GetLineBoundariesAt(text, currentPosition);
+        var lineStart = GetLineStart(currentPosition);
+        if (lineStart == 0) return currentPosition;
+        var prevLineEnd = _textBufferService.LastIndexOf('\n', lineStart - 2);
+        var prevLineStart = prevLineEnd == -1 ? 0 : prevLineEnd + 1;
         var columnInLine = currentPosition - lineStart;
+        var prevLineLength = lineStart - prevLineStart - 1;
+        return prevLineStart + Math.Min(columnInLine, prevLineLength);
+    }
 
-        if (isUp)
-        {
-            if (lineStart == 0) return currentPosition;
-            var prevLineEnd = text.LastIndexOf('\n', lineStart - 2);
-            var prevLineStart = prevLineEnd == -1 ? 0 : prevLineEnd + 1;
-            var prevLineLength = lineStart - prevLineStart - 1;
-            return prevLineStart + Math.Min(columnInLine, prevLineLength);
-        }
-
-        if (lineEnd == text.Length) return currentPosition;
+    private int GetPositionBelow(int currentPosition)
+    {
+        var lineEnd = GetLineEnd(currentPosition);
+        if (lineEnd == _textBufferService.Length) return currentPosition;
         var nextLineStart = lineEnd + 1;
-        var nextLineEnd = text.IndexOf('\n', nextLineStart);
-        nextLineEnd = nextLineEnd == -1 ? text.Length : nextLineEnd;
+        var nextLineEnd = _textBufferService.IndexOf('\n', nextLineStart);
+        nextLineEnd = nextLineEnd == -1 ? _textBufferService.Length : nextLineEnd;
+        var columnInLine = currentPosition - GetLineStart(currentPosition);
         var nextLineLength = nextLineEnd - nextLineStart;
         return nextLineStart + Math.Min(columnInLine, nextLineLength);
     }
@@ -345,8 +334,9 @@ public class InputService : IInputService
         int index;
         if (e.X != 0 || e.Y != 0)
         {
-            var text = _textBufferService.GetText();
-            index = ClampIndex(_textMeasurer.GetIndexAtPosition(text, e.X, e.Y));
+            _stringBuilder.Clear();
+            _textBufferService.AppendTo(_stringBuilder);
+            index = ClampIndex(_textMeasurer.GetIndexAtPosition(_stringBuilder.ToString(), e.X, e.Y));
         }
         else
         {
@@ -381,8 +371,9 @@ public class InputService : IInputService
     {
         if (!_isSelecting) return;
 
-        var text = _textBufferService.GetText();
-        var index = ClampIndex(_textMeasurer.GetIndexAtPosition(text, e.X, e.Y));
+        _stringBuilder.Clear();
+        _textBufferService.AppendTo(_stringBuilder);
+        var index = ClampIndex(_textMeasurer.GetIndexAtPosition(_stringBuilder.ToString(), e.X, e.Y));
 
         if (e.IsLeftButtonPressed)
         {
@@ -411,15 +402,15 @@ public class InputService : IInputService
 
     private void HandleDoubleClick(int index)
     {
-        var text = _textBufferService.GetText();
-        var (start, end) = _textAnalysisService.GetWordBoundariesAt(text, index);
+        var start = GetWordStart(index);
+        var end = GetWordEnd(index);
         SetSelectionAndCursor(start, end);
     }
 
     private void HandleTripleClick(int index)
     {
-        var text = _textBufferService.GetText();
-        var (start, end) = _textAnalysisService.GetLineBoundariesAt(text, index);
+        var start = GetLineStart(index);
+        var end = GetLineEnd(index);
         SetSelectionAndCursor(start, end);
     }
 
@@ -429,23 +420,6 @@ public class InputService : IInputService
 
         _cursorService.SetCursorPosition(index);
         _selectionService.SetSelection(Math.Min(_selectionStart, index), Math.Abs(_selectionStart - index));
-    }
-
-    private void FinalizeSelection(int index)
-    {
-        var (start, length) = _selectionService.GetSelection();
-        if (length == 0 && index == start)
-        {
-            _selectionService.ClearSelection();
-        }
-        else
-        {
-            var selectionStart = Math.Min(start, index);
-            var selectionEnd = Math.Max(start, index);
-            _selectionService.SetSelection(selectionStart, selectionEnd - selectionStart);
-        }
-
-        _cursorService.SetCursorPosition(index);
     }
 
     private void SetSelectionAndCursor(int start, int end)
@@ -473,5 +447,29 @@ public class InputService : IInputService
             _cursorService.SetCursorPosition(selectionStart);
             _selectionService.ClearSelection();
         }
+    }
+
+    private int GetLineStart(int position)
+    {
+        while (position > 0 && _textBufferService[position - 1] != '\n') position--;
+        return position;
+    }
+
+    private int GetLineEnd(int position)
+    {
+        while (position < _textBufferService.Length && _textBufferService[position] != '\n') position++;
+        return position;
+    }
+
+    private int GetWordStart(int position)
+    {
+        while (position > 0 && !char.IsWhiteSpace(_textBufferService[position - 1])) position--;
+        return position;
+    }
+
+    private int GetWordEnd(int position)
+    {
+        while (position < _textBufferService.Length && !char.IsWhiteSpace(_textBufferService[position])) position++;
+        return position;
     }
 }

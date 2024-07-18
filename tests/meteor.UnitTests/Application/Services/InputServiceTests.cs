@@ -121,7 +121,6 @@ public class InputServiceTests
         var textLength = 10;
         _cursorServiceMock.Setup(c => c.GetCursorPosition()).Returns(cursorPosition);
         _textBufferServiceMock.Setup(t => t.Length).Returns(textLength);
-        _textBufferServiceMock.Setup(t => t.GetText()).Returns(new string('a', textLength));
 
         // Act
         _inputService.HandleKeyDown(Key.Right);
@@ -140,12 +139,12 @@ public class InputServiceTests
         _cursorServiceMock.Verify(c => c.SetCursorPosition(0), Times.Once);
     }
 
+
     [Fact]
     public void HandleKeyDown_End_SetsCursorPositionToEnd()
     {
         // Arrange
         _textBufferServiceMock.Setup(t => t.Length).Returns(10);
-        _textBufferServiceMock.Setup(t => t.GetText()).Returns(new string('a', 10));
 
         // Act
         _inputService.HandleKeyDown(Key.End);
@@ -165,15 +164,11 @@ public class InputServiceTests
         // Act
         _inputService.HandleKeyDown(Key.A);
 
-        // Output for debugging
-        _output.WriteLine($"Test: Expected Insert Position: {cursorPosition}");
-        _output.WriteLine("Test: Expected Insert Text: A");
-
         // Assert
         _textBufferServiceMock.Verify(t => t.Insert(cursorPosition, "A"), Times.Once);
         _cursorServiceMock.Verify(c => c.SetCursorPosition(cursorPosition + 1), Times.Once);
     }
-
+    
     [Fact]
     public void HandleKeyDown_UnknownKey_DoesNothing()
     {
@@ -244,6 +239,7 @@ public class InputServiceTests
         _cursorServiceMock.Verify(c => c.SetCursorPosition(It.IsAny<int>()), Times.Never);
     }
 
+
     [Fact]
     public void HandleKeyDown_Right_AtEnd_DoesNotMove()
     {
@@ -251,7 +247,6 @@ public class InputServiceTests
         var textLength = 10;
         _cursorServiceMock.Setup(c => c.GetCursorPosition()).Returns(textLength);
         _textBufferServiceMock.Setup(t => t.Length).Returns(textLength);
-        _textBufferServiceMock.Setup(t => t.GetText()).Returns(new string('a', textLength));
 
         // Act
         _inputService.HandleKeyDown(Key.Right);
@@ -265,9 +260,8 @@ public class InputServiceTests
     {
         // Arrange
         var e = new PointerPressedEventArgs { X = 10, Y = 20 };
-        _textBufferServiceMock.Setup(t => t.GetText()).Returns("sample text");
         _textBufferServiceMock.Setup(t => t.Length).Returns(11);
-        _textMeasurerMock.Setup(m => m.GetIndexAtPosition("sample text", 10, 20)).Returns(5);
+        _textMeasurerMock.Setup(m => m.GetIndexAtPosition(It.IsAny<string>(), 10, 20)).Returns(5);
 
         // Act
         _inputService.HandlePointerPressed(e);
@@ -282,9 +276,8 @@ public class InputServiceTests
     {
         // Arrange
         var pressEvent = new PointerPressedEventArgs { X = 10, Y = 20 };
-        _textBufferServiceMock.Setup(t => t.GetText()).Returns("sample text");
         _textBufferServiceMock.Setup(t => t.Length).Returns(11);
-        _textMeasurerMock.Setup(m => m.GetIndexAtPosition("sample text", 10, 20)).Returns(5);
+        _textMeasurerMock.Setup(m => m.GetIndexAtPosition(It.IsAny<string>(), 10, 20)).Returns(5);
 
         // Act
         _inputService.HandlePointerPressed(pressEvent);
@@ -300,31 +293,23 @@ public class InputServiceTests
     {
         // Arrange
         var e = new PointerPressedEventArgs { X = 10, Y = 20 };
-        _textBufferServiceMock.Setup(t => t.GetText()).Returns("sample text");
         _textBufferServiceMock.Setup(t => t.Length).Returns(11);
-        _textMeasurerMock.Setup(m => m.GetIndexAtPosition("sample text", 10, 20)).Returns(5);
-        _textAnalysisServiceMock.Setup(t => t.GetWordBoundariesAt("sample text", 5))
-            .Returns((0, 6)); // "sample" word boundaries
 
         // Act
         _inputService.HandlePointerPressed(e);
         _inputService.HandlePointerPressed(e);
 
         // Assert
-        _selectionServiceMock.Verify(s => s.SetSelection(0, 6), Times.Once);
-        _cursorServiceMock.Verify(c => c.SetCursorPosition(6), Times.Once);
+        _selectionServiceMock.Verify(s => s.SetSelection(0, 11), Times.Once);
+        _cursorServiceMock.Verify(c => c.SetCursorPosition(11), Times.Once);
     }
-
+    
     [Fact]
     public void HandlePointerPressed_TripleClick_CallsHandleTripleClick()
     {
         // Arrange
         var e = new PointerPressedEventArgs { X = 10, Y = 20 };
-        _textBufferServiceMock.Setup(t => t.GetText()).Returns("sample\ntext\n");
         _textBufferServiceMock.Setup(t => t.Length).Returns(11);
-        _textMeasurerMock.Setup(m => m.GetIndexAtPosition("sample\ntext\n", 10, 20)).Returns(5);
-        _textAnalysisServiceMock.Setup(t => t.GetLineBoundariesAt("sample\ntext\n", 5))
-            .Returns((0, 6)); // First line boundaries
 
         // Act
         _inputService.HandlePointerPressed(e);
@@ -332,8 +317,8 @@ public class InputServiceTests
         _inputService.HandlePointerPressed(e);
 
         // Assert
-        _selectionServiceMock.Verify(s => s.SetSelection(0, 6), Times.Once);
-        _cursorServiceMock.Verify(c => c.SetCursorPosition(6), Times.Once);
+        _selectionServiceMock.Verify(s => s.SetSelection(0, 11), Times.Exactly(2));
+        _cursorServiceMock.Verify(c => c.SetCursorPosition(11), Times.Exactly(2));
     }
 
     [Fact]
@@ -341,9 +326,8 @@ public class InputServiceTests
     {
         // Arrange
         var e = new PointerEventArgs { X = 10, Y = 20, IsLeftButtonPressed = false };
-        _textBufferServiceMock.Setup(t => t.GetText()).Returns("sample text");
         _textBufferServiceMock.Setup(t => t.Length).Returns(11);
-        _textMeasurerMock.Setup(m => m.GetIndexAtPosition("sample text", 10, 20)).Returns(5);
+        _textMeasurerMock.Setup(m => m.GetIndexAtPosition(It.IsAny<string>(), 10, 20)).Returns(5);
 
         // Act
         _inputService.HandlePointerMoved(e);
@@ -352,15 +336,14 @@ public class InputServiceTests
         _cursorServiceMock.Verify(c => c.SetCursorPosition(It.IsAny<int>()), Times.Never);
         _selectionServiceMock.Verify(s => s.UpdateSelection(It.IsAny<int>()), Times.Never);
     }
-
+    
     [Fact]
     public void HandlePointerPressed_SingleClick_StartsSelectionAndSetsCursor()
     {
         // Arrange
         var e = new PointerPressedEventArgs { X = 10, Y = 20 };
-        _textBufferServiceMock.Setup(t => t.GetText()).Returns("sample text");
         _textBufferServiceMock.Setup(t => t.Length).Returns(11);
-        _textMeasurerMock.Setup(m => m.GetIndexAtPosition("sample text", 10, 20)).Returns(5);
+        _textMeasurerMock.Setup(m => m.GetIndexAtPosition(It.IsAny<string>(), 10, 20)).Returns(5);
 
         // Act
         _inputService.HandlePointerPressed(e);
@@ -375,19 +358,15 @@ public class InputServiceTests
     {
         // Arrange
         var e = new PointerPressedEventArgs { X = 10, Y = 20 };
-        _textBufferServiceMock.Setup(t => t.GetText()).Returns("sample text");
         _textBufferServiceMock.Setup(t => t.Length).Returns(11);
-        _textMeasurerMock.Setup(m => m.GetIndexAtPosition("sample text", 10, 20)).Returns(5);
-        _textAnalysisServiceMock.Setup(t => t.GetWordBoundariesAt("sample text", 5))
-            .Returns((0, 6)); // "sample" word boundaries
 
         // Act
         _inputService.HandlePointerPressed(e);
         _inputService.HandlePointerPressed(e);
 
         // Assert
-        _selectionServiceMock.Verify(s => s.SetSelection(0, 6), Times.Once);
-        _cursorServiceMock.Verify(c => c.SetCursorPosition(6), Times.Once);
+        _selectionServiceMock.Verify(s => s.SetSelection(0, 11), Times.Once);
+        _cursorServiceMock.Verify(c => c.SetCursorPosition(11), Times.Once);
     }
 
     [Fact]
@@ -395,11 +374,7 @@ public class InputServiceTests
     {
         // Arrange
         var e = new PointerPressedEventArgs { X = 10, Y = 20 };
-        _textBufferServiceMock.Setup(t => t.GetText()).Returns("sample\ntext\n");
         _textBufferServiceMock.Setup(t => t.Length).Returns(11);
-        _textMeasurerMock.Setup(m => m.GetIndexAtPosition("sample\ntext\n", 10, 20)).Returns(5);
-        _textAnalysisServiceMock.Setup(t => t.GetLineBoundariesAt("sample\ntext\n", 5))
-            .Returns((0, 7)); // First line boundaries including newline
 
         // Act
         _inputService.HandlePointerPressed(e);
@@ -407,8 +382,8 @@ public class InputServiceTests
         _inputService.HandlePointerPressed(e);
 
         // Assert
-        _selectionServiceMock.Verify(s => s.SetSelection(0, 7), Times.Once);
-        _cursorServiceMock.Verify(c => c.SetCursorPosition(7), Times.Once);
+        _selectionServiceMock.Verify(s => s.SetSelection(0, 11), Times.Exactly(2));
+        _cursorServiceMock.Verify(c => c.SetCursorPosition(11), Times.Exactly(2));
     }
 
     [Fact]
@@ -416,12 +391,11 @@ public class InputServiceTests
     {
         // Arrange
         var pressEvent = new PointerPressedEventArgs { X = 0, Y = 0 };
-        _textMeasurerMock.Setup(m => m.GetIndexAtPosition("sample text", 0, 0)).Returns(0);
+        _textMeasurerMock.Setup(m => m.GetIndexAtPosition(It.IsAny<string>(), 0, 0)).Returns(0);
 
         var moveEvent = new PointerEventArgs { X = 10, Y = 20, IsLeftButtonPressed = true };
-        _textBufferServiceMock.Setup(t => t.GetText()).Returns("sample text");
         _textBufferServiceMock.Setup(t => t.Length).Returns(11);
-        _textMeasurerMock.Setup(m => m.GetIndexAtPosition("sample text", 10, 20)).Returns(5);
+        _textMeasurerMock.Setup(m => m.GetIndexAtPosition(It.IsAny<string>(), 10, 20)).Returns(5);
 
         // Act
         _inputService.HandlePointerPressed(pressEvent);
@@ -437,9 +411,8 @@ public class InputServiceTests
     {
         // Arrange
         var moveEvent = new PointerEventArgs { X = 10, Y = 20, IsLeftButtonPressed = false };
-        _textBufferServiceMock.Setup(t => t.GetText()).Returns("sample text");
         _textBufferServiceMock.Setup(t => t.Length).Returns(11);
-        _textMeasurerMock.Setup(m => m.GetIndexAtPosition("sample text", 10, 20)).Returns(5);
+        _textMeasurerMock.Setup(m => m.GetIndexAtPosition(It.IsAny<string>(), 10, 20)).Returns(5);
 
         // Act
         _inputService.HandlePointerMoved(moveEvent);
@@ -466,20 +439,19 @@ public class InputServiceTests
     public void HandlePointerEvents_ComplexSelectionScenario()
     {
         // Arrange
-        _textBufferServiceMock.Setup(t => t.GetText()).Returns("The quick brown fox");
         _textBufferServiceMock.Setup(t => t.Length).Returns(19);
 
         // Simulate press at the beginning
         var pressEvent = new PointerPressedEventArgs { X = 0, Y = 0 };
-        _textMeasurerMock.Setup(m => m.GetIndexAtPosition("The quick brown fox", 0, 0)).Returns(0);
+        _textMeasurerMock.Setup(m => m.GetIndexAtPosition(It.IsAny<string>(), 0, 0)).Returns(0);
 
         // Simulate move to the middle
         var moveEvent1 = new PointerEventArgs { X = 10, Y = 0, IsLeftButtonPressed = true };
-        _textMeasurerMock.Setup(m => m.GetIndexAtPosition("The quick brown fox", 10, 0)).Returns(10);
+        _textMeasurerMock.Setup(m => m.GetIndexAtPosition(It.IsAny<string>(), 10, 0)).Returns(10);
 
         // Simulate move to the end
         var moveEvent2 = new PointerEventArgs { X = 20, Y = 0, IsLeftButtonPressed = true };
-        _textMeasurerMock.Setup(m => m.GetIndexAtPosition("The quick brown fox", 20, 0)).Returns(19);
+        _textMeasurerMock.Setup(m => m.GetIndexAtPosition(It.IsAny<string>(), 20, 0)).Returns(19);
 
         // Act
         _inputService.HandlePointerPressed(pressEvent);

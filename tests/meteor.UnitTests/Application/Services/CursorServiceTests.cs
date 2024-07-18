@@ -32,6 +32,7 @@ public class CursorServiceTests
         // Arrange
         var cursorService = new CursorService(_textBufferServiceMock.Object);
         var newPosition = 10;
+        _textBufferServiceMock.Setup(tbs => tbs.Length).Returns(20);
 
         // Act
         cursorService.SetCursorPosition(newPosition);
@@ -61,7 +62,8 @@ public class CursorServiceTests
     {
         // Arrange
         var text = "Line1\nLine2\nLine3\nLine4";
-        _textBufferServiceMock.Setup(tbs => tbs.GetText()).Returns(text);
+        _textBufferServiceMock.Setup(tbs => tbs.Length).Returns(text.Length);
+        _textBufferServiceMock.Setup(tbs => tbs[It.IsAny<int>()]).Returns((int i) => text[i]);
         var cursorService = new CursorService(_textBufferServiceMock.Object);
         var x = 3;
         var y = 2;
@@ -79,7 +81,9 @@ public class CursorServiceTests
     public void MoveCursor_DoesNotSetNegativePosition()
     {
         // Arrange
-        _textBufferServiceMock.Setup(tbs => tbs.GetText()).Returns("Line1\n");
+        var text = "Line1\n";
+        _textBufferServiceMock.Setup(tbs => tbs.Length).Returns(text.Length);
+        _textBufferServiceMock.Setup(tbs => tbs[It.IsAny<int>()]).Returns((int i) => text[i]);
         var cursorService = new CursorService(_textBufferServiceMock.Object);
         var x = -5;
         var y = -2;

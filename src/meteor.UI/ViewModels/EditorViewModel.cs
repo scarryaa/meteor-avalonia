@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Threading.Tasks;
 using meteor.Core.Interfaces.Services;
 using meteor.Core.Interfaces.ViewModels;
@@ -19,6 +20,7 @@ public class EditorViewModel : IEditorViewModel
     private ObservableCollection<SyntaxHighlightingResult> _highlightingResults = new();
     private double _editorWidth;
     private double _editorHeight;
+    private readonly StringBuilder _stringBuilder = new();
     
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -71,10 +73,15 @@ public class EditorViewModel : IEditorViewModel
     
     public string Text
     {
-        get => TextBufferService.GetText();
+        get
+        {
+            _stringBuilder.Clear();
+            TextBufferService.AppendTo(_stringBuilder);
+            return _stringBuilder.ToString();
+        }
         set
         {
-            if (TextBufferService.GetText() != value)
+            if (Text != value)
             {
                 TextBufferService.ReplaceAll(value);
                 OnPropertyChanged();
@@ -125,7 +132,9 @@ public class EditorViewModel : IEditorViewModel
 
     private void UpdateHighlighting()
     {
-        var results = _syntaxHighlighter.Highlight(TextBufferService.GetText());
+        _stringBuilder.Clear();
+        TextBufferService.AppendTo(_stringBuilder);
+        var results = _syntaxHighlighter.Highlight(_stringBuilder.ToString());
         HighlightingResults = new ObservableCollection<SyntaxHighlightingResult>(results);
     }
 

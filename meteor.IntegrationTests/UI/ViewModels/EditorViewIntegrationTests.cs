@@ -1,3 +1,4 @@
+using System.Text;
 using Avalonia.Headless.XUnit;
 using Avalonia.Media;
 using meteor.Application.Services;
@@ -27,7 +28,7 @@ public class EditorViewModelIntegrationTests : IDisposable
     public EditorViewModelIntegrationTests()
     {
         _textBufferService = new TextBufferService();
-        _syntaxHighlighter = new SyntaxHighlighter();
+        _syntaxHighlighter = new SyntaxHighlighter(_textBufferService);
         _cursorService = new CursorService(_textBufferService);
         _selectionService = new SelectionService();
         _textAnalysisService = new TextAnalysisService();
@@ -77,7 +78,9 @@ public class EditorViewModelIntegrationTests : IDisposable
         _viewModel.Text = newText;
 
         // Assert
-        Assert.Equal(newText, _textBufferService.GetText());
+        var sb = new StringBuilder();
+        _textBufferService.AppendTo(sb);
+        Assert.Equal(newText, sb.ToString());
         Assert.Empty(_viewModel.HighlightingResults);
     }
 
@@ -94,7 +97,9 @@ public class EditorViewModelIntegrationTests : IDisposable
         _viewModel.InsertText(initialText.Length, textToInsert);
 
         // Assert
-        Assert.Equal(initialText + textToInsert, _textBufferService.GetText());
+        var sb = new StringBuilder();
+        _textBufferService.AppendTo(sb);
+        Assert.Equal(initialText + textToInsert, sb.ToString());
         Assert.Empty(_viewModel.HighlightingResults);
     }
 
@@ -109,7 +114,9 @@ public class EditorViewModelIntegrationTests : IDisposable
         _viewModel.DeleteText(0, 8);
 
         // Assert
-        Assert.Equal("text", _textBufferService.GetText());
+        var sb = new StringBuilder();
+        _textBufferService.AppendTo(sb);
+        Assert.Equal("text", sb.ToString());
         Assert.Empty(_viewModel.HighlightingResults);
     }
 
@@ -155,9 +162,12 @@ public class EditorViewModelIntegrationTests : IDisposable
         _viewModel.Text = newText;
 
         // Assert
-        Assert.Equal(newText, _textBufferService.GetText());
+        var sb = new StringBuilder();
+        _textBufferService.AppendTo(sb);
+        Assert.Equal(newText, sb.ToString());
         Assert.NotEmpty(_viewModel.HighlightingResults);
     }
+    
 
     [AvaloniaFact]
     public void Text_Set_UpdatesTextBufferAndTriggersHighlighting_WithoutKeyword()
@@ -170,7 +180,9 @@ public class EditorViewModelIntegrationTests : IDisposable
         _viewModel.Text = newText;
 
         // Assert
-        Assert.Equal(newText, _textBufferService.GetText());
+        var sb = new StringBuilder();
+        _textBufferService.AppendTo(sb);
+        Assert.Equal(newText, sb.ToString());
         Assert.Empty(_viewModel.HighlightingResults);
     }
 
@@ -186,7 +198,9 @@ public class EditorViewModelIntegrationTests : IDisposable
         _viewModel.OnTextInput(args);
 
         // Assert
-        Assert.Equal("if", _textBufferService.GetText());
+        var sb = new StringBuilder();
+        _textBufferService.AppendTo(sb);
+        Assert.Equal("if", sb.ToString());
         Assert.NotEmpty(_viewModel.HighlightingResults);
     }
 
@@ -202,10 +216,12 @@ public class EditorViewModelIntegrationTests : IDisposable
         _viewModel.OnTextInput(args);
 
         // Assert
-        Assert.Equal("hello", _textBufferService.GetText());
+        var sb = new StringBuilder();
+        _textBufferService.AppendTo(sb);
+        Assert.Equal("hello", sb.ToString());
         Assert.Empty(_viewModel.HighlightingResults);
     }
-
+    
     [AvaloniaFact]
     public void PropertyChanged_IsRaisedWhenTextChanges()
     {
@@ -387,7 +403,9 @@ public class EditorViewModelIntegrationTests : IDisposable
         _viewModel.OnKeyDown(new KeyEventArgs(Key.Backspace));
 
         // Assert
-        Assert.Equal("Hell", _textBufferService.GetText());
+        var sb = new StringBuilder();
+        _textBufferService.AppendTo(sb);
+        Assert.Equal("Hell", sb.ToString());
         Assert.Equal(4, _cursorService.GetCursorPosition());
     }
 
@@ -402,7 +420,9 @@ public class EditorViewModelIntegrationTests : IDisposable
         _viewModel.OnKeyDown(new KeyEventArgs(Key.Delete));
 
         // Assert
-        Assert.Equal("Helo", _textBufferService.GetText());
+        var sb = new StringBuilder();
+        _textBufferService.AppendTo(sb);
+        Assert.Equal("Helo", sb.ToString());
         Assert.Equal(2, _cursorService.GetCursorPosition());
     }
 
@@ -417,9 +437,12 @@ public class EditorViewModelIntegrationTests : IDisposable
         _viewModel.OnKeyDown(new KeyEventArgs(Key.Enter));
 
         // Assert
-        Assert.Equal("Hello\n", _textBufferService.GetText());
+        var sb = new StringBuilder();
+        _textBufferService.AppendTo(sb);
+        Assert.Equal("Hello\n", sb.ToString());
         Assert.Equal(6, _cursorService.GetCursorPosition());
     }
+
 
     [AvaloniaFact]
     public void PropertyChanged_IsRaisedForSelectionChanges()

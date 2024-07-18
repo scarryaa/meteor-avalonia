@@ -10,9 +10,10 @@ public class AvaloniaEditorSizeCalculator : IEditorSizeCalculator
     private readonly double _cachedLineHeight;
     private int _cachedLineCount;
     private double _cachedMaxLineWidth;
-    private string _cachedText = string.Empty;
+    private int _cachedTextLength;
     private double _windowWidth;
     private double _windowHeight;
+    private readonly StringBuilder _stringBuilder = new();
 
     public AvaloniaEditorSizeCalculator(ITextMeasurer textMeasurer)
     {
@@ -23,8 +24,7 @@ public class AvaloniaEditorSizeCalculator : IEditorSizeCalculator
     public (double width, double height) CalculateEditorSize(ITextBufferService textBufferService,
         double availableWidth, double availableHeight)
     {
-        var text = textBufferService.GetText();
-        if (text != _cachedText) UpdateCache(textBufferService);
+        if (textBufferService.Length != _cachedTextLength) UpdateCache(textBufferService);
 
         var contentWidth = Math.Max(_cachedMaxLineWidth, _windowWidth);
         var contentHeight = Math.Max(_cachedLineHeight * _cachedLineCount, _windowHeight);
@@ -37,30 +37,29 @@ public class AvaloniaEditorSizeCalculator : IEditorSizeCalculator
     {
         _cachedLineCount = 0;
         _cachedMaxLineWidth = 0;
-        var sb = new StringBuilder();
+        _stringBuilder.Clear();
 
-        for (var i = 0; i < textBufferService.Length; i++)
+        textBufferService.Iterate(c =>
         {
-            var c = textBufferService[i];
             if (c == '\n')
             {
-                UpdateLine(sb.ToString());
-                sb.Clear();
+                UpdateLine(_stringBuilder.ToString());
+                _stringBuilder.Clear();
                 _cachedLineCount++;
             }
             else
             {
-                sb.Append(c);
+                _stringBuilder.Append(c);
             }
-        }
+        });
 
-        if (sb.Length > 0)
+        if (_stringBuilder.Length > 0)
         {
-            UpdateLine(sb.ToString());
+            UpdateLine(_stringBuilder.ToString());
             _cachedLineCount++;
         }
 
-        _cachedText = textBufferService.GetText();
+        _cachedTextLength = textBufferService.Length;
     }
 
     private void UpdateLine(string line)
@@ -78,7 +77,7 @@ public class AvaloniaEditorSizeCalculator : IEditorSizeCalculator
 
     public void InvalidateCache()
     {
-        _cachedText = string.Empty;
+        _cachedTextLength = -1;
         _cachedLineCount = 0;
         _cachedMaxLineWidth = 0;
     }

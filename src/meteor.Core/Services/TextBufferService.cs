@@ -46,17 +46,14 @@ public class TextBufferService : ITextBufferService
 
     public string Substring(int start, int length)
     {
-        return _textBuffer.Substring(start, length);
+        _stringBuilder.Clear();
+        _textBuffer.GetTextSegment(start, length, _stringBuilder);
+        return _stringBuilder.ToString();
     }
 
     public void GetTextSegment(int start, int length, StringBuilder output)
     {
         _textBuffer.GetTextSegment(start, length, output);
-    }
-
-    public string GetText()
-    {
-        return _textBuffer.GetText();
     }
 
     public void ReplaceAll(string newText)
@@ -67,5 +64,17 @@ public class TextBufferService : ITextBufferService
     public void Iterate(Action<char> action)
     {
         _textBuffer.Iterate(action);
+    }
+
+    public ReadOnlySpan<char> AsSpan(int start, int length)
+    {
+        _stringBuilder.Clear();
+        _textBuffer.GetTextSegment(start, length, _stringBuilder);
+        return _stringBuilder.ToString().AsSpan();
+    }
+
+    public void AppendTo(StringBuilder sb)
+    {
+        _textBuffer.Iterate(c => sb.Append(c));
     }
 }

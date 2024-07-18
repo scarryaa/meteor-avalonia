@@ -15,23 +15,36 @@ public class CursorService : ICursorService
 
     public void MoveCursor(int x, int y)
     {
-        var text = _textBufferService.GetText();
-        var lines = text.Split('\n');
-        var index = 0;
+        int lineStart = 0;
+        int lineCount = 0;
+        int index = 0;
 
-        y = Math.Max(0, Math.Min(y, lines.Length - 1));
-        x = Math.Max(0, x);
+        while (index < _textBufferService.Length && lineCount < y)
+        {
+            if (_textBufferService[index] == '\n')
+            {
+                lineCount++;
+                lineStart = index + 1;
+            }
+            index++;
+        }
 
-        for (var i = 0; i < y; i++) index += lines[i].Length + 1; // +1 for newline
-
-        index += Math.Min(x, lines[y].Length);
+        index = lineStart;
+        for (int i = 0; i < x && index < _textBufferService.Length; i++)
+        {
+            if (_textBufferService[index] == '\n')
+            {
+                break;
+            }
+            index++;
+        }
 
         SetCursorPosition(index);
     }
 
     public void SetCursorPosition(int index)
     {
-        _cursorPosition = Math.Max(index, 0);
+        _cursorPosition = Math.Clamp(index, 0, _textBufferService.Length);
     }
 
     public int GetCursorPosition()

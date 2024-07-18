@@ -1,3 +1,4 @@
+using System.Text;
 using meteor.Core.Enums;
 using meteor.Core.Enums.SyntaxHighlighting;
 using meteor.Core.Interfaces.Services;
@@ -39,7 +40,9 @@ public class EditorViewModelTests
     [Fact]
     public void Text_Get_ReturnsTextFromService()
     {
-        _textBufferServiceMock.Setup(t => t.GetText()).Returns("hello");
+        var sb = new StringBuilder("hello");
+        _textBufferServiceMock.Setup(t => t.AppendTo(It.IsAny<StringBuilder>()))
+            .Callback<StringBuilder>(s => s.Append(sb));
         var text = _viewModel.Text;
         Assert.Equal("hello", text);
     }
@@ -51,12 +54,20 @@ public class EditorViewModelTests
         var newText = "new text";
         var highlightingResults = new[] { new SyntaxHighlightingResult(0, 3, SyntaxHighlightingType.Keyword) };
 
-        _textBufferServiceMock.Setup(t => t.GetText())
-            .Returns(oldText)
-            .Callback(() => _textBufferServiceMock.Setup(t => t.GetText()).Returns(newText));
+        // Setup initial text
+        _textBufferServiceMock.Setup(t => t.AppendTo(It.IsAny<StringBuilder>()))
+            .Callback<StringBuilder>(s => s.Append(oldText));
 
-        _textBufferServiceMock.Setup(t => t.ReplaceAll(newText))
-            .Callback(() => _textBufferServiceMock.Setup(t => t.GetText()).Returns(newText));
+        // Setup ReplaceAll to update the internal text
+        _textBufferServiceMock.Setup(t => t.ReplaceAll(newText)).Callback(() =>
+        {
+            _textBufferServiceMock.Setup(t => t.AppendTo(It.IsAny<StringBuilder>()))
+                .Callback<StringBuilder>(s =>
+                {
+                    s.Clear();
+                    s.Append(newText);
+                });
+        });
 
         _syntaxHighlighterMock.Setup(s => s.Highlight(newText)).Returns(highlightingResults);
 
@@ -80,7 +91,7 @@ public class EditorViewModelTests
         _syntaxHighlighterMock.Verify(s => s.Highlight(It.IsAny<string>()), Times.Once);
         Assert.Single(_viewModel.HighlightingResults);
     }
-
+    
     [Fact]
     public void DeleteText_CallsDeleteTextOnInputServiceAndUpdatesHighlighting()
     {
