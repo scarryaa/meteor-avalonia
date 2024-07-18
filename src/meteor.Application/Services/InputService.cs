@@ -1,4 +1,3 @@
-using meteor.Application.Interfaces;
 using meteor.Core.Enums;
 using meteor.Core.Interfaces.Services;
 using meteor.Core.Models.Events;
@@ -57,7 +56,7 @@ public class InputService : IInputService
         InsertText(e.Text);
     }
 
-    public void HandleKeyDown(Key key, KeyModifiers? modifiers = null)
+    public async Task HandleKeyDown(Key key, KeyModifiers? modifiers = null)
     {
         var isShiftPressed = modifiers.HasValue && modifiers.Value.HasFlag(KeyModifiers.Shift);
         var isCtrlPressed = modifiers.HasValue && modifiers.Value.HasFlag(KeyModifiers.Ctrl);
@@ -101,7 +100,7 @@ public class InputService : IInputService
                 if (isCtrlPressed) HandleCut();
                 break;
             case Key.V:
-                if (isCtrlPressed) _ = HandlePaste();
+                if (isCtrlPressed) await HandlePaste();
                 break;
             default:
                 if (key >= Key.A && key <= Key.Z) InsertText(key.ToString());
@@ -283,7 +282,7 @@ public class InputService : IInputService
         var (selectionStart, selectionLength) = _selectionService.GetSelection();
         if (selectionLength != 0)
         {
-            var selectedText = _textBufferService.GetText(selectionStart, Math.Abs(selectionLength));
+            var selectedText = _textBufferService.GetText();
             _clipboardService.SetText(selectedText);
         }
     }

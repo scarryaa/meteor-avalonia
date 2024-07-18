@@ -8,23 +8,18 @@ namespace meteor.Application.Services;
 public class SyntaxHighlighter : ISyntaxHighlighter
 {
     private static readonly string[] Keywords = { "if", "else", "for", "while", "return" };
-
     private static readonly Regex KeywordRegex =
         new(@"\b(" + string.Join("|", Keywords) + @")\b", RegexOptions.Compiled);
-
     private static readonly Regex CommentRegex =
         new(@"//.*?$|/\*.*?\*/", RegexOptions.Compiled | RegexOptions.Singleline);
-
     private static readonly Regex StringRegex = new(@"""[^""\\]*(?:\\.[^""\\]*)*""", RegexOptions.Compiled);
 
     public IEnumerable<SyntaxHighlightingResult> Highlight(string text)
     {
         var results = new List<SyntaxHighlightingResult>();
-
         HighlightKeywords(text, results);
         HighlightComments(text, results);
         HighlightStrings(text, results);
-
         results.Sort((a, b) => a.StartIndex.CompareTo(b.StartIndex));
         return results;
     }

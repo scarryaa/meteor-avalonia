@@ -1,10 +1,10 @@
 using Avalonia.Headless.XUnit;
 using Avalonia.Media;
-using meteor.Application.Interfaces;
 using meteor.Application.Services;
 using meteor.Core.Enums;
 using meteor.Core.Interfaces.Services;
 using meteor.Core.Models.Events;
+using meteor.Core.Services;
 using meteor.IntegrationTests.Mocks;
 using meteor.UI.Services;
 using meteor.UI.ViewModels;

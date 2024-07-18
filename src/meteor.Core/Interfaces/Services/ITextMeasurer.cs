@@ -6,5 +6,6 @@ public interface ITextMeasurer
     (double x, double y) GetPositionAtIndex(string text, int index);
     double GetStringWidth(string text);
     double GetStringHeight(string text);
+    double GetLineHeight();
     void ClearCache();
 }

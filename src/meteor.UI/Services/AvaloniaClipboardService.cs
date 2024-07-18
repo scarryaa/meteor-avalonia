@@ -1,6 +1,5 @@
 using System;
 using System.Threading.Tasks;
-using Avalonia;
 using Avalonia.Controls;
 using meteor.Core.Interfaces.Services;
 
@@ -8,24 +7,20 @@ namespace meteor.UI.Services;
 
 public class AvaloniaClipboardService : IClipboardService
 {
-    private readonly object? _visualReference;
+    private readonly Lazy<Window> _mainWindow;
 
-    public AvaloniaClipboardService(object? visualReference)
+    public AvaloniaClipboardService(Func<Window> mainWindowFactory)
     {
-        _visualReference = visualReference;
+        _mainWindow = new Lazy<Window>(mainWindowFactory);
     }
 
-    async Task<string> IClipboardService.GetText()
+    public async Task<string> GetText()
     {
-        if (_visualReference is not null)
-            return await TopLevel.GetTopLevel((Visual)_visualReference).Clipboard.GetTextAsync();
-        throw new InvalidOperationException("Visual reference is not set.");
+        return await _mainWindow.Value.Clipboard.GetTextAsync() ?? string.Empty;
     }
 
-    async Task IClipboardService.SetText(string text)
+    public async Task SetText(string text)
     {
-        if (_visualReference is not null)
-            await TopLevel.GetTopLevel((Visual)_visualReference).Clipboard.SetTextAsync(text);
-        else throw new InvalidOperationException("Visual reference is not set.");
+        await _mainWindow.Value.Clipboard.SetTextAsync(text);
     }
 }

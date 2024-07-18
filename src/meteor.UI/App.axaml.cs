@@ -3,11 +3,11 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
-using meteor.Application.Interfaces;
 using meteor.Application.Services;
 using meteor.Core.Interfaces;
 using meteor.Core.Interfaces.Services;
 using meteor.Core.Interfaces.ViewModels;
+using meteor.Core.Services;
 using meteor.Infrastructure.Data;
 using meteor.UI.Services;
 using meteor.UI.ViewModels;
@@ -43,7 +43,9 @@ public class App : Avalonia.Application
     private void ConfigureServices(IServiceCollection services)
     {
         services.AddSingleton<IRope, Rope>(sp => new Rope(""));
-        services.AddSingleton<IClipboardService>(_ => new AvaloniaClipboardService(GetMainWindow()));
+        services.AddSingleton<IClipboardService>(sp =>
+            new AvaloniaClipboardService(() => GetMainWindow(sp))
+        );
         services.AddSingleton<ITextBufferService, TextBufferService>();
         services.AddSingleton<ISyntaxHighlighter, SyntaxHighlighter>();
         services.AddSingleton<ICursorService, CursorService>();
@@ -71,9 +73,10 @@ public class App : Avalonia.Application
         });
     }
 
-    private static Window? GetMainWindow()
+    private static Window GetMainWindow(IServiceProvider serviceProvider)
     {
-        if (Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop) return desktop.MainWindow;
-        return null;
+        if (Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+            return desktop.MainWindow ?? serviceProvider.GetRequiredService<MainWindow>();
+        throw new InvalidOperationException("Unable to resolve MainWindow.");
     }
 }

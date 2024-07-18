@@ -34,6 +34,16 @@ public class TextBuffer : ITextBuffer
         }
     }
 
+    public void GetTextSegment(int start, int length, StringBuilder output)
+    {
+        lock (_lock)
+        {
+            ProcessQueuedInsertions();
+            output.Clear();
+            output.Append(_buffer, start, length);
+        }
+    }
+
     public void Insert(int index, string text)
     {
         if (string.IsNullOrEmpty(text)) return;

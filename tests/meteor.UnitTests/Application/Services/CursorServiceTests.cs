@@ -1,5 +1,5 @@
-using meteor.Application.Interfaces;
 using meteor.Application.Services;
+using meteor.Core.Interfaces.Services;
 using Moq;
 
 namespace meteor.UnitTests.Application.Services;

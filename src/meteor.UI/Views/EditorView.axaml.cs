@@ -15,18 +15,20 @@ public partial class EditorView : UserControl
     private readonly EditorRenderer _editorRenderer;
     private IEditorViewModel? _viewModel;
     private ScrollViewer? _scrollViewer;
+    private Panel? _editorPanel;
 
     public EditorView()
     {
         InitializeComponent();
         _editorRenderer = new EditorRenderer(InvalidateVisual);
-        DataContextChanged += OnDataContextChanged; 
+        DataContextChanged += OnDataContextChanged;
     }
 
     protected override void OnInitialized()
     {
         base.OnInitialized();
         _scrollViewer = this.FindControl<ScrollViewer>("ScrollViewer");
+        _editorPanel = this.FindControl<Panel>("EditorPanel");
 
         if (_scrollViewer != null) _scrollViewer.ScrollChanged += (_, _) => InvalidateVisual();
 
@@ -50,7 +52,9 @@ public partial class EditorView : UserControl
                 if (_e.PropertyName == nameof(IEditorViewModel.Text) ||
                     _e.PropertyName == nameof(IEditorViewModel.HighlightingResults) ||
                     _e.PropertyName == nameof(IEditorViewModel.Selection) ||
-                    _e.PropertyName == nameof(IEditorViewModel.CursorPosition))
+                    _e.PropertyName == nameof(IEditorViewModel.CursorPosition) ||
+                    _e.PropertyName == nameof(IEditorViewModel.EditorWidth) ||
+                    _e.PropertyName == nameof(IEditorViewModel.EditorHeight))
                 {
                     InvalidateMeasure();
                     InvalidateVisual();
@@ -62,11 +66,13 @@ public partial class EditorView : UserControl
 
     protected override Size MeasureOverride(Size availableSize)
     {
-        if (_viewModel == null) return base.MeasureOverride(availableSize);
+        if (_viewModel == null || _editorPanel == null)
+            return base.MeasureOverride(availableSize);
 
-        var desiredSize = _viewModel.CalculateEditorSize(availableSize.Width, availableSize.Height);
-        return new Size(Math.Max(desiredSize.width, availableSize.Width),
-            Math.Max(desiredSize.height, availableSize.Height));
+        _editorPanel.Width = Math.Max(_viewModel.EditorWidth, availableSize.Width);
+        _editorPanel.Height = Math.Max(_viewModel.EditorHeight, availableSize.Height);
+
+        return new Size(_editorPanel.Width, _editorPanel.Height);
     }
 
     private void OnEditorPointerPressed(object? sender, PointerPressedEventArgs e)
@@ -129,38 +135,46 @@ public partial class EditorView : UserControl
         _viewModel?.OnTextInput(EventArgsAdapters.ToTextInputEventArgsModel(e));
     }
 
-    protected override void OnKeyDown(KeyEventArgs e)
+    protected override async void OnKeyDown(KeyEventArgs e)
     {
         base.OnKeyDown(e);
 
         if (e.Key == Key.Back || e.Key == Key.Delete || e.Key == Key.Left || e.Key == Key.Right ||
-            e.Key == Key.Home || e.Key == Key.End || e.Key == Key.Enter)
+            e.Key == Key.Home || e.Key == Key.End || e.Key == Key.Enter ||
+            (e.KeyModifiers.HasFlag(KeyModifiers.Control) &&
+             (e.Key == Key.A || e.Key == Key.C || e.Key == Key.X || e.Key == Key.V)))
         {
             var meteorKey = KeyMapper.ToMeteorKey(e.Key);
-            var meteorKeyEventArgs = new Core.Models.Events.KeyEventArgs(meteorKey);
-            _viewModel?.OnKeyDown(meteorKeyEventArgs);
+            var meteorKeyEventArgs =
+                new Core.Models.Events.KeyEventArgs(meteorKey, (Core.Enums.KeyModifiers?)e.KeyModifiers);
+            await _viewModel?.OnKeyDown(meteorKeyEventArgs);
         }
     }
-
+    
     public override void Render(DrawingContext context)
     {
         base.Render(context);
 
-        if (_viewModel != null && _scrollViewer != null)
+        if (_viewModel != null && _scrollViewer != null && _editorPanel != null)
         {
             var offset = _scrollViewer.Offset;
             var viewport = _scrollViewer.Viewport;
-            var (firstVisibleLine, visibleLineCount) = _editorRenderer.CalculateVisibleLines(viewport.Height, offset.Y);
+            var (firstVisibleLine, visibleLineCount) =
+                _editorRenderer.CalculateVisibleLines(viewport.Height, offset.Y);
 
-            var clipRect = new Rect(offset.X, offset.Y, viewport.Width, viewport.Height);
-            var renderRect = new Rect(0, 0, Bounds.Width, Bounds.Height);
+            // Adjust the clip rectangle to match the viewport
+            var clipRect = new Rect(0, 0, viewport.Width, viewport.Height);
+
+            // Adjust the render rectangle to account for scrolling
+            var renderRect = new Rect(-offset.X, -offset.Y, _editorPanel.Width, _editorPanel.Height);
 
             using (context.PushClip(clipRect))
             {
-                context.DrawRectangle(Brushes.White, null, renderRect);
-                _editorRenderer.Render(context, renderRect, _viewModel.Text, _viewModel.HighlightingResults,
+                // Render the content
+                _editorRenderer.Render(context, renderRect, _viewModel.Text,
+                    _viewModel.HighlightingResults,
                     _viewModel.Selection, _viewModel.CursorPosition, firstVisibleLine, visibleLineCount,
-                    -offset.X, -offset.Y);
+                    0, 0);
             }
         }
     }

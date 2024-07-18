@@ -1,7 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
-using meteor.Application.Interfaces;
+using System.Threading.Tasks;
 using meteor.Core.Interfaces.Services;
 using meteor.Core.Interfaces.ViewModels;
 using meteor.Core.Models.Events;
@@ -11,13 +11,14 @@ namespace meteor.UI.ViewModels;
 
 public class EditorViewModel : IEditorViewModel
 {
-    private readonly ITextBufferService _textBufferService;
     private readonly ISyntaxHighlighter _syntaxHighlighter;
     private readonly ISelectionService _selectionService;
     private readonly IInputService _inputService;
     private readonly ICursorService _cursorService;
     private readonly IEditorSizeCalculator _sizeCalculator;
     private ObservableCollection<SyntaxHighlightingResult> _highlightingResults = new();
+    private double _editorWidth;
+    private double _editorHeight;
     
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -29,7 +30,7 @@ public class EditorViewModel : IEditorViewModel
         ICursorService cursorService,
         IEditorSizeCalculator sizeCalculator)
     {
-        _textBufferService = textBufferService;
+        TextBufferService = textBufferService;
         _syntaxHighlighter = syntaxHighlighter;
         _selectionService = selectionService;
         _inputService = inputService;
@@ -38,17 +39,44 @@ public class EditorViewModel : IEditorViewModel
     }
 
     public (int start, int length) Selection => _selectionService.GetSelection();
+    public ITextBufferService TextBufferService { get; }
 
     public int CursorPosition => _cursorService.GetCursorPosition();
 
+    public double EditorWidth
+    {
+        get => _editorWidth;
+        private set
+        {
+            if (_editorWidth != value)
+            {
+                _editorWidth = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    public double EditorHeight
+    {
+        get => _editorHeight;
+        private set
+        {
+            if (_editorHeight != value)
+            {
+                _editorHeight = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+    
     public string Text
     {
-        get => _textBufferService.GetText();
+        get => TextBufferService.GetText();
         set
         {
-            if (_textBufferService.GetText() != value)
+            if (TextBufferService.GetText() != value)
             {
-                _textBufferService.ReplaceAll(value);
+                TextBufferService.ReplaceAll(value);
                 OnPropertyChanged();
                 UpdateHighlighting();
             }
@@ -68,14 +96,17 @@ public class EditorViewModel : IEditorViewModel
         }
     }
 
-    public (double width, double height) CalculateEditorSize(double availableWidth, double availableHeight)
-    {
-        return _sizeCalculator.CalculateEditorSize(Text, availableWidth, availableHeight);
-    }
-
     public void UpdateWindowSize(double width, double height)
     {
         _sizeCalculator.UpdateWindowSize(width, height);
+        UpdateEditorSize();
+    }
+
+    private void UpdateEditorSize()
+    {
+        var (width, height) = _sizeCalculator.CalculateEditorSize(TextBufferService, EditorWidth, EditorHeight);
+        EditorWidth = width;
+        EditorHeight = height;
     }
 
     public void InsertText(int index, string text)
@@ -94,8 +125,7 @@ public class EditorViewModel : IEditorViewModel
 
     private void UpdateHighlighting()
     {
-        var textToHighlight = _textBufferService.GetText();
-        var results = _syntaxHighlighter.Highlight(textToHighlight);
+        var results = _syntaxHighlighter.Highlight(TextBufferService.GetText());
         HighlightingResults = new ObservableCollection<SyntaxHighlightingResult>(results);
     }
 
@@ -132,14 +162,16 @@ public class EditorViewModel : IEditorViewModel
         OnPropertyChanged(nameof(Selection));
         OnPropertyChanged(nameof(CursorPosition));
         UpdateHighlighting();
+        UpdateEditorSize();
     }
 
-    public void OnKeyDown(KeyEventArgs e)
+    public async Task OnKeyDown(KeyEventArgs e)
     {
-        _inputService.HandleKeyDown(e.Key, e.Modifiers);
+        await _inputService.HandleKeyDown(e.Key, e.Modifiers);
         OnPropertyChanged(nameof(Text));
         OnPropertyChanged(nameof(Selection));
         OnPropertyChanged(nameof(CursorPosition));
         UpdateHighlighting();
+        UpdateEditorSize();
     }
 }

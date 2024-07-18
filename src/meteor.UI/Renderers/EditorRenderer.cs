@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
 using Avalonia;
 using Avalonia.Media;
 using Avalonia.Threading;
@@ -52,26 +51,37 @@ public class EditorRenderer
     {
         context.DrawRectangle(Brushes.White, null, bounds);
 
-        var lines = text.Split('\n');
-        var visibleLines = lines.Skip(firstVisibleLine).Take(visibleLineCount).ToList();
+        var lineHeight = _textMeasurer.GetLineHeight();
+        var currentIndex = 0;
+        var lineNumber = 0;
 
-        for (var i = 0; i < visibleLines.Count; i++)
+        while (currentIndex < text.Length && lineNumber < firstVisibleLine + visibleLineCount)
         {
-            var line = visibleLines[i];
-            var lineNumber = firstVisibleLine + i;
-            var lineY = i * _textMeasurer.GetLineHeight() + offsetY;
+            var lineEndIndex = text.IndexOf('\n', currentIndex);
+            if (lineEndIndex == -1) lineEndIndex = text.Length;
 
-            RenderLine(context, text, line, lineNumber, lineY, highlightingResults, selection, cursorPosition, offsetX);
+            if (lineNumber >= firstVisibleLine)
+            {
+                var line = text.Substring(currentIndex, lineEndIndex - currentIndex);
+                var lineY = (lineNumber - firstVisibleLine) * lineHeight + offsetY;
+
+                if (lineY >= bounds.Top && lineY < bounds.Bottom)
+                    RenderLine(context, text, line, lineNumber, currentIndex, lineY, highlightingResults, selection,
+                        cursorPosition, offsetX);
+            }
+
+            currentIndex = lineEndIndex + 1;
+            lineNumber++;
         }
     }
 
-    private void RenderLine(DrawingContext context, string fullText, string line, int lineNumber, double lineY,
+    private void RenderLine(DrawingContext context, string fullText, string line, int lineNumber, int lineStart,
+        double lineY,
         IEnumerable<SyntaxHighlightingResult> highlightingResults,
         (int start, int length) selection, int cursorPosition, double offsetX)
     {
-        DrawLineSelection(context, fullText, line, lineNumber, lineY, selection, offsetX);
+        DrawLineSelection(context, fullText, line, lineStart, lineY, selection, offsetX);
 
-        var lineStart = _textMeasurer.GetIndexFromLineAndColumn(fullText, lineNumber, 0);
         var formattedText = new FormattedText(
             line,
             CultureInfo.CurrentCulture,
@@ -87,17 +97,16 @@ public class EditorRenderer
 
         if (_showCursor && cursorPosition >= lineStart && cursorPosition <= lineStart + line.Length)
         {
-            var (cursorX, _) = _textMeasurer.GetPositionAtIndex(line, cursorPosition - lineStart);
+            var cursorX = _textMeasurer.GetPositionAtIndex(line, cursorPosition - lineStart).x;
             context.DrawLine(_cursorPen,
                 new Point(cursorX + offsetX, lineY),
                 new Point(cursorX + offsetX, lineY + _textMeasurer.GetLineHeight()));
         }
     }
 
-    private void DrawLineSelection(DrawingContext context, string fullText, string line, int lineNumber, double lineY,
+    private void DrawLineSelection(DrawingContext context, string fullText, string line, int lineStart, double lineY,
         (int start, int length) selection, double offsetX)
     {
-        var lineStart = _textMeasurer.GetIndexFromLineAndColumn(fullText, lineNumber, 0);
         var lineEnd = lineStart + line.Length;
 
         if (selection.length != 0)
@@ -105,7 +114,6 @@ public class EditorRenderer
             var selectionStart = selection.start;
             var selectionEnd = selection.start + selection.length;
 
-            // Check if the selection intersects with this line
             if (!(selectionEnd <= lineStart || selectionStart >= lineEnd))
             {
                 var startX = selectionStart > lineStart

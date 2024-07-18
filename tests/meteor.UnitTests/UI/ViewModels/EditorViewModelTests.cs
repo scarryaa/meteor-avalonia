@@ -1,4 +1,3 @@
-using meteor.Application.Interfaces;
 using meteor.Core.Enums;
 using meteor.Core.Enums.SyntaxHighlighting;
 using meteor.Core.Interfaces.Services;

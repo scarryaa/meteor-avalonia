@@ -7,7 +7,7 @@ public interface IInputService
 {
     void InsertText(string text);
     void DeleteText(int index, int length);
-    void HandleKeyDown(Key key, KeyModifiers? modifiers = null);
+    Task HandleKeyDown(Key key, KeyModifiers? modifiers = null);
     int GetNewCursorPosition(Key key, int currentPosition);
     void HandlePointerPressed(PointerPressedEventArgs e);
     void HandlePointerMoved(PointerEventArgs e);

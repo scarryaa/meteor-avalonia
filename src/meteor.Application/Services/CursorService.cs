@@ -1,4 +1,3 @@
-using meteor.Application.Interfaces;
 using meteor.Core.Interfaces.Services;
 
 namespace meteor.Application.Services;
