@@ -64,7 +64,7 @@ public class InputService : IInputService
     {
         InsertText(e.Text);
     }
-
+    
     public async Task HandleKeyDown(Key key, KeyModifiers? modifiers = null)
     {
         var isShiftPressed = modifiers.HasValue && modifiers.Value.HasFlag(KeyModifiers.Shift);
@@ -131,7 +131,7 @@ public class InputService : IInputService
             {
                 if (isCtrlPressed)
                 {
-                    var wordStart = GetWordStart(cursorPosition - 1);
+                    var wordStart = _textAnalysisService.GetWordStart(_textBufferService, cursorPosition - 1);
                     DeleteText(wordStart, cursorPosition - wordStart);
                     _cursorService.SetCursorPosition(wordStart);
                 }
@@ -158,7 +158,7 @@ public class InputService : IInputService
             {
                 if (isCtrlPressed)
                 {
-                    var wordEnd = GetWordEnd(cursorPosition);
+                    var wordEnd = _textAnalysisService.GetWordEnd(_textBufferService, cursorPosition);
                     DeleteText(cursorPosition, wordEnd - cursorPosition);
                 }
                 else
@@ -174,31 +174,40 @@ public class InputService : IInputService
         var currentPosition = _cursorService.GetCursorPosition();
         int newPosition;
 
-        if (isCtrlPressed)
-            newPosition = key switch
-            {
-                Key.Left => GetWordStart(currentPosition),
-                Key.Right => GetWordEnd(currentPosition),
-                Key.Up => 0,
-                Key.Down => _textBufferService.Length,
-                _ => currentPosition
-            };
-        else
-            newPosition = GetNewCursorPosition(key, currentPosition);
+        switch (key)
+        {
+            case Key.Left:
+                newPosition = isCtrlPressed
+                    ? _textAnalysisService.GetWordStart(_textBufferService, currentPosition)
+                    : Math.Max(0, currentPosition - 1);
+                break;
+            case Key.Right:
+                newPosition = isCtrlPressed
+                    ? _textAnalysisService.GetWordEnd(_textBufferService, currentPosition)
+                    : Math.Min(_textBufferService.Length, currentPosition + 1);
+                break;
+            case Key.Up:
+                newPosition = GetPositionAbove(currentPosition);
+                break;
+            case Key.Down:
+                newPosition = GetPositionBelow(currentPosition);
+                break;
+            default:
+                return;
+        }
 
         if (newPosition != currentPosition)
         {
             if (isShiftPressed)
             {
                 var (selectionStart, _) = _selectionService.GetSelection();
-                if (selectionStart == currentPosition) _selectionService.StartSelection(currentPosition);
+                if (selectionStart == -1) _selectionService.StartSelection(currentPosition);
                 _selectionService.UpdateSelection(newPosition);
             }
             else
             {
                 _selectionService.ClearSelection();
             }
-
             _cursorService.SetCursorPosition(newPosition);
         }
     }
@@ -217,17 +226,15 @@ public class InputService : IInputService
 
         if (key == Key.Home)
         {
-            if (isCtrlPressed)
-                newPosition = GetLineStart(currentPosition);
-            else
-                newPosition = 0;
+            newPosition = isCtrlPressed
+                ? _textAnalysisService.GetLineStart(_textBufferService, currentPosition)
+                : 0;
         }
         else // Key.End
         {
-            if (isCtrlPressed)
-                newPosition = GetLineEnd(currentPosition);
-            else
-                newPosition = _textBufferService.Length;
+            newPosition = isCtrlPressed
+                ? _textAnalysisService.GetLineEnd(_textBufferService, currentPosition)
+                : _textBufferService.Length;
         }
 
         if (isShiftPressed)
@@ -316,24 +323,33 @@ public class InputService : IInputService
 
     private int GetPositionAbove(int currentPosition)
     {
-        var lineStart = GetLineStart(currentPosition);
-        if (lineStart == 0) return currentPosition;
-        var prevLineEnd = _textBufferService.LastIndexOf('\n', lineStart - 2);
-        var prevLineStart = prevLineEnd == -1 ? 0 : prevLineEnd + 1;
-        var columnInLine = currentPosition - lineStart;
-        var prevLineLength = lineStart - prevLineStart - 1;
-        return prevLineStart + Math.Min(columnInLine, prevLineLength);
+        var currentLineStart = _textAnalysisService.GetLineStart(_textBufferService, currentPosition);
+
+        if (currentLineStart == 0)
+            return currentPosition;
+
+        var prevLineStart = _textAnalysisService.GetLineStart(_textBufferService, currentLineStart - 1);
+        var columnInCurrentLine = currentPosition - currentLineStart;
+
+        var prevLineEnd = currentLineStart - 1;
+        var prevLineLength = prevLineEnd - prevLineStart + 1;
+
+        return prevLineStart + Math.Min(columnInCurrentLine, prevLineLength);
     }
 
     private int GetPositionBelow(int currentPosition)
     {
-        var lineEnd = GetLineEnd(currentPosition);
+        var (_, lineEnd) = _textAnalysisService.GetLineBoundaries(_textBufferService, currentPosition);
         if (lineEnd == _textBufferService.Length) return currentPosition;
+
         var nextLineStart = lineEnd + 1;
         var nextLineEnd = _textBufferService.IndexOf('\n', nextLineStart);
         nextLineEnd = nextLineEnd == -1 ? _textBufferService.Length : nextLineEnd;
-        var columnInLine = currentPosition - GetLineStart(currentPosition);
+
+        var currentLineStart = _textAnalysisService.GetLineStart(_textBufferService, currentPosition);
+        var columnInLine = currentPosition - currentLineStart;
         var nextLineLength = nextLineEnd - nextLineStart;
+
         return nextLineStart + Math.Min(columnInLine, nextLineLength);
     }
 
@@ -383,7 +399,7 @@ public class InputService : IInputService
 
         if (e.IsLeftButtonPressed)
         {
-            UpdateSelectionAndCursor(index);
+            SetSelectionAndCursor(_selectionStart, index);
         }
         else
         {
@@ -408,25 +424,16 @@ public class InputService : IInputService
 
     private void HandleDoubleClick(int index)
     {
-        var start = GetWordStart(index);
-        var end = GetWordEnd(index);
+        var (start, end) = _textAnalysisService.GetWordBoundaries(_textBufferService, index);
         SetSelectionAndCursor(start, end);
     }
 
     private void HandleTripleClick(int index)
     {
-        var start = GetLineStart(index);
-        var end = GetLineEnd(index);
+        var (start, end) = _textAnalysisService.GetLineBoundaries(_textBufferService, index);
         SetSelectionAndCursor(start, end);
     }
-
-    private void UpdateSelectionAndCursor(int index)
-    {
-        if (_selectionStart == -1) _selectionStart = index;
-        _cursorService.SetCursorPosition(index);
-        _selectionService.SetSelection(Math.Min(_selectionStart, index), Math.Abs(_selectionStart - index));
-    }
-
+    
     private void SetSelectionAndCursor(int start, int end)
     {
         start = ClampIndex(start);

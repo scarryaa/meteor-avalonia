@@ -1,4 +1,5 @@
 using System;
+using meteor.Core.Enums;
 using Key = Avalonia.Input.Key;
 
 namespace meteor.UI.Adapters;
@@ -90,5 +91,19 @@ public static class KeyMapper
             Key.OemQuotes => Core.Enums.Key.Quote,
             _ => throw new ArgumentOutOfRangeException(nameof(avaloniaKey), avaloniaKey, null)
         };
+    }
+
+    public static KeyModifiers ToMeteorKeyModifiers(Avalonia.Input.KeyModifiers avaloniaModifiers)
+    {
+        var meteorModifiers = KeyModifiers.None;
+
+        if (avaloniaModifiers.HasFlag(Avalonia.Input.KeyModifiers.Shift))
+            meteorModifiers |= KeyModifiers.Shift;
+        if (avaloniaModifiers.HasFlag(Avalonia.Input.KeyModifiers.Control))
+            meteorModifiers |= KeyModifiers.Ctrl;
+        if (avaloniaModifiers.HasFlag(Avalonia.Input.KeyModifiers.Alt))
+            meteorModifiers |= KeyModifiers.Alt;
+
+        return meteorModifiers;
     }
 }

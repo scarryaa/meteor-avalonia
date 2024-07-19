@@ -16,9 +16,10 @@ public class AvaloniaTextMeasurer : ITextMeasurer
     private readonly double _fontSize;
     private readonly double _lineHeight;
     private readonly LruCache<string, TextLayout> _textLayoutCache;
-    private readonly TextLayout _singleCharLayout;
     private readonly Dictionary<char, double> _charWidthCache;
-
+    private readonly ObjectPool<StringBuilder> _stringBuilderPool;
+    private readonly TextLayout _singleCharLayout;
+    
     private const int MaxCacheSize = 1000;
     private const int ChunkSize = 100;
 
@@ -36,12 +37,14 @@ public class AvaloniaTextMeasurer : ITextMeasurer
             Brushes.Transparent
         );
         _lineHeight = formattedText.Height;
-        
-        _textLayoutCache = new LruCache<string, TextLayout>(MaxCacheSize);
-        _singleCharLayout = CreateTextLayout("X");
-        _charWidthCache = new Dictionary<char, double>();
-    }
 
+        _singleCharLayout = CreateTextLayout("X");
+        _textLayoutCache = new LruCache<string, TextLayout>(MaxCacheSize);
+        _charWidthCache = new Dictionary<char, double>();
+
+        _stringBuilderPool = new ObjectPool<StringBuilder>(() => new StringBuilder(ChunkSize));
+    }
+    
     public int GetIndexAtPosition(ITextBufferService textBufferService, double x, double y, double verticalScrollOffset,
         double horizontalScrollOffset)
     {
@@ -60,7 +63,6 @@ public class AvaloniaTextMeasurer : ITextMeasurer
             currentLine++;
         }
 
-        // Find the end of the current line
         var lineEndIndex = textBufferService.IndexOf('\n', currentIndex);
         if (lineEndIndex == -1)
             lineEndIndex = textBufferService.Length;
@@ -70,18 +72,17 @@ public class AvaloniaTextMeasurer : ITextMeasurer
         textBufferService.GetTextSegment(currentIndex, lineLength, sb);
         var lineText = sb.ToString();
 
-        var textLayout = new TextLayout(
-            lineText,
-            _typeface,
-            _fontSize,
-            Brushes.Black,
-            TextAlignment.Left,
-            TextWrapping.NoWrap,
-            TextTrimming.None
-        );
-
-        var hitTestResult = textLayout.HitTestPoint(new Point(adjustedX, 0));
-        return currentIndex + hitTestResult.TextPosition;
+        var textLayout = CreateTextLayout(lineText);
+        try
+        {
+            var hitTestResult = textLayout.HitTestPoint(new Point(adjustedX, 0));
+            return currentIndex + hitTestResult.TextPosition;
+        }
+        catch (Exception)
+        {
+            Console.WriteLine("AvaloniaTextMeasurer: Failed to hit test text position");
+            return currentIndex;
+        }
     }
 
     public (double x, double y) GetPositionAtIndex(string text, int index)
@@ -94,19 +95,18 @@ public class AvaloniaTextMeasurer : ITextMeasurer
     public double GetStringWidth(string text)
     {
         if (string.IsNullOrEmpty(text)) return 0;
-        if (text.Length == 1) return GetCharWidth(text[0]);
-
-        return GetStringWidth(text.ToCharArray(), 0, text.Length);
+        var textLayout = GetOrCreateTextLayout(text);
+        return textLayout.WidthIncludingTrailingWhitespace;
     }
-
+    
     public double GetStringWidth(char[] buffer, int start, int length)
     {
         if (length == 0) return 0;
         if (length == 1) return GetCharWidth(buffer[start]);
 
-        double width = 0;
-        for (var i = start; i < start + length; i++) width += GetCharWidth(buffer[i]);
-        return width;
+        var text = new string(buffer, start, length);
+        var textLayout = GetOrCreateTextLayout(text);
+        return textLayout.WidthIncludingTrailingWhitespace;
     }
 
     public double GetStringHeight(string text)
@@ -129,8 +129,15 @@ public class AvaloniaTextMeasurer : ITextMeasurer
     {
         if (_charWidthCache.TryGetValue(c, out var width)) return width;
 
-        var layout = CreateTextLayout(c.ToString());
-        width = layout.WidthIncludingTrailingWhitespace;
+        var formattedText = new FormattedText(
+            c.ToString(),
+            CultureInfo.CurrentCulture,
+            FlowDirection.LeftToRight,
+            _typeface,
+            _fontSize,
+            Brushes.Black
+        );
+        width = formattedText.Width;
         _charWidthCache[c] = width;
         return width;
     }
@@ -201,6 +208,12 @@ public class AvaloniaTextMeasurer : ITextMeasurer
     }
 
     public void ClearCache()
+    {
+        _textLayoutCache.Clear();
+        _charWidthCache.Clear();
+    }
+
+    public void Dispose()
     {
         _textLayoutCache.Clear();
         _charWidthCache.Clear();

@@ -140,6 +140,7 @@ public partial class EditorView : UserControl
         base.OnTextInput(e);
         _viewModel?.OnTextInput(EventArgsAdapters.ToTextInputEventArgsModel(e));
         _editorRenderer.UpdateLineInfo(_viewModel.TextBufferService);
+        e.Handled = true;
     }
 
     protected override async void OnKeyDown(KeyEventArgs e)
@@ -147,13 +148,14 @@ public partial class EditorView : UserControl
         base.OnKeyDown(e);
 
         if (e.Key == Key.Back || e.Key == Key.Delete || e.Key == Key.Left || e.Key == Key.Right ||
+            e.Key == Key.Down || e.Key == Key.Up ||
             e.Key == Key.Home || e.Key == Key.End || e.Key == Key.Enter ||
             (e.KeyModifiers.HasFlag(KeyModifiers.Control) &&
              (e.Key == Key.A || e.Key == Key.C || e.Key == Key.X || e.Key == Key.V)))
         {
             var meteorKey = KeyMapper.ToMeteorKey(e.Key);
-            var meteorKeyEventArgs =
-                new Core.Models.Events.KeyEventArgs(meteorKey, (Core.Enums.KeyModifiers?)e.KeyModifiers);
+            var meteorKeyModifiers = KeyMapper.ToMeteorKeyModifiers(e.KeyModifiers);
+            var meteorKeyEventArgs = new Core.Models.Events.KeyEventArgs(meteorKey, meteorKeyModifiers);
             await _viewModel?.OnKeyDown(meteorKeyEventArgs);
         }
 

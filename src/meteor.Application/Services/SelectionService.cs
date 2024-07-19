@@ -4,34 +4,37 @@ namespace meteor.Application.Services;
 
 public class SelectionService : ISelectionService
 {
-    private int _selectionStart;
-    private int _selectionLength;
+    private int _selectionStart = -1;
+    private int _selectionEnd = -1;
 
     public void StartSelection(int index)
     {
         _selectionStart = index;
-        _selectionLength = 0;
+        _selectionEnd = index;
     }
 
     public void UpdateSelection(int index)
     {
-        _selectionLength = index - _selectionStart;
+        _selectionEnd = index;
     }
 
     public void SetSelection(int start, int length)
     {
         _selectionStart = start;
-        _selectionLength = length;
+        _selectionEnd = start + length;
     }
 
     public void ClearSelection()
     {
-        _selectionStart = 0;
-        _selectionLength = 0;
+        _selectionStart = -1;
+        _selectionEnd = -1;
     }
 
     public (int start, int length) GetSelection()
     {
-        return (_selectionStart, _selectionLength);
+        if (_selectionStart == -1 || _selectionEnd == -1) return (-1, 0);
+        var start = Math.Min(_selectionStart, _selectionEnd);
+        var end = Math.Max(_selectionStart, _selectionEnd);
+        return (start, end - start);
     }
 }

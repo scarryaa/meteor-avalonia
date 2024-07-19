@@ -1,6 +1,6 @@
 namespace meteor.Core.Interfaces.Services;
 
-public interface ITextMeasurer
+public interface ITextMeasurer : IDisposable
 {
     int GetIndexAtPosition(ITextBufferService textBufferService, double x, double y, double verticalScrollOffset,
         double horizontalScrollOffset);
