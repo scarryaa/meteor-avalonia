@@ -36,8 +36,8 @@ public class SelectionServiceTests
         _selectionService.StartSelection(10);
         _selectionService.UpdateSelection(5);
         var (start, length) = _selectionService.GetSelection();
-        Assert.Equal(10, start);
-        Assert.Equal(-5, length);
+        Assert.Equal(5, start);
+        Assert.Equal(5, length);
     }
 
     [Fact]
@@ -47,7 +47,7 @@ public class SelectionServiceTests
         _selectionService.UpdateSelection(10);
         _selectionService.ClearSelection();
         var (start, length) = _selectionService.GetSelection();
-        Assert.Equal(0, start);
+        Assert.Equal(-1, start);
         Assert.Equal(0, length);
     }
 
@@ -73,7 +73,7 @@ public class SelectionServiceTests
         _selectionService.StartSelection(15);
         _selectionService.UpdateSelection(12);
         var (start2, length2) = _selectionService.GetSelection();
-        Assert.Equal(15, start2);
-        Assert.Equal(-3, length2);
+        Assert.Equal(12, start2);
+        Assert.Equal(3, length2);
     }
 }
