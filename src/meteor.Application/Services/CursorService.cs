@@ -16,9 +16,9 @@ public class CursorService : ICursorService
     public void MoveCursor(int x, int y)
     {
         var textBufferService = _tabService.GetActiveTextBufferService();
-        int lineStart = 0;
-        int lineCount = 0;
-        int index = 0;
+        var lineStart = 0;
+        var lineCount = 0;
+        var index = 0;
 
         while (index < textBufferService.Length && lineCount < y)
         {
@@ -27,16 +27,14 @@ public class CursorService : ICursorService
                 lineCount++;
                 lineStart = index + 1;
             }
+
             index++;
         }
 
         index = lineStart;
         for (var i = 0; i < x && index < textBufferService.Length; i++)
         {
-            if (textBufferService[index] == '\n')
-            {
-                break;
-            }
+            if (textBufferService[index] == '\n') break;
             index++;
         }
 

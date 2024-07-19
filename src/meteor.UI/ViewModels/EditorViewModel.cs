@@ -14,22 +14,20 @@ namespace meteor.UI.ViewModels;
 
 public sealed class EditorViewModel : IEditorViewModel
 {
-    private readonly ISyntaxHighlighter _syntaxHighlighter;
-    private readonly ISelectionService _selectionService;
-    private readonly IInputService _inputService;
     private readonly ICursorService _cursorService;
+    private readonly IInputService _inputService;
+    private readonly ISelectionService _selectionService;
     private readonly IEditorSizeCalculator _sizeCalculator;
-    private ObservableCollection<SyntaxHighlightingResult> _highlightingResults = new();
-    private double _editorWidth;
-    private double _editorHeight;
     private readonly StringBuilder _stringBuilder = new();
+    private readonly ISyntaxHighlighter _syntaxHighlighter;
     private string _cachedText;
-    private bool _isTextDirty = true;
-    private double _verticalScrollOffset;
+    private double _editorHeight;
+    private double _editorWidth;
+    private ObservableCollection<SyntaxHighlightingResult> _highlightingResults = new();
     private double _horizontalScrollOffset;
+    private bool _isTextDirty = true;
     private Vector _scrollOffset;
-    
-    public event PropertyChangedEventHandler? PropertyChanged;
+    private double _verticalScrollOffset;
 
     public EditorViewModel(
         ITextBufferService textBufferService,
@@ -49,6 +47,8 @@ public sealed class EditorViewModel : IEditorViewModel
         _sizeCalculator = sizeCalculator;
     }
 
+    public event PropertyChangedEventHandler? PropertyChanged;
+
     public Vector ScrollOffset
     {
         get => _scrollOffset;
@@ -62,7 +62,7 @@ public sealed class EditorViewModel : IEditorViewModel
             }
         }
     }
-    
+
     public (int start, int length) Selection => _selectionService.GetSelection();
     public ITextBufferService TextBufferService { get; }
     public ITabService TabService { get; }
@@ -94,7 +94,7 @@ public sealed class EditorViewModel : IEditorViewModel
             }
         }
     }
-    
+
     public string Text
     {
         get
@@ -106,6 +106,7 @@ public sealed class EditorViewModel : IEditorViewModel
                 _cachedText = _stringBuilder.ToString();
                 _isTextDirty = false;
             }
+
             return _cachedText;
         }
         set
@@ -139,18 +140,11 @@ public sealed class EditorViewModel : IEditorViewModel
         ScrollOffset = offset;
         (_inputService as InputService)?.UpdateScrollOffset(offset.Y, offset.X);
     }
-    
+
     public void UpdateWindowSize(double width, double height)
     {
         _sizeCalculator.UpdateWindowSize(width, height);
         UpdateEditorSize();
-    }
-
-    private void UpdateEditorSize()
-    {
-        var (width, height) = _sizeCalculator.CalculateEditorSize(TextBufferService, EditorWidth, EditorHeight);
-        EditorWidth = width;
-        EditorHeight = height;
     }
 
     public void InsertText(int index, string text)
@@ -170,24 +164,13 @@ public sealed class EditorViewModel : IEditorViewModel
         UpdateHighlighting();
     }
 
-    private void UpdateHighlighting()
-    {
-        var results = _syntaxHighlighter.Highlight(Text);
-        HighlightingResults = new ObservableCollection<SyntaxHighlightingResult>(results);
-    }
-
-    private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
-    {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-    }
-
     public void OnPointerPressed(PointerPressedEventArgs e)
     {
         _inputService.HandlePointerPressed(e);
         OnPropertyChanged(nameof(Selection));
         OnPropertyChanged(nameof(CursorPosition));
     }
-    
+
     public void OnPointerMoved(PointerEventArgs e)
     {
         _inputService.HandlePointerMoved(e);
@@ -220,5 +203,23 @@ public sealed class EditorViewModel : IEditorViewModel
         OnPropertyChanged(nameof(CursorPosition));
         UpdateHighlighting();
         UpdateEditorSize();
+    }
+
+    private void UpdateEditorSize()
+    {
+        var (width, height) = _sizeCalculator.CalculateEditorSize(TextBufferService, EditorWidth, EditorHeight);
+        EditorWidth = width;
+        EditorHeight = height;
+    }
+
+    private void UpdateHighlighting()
+    {
+        var results = _syntaxHighlighter.Highlight(Text);
+        HighlightingResults = new ObservableCollection<SyntaxHighlightingResult>(results);
+    }
+
+    private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
 }

@@ -8,6 +8,11 @@ public sealed class MainWindowViewModel : IMainWindowViewModel
 {
     private ITabViewModel _tabViewModel;
 
+    public MainWindowViewModel(ITabViewModel tabViewModel)
+    {
+        TabViewModel = tabViewModel;
+    }
+
     public ITabViewModel TabViewModel
     {
         get => _tabViewModel;
@@ -19,11 +24,6 @@ public sealed class MainWindowViewModel : IMainWindowViewModel
                 OnPropertyChanged();
             }
         }
-    }
-
-    public MainWindowViewModel(ITabViewModel tabViewModel)
-    {
-        TabViewModel = tabViewModel;
     }
 
     public event PropertyChangedEventHandler PropertyChanged;

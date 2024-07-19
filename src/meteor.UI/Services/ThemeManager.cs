@@ -10,12 +10,12 @@ public class ThemeManager : IThemeManager
     private readonly Avalonia.Application _application;
     private readonly Dictionary<string, ResourceDictionary> _themes = new();
 
-    public event EventHandler<string>? ThemeChanged;
-
     public ThemeManager(Avalonia.Application application)
     {
         _application = application ?? throw new ArgumentNullException(nameof(application));
     }
+
+    public event EventHandler<string>? ThemeChanged;
 
     public string CurrentTheme { get; set; }
 

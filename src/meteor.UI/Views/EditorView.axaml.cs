@@ -14,9 +14,9 @@ namespace meteor.UI.Views;
 public partial class EditorView : UserControl
 {
     private readonly EditorRenderer _editorRenderer;
-    private IEditorViewModel? _viewModel;
-    private ScrollViewer? _scrollViewer;
     private Panel? _editorPanel;
+    private ScrollViewer? _scrollViewer;
+    private IEditorViewModel? _viewModel;
 
     public EditorView()
     {
@@ -46,7 +46,7 @@ public partial class EditorView : UserControl
         PointerReleased += OnEditorPointerReleased;
 
         this.GetObservable(BoundsProperty).Subscribe(new AnonymousObserver<Rect>(bounds =>
-        {   
+        {
             if (_viewModel != null) _viewModel.UpdateWindowSize(bounds.Width, bounds.Height);
         }));
     }
@@ -166,7 +166,7 @@ public partial class EditorView : UserControl
 
         _editorRenderer.UpdateLineInfo();
     }
-    
+
     public override void Render(DrawingContext context)
     {
         base.Render(context);

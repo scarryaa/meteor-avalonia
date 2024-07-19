@@ -4,8 +4,8 @@ namespace meteor.Core.Models;
 
 public class ObjectPool<T>
 {
-    private readonly ConcurrentBag<T> _objects;
     private readonly Func<T> _objectGenerator;
+    private readonly ConcurrentBag<T> _objects;
 
     public ObjectPool(Func<T> objectGenerator)
     {

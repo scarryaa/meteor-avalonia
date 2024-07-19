@@ -18,7 +18,7 @@ public interface IEditorViewModel : INotifyPropertyChanged
     ITextBufferService TextBufferService { get; }
     ObservableCollection<SyntaxHighlightingResult> HighlightingResults { get; }
     ITabService TabService { get; }
-    
+
     void InsertText(int index, string text);
     void DeleteText(int index, int length);
 

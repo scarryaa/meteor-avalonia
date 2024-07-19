@@ -12,16 +12,15 @@ namespace meteor.UI.Services;
 
 public class AvaloniaTextMeasurer : ITextMeasurer
 {
-    private readonly Typeface _typeface;
-    private readonly double _fontSize;
-    private readonly double _lineHeight;
-    private readonly LruCache<string, TextLayout> _textLayoutCache;
-    private readonly Dictionary<char, double> _charWidthCache;
-    private readonly ObjectPool<StringBuilder> _stringBuilderPool;
-    private readonly TextLayout _singleCharLayout;
-
     private const int MaxCacheSize = 1000;
     private const int ChunkSize = 100;
+    private readonly Dictionary<char, double> _charWidthCache;
+    private readonly double _fontSize;
+    private readonly double _lineHeight;
+    private readonly TextLayout _singleCharLayout;
+    private readonly ObjectPool<StringBuilder> _stringBuilderPool;
+    private readonly LruCache<string, TextLayout> _textLayoutCache;
+    private readonly Typeface _typeface;
 
     public AvaloniaTextMeasurer(Typeface typeface, double fontSize)
     {
@@ -125,6 +124,18 @@ public class AvaloniaTextMeasurer : ITextMeasurer
         return _singleCharLayout.WidthIncludingTrailingWhitespace;
     }
 
+    public void ClearCache()
+    {
+        _textLayoutCache.Clear();
+        _charWidthCache.Clear();
+    }
+
+    public void Dispose()
+    {
+        _textLayoutCache.Clear();
+        _charWidthCache.Clear();
+    }
+
     private double GetCharWidth(char c)
     {
         if (_charWidthCache.TryGetValue(c, out var width)) return width;
@@ -205,17 +216,5 @@ public class AvaloniaTextMeasurer : ITextMeasurer
             TextWrapping.NoWrap,
             TextTrimming.None
         );
-    }
-
-    public void ClearCache()
-    {
-        _textLayoutCache.Clear();
-        _charWidthCache.Clear();
-    }
-
-    public void Dispose()
-    {
-        _textLayoutCache.Clear();
-        _charWidthCache.Clear();
     }
 }

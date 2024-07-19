@@ -7,19 +7,19 @@ namespace meteor.Core.Services;
 
 public class InputService : IInputService
 {
-    private readonly ITabService _tabService;
-    private readonly ICursorService _cursorService;
-    private readonly ITextAnalysisService _textAnalysisService;
-    private readonly ISelectionService _selectionService;
     private readonly IClipboardService _clipboardService;
-    private readonly ITextMeasurer _textMeasurer;
-    private DateTime _lastClickTime = DateTime.MinValue;
-    private int _clickCount;
-    private bool _isSelecting;
-    private int _selectionStart = -1;
+    private readonly ICursorService _cursorService;
+    private readonly ISelectionService _selectionService;
     private readonly StringBuilder _stringBuilder = new();
-    private double _verticalScrollOffset;
+    private readonly ITabService _tabService;
+    private readonly ITextAnalysisService _textAnalysisService;
+    private readonly ITextMeasurer _textMeasurer;
+    private int _clickCount;
     private double _horizontalScrollOffset;
+    private bool _isSelecting;
+    private DateTime _lastClickTime = DateTime.MinValue;
+    private int _selectionStart = -1;
+    private double _verticalScrollOffset;
 
     public InputService(
         ITabService tabService,
@@ -35,12 +35,6 @@ public class InputService : IInputService
         _selectionService = selectionService;
         _clipboardService = clipboardService;
         _textMeasurer = textMeasurer;
-    }
-
-    public void UpdateScrollOffset(double verticalScrollOffset, double horizontalScrollOffset)
-    {
-        _verticalScrollOffset = verticalScrollOffset;
-        _horizontalScrollOffset = horizontalScrollOffset;
     }
 
     public void InsertText(string text)
@@ -66,7 +60,7 @@ public class InputService : IInputService
     {
         InsertText(e.Text);
     }
-    
+
     public async Task HandleKeyDown(Key key, KeyModifiers? modifiers = null)
     {
         var isShiftPressed = modifiers.HasValue && modifiers.Value.HasFlag(KeyModifiers.Shift);
@@ -117,6 +111,82 @@ public class InputService : IInputService
                 if (key >= Key.A && key <= Key.Z) InsertText(key.ToString());
                 break;
         }
+    }
+
+    public int GetNewCursorPosition(Key key, int currentPosition)
+    {
+        return key switch
+        {
+            Key.Left => Math.Max(0, currentPosition - 1),
+            Key.Right => Math.Min(_tabService.GetActiveTextBufferService().Length, currentPosition + 1),
+            Key.Up => GetPositionAbove(currentPosition),
+            Key.Down => GetPositionBelow(currentPosition),
+            _ => currentPosition
+        };
+    }
+
+    public void HandlePointerPressed(PointerPressedEventArgs e)
+    {
+        int index;
+        if (e.X != 0 || e.Y != 0)
+            index = ClampIndex(_textMeasurer.GetIndexAtPosition(_tabService.GetActiveTextBufferService(), e.X, e.Y,
+                _verticalScrollOffset, _horizontalScrollOffset));
+        else
+            index = ClampIndex(e.Index);
+
+        if ((DateTime.Now - _lastClickTime).TotalMilliseconds < 500)
+            _clickCount++;
+        else
+            _clickCount = 1;
+        _lastClickTime = DateTime.Now;
+
+        switch (_clickCount)
+        {
+            case 1:
+                HandleSingleClick(index);
+                break;
+            case 2:
+                HandleDoubleClick(index);
+                break;
+            case 3:
+                HandleTripleClick(index);
+                _clickCount = 0;
+                break;
+        }
+
+        _isSelecting = true;
+        _selectionStart = index;
+    }
+
+    public void HandlePointerMoved(PointerEventArgs e)
+    {
+        if (!_isSelecting) return;
+
+        var index = ClampIndex(_textMeasurer.GetIndexAtPosition(_tabService.GetActiveTextBufferService(), e.X, e.Y,
+            _verticalScrollOffset, _horizontalScrollOffset));
+
+        if (e.IsLeftButtonPressed)
+        {
+            SetSelectionAndCursor(_selectionStart, index);
+        }
+        else
+        {
+            // If the left button is not pressed, end the selection
+            _isSelecting = false;
+            _selectionStart = -1;
+        }
+    }
+
+    public void HandlePointerReleased(PointerReleasedEventArgs e)
+    {
+        _isSelecting = false;
+        _selectionStart = -1;
+    }
+
+    public void UpdateScrollOffset(double verticalScrollOffset, double horizontalScrollOffset)
+    {
+        _verticalScrollOffset = verticalScrollOffset;
+        _horizontalScrollOffset = horizontalScrollOffset;
     }
 
     private void HandleBackspace(bool isCtrlPressed)
@@ -212,6 +282,7 @@ public class InputService : IInputService
             {
                 _selectionService.ClearSelection();
             }
+
             _cursorService.SetCursorPosition(newPosition);
         }
     }
@@ -231,17 +302,13 @@ public class InputService : IInputService
         int newPosition;
 
         if (key == Key.Home)
-        {
             newPosition = isCtrlPressed
                 ? _textAnalysisService.GetLineStart(textBufferService, currentPosition)
                 : 0;
-        }
         else // Key.End
-        {
             newPosition = isCtrlPressed
                 ? _textAnalysisService.GetLineEnd(textBufferService, currentPosition)
                 : textBufferService.Length;
-        }
 
         if (isShiftPressed)
             _selectionService.UpdateSelection(newPosition);
@@ -314,18 +381,6 @@ public class InputService : IInputService
         if (!string.IsNullOrEmpty(textToPaste)) InsertText(textToPaste);
     }
 
-    public int GetNewCursorPosition(Key key, int currentPosition)
-    {
-        return key switch
-        {
-            Key.Left => Math.Max(0, currentPosition - 1),
-            Key.Right => Math.Min(_tabService.GetActiveTextBufferService().Length, currentPosition + 1),
-            Key.Up => GetPositionAbove(currentPosition),
-            Key.Down => GetPositionBelow(currentPosition),
-            _ => currentPosition
-        };
-    }
-
     private int GetPositionAbove(int currentPosition)
     {
         var textBufferService = _tabService.GetActiveTextBufferService();
@@ -360,68 +415,6 @@ public class InputService : IInputService
         return nextLineStart + Math.Min(columnInLine, nextLineLength);
     }
 
-    public void HandlePointerPressed(PointerPressedEventArgs e)
-    {
-        int index;
-        if (e.X != 0 || e.Y != 0)
-        {
-            index = ClampIndex(_textMeasurer.GetIndexAtPosition(_tabService.GetActiveTextBufferService(), e.X, e.Y,
-                _verticalScrollOffset, _horizontalScrollOffset));
-        }
-        else
-        {
-            index = ClampIndex(e.Index);
-        }
-
-        if ((DateTime.Now - _lastClickTime).TotalMilliseconds < 500)
-            _clickCount++;
-        else
-            _clickCount = 1;
-        _lastClickTime = DateTime.Now;
-
-        switch (_clickCount)
-        {
-            case 1:
-                HandleSingleClick(index);
-                break;
-            case 2:
-                HandleDoubleClick(index);
-                break;
-            case 3:
-                HandleTripleClick(index);
-                _clickCount = 0;
-                break;
-        }
-
-        _isSelecting = true;
-        _selectionStart = index;
-    }
-
-    public void HandlePointerMoved(PointerEventArgs e)
-    {
-        if (!_isSelecting) return;
-
-        var index = ClampIndex(_textMeasurer.GetIndexAtPosition(_tabService.GetActiveTextBufferService(), e.X, e.Y,
-            _verticalScrollOffset, _horizontalScrollOffset));
-
-        if (e.IsLeftButtonPressed)
-        {
-            SetSelectionAndCursor(_selectionStart, index);
-        }
-        else
-        {
-            // If the left button is not pressed, end the selection
-            _isSelecting = false;
-            _selectionStart = -1;
-        }
-    }
-
-    public void HandlePointerReleased(PointerReleasedEventArgs e)
-    {
-        _isSelecting = false;
-        _selectionStart = -1;
-    }
-
     private void HandleSingleClick(int index)
     {
         _cursorService.SetCursorPosition(index);
@@ -440,7 +433,7 @@ public class InputService : IInputService
         var (start, end) = _textAnalysisService.GetLineBoundaries(_tabService.GetActiveTextBufferService(), index);
         SetSelectionAndCursor(start, end);
     }
-    
+
     private void SetSelectionAndCursor(int start, int end)
     {
         start = ClampIndex(start);

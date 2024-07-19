@@ -6,8 +6,8 @@ namespace meteor.UnitTests.Application.Services;
 
 public class TextAnalysisServiceTests
 {
-    private readonly TextAnalysisService _textAnalysisService;
     private readonly Mock<ITextBufferService> _mockTextBuffer;
+    private readonly TextAnalysisService _textAnalysisService;
 
     public TextAnalysisServiceTests()
     {
@@ -32,7 +32,7 @@ public class TextAnalysisServiceTests
         Assert.Equal(expectedStart, start);
         Assert.Equal(expectedEnd, end);
     }
-    
+
     [Theory]
     [InlineData("Line1\nLine2\nLine3", 0, 0, 5)]
     [InlineData("Line1\nLine2\nLine3", 6, 6, 11)]

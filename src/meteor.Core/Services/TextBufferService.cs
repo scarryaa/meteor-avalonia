@@ -6,9 +6,9 @@ namespace meteor.Core.Services;
 
 public class TextBufferService : ITextBufferService
 {
+    private readonly StringBuilder _stringBuilder = new();
     private readonly TextBuffer _textBuffer;
     private char[] _spanBuffer = new char[1024];
-    private readonly StringBuilder _stringBuilder = new();
 
     public TextBufferService(string initialText = "")
     {
@@ -45,13 +45,6 @@ public class TextBufferService : ITextBufferService
         return -1;
     }
 
-    public string Substring(int start, int length)
-    {
-        _stringBuilder.Clear();
-        _textBuffer.GetTextSegment(start, length, _stringBuilder);
-        return _stringBuilder.ToString();
-    }
-
     public void GetTextSegment(int start, int length, StringBuilder output)
     {
         _textBuffer.GetTextSegment(start, length, output);
@@ -82,5 +75,12 @@ public class TextBufferService : ITextBufferService
     public void AppendTo(StringBuilder sb)
     {
         _textBuffer.GetTextSegment(0, _textBuffer.Length, sb);
+    }
+
+    public string Substring(int start, int length)
+    {
+        _stringBuilder.Clear();
+        _textBuffer.GetTextSegment(start, length, _stringBuilder);
+        return _stringBuilder.ToString();
     }
 }

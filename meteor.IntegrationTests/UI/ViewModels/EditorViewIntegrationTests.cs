@@ -14,17 +14,17 @@ namespace meteor.IntegrationTests.UI.ViewModels;
 
 public class EditorViewModelIntegrationTests : IDisposable
 {
-    private readonly ITextBufferService _textBufferService;
-    private readonly ISyntaxHighlighter _syntaxHighlighter;
-    private readonly ICursorService _cursorService;
-    private readonly ISelectionService _selectionService;
-    private readonly IInputService _inputService;
-    private readonly EditorViewModel _viewModel;
-    private readonly ITextAnalysisService _textAnalysisService;
     private readonly IClipboardService _clipboardService;
-    private readonly ITextMeasurer _textMeasurer;
+    private readonly ICursorService _cursorService;
     private readonly IEditorSizeCalculator _editorSizeCalculator;
+    private readonly IInputService _inputService;
+    private readonly ISelectionService _selectionService;
+    private readonly ISyntaxHighlighter _syntaxHighlighter;
     private readonly ITabService _tabService;
+    private readonly ITextAnalysisService _textAnalysisService;
+    private readonly ITextBufferService _textBufferService;
+    private readonly ITextMeasurer _textMeasurer;
+    private readonly EditorViewModel _viewModel;
 
     public EditorViewModelIntegrationTests()
     {
@@ -320,7 +320,7 @@ public class EditorViewModelIntegrationTests : IDisposable
 
         // Assert
         Assert.Equal(4, _viewModel.CursorPosition);
-        Assert.Equal((4, 1), _viewModel.Selection); 
+        Assert.Equal((4, 1), _viewModel.Selection);
     }
 
     [AvaloniaFact]

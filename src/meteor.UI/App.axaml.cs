@@ -21,8 +21,8 @@ namespace meteor.UI;
 
 public class App : Avalonia.Application
 {
-    private static IThemeManager? ThemeManager { get; set; }
     private IServiceProvider? _serviceProvider;
+    private static IThemeManager? ThemeManager { get; set; }
 
     public override void Initialize()
     {

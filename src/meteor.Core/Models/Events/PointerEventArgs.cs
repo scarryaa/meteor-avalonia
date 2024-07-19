@@ -4,14 +4,6 @@ namespace meteor.Core.Models.Events;
 
 public class PointerEventArgs
 {
-    public double X { get; init; }
-    public double Y { get; init; }
-    public int Index { get; init; }
-    public KeyModifiers Modifiers { get; init; }
-    public bool IsLeftButtonPressed { get; init; }
-    public bool IsRightButtonPressed { get; init; }
-    public bool IsMiddleButtonPressed { get; init; }
-
     public PointerEventArgs()
     {
     }
@@ -27,4 +19,12 @@ public class PointerEventArgs
         IsRightButtonPressed = isRightButtonPressed;
         IsMiddleButtonPressed = isMiddleButtonPressed;
     }
+
+    public double X { get; init; }
+    public double Y { get; init; }
+    public int Index { get; init; }
+    public KeyModifiers Modifiers { get; init; }
+    public bool IsLeftButtonPressed { get; init; }
+    public bool IsRightButtonPressed { get; init; }
+    public bool IsMiddleButtonPressed { get; init; }
 }

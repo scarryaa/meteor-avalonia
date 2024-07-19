@@ -2,8 +2,8 @@ namespace meteor.Core.Models;
 
 public class LruCache<TKey, TValue>
 {
-    private readonly int _capacity;
     private readonly Dictionary<TKey, LinkedListNode<CacheItem>> _cacheMap = new();
+    private readonly int _capacity;
     private readonly LinkedList<CacheItem> _lruList = new();
 
     public LruCache(int capacity)

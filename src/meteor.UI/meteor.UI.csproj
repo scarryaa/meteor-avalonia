@@ -1,28 +1,28 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-      <OutputType>WinExe</OutputType>
-      <TargetFramework>net8.0</TargetFramework>
-    <Nullable>enable</Nullable>
-      <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
-      <ApplicationManifest>app.manifest</ApplicationManifest>
-      <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
-  </PropertyGroup>
+    <PropertyGroup>
+        <OutputType>WinExe</OutputType>
+        <TargetFramework>net8.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+        <ApplicationManifest>app.manifest</ApplicationManifest>
+        <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    </PropertyGroup>
 
-  <ItemGroup>
-      <PackageReference Include="Avalonia" Version="11.0.10"/>
-      <PackageReference Include="Avalonia.Desktop" Version="11.0.10"/>
-      <PackageReference Include="Avalonia.Themes.Fluent" Version="11.0.10"/>
-      <PackageReference Include="Avalonia.Fonts.Inter" Version="11.0.10"/>
-      <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->
-      <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="Avalonia.Diagnostics" Version="11.0.10"/>
-      <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0-preview.6.24327.7"/>
-      <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.0-preview.6.24327.7"/>
-  </ItemGroup>
+    <ItemGroup>
+        <PackageReference Include="Avalonia" Version="11.0.10"/>
+        <PackageReference Include="Avalonia.Desktop" Version="11.0.10"/>
+        <PackageReference Include="Avalonia.Themes.Fluent" Version="11.0.10"/>
+        <PackageReference Include="Avalonia.Fonts.Inter" Version="11.0.10"/>
+        <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->
+        <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="Avalonia.Diagnostics" Version="11.0.10"/>
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0-preview.6.24327.7"/>
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.0-preview.6.24327.7"/>
+    </ItemGroup>
 
-  <ItemGroup>
-      <ProjectReference Include="..\meteor.Application\meteor.Application.csproj"/>
-      <ProjectReference Include="..\meteor.Infrastructure\meteor.Infrastructure.csproj"/>
-  </ItemGroup>
+    <ItemGroup>
+        <ProjectReference Include="..\meteor.Application\meteor.Application.csproj"/>
+        <ProjectReference Include="..\meteor.Infrastructure\meteor.Infrastructure.csproj"/>
+    </ItemGroup>
 
     <ItemGroup>
         <AvaloniaResource Include="Assets\**"/>
@@ -32,6 +32,6 @@
     <ItemGroup>
         <Compile Update="Views\TabItemView.cs">
             <DependentUpon>TabItemView.axaml</DependentUpon>
-      </Compile>
+        </Compile>
     </ItemGroup>
 </Project>

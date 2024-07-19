@@ -13,8 +13,20 @@ namespace meteor.UI.ViewModels;
 public sealed class TabViewModel : ITabViewModel
 {
     private readonly ITabService _tabService;
-    private ObservableCollection<ITabItemViewModel> _tabs;
     private ITabItemViewModel _selectedTab;
+    private ObservableCollection<ITabItemViewModel> _tabs;
+
+    public TabViewModel(IEditorViewModelFactory editorViewModelFactory, ICommandFactory commandFactory,
+        ITabService tabService)
+    {
+        _tabService = tabService;
+        _tabs = new ObservableCollection<ITabItemViewModel>();
+
+        AddTabCommand = commandFactory.CreateCommand(() => AddTab(editorViewModelFactory));
+        CloseTabCommand = commandFactory.CreateCommand<ITabItemViewModel>(CloseTab);
+        CloseAllTabsCommand = commandFactory.CreateCommand(() => CloseAllTabs());
+        CloseOtherTabsCommand = commandFactory.CreateCommand(() => CloseOtherTabs());
+    }
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -59,16 +71,16 @@ public sealed class TabViewModel : ITabViewModel
     public ICommand CloseAllTabsCommand { get; }
     public ICommand CloseOtherTabsCommand { get; }
 
-    public TabViewModel(IEditorViewModelFactory editorViewModelFactory, ICommandFactory commandFactory,
-        ITabService tabService)
+    public void Dispose()
     {
-        _tabService = tabService;
-        _tabs = new ObservableCollection<ITabItemViewModel>();
-
-        AddTabCommand = commandFactory.CreateCommand(() => AddTab(editorViewModelFactory));
-        CloseTabCommand = commandFactory.CreateCommand<ITabItemViewModel>(CloseTab);
-        CloseAllTabsCommand = commandFactory.CreateCommand(() => CloseAllTabs());
-        CloseOtherTabsCommand = commandFactory.CreateCommand(() => CloseOtherTabs());
+        foreach (var tab in Tabs.ToList())
+        {
+            Tabs.Remove(tab);
+            tab.Dispose();
+            // Unregister the tab from the service
+            var index = Tabs.Count + 1;
+            _tabService.RegisterTab(index, null);
+        }
     }
 
     private void AddTab(IEditorViewModelFactory editorViewModelFactory)
@@ -89,7 +101,7 @@ public sealed class TabViewModel : ITabViewModel
             if (SelectedTab == tab)
                 // Select the previous tab if available
                 SelectedTab = Tabs.Count > 1 ? Tabs[Math.Max(0, index - 2)] : null;
-            
+
             Tabs.Remove(tab);
 
             // Unregister the tab from the service
@@ -124,18 +136,6 @@ public sealed class TabViewModel : ITabViewModel
                 var index = Tabs.Count + 1;
                 _tabService.RegisterTab(index, null);
             }
-        }
-    }
-
-    public void Dispose()
-    {
-        foreach (var tab in Tabs.ToList())
-        {
-            Tabs.Remove(tab);
-            tab.Dispose();
-            // Unregister the tab from the service
-            var index = Tabs.Count + 1;
-            _tabService.RegisterTab(index, null);
         }
     }
 

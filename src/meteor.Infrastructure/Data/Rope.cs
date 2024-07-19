@@ -8,42 +8,11 @@ public class Rope : IRope
 {
     private const int ChunkSize = 4096;
     private const int RebalanceThreshold = 4;
-    private Node _root;
-    private readonly ReaderWriterLockSlim _lock = new(LockRecursionPolicy.SupportsRecursion);
-    private readonly LruCache<int, string> _cache = new(100);
     private static readonly ObjectPool<Node> NodePool = new(() => new Node());
+    private readonly LruCache<int, string> _cache = new(100);
+    private readonly ReaderWriterLockSlim _lock = new(LockRecursionPolicy.SupportsRecursion);
     private int _insertionCount;
-
-    private class Node
-    {
-        public string Data;
-        public int Length;
-        public Node Left;
-        public Node Right;
-
-        public Node()
-        {
-        }
-        
-        public Node(string data)
-        {
-            Data = data;
-            Length = data.Length;
-        }
-
-        public Node(Node left, Node right)
-        {
-            Left = left;
-            Right = right;
-            UpdateLength();
-        }
-
-        public void UpdateLength()
-        {
-            Length = (Left?.Length ?? 0) + (Right?.Length ?? 0);
-            if (Data != null) Length += Data.Length;
-        }
-    }
+    private Node _root;
 
     public Rope() : this(string.Empty)
     {
@@ -52,17 +21,6 @@ public class Rope : IRope
     public Rope(string s)
     {
         _root = BuildTree(s);
-    }
-
-    private Node BuildTree(string s)
-    {
-        if (string.IsNullOrEmpty(s))
-            return null;
-        if (s.Length <= ChunkSize)
-            return new Node(s);
-
-        var mid = s.Length / 2;
-        return new Node(BuildTree(s.Substring(0, mid)), BuildTree(s.Substring(mid)));
     }
 
     public int Length
@@ -98,27 +56,6 @@ public class Rope : IRope
                 _lock.ExitReadLock();
             }
         }
-    }
-
-    private char Index(Node node, int index)
-    {
-        while (node != null)
-        {
-            if (node.Data != null)
-                return node.Data[index];
-
-            if (index < node.Left.Length)
-            {
-                node = node.Left;
-            }
-            else
-            {
-                index -= node.Left.Length;
-                node = node.Right;
-            }
-        }
-
-        throw new InvalidOperationException("Unexpected null node encountered.");
     }
 
     public IRope Insert(int index, string s)
@@ -157,39 +94,6 @@ public class Rope : IRope
         }
     }
 
-    private Node Insert(Node node, int index, string s)
-    {
-        if (node == null)
-            return new Node(s);
-
-        if (node.Data != null)
-        {
-            if (index == 0)
-                return new Node(s + node.Data);
-            if (index >= node.Data.Length)
-                return new Node(node.Data + s);
-
-            if (node.Data.Length + s.Length <= ChunkSize)
-            {
-                node.Data = node.Data.Insert(index, s);
-                node.Length = node.Data.Length;
-                return node;
-            }
-
-            var left = node.Data.Substring(0, index) + s;
-            var right = node.Data.Substring(index);
-            return new Node(new Node(left), new Node(right));
-        }
-
-        if (index <= node.Left.Length)
-            node.Left = Insert(node.Left, index, s);
-        else
-            node.Right = Insert(node.Right, index - node.Left.Length, s);
-
-        node.UpdateLength();
-        return node;
-    }
-
     public IRope Delete(int index, int length)
     {
         _lock.EnterWriteLock();
@@ -212,37 +116,6 @@ public class Rope : IRope
         {
             _lock.ExitWriteLock();
         }
-    }
-
-    private Node Delete(Node node, int index, int length)
-    {
-        if (node == null)
-            return null;
-
-        if (node.Data != null)
-        {
-            if (index == 0 && length >= node.Length)
-                return null;
-            var newData = node.Data.Remove(index, Math.Min(length, node.Length - index));
-            return string.IsNullOrEmpty(newData) ? null : new Node(newData);
-        }
-
-        Node newLeft = node.Left, newRight = node.Right;
-        if (index < node.Left?.Length)
-        {
-            newLeft = Delete(node.Left, index, length);
-            length -= Math.Min(length, node.Left?.Length ?? 0);
-            index = 0;
-        }
-        else
-        {
-            index -= node.Left?.Length ?? 0;
-        }
-
-        if (length > 0 && node.Right != null)
-            newRight = Delete(node.Right, index, length);
-
-        return newLeft == null ? newRight : newRight == null ? newLeft : new Node(newLeft, newRight);
     }
 
     public IRope GetSubstring(int start, int length)
@@ -283,6 +156,141 @@ public class Rope : IRope
         }
     }
 
+    public override string ToString()
+    {
+        return new LazyString(this).ToString();
+    }
+
+    public IRope Concat(IRope other)
+    {
+        _lock.EnterWriteLock();
+        try
+        {
+            if (!(other is Rope otherRope))
+                throw new ArgumentException("Can only concatenate with another Rope");
+
+            var newRoot = new Node(_root, otherRope._root);
+            if (GetDepth(newRoot) > RebalanceThreshold * Math.Log(GetLengthInternal() + otherRope.Length, 2))
+                newRoot = Rebalance(newRoot);
+
+            _root = newRoot;
+            return this;
+        }
+        finally
+        {
+            _lock.ExitWriteLock();
+        }
+    }
+
+    public void Iterate(Action<char> action)
+    {
+        _lock.EnterReadLock();
+        try
+        {
+            Iterate(_root, action);
+        }
+        finally
+        {
+            _lock.ExitReadLock();
+        }
+    }
+
+    private Node BuildTree(string s)
+    {
+        if (string.IsNullOrEmpty(s))
+            return null;
+        if (s.Length <= ChunkSize)
+            return new Node(s);
+
+        var mid = s.Length / 2;
+        return new Node(BuildTree(s.Substring(0, mid)), BuildTree(s.Substring(mid)));
+    }
+
+    private char Index(Node node, int index)
+    {
+        while (node != null)
+        {
+            if (node.Data != null)
+                return node.Data[index];
+
+            if (index < node.Left.Length)
+            {
+                node = node.Left;
+            }
+            else
+            {
+                index -= node.Left.Length;
+                node = node.Right;
+            }
+        }
+
+        throw new InvalidOperationException("Unexpected null node encountered.");
+    }
+
+    private Node Insert(Node node, int index, string s)
+    {
+        if (node == null)
+            return new Node(s);
+
+        if (node.Data != null)
+        {
+            if (index == 0)
+                return new Node(s + node.Data);
+            if (index >= node.Data.Length)
+                return new Node(node.Data + s);
+
+            if (node.Data.Length + s.Length <= ChunkSize)
+            {
+                node.Data = node.Data.Insert(index, s);
+                node.Length = node.Data.Length;
+                return node;
+            }
+
+            var left = node.Data.Substring(0, index) + s;
+            var right = node.Data.Substring(index);
+            return new Node(new Node(left), new Node(right));
+        }
+
+        if (index <= node.Left.Length)
+            node.Left = Insert(node.Left, index, s);
+        else
+            node.Right = Insert(node.Right, index - node.Left.Length, s);
+
+        node.UpdateLength();
+        return node;
+    }
+
+    private Node Delete(Node node, int index, int length)
+    {
+        if (node == null)
+            return null;
+
+        if (node.Data != null)
+        {
+            if (index == 0 && length >= node.Length)
+                return null;
+            var newData = node.Data.Remove(index, Math.Min(length, node.Length - index));
+            return string.IsNullOrEmpty(newData) ? null : new Node(newData);
+        }
+
+        Node newLeft = node.Left, newRight = node.Right;
+        if (index < node.Left?.Length)
+        {
+            newLeft = Delete(node.Left, index, length);
+            length -= Math.Min(length, node.Left?.Length ?? 0);
+            index = 0;
+        }
+        else
+        {
+            index -= node.Left?.Length ?? 0;
+        }
+
+        if (length > 0 && node.Right != null)
+            newRight = Delete(node.Right, index, length);
+
+        return newLeft == null ? newRight : newRight == null ? newLeft : new Node(newLeft, newRight);
+    }
+
     private Node CreateNode(string data = null)
     {
         var node = NodePool.Get();
@@ -301,7 +309,7 @@ public class Rope : IRope
         node.Length = 0;
         NodePool.Return(node);
     }
-    
+
     private void SubstringHelper(Node node, int start, int length, StringBuilder result)
     {
         if (node == null || length <= 0)
@@ -378,11 +386,6 @@ public class Rope : IRope
         return 1 + Math.Max(GetDepth(node.Left), GetDepth(node.Right));
     }
 
-    public override string ToString()
-    {
-        return new LazyString(this).ToString();
-    }
-    
     private void BuildString(Node node, StringBuilder sb)
     {
         if (node == null)
@@ -396,40 +399,6 @@ public class Rope : IRope
         {
             BuildString(node.Left, sb);
             BuildString(node.Right, sb);
-        }
-    }
-
-    public IRope Concat(IRope other)
-    {
-        _lock.EnterWriteLock();
-        try
-        {
-            if (!(other is Rope otherRope))
-                throw new ArgumentException("Can only concatenate with another Rope");
-
-            var newRoot = new Node(_root, otherRope._root);
-            if (GetDepth(newRoot) > RebalanceThreshold * Math.Log(GetLengthInternal() + otherRope.Length, 2))
-                newRoot = Rebalance(newRoot);
-
-            _root = newRoot;
-            return this;
-        }
-        finally
-        {
-            _lock.ExitWriteLock();
-        }
-    }
-
-    public void Iterate(Action<char> action)
-    {
-        _lock.EnterReadLock();
-        try
-        {
-            Iterate(_root, action);
-        }
-        finally
-        {
-            _lock.ExitReadLock();
         }
     }
 
@@ -466,6 +435,37 @@ public class Rope : IRope
     public override int GetHashCode()
     {
         return ToString().GetHashCode();
+    }
+
+    private class Node
+    {
+        public string Data;
+        public Node Left;
+        public int Length;
+        public Node Right;
+
+        public Node()
+        {
+        }
+
+        public Node(string data)
+        {
+            Data = data;
+            Length = data.Length;
+        }
+
+        public Node(Node left, Node right)
+        {
+            Left = left;
+            Right = right;
+            UpdateLength();
+        }
+
+        public void UpdateLength()
+        {
+            Length = (Left?.Length ?? 0) + (Right?.Length ?? 0);
+            if (Data != null) Length += Data.Length;
+        }
     }
 
     private class LazyString

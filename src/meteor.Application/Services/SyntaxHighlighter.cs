@@ -6,14 +6,16 @@ namespace meteor.Application.Services;
 
 public class SyntaxHighlighter : ISyntaxHighlighter
 {
+    private const int ChunkSize = 4096;
+
     private static readonly HashSet<string> Keywords = new(StringComparer.Ordinal)
     {
         "if", "else", "for", "while", "return"
     };
 
-    private readonly ITextBufferService _textBufferService;
-    private const int ChunkSize = 4096;
     private readonly char[] _buffer = new char[ChunkSize];
+
+    private readonly ITextBufferService _textBufferService;
 
     public SyntaxHighlighter(ITextBufferService textBufferService)
     {

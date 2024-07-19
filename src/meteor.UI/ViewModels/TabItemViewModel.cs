@@ -6,11 +6,17 @@ namespace meteor.UI.ViewModels;
 
 public sealed class TabItemViewModel : ITabItemViewModel
 {
-    private bool _isSelected;
+    private IEditorViewModel _editorViewModel;
     private bool _isDirty;
+    private bool _isSelected;
     private bool _isTemporary;
     private string _title;
-    private IEditorViewModel _editorViewModel;
+
+    public TabItemViewModel(string title, IEditorViewModel editorViewModel)
+    {
+        Title = title;
+        EditorViewModel = editorViewModel;
+    }
 
     public string Title
     {
@@ -78,12 +84,6 @@ public sealed class TabItemViewModel : ITabItemViewModel
     }
 
     public event PropertyChangedEventHandler PropertyChanged;
-
-    public TabItemViewModel(string title, IEditorViewModel editorViewModel)
-    {
-        Title = title;
-        EditorViewModel = editorViewModel;
-    }
 
     public void Dispose()
     {

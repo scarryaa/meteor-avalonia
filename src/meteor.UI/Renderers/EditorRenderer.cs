@@ -14,24 +14,23 @@ namespace meteor.UI.Renderers;
 
 public class EditorRenderer
 {
-    private readonly IBrush _keywordBrush = Brushes.Blue;
+    private const int BufferLines = 5; // Number of extra lines to render above and below the visible area
     private readonly IBrush _commentBrush = Brushes.Green;
-    private readonly IBrush _stringBrush = Brushes.Red;
-    private readonly IBrush _plainTextBrush = Brushes.Black;
-    private readonly IBrush _selectionBrush = new SolidColorBrush(Color.FromArgb(128, 173, 214, 255));
     private readonly IPen _cursorPen = new Pen(Brushes.Black);
     private readonly double _fontSize = 13;
-    private readonly Typeface _typeface = new("Consolas");
-    private readonly AvaloniaTextMeasurer _textMeasurer;
-    private ITabService _tabService;
-    
-    private bool _showCursor = true;
-    private DispatcherTimer _cursorBlinkTimer;
     private readonly Action _invalidateView;
-
-    private const int BufferLines = 5; // Number of extra lines to render above and below the visible area
+    private readonly IBrush _keywordBrush = Brushes.Blue;
 
     private readonly List<(int start, int length)> _lineInfo = new();
+    private readonly IBrush _plainTextBrush = Brushes.Black;
+    private readonly IBrush _selectionBrush = new SolidColorBrush(Color.FromArgb(128, 173, 214, 255));
+    private readonly IBrush _stringBrush = Brushes.Red;
+    private readonly AvaloniaTextMeasurer _textMeasurer;
+    private readonly Typeface _typeface = new("Consolas");
+    private DispatcherTimer _cursorBlinkTimer;
+
+    private bool _showCursor = true;
+    private ITabService _tabService;
     private int _totalLines;
 
     public EditorRenderer(Action invalidateView)
@@ -43,7 +42,7 @@ public class EditorRenderer
         {
             Interval = TimeSpan.FromMilliseconds(500)
         };
-        
+
         _cursorBlinkTimer.Tick += (sender, args) =>
         {
             _showCursor = !_showCursor;
@@ -61,7 +60,7 @@ public class EditorRenderer
     public void UpdateLineInfo()
     {
         var textBufferService = _tabService.GetActiveTextBufferService();
-        
+
         _lineInfo.Clear();
         _totalLines = 0;
         var currentIndex = 0;
@@ -85,7 +84,7 @@ public class EditorRenderer
         double scrollOffset, double offsetX)
     {
         var textBufferService = _tabService.GetActiveTextBufferService();
-        
+
         context.DrawRectangle(Brushes.White, null, bounds);
 
         var lineHeight = _textMeasurer.GetLineHeight();
@@ -113,7 +112,7 @@ public class EditorRenderer
 
         var sb = new StringBuilder(lineLength);
         textBufferService.GetTextSegment(lineStart, lineLength, sb);
-        
+
         var formattedText = new FormattedText(
             sb.ToString(),
             CultureInfo.CurrentCulture,

@@ -5,15 +5,15 @@ namespace meteor.UI.Services;
 
 public class AvaloniaEditorSizeCalculator : IEditorSizeCalculator
 {
-    private readonly ITextMeasurer _textMeasurer;
+    private const int ChunkSize = 4096;
+    private readonly char[] _buffer = new char[ChunkSize];
     private readonly double _cachedLineHeight;
+    private readonly ITextMeasurer _textMeasurer;
     private int _cachedLineCount;
     private double _cachedMaxLineWidth;
     private int _cachedTextLength; // Length of the text buffer
-    private double _windowWidth;
     private double _windowHeight;
-    private const int ChunkSize = 4096;
-    private readonly char[] _buffer = new char[ChunkSize];
+    private double _windowWidth;
 
     public AvaloniaEditorSizeCalculator(ITextMeasurer textMeasurer)
     {
@@ -31,6 +31,20 @@ public class AvaloniaEditorSizeCalculator : IEditorSizeCalculator
         var contentHeight = Math.Max(_cachedLineHeight * _cachedLineCount, _windowHeight);
 
         return (contentWidth, contentHeight);
+    }
+
+    public void UpdateWindowSize(double width, double height)
+    {
+        _windowWidth = width;
+        _windowHeight = height;
+        InvalidateCache();
+    }
+
+    public void InvalidateCache()
+    {
+        _cachedTextLength = -1;
+        _cachedLineCount = 0;
+        _cachedMaxLineWidth = 0;
     }
 
     private void UpdateCache(ITextBufferService textBufferService)
@@ -77,19 +91,5 @@ public class AvaloniaEditorSizeCalculator : IEditorSizeCalculator
         if (bufferIndex > lineStartIndex) ProcessLine();
 
         _cachedTextLength = textBufferService.Length;
-    }
-
-    public void UpdateWindowSize(double width, double height)
-    {
-        _windowWidth = width;
-        _windowHeight = height;
-        InvalidateCache();
-    }
-
-    public void InvalidateCache()
-    {
-        _cachedTextLength = -1;
-        _cachedLineCount = 0;
-        _cachedMaxLineWidth = 0;
     }
 }

@@ -11,7 +11,7 @@
 
     <ItemGroup>
         <PackageReference Include="Avalonia.Headless.XUnit" Version="11.1.0-rc2"/>
-        <PackageReference Include="Castle.Core" Version="5.1.1" />
+        <PackageReference Include="Castle.Core" Version="5.1.1"/>
         <PackageReference Include="coverlet.collector" Version="6.0.0"/>
         <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0"/>
         <PackageReference Include="xunit" Version="2.5.3"/>
@@ -23,18 +23,18 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\..\src\meteor.Application\meteor.Application.csproj" />
-      <ProjectReference Include="..\..\src\meteor.Infrastructure\meteor.Infrastructure.csproj" />
-      <ProjectReference Include="..\..\src\meteor.UI\meteor.UI.csproj" />
+        <ProjectReference Include="..\..\src\meteor.Application\meteor.Application.csproj"/>
+        <ProjectReference Include="..\..\src\meteor.Infrastructure\meteor.Infrastructure.csproj"/>
+        <ProjectReference Include="..\..\src\meteor.UI\meteor.UI.csproj"/>
     </ItemGroup>
 
     <ItemGroup>
         <Reference Include="Avalonia.Headless.XUnit">
             <HintPath>..\..\..\..\..\.nuget\packages\avalonia.headless.xunit\11.1.0-rc2\lib\net8.0\Avalonia.Headless.XUnit.dll</HintPath>
         </Reference>
-      <Reference Include="Moq">
-        <HintPath>..\..\..\..\..\.nuget\packages\moq\4.20.70\lib\net6.0\Moq.dll</HintPath>
-      </Reference>
+        <Reference Include="Moq">
+            <HintPath>..\..\..\..\..\.nuget\packages\moq\4.20.70\lib\net6.0\Moq.dll</HintPath>
+        </Reference>
     </ItemGroup>
 
 </Project>

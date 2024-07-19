@@ -11,14 +11,14 @@ namespace meteor.UnitTests.UI.ViewModels;
 
 public class EditorViewModelTests
 {
-    private readonly Mock<ITextBufferService> _textBufferServiceMock;
-    private readonly Mock<ISyntaxHighlighter> _syntaxHighlighterMock;
-    private readonly Mock<ISelectionService> _selectionServiceMock;
     private readonly Mock<ICursorService> _cursorServiceMock;
     private readonly Mock<IInputService> _inputServiceMock;
+    private readonly Mock<ISelectionService> _selectionServiceMock;
     private readonly Mock<IEditorSizeCalculator> _sizeCalculatorMock;
-    private readonly EditorViewModel _viewModel;
+    private readonly Mock<ISyntaxHighlighter> _syntaxHighlighterMock;
     private readonly Mock<ITabService> _tabServiceMock;
+    private readonly Mock<ITextBufferService> _textBufferServiceMock;
+    private readonly EditorViewModel _viewModel;
 
     public EditorViewModelTests()
     {
@@ -96,7 +96,7 @@ public class EditorViewModelTests
         _syntaxHighlighterMock.Verify(s => s.Highlight(It.IsAny<string>()), Times.Once);
         Assert.Single(_viewModel.HighlightingResults);
     }
-    
+
     [Fact]
     public void DeleteText_CallsDeleteTextOnInputServiceAndUpdatesHighlighting()
     {

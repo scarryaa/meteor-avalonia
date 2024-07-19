@@ -7,12 +7,12 @@ namespace meteor.Core.Entities;
 public class TextBuffer : ITextBuffer
 {
     private readonly StringBuilder _buffer;
-    private readonly object _lock = new();
-    private readonly ConcurrentQueue<(int Index, string Text)> _insertQueue = new();
-    private long _pendingInsertionsLength;
     private readonly CancellationTokenSource _cts = new();
+    private readonly ConcurrentQueue<(int Index, string Text)> _insertQueue = new();
+    private readonly object _lock = new();
     private readonly Task _processTask;
     private bool _isDisposed;
+    private long _pendingInsertionsLength;
 
     public TextBuffer(string initialText = "")
     {
@@ -121,6 +121,29 @@ public class TextBuffer : ITextBuffer
         }
     }
 
+    public void Dispose()
+    {
+        if (_isDisposed) return;
+
+        _cts.Cancel();
+        try
+        {
+            _processTask.Wait();
+        }
+        catch (AggregateException ae)
+        {
+            ae.Handle(ex => ex is TaskCanceledException);
+        }
+
+        lock (_lock)
+        {
+            ProcessQueuedInsertions();
+        }
+
+        _cts.Dispose();
+        _isDisposed = true;
+    }
+
     private void ProcessQueuedInsertions()
     {
         while (_insertQueue.TryDequeue(out var insertion))
@@ -145,29 +168,6 @@ public class TextBuffer : ITextBuffer
                 {
                     ProcessQueuedInsertions();
                 }
-    }
-
-    public void Dispose()
-    {
-        if (_isDisposed) return;
-
-        _cts.Cancel();
-        try
-        {
-            _processTask.Wait();
-        }
-        catch (AggregateException ae)
-        {
-            ae.Handle(ex => ex is TaskCanceledException);
-        }
-
-        lock (_lock)
-        {
-            ProcessQueuedInsertions();
-        }
-
-        _cts.Dispose();
-        _isDisposed = true;
     }
 
     public void EnsureAllInsertionsProcessed()

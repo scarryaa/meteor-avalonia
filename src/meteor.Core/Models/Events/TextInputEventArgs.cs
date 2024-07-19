@@ -2,8 +2,6 @@ namespace meteor.Core.Models.Events;
 
 public class TextInputEventArgs
 {
-    public string Text { get; set; }
-
     public TextInputEventArgs()
     {
     }
@@ -12,4 +10,6 @@ public class TextInputEventArgs
     {
         Text = text;
     }
+
+    public string Text { get; set; }
 }

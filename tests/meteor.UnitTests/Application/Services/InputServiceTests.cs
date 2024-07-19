@@ -9,15 +9,15 @@ namespace meteor.UnitTests.Application.Services;
 
 public class InputServiceTests
 {
-    private readonly Mock<ITextBufferService> _textBufferServiceMock;
-    private readonly Mock<ICursorService> _cursorServiceMock;
-    private readonly Mock<ITextAnalysisService> _textAnalysisServiceMock;
-    private readonly Mock<ISelectionService> _selectionServiceMock;
     private readonly Mock<IClipboardService> _clipboardServiceMock;
-    private readonly Mock<ITextMeasurer> _textMeasurerMock;
+    private readonly Mock<ICursorService> _cursorServiceMock;
     private readonly InputService _inputService;
     private readonly ITestOutputHelper _output;
+    private readonly Mock<ISelectionService> _selectionServiceMock;
     private readonly Mock<ITabService> _tabServiceMock;
+    private readonly Mock<ITextAnalysisService> _textAnalysisServiceMock;
+    private readonly Mock<ITextBufferService> _textBufferServiceMock;
+    private readonly Mock<ITextMeasurer> _textMeasurerMock;
 
     public InputServiceTests(ITestOutputHelper output)
     {
@@ -172,7 +172,7 @@ public class InputServiceTests
         _textBufferServiceMock.Verify(t => t.Insert(cursorPosition, "A"), Times.Once);
         _cursorServiceMock.Verify(c => c.SetCursorPosition(cursorPosition + 1), Times.Once);
     }
-    
+
     [Fact]
     public void HandleKeyDown_UnknownKey_DoesNothing()
     {
@@ -309,7 +309,7 @@ public class InputServiceTests
         _selectionServiceMock.Verify(s => s.SetSelection(0, 11), Times.Once);
         _cursorServiceMock.Verify(c => c.SetCursorPosition(11), Times.Once);
     }
-    
+
     [Fact]
     public void HandlePointerPressed_TripleClick_CallsHandleTripleClick()
     {
@@ -344,7 +344,7 @@ public class InputServiceTests
         _cursorServiceMock.Verify(c => c.SetCursorPosition(It.IsAny<int>()), Times.Never);
         _selectionServiceMock.Verify(s => s.UpdateSelection(It.IsAny<int>()), Times.Never);
     }
-    
+
     [Fact]
     public void HandlePointerPressed_SingleClick_StartsSelectionAndSetsCursor()
     {
@@ -389,7 +389,7 @@ public class InputServiceTests
         _textBufferServiceMock.Setup(t => t.Length).Returns(11);
         _textAnalysisServiceMock.Setup(t => t.GetWordBoundaries(_textBufferServiceMock.Object, It.IsAny<int>()))
             .Returns((0, 11));
-        
+
         // Act
         _inputService.HandlePointerPressed(e);
         _inputService.HandlePointerPressed(e);

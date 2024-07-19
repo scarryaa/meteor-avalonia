@@ -93,7 +93,7 @@ public class RopeTests
     {
         var rope = new Rope("hello world");
         var newRope = rope.Substring(6, 5);
-        Assert.Equal("world", newRope.ToString());
+        Assert.Equal("world", newRope);
     }
 
     [Fact]

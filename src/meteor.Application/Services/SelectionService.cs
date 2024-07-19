@@ -4,8 +4,8 @@ namespace meteor.Application.Services;
 
 public class SelectionService : ISelectionService
 {
-    private int _selectionStart = -1;
     private int _selectionEnd = -1;
+    private int _selectionStart = -1;
 
     public void StartSelection(int index)
     {

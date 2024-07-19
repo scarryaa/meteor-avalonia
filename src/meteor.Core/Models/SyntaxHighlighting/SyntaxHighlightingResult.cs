@@ -4,10 +4,6 @@ namespace meteor.Core.Models.SyntaxHighlighting;
 
 public class SyntaxHighlightingResult
 {
-    public int StartIndex { get; set; }
-    public int Length { get; set; }
-    public SyntaxHighlightingType Type { get; set; }
-
     public SyntaxHighlightingResult()
     {
     }
@@ -18,4 +14,8 @@ public class SyntaxHighlightingResult
         Length = length;
         Type = type;
     }
+
+    public int StartIndex { get; set; }
+    public int Length { get; set; }
+    public SyntaxHighlightingType Type { get; set; }
 }

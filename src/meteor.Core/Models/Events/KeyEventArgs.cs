@@ -4,9 +4,6 @@ namespace meteor.Core.Models.Events;
 
 public class KeyEventArgs
 {
-    public Key Key { get; set; }
-    public KeyModifiers Modifiers { get; set; }
-
     public KeyEventArgs()
     {
     }
@@ -16,4 +13,7 @@ public class KeyEventArgs
         Key = key;
         Modifiers = modifiers ?? KeyModifiers.None;
     }
+
+    public Key Key { get; set; }
+    public KeyModifiers Modifiers { get; set; }
 }
