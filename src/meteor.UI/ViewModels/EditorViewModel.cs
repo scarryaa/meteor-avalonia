@@ -87,7 +87,6 @@ public class EditorViewModel : IEditorViewModel
                 _cachedText = _stringBuilder.ToString();
                 _isTextDirty = false;
             }
-
             return _cachedText;
         }
         set
@@ -102,6 +101,7 @@ public class EditorViewModel : IEditorViewModel
             }
         }
     }
+
     public ObservableCollection<SyntaxHighlightingResult> HighlightingResults
     {
         get => _highlightingResults;

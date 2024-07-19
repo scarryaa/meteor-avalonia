@@ -24,10 +24,14 @@
       <ProjectReference Include="..\meteor.Infrastructure\meteor.Infrastructure.csproj"/>
   </ItemGroup>
 
-  <ItemGroup>
-      <Compile Update="Views\MainWindow.axaml.cs">
-          <DependentUpon>MainWindow.axaml</DependentUpon>
-          <SubType>Code</SubType>
+    <ItemGroup>
+        <AvaloniaResource Include="Assets\**"/>
+        <AvaloniaResource Include="Resources\Fonts.axaml"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <Compile Update="Views\TabItemView.cs">
+            <DependentUpon>TabItemView.axaml</DependentUpon>
       </Compile>
-  </ItemGroup>
+    </ItemGroup>
 </Project>

@@ -1,5 +1,5 @@
-﻿using Avalonia;
-using System;
+﻿using System;
+using Avalonia;
 
 namespace meteor.UI;
 
@@ -15,7 +15,8 @@ class Program
     // Avalonia configuration, don't remove; also used by visual designer.
     public static AppBuilder BuildAvaloniaApp()
         => AppBuilder.Configure<App>()
-            .UsePlatformDetect()
+            .UsePlatformDetect()    
             .WithInterFont()
+            .UseSkia()
             .LogToTrace();
 }

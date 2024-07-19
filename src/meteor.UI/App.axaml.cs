@@ -9,6 +9,8 @@ using meteor.Core.Interfaces.Services;
 using meteor.Core.Interfaces.ViewModels;
 using meteor.Core.Services;
 using meteor.Infrastructure.Data;
+using meteor.UI.Factories;
+using meteor.UI.Resources;
 using meteor.UI.Services;
 using meteor.UI.ViewModels;
 using meteor.UI.Views;
@@ -18,6 +20,7 @@ namespace meteor.UI;
 
 public class App : Avalonia.Application
 {
+    public static ThemeManager ThemeManager { get; private set; }
     private IServiceProvider? _serviceProvider;
 
     public override void Initialize()
@@ -30,6 +33,13 @@ public class App : Avalonia.Application
         var services = new ServiceCollection();
         ConfigureServices(services);
         _serviceProvider = services.BuildServiceProvider();
+
+        ThemeManager = new ThemeManager(this);
+
+        ThemeManager.AddTheme("Dark", new DarkTheme());
+        ThemeManager.AddTheme("Light", new LightTheme());
+
+        ThemeManager.SetTheme("Light");
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
@@ -46,7 +56,9 @@ public class App : Avalonia.Application
         services.AddSingleton<IClipboardService>(sp =>
             new AvaloniaClipboardService(() => GetMainWindow(sp))
         );
+        
         services.AddSingleton<ITextBufferService, TextBufferService>();
+    
         services.AddSingleton<ISyntaxHighlighter, SyntaxHighlighter>();
         services.AddSingleton<ICursorService, CursorService>();
         services.AddSingleton<ISelectionService, SelectionService>();
@@ -60,7 +72,13 @@ public class App : Avalonia.Application
         services.AddSingleton<IEditorSizeCalculator, AvaloniaEditorSizeCalculator>();
 
         services.AddTransient<IEditorViewModel, EditorViewModel>();
+        services.AddTransient<ITabItemViewModel, TabItemViewModel>();
+        services.AddSingleton<ITabViewModel, TabViewModel>();
+        services.AddTransient<IMainWindowViewModel, MainWindowViewModel>();
 
+        services.AddSingleton<IEditorViewModelFactory, EditorViewModelFactory>();
+        services.AddSingleton<ICommandFactory, CommandFactory>();
+    
         services.AddSingleton<MainWindow>();
         services.AddSingleton<EditorView>(provider =>
         {

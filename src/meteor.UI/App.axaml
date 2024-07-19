@@ -3,7 +3,19 @@
              x:Class="meteor.UI.App"
              RequestedThemeVariant="Default">
 
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <MergeResourceInclude Source="/Resources/Fonts.axaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
+    
     <Application.Styles>
         <FluentTheme />
+        <StyleInclude Source="/Styles/TabItemStyles.axaml" />
+        <StyleInclude Source="/Styles/ContentPresenterStyles.axaml" />
+        <StyleInclude Source="/Styles/HorizontalScrollableTabControlStyles.axaml" />
+        <StyleInclude Source="/Styles/TabItemStyles.axaml" />
     </Application.Styles>
-</Application>
+</Application>          

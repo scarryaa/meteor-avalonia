@@ -9,7 +9,7 @@ public class AvaloniaEditorSizeCalculator : IEditorSizeCalculator
     private readonly double _cachedLineHeight;
     private int _cachedLineCount;
     private double _cachedMaxLineWidth;
-    private int _cachedTextLength;
+    private int _cachedTextLength; // Length of the text buffer
     private double _windowWidth;
     private double _windowHeight;
     private const int ChunkSize = 4096;
