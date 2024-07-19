@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using meteor.Core.Interfaces.Services;
+using meteor.Core.Models;
 using meteor.Core.Models.Events;
 using meteor.Core.Models.SyntaxHighlighting;
 
@@ -13,14 +14,15 @@ public interface IEditorViewModel : INotifyPropertyChanged
     int CursorPosition { get; }
     double EditorWidth { get; }
     double EditorHeight { get; }
-    public ITextBufferService TextBufferService { get; }
+    Vector ScrollOffset { get; set; }
+    ITextBufferService TextBufferService { get; }
     ObservableCollection<SyntaxHighlightingResult> HighlightingResults { get; }
     ITabService TabService { get; }
     
     void InsertText(int index, string text);
     void DeleteText(int index, int length);
 
-    void UpdateScrollOffset(double horizontalScrollOffset, double verticalScrollOffset);
+    void UpdateScrollOffset(Vector offset);
     void UpdateWindowSize(double width, double height);
     void OnPointerPressed(PointerPressedEventArgs e);
     void OnPointerMoved(PointerEventArgs e);

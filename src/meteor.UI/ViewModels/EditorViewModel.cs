@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using meteor.Core.Interfaces.Services;
 using meteor.Core.Interfaces.ViewModels;
+using meteor.Core.Models;
 using meteor.Core.Models.Events;
 using meteor.Core.Models.SyntaxHighlighting;
 using meteor.Core.Services;
@@ -26,6 +27,7 @@ public sealed class EditorViewModel : IEditorViewModel
     private bool _isTextDirty = true;
     private double _verticalScrollOffset;
     private double _horizontalScrollOffset;
+    private Vector _scrollOffset;
     
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -47,6 +49,20 @@ public sealed class EditorViewModel : IEditorViewModel
         _sizeCalculator = sizeCalculator;
     }
 
+    public Vector ScrollOffset
+    {
+        get => _scrollOffset;
+        set
+        {
+            if (_scrollOffset != value)
+            {
+                _scrollOffset = value;
+                OnPropertyChanged();
+                UpdateScrollOffset(_scrollOffset);
+            }
+        }
+    }
+    
     public (int start, int length) Selection => _selectionService.GetSelection();
     public ITextBufferService TextBufferService { get; }
     public ITabService TabService { get; }
@@ -118,11 +134,10 @@ public sealed class EditorViewModel : IEditorViewModel
         }
     }
 
-    public void UpdateScrollOffset(double horizontalScrollOffset, double verticalScrollOffset)
+    public void UpdateScrollOffset(Vector offset)
     {
-        _verticalScrollOffset = verticalScrollOffset;
-        _horizontalScrollOffset = horizontalScrollOffset;
-        (_inputService as InputService)?.UpdateScrollOffset(verticalScrollOffset, horizontalScrollOffset);
+        ScrollOffset = offset;
+        (_inputService as InputService)?.UpdateScrollOffset(offset.Y, offset.X);
     }
     
     public void UpdateWindowSize(double width, double height)

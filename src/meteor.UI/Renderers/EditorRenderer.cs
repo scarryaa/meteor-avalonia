@@ -43,6 +43,7 @@ public class EditorRenderer
         {
             Interval = TimeSpan.FromMilliseconds(500)
         };
+        
         _cursorBlinkTimer.Tick += (sender, args) =>
         {
             _showCursor = !_showCursor;

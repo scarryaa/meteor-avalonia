@@ -7,6 +7,7 @@ using Avalonia.Reactive;
 using meteor.Core.Interfaces.ViewModels;
 using meteor.UI.Adapters;
 using meteor.UI.Renderers;
+using Vector = meteor.Core.Models.Vector;
 
 namespace meteor.UI.Views;
 
@@ -33,9 +34,11 @@ public partial class EditorView : UserControl
         if (_scrollViewer != null && _viewModel != null)
             _scrollViewer.ScrollChanged += (sender, _) =>
             {
-                _viewModel.UpdateScrollOffset((sender as ScrollViewer)?.Offset.X ?? 0,
-                    (sender as ScrollViewer)?.Offset.Y ?? 0);
-                InvalidateVisual();
+                if (sender is ScrollViewer scrollViewer)
+                {
+                    var offset = scrollViewer.Offset;
+                    _viewModel.UpdateScrollOffset(new Vector(offset.X, offset.Y));
+                }
             };
 
         PointerPressed += OnEditorPointerPressed;
@@ -61,7 +64,8 @@ public partial class EditorView : UserControl
                     _e.PropertyName == nameof(IEditorViewModel.Selection) ||
                     _e.PropertyName == nameof(IEditorViewModel.CursorPosition) ||
                     _e.PropertyName == nameof(IEditorViewModel.EditorWidth) ||
-                    _e.PropertyName == nameof(IEditorViewModel.EditorHeight))
+                    _e.PropertyName == nameof(IEditorViewModel.EditorHeight) ||
+                    _e.PropertyName == nameof(IEditorViewModel.ScrollOffset))
                 {
                     InvalidateMeasure();
                     InvalidateVisual();

@@ -1,11 +1,19 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:converters="clr-namespace:meteor.UI.Converters"
+             xmlns:viewModels="clr-namespace:meteor.UI.ViewModels"
              x:Class="meteor.UI.Views.EditorView"
-             Focusable="True">
+             Focusable="True"
+             x:DataType="viewModels:EditorViewModel">
+
+    <UserControl.Resources>
+        <converters:VectorToAvaloniaVectorConverter x:Key="VectorConverter" />
+    </UserControl.Resources>
 
     <ScrollViewer x:Name="ScrollViewer"
                   HorizontalScrollBarVisibility="Auto"
-                  VerticalScrollBarVisibility="Auto">
+                  VerticalScrollBarVisibility="Auto"
+                  Offset="{Binding ScrollOffset, Mode=TwoWay, Converter={StaticResource VectorConverter}}">
         <Panel x:Name="EditorPanel" Background="Transparent" />
     </ScrollViewer>
 </UserControl>
