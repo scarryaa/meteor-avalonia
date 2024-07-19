@@ -46,7 +46,7 @@ public partial class EditorView : UserControl
         PointerReleased += OnEditorPointerReleased;
 
         this.GetObservable(BoundsProperty).Subscribe(new AnonymousObserver<Rect>(bounds =>
-        {
+        {   
             if (_viewModel != null) _viewModel.UpdateWindowSize(bounds.Width, bounds.Height);
         }));
     }

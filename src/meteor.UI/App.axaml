@@ -7,6 +7,7 @@
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <MergeResourceInclude Source="/Resources/Fonts.axaml" />
+                <MergeResourceInclude Source="/Resources/Controls/ScrollViewer.axaml" />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Application.Resources>
@@ -17,5 +18,6 @@
         <StyleInclude Source="/Styles/ContentPresenterStyles.axaml" />
         <StyleInclude Source="/Styles/HorizontalScrollableTabControlStyles.axaml" />
         <StyleInclude Source="/Styles/TabItemStyles.axaml" />
+        <StyleInclude Source="/Styles/ScrollBarStyles.axaml" />
     </Application.Styles>
 </Application>          
