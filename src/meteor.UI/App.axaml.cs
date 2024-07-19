@@ -10,6 +10,7 @@ using meteor.Core.Interfaces.ViewModels;
 using meteor.Core.Services;
 using meteor.Infrastructure.Data;
 using meteor.UI.Factories;
+using meteor.UI.Interfaces;
 using meteor.UI.Resources;
 using meteor.UI.Services;
 using meteor.UI.ViewModels;
@@ -20,7 +21,7 @@ namespace meteor.UI;
 
 public class App : Avalonia.Application
 {
-    public static ThemeManager ThemeManager { get; private set; }
+    private static IThemeManager? ThemeManager { get; set; }
     private IServiceProvider? _serviceProvider;
 
     public override void Initialize()

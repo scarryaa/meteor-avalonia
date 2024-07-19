@@ -89,9 +89,8 @@ public sealed class TabViewModel : ITabViewModel
             if (SelectedTab == tab)
                 // Select the previous tab if available
                 SelectedTab = Tabs.Count > 1 ? Tabs[Math.Max(0, index - 2)] : null;
-
+            
             Tabs.Remove(tab);
-            tab.Dispose();
 
             // Unregister the tab from the service
             _tabService.RegisterTab(index, null);

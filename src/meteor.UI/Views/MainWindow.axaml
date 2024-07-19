@@ -14,6 +14,8 @@
 
     <Window.KeyBindings>
         <KeyBinding Command="{Binding TabViewModel.AddTabCommand}" Gesture="Ctrl+N" />
+        <KeyBinding Command="{Binding TabViewModel.CloseTabCommand}"
+                    CommandParameter="{Binding TabViewModel.SelectedTab}" Gesture="Ctrl+W" />
     </Window.KeyBindings>
 
     <Window.DataTemplates>
