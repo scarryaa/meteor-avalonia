@@ -4,24 +4,25 @@ namespace meteor.Application.Services;
 
 public class CursorService : ICursorService
 {
+    private readonly ITabService _tabService;
     private int _cursorPosition;
-    private readonly ITextBufferService _textBufferService;
 
-    public CursorService(ITextBufferService textBufferService)
+    public CursorService(ITabService tabService)
     {
-        _textBufferService = textBufferService;
+        _tabService = tabService;
         _cursorPosition = 0;
     }
 
     public void MoveCursor(int x, int y)
     {
+        var textBufferService = _tabService.GetActiveTextBufferService();
         int lineStart = 0;
         int lineCount = 0;
         int index = 0;
 
-        while (index < _textBufferService.Length && lineCount < y)
+        while (index < textBufferService.Length && lineCount < y)
         {
-            if (_textBufferService[index] == '\n')
+            if (textBufferService[index] == '\n')
             {
                 lineCount++;
                 lineStart = index + 1;
@@ -30,9 +31,9 @@ public class CursorService : ICursorService
         }
 
         index = lineStart;
-        for (int i = 0; i < x && index < _textBufferService.Length; i++)
+        for (var i = 0; i < x && index < textBufferService.Length; i++)
         {
-            if (_textBufferService[index] == '\n')
+            if (textBufferService[index] == '\n')
             {
                 break;
             }
@@ -44,7 +45,7 @@ public class CursorService : ICursorService
 
     public void SetCursorPosition(int index)
     {
-        _cursorPosition = Math.Clamp(index, 0, _textBufferService.Length);
+        _cursorPosition = Math.Clamp(index, 0, _tabService.GetActiveTextBufferService().Length);
     }
 
     public int GetCursorPosition()

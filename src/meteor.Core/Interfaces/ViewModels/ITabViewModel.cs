@@ -6,7 +6,7 @@ namespace meteor.Core.Interfaces.ViewModels;
 
 public interface ITabViewModel : INotifyPropertyChanged, IDisposable
 {
-    ObservableCollection<ITabItemViewModel> Tabs { get; set; }
+    public ObservableCollection<ITabItemViewModel> Tabs { get; set; }
     ITabItemViewModel SelectedTab { get; set; }
     ICommand AddTabCommand { get; }
     ICommand CloseTabCommand { get; }

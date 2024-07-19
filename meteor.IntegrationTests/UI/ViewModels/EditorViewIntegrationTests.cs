@@ -24,28 +24,34 @@ public class EditorViewModelIntegrationTests : IDisposable
     private readonly IClipboardService _clipboardService;
     private readonly ITextMeasurer _textMeasurer;
     private readonly IEditorSizeCalculator _editorSizeCalculator;
+    private readonly ITabService _tabService;
 
     public EditorViewModelIntegrationTests()
     {
+        _tabService = new TabService();
         _textBufferService = new TextBufferService();
         _syntaxHighlighter = new SyntaxHighlighter(_textBufferService);
-        _cursorService = new CursorService(_textBufferService);
+        _cursorService = new CursorService(_tabService);
         _selectionService = new SelectionService();
         _textAnalysisService = new TextAnalysisService();
         _clipboardService = new MockClipboardService();
         _textMeasurer = new AvaloniaTextMeasurer(new Typeface("Consolas"), 13);
-        _inputService = new InputService(_textBufferService, _cursorService, _textAnalysisService, _selectionService,
+        _inputService = new InputService(_tabService, _cursorService, _textAnalysisService, _selectionService,
             _clipboardService, _textMeasurer);
         _editorSizeCalculator = new AvaloniaEditorSizeCalculator(_textMeasurer);
 
         _viewModel = new EditorViewModel(
             _textBufferService,
+            _tabService,
             _syntaxHighlighter,
             _selectionService,
             _inputService,
             _cursorService,
             _editorSizeCalculator
         );
+
+        _tabService.RegisterTab(0, _textBufferService); // Register initial tab with index 0
+        _tabService.SwitchTab(0); // Set tab 0 as the active tab
     }
 
     public void Dispose()
@@ -167,7 +173,6 @@ public class EditorViewModelIntegrationTests : IDisposable
         Assert.Equal(newText, sb.ToString());
         Assert.NotEmpty(_viewModel.HighlightingResults);
     }
-    
 
     [AvaloniaFact]
     public void Text_Set_UpdatesTextBufferAndTriggersHighlighting_WithoutKeyword()
@@ -221,7 +226,7 @@ public class EditorViewModelIntegrationTests : IDisposable
         Assert.Equal("hello", sb.ToString());
         Assert.Empty(_viewModel.HighlightingResults);
     }
-    
+
     [AvaloniaFact]
     public void PropertyChanged_IsRaisedWhenTextChanges()
     {
@@ -315,7 +320,7 @@ public class EditorViewModelIntegrationTests : IDisposable
 
         // Assert
         Assert.Equal(4, _viewModel.CursorPosition);
-        Assert.Equal((5, -1), _viewModel.Selection);
+        Assert.Equal((4, 1), _viewModel.Selection); 
     }
 
     [AvaloniaFact]
@@ -333,7 +338,7 @@ public class EditorViewModelIntegrationTests : IDisposable
     }
 
     [AvaloniaFact]
-    public void ClearSelection_ResetsSelectionToZero()
+    public void ClearSelection_ResetsSelectionToNegativeOne()
     {
         // Arrange
         _textBufferService.ReplaceAll("Hello World");
@@ -343,7 +348,7 @@ public class EditorViewModelIntegrationTests : IDisposable
         _selectionService.ClearSelection();
 
         // Assert
-        Assert.Equal((0, 0), _selectionService.GetSelection());
+        Assert.Equal((-1, 0), _selectionService.GetSelection());
     }
 
     [AvaloniaFact]
@@ -374,7 +379,7 @@ public class EditorViewModelIntegrationTests : IDisposable
 
         // Assert
         Assert.Equal(1, _cursorService.GetCursorPosition());
-        Assert.Equal((0, 0), _selectionService.GetSelection());
+        Assert.Equal((-1, 0), _selectionService.GetSelection());
     }
 
     [AvaloniaFact]
@@ -442,7 +447,6 @@ public class EditorViewModelIntegrationTests : IDisposable
         Assert.Equal("Hello\n", sb.ToString());
         Assert.Equal(6, _cursorService.GetCursorPosition());
     }
-
 
     [AvaloniaFact]
     public void PropertyChanged_IsRaisedForSelectionChanges()

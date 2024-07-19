@@ -11,7 +11,7 @@ using meteor.Core.Services;
 
 namespace meteor.UI.ViewModels;
 
-public class EditorViewModel : IEditorViewModel
+public sealed class EditorViewModel : IEditorViewModel
 {
     private readonly ISyntaxHighlighter _syntaxHighlighter;
     private readonly ISelectionService _selectionService;
@@ -31,12 +31,14 @@ public class EditorViewModel : IEditorViewModel
 
     public EditorViewModel(
         ITextBufferService textBufferService,
+        ITabService tabService,
         ISyntaxHighlighter syntaxHighlighter,
         ISelectionService selectionService,
         IInputService inputService,
         ICursorService cursorService,
         IEditorSizeCalculator sizeCalculator)
     {
+        TabService = tabService;
         TextBufferService = textBufferService;
         _syntaxHighlighter = syntaxHighlighter;
         _selectionService = selectionService;
@@ -47,6 +49,7 @@ public class EditorViewModel : IEditorViewModel
 
     public (int start, int length) Selection => _selectionService.GetSelection();
     public ITextBufferService TextBufferService { get; }
+    public ITabService TabService { get; }
 
     public int CursorPosition => _cursorService.GetCursorPosition();
 
@@ -158,7 +161,7 @@ public class EditorViewModel : IEditorViewModel
         HighlightingResults = new ObservableCollection<SyntaxHighlightingResult>(results);
     }
 
-    protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+    private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }

@@ -56,9 +56,9 @@ public class App : Avalonia.Application
         services.AddSingleton<IClipboardService>(sp =>
             new AvaloniaClipboardService(() => GetMainWindow(sp))
         );
-        
-        services.AddSingleton<ITextBufferService, TextBufferService>();
-    
+
+        services.AddSingleton<ITabService, TabService>();
+        services.AddTransient<ITextBufferService, TextBufferService>();
         services.AddSingleton<ISyntaxHighlighter, SyntaxHighlighter>();
         services.AddSingleton<ICursorService, CursorService>();
         services.AddSingleton<ISelectionService, SelectionService>();
@@ -76,9 +76,11 @@ public class App : Avalonia.Application
         services.AddSingleton<ITabViewModel, TabViewModel>();
         services.AddTransient<IMainWindowViewModel, MainWindowViewModel>();
 
-        services.AddSingleton<IEditorViewModelFactory, EditorViewModelFactory>();
+        services.AddSingleton<ITabService, TabService>();
+        services.AddTransient<IEditorViewModelFactory>(sp =>
+            new EditorViewModelFactory(sp, sp.GetRequiredService<ITabService>()));
         services.AddSingleton<ICommandFactory, CommandFactory>();
-    
+
         services.AddSingleton<MainWindow>();
         services.AddSingleton<EditorView>(provider =>
         {

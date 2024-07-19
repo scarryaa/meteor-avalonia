@@ -4,7 +4,7 @@ using meteor.Core.Interfaces.ViewModels;
 
 namespace meteor.UI.ViewModels;
 
-public class MainWindowViewModel : IMainWindowViewModel
+public sealed class MainWindowViewModel : IMainWindowViewModel
 {
     private ITabViewModel _tabViewModel;
 
@@ -28,7 +28,7 @@ public class MainWindowViewModel : IMainWindowViewModel
 
     public event PropertyChangedEventHandler PropertyChanged;
 
-    protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
+    private void OnPropertyChanged([CallerMemberName] string propertyName = null)
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }

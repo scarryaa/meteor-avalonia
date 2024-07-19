@@ -17,9 +17,11 @@ public class InputServiceTests
     private readonly Mock<ITextMeasurer> _textMeasurerMock;
     private readonly InputService _inputService;
     private readonly ITestOutputHelper _output;
+    private readonly Mock<ITabService> _tabServiceMock;
 
     public InputServiceTests(ITestOutputHelper output)
     {
+        _tabServiceMock = new Mock<ITabService>();
         _textBufferServiceMock = new Mock<ITextBufferService>();
         _cursorServiceMock = new Mock<ICursorService>();
         _textAnalysisServiceMock = new Mock<ITextAnalysisService>();
@@ -27,13 +29,15 @@ public class InputServiceTests
         _clipboardServiceMock = new Mock<IClipboardService>();
         _textMeasurerMock = new Mock<ITextMeasurer>();
         _inputService = new InputService(
-            _textBufferServiceMock.Object,
+            _tabServiceMock.Object,
             _cursorServiceMock.Object,
             _textAnalysisServiceMock.Object,
             _selectionServiceMock.Object,
             _clipboardServiceMock.Object,
             _textMeasurerMock.Object);
         _output = output;
+
+        _tabServiceMock.Setup(ts => ts.GetActiveTextBufferService()).Returns(_textBufferServiceMock.Object);
     }
 
     [Fact]

@@ -18,9 +18,11 @@ public class EditorViewModelTests
     private readonly Mock<IInputService> _inputServiceMock;
     private readonly Mock<IEditorSizeCalculator> _sizeCalculatorMock;
     private readonly EditorViewModel _viewModel;
+    private readonly Mock<ITabService> _tabServiceMock;
 
     public EditorViewModelTests()
     {
+        _tabServiceMock = new Mock<ITabService>();
         _textBufferServiceMock = new Mock<ITextBufferService>();
         _syntaxHighlighterMock = new Mock<ISyntaxHighlighter>();
         _selectionServiceMock = new Mock<ISelectionService>();
@@ -29,12 +31,15 @@ public class EditorViewModelTests
         _sizeCalculatorMock = new Mock<IEditorSizeCalculator>();
         _viewModel = new EditorViewModel(
             _textBufferServiceMock.Object,
+            _tabServiceMock.Object,
             _syntaxHighlighterMock.Object,
             _selectionServiceMock.Object,
             _inputServiceMock.Object,
             _cursorServiceMock.Object,
             _sizeCalculatorMock.Object
         );
+
+        _tabServiceMock.Setup(ts => ts.GetActiveTextBufferService()).Returns(_textBufferServiceMock.Object);
     }
 
     [Fact]

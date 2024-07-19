@@ -15,7 +15,8 @@ public interface IEditorViewModel : INotifyPropertyChanged
     double EditorHeight { get; }
     public ITextBufferService TextBufferService { get; }
     ObservableCollection<SyntaxHighlightingResult> HighlightingResults { get; }
-
+    ITabService TabService { get; }
+    
     void InsertText(int index, string text);
     void DeleteText(int index, int length);
 

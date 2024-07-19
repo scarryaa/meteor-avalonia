@@ -53,6 +53,7 @@ public partial class EditorView : UserControl
         _viewModel = DataContext as IEditorViewModel;
         if (_viewModel != null)
         {
+            _editorRenderer.UpdateTabService(_viewModel.TabService);
             _viewModel.PropertyChanged += (_, _e) =>
             {
                 if (_e.PropertyName == nameof(IEditorViewModel.Text) ||
@@ -139,7 +140,7 @@ public partial class EditorView : UserControl
     {
         base.OnTextInput(e);
         _viewModel?.OnTextInput(EventArgsAdapters.ToTextInputEventArgsModel(e));
-        _editorRenderer.UpdateLineInfo(_viewModel.TextBufferService);
+        _editorRenderer.UpdateLineInfo();
         e.Handled = true;
     }
 
@@ -159,7 +160,7 @@ public partial class EditorView : UserControl
             await _viewModel?.OnKeyDown(meteorKeyEventArgs);
         }
 
-        _editorRenderer.UpdateLineInfo(_viewModel.TextBufferService);
+        _editorRenderer.UpdateLineInfo();
     }
     
     public override void Render(DrawingContext context)
@@ -177,7 +178,7 @@ public partial class EditorView : UserControl
             using (context.PushClip(clipRect))
             {
                 // Render the content
-                _editorRenderer.Render(context, Bounds, _viewModel.TextBufferService, _viewModel.HighlightingResults,
+                _editorRenderer.Render(context, Bounds, _viewModel.HighlightingResults,
                     _viewModel.Selection, _viewModel.CursorPosition, offset.Y, offset.X);
             }
         }

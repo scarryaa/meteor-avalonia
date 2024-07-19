@@ -19,7 +19,7 @@ public class AvaloniaTextMeasurer : ITextMeasurer
     private readonly Dictionary<char, double> _charWidthCache;
     private readonly ObjectPool<StringBuilder> _stringBuilderPool;
     private readonly TextLayout _singleCharLayout;
-    
+
     private const int MaxCacheSize = 1000;
     private const int ChunkSize = 100;
 
@@ -44,7 +44,7 @@ public class AvaloniaTextMeasurer : ITextMeasurer
 
         _stringBuilderPool = new ObjectPool<StringBuilder>(() => new StringBuilder(ChunkSize));
     }
-    
+
     public int GetIndexAtPosition(ITextBufferService textBufferService, double x, double y, double verticalScrollOffset,
         double horizontalScrollOffset)
     {
@@ -98,7 +98,7 @@ public class AvaloniaTextMeasurer : ITextMeasurer
         var textLayout = GetOrCreateTextLayout(text);
         return textLayout.WidthIncludingTrailingWhitespace;
     }
-    
+
     public double GetStringWidth(char[] buffer, int start, int length)
     {
         if (length == 0) return 0;

@@ -18,17 +18,18 @@ public class AvaloniaEditorSizeCalculator : IEditorSizeCalculator
     public AvaloniaEditorSizeCalculator(ITextMeasurer textMeasurer)
     {
         _textMeasurer = textMeasurer;
-        _cachedLineHeight = _textMeasurer.GetStringHeight("X");
+        _cachedLineHeight = _textMeasurer.GetLineHeight();
     }
 
     public (double width, double height) CalculateEditorSize(ITextBufferService textBufferService,
         double availableWidth, double availableHeight)
     {
-        if (textBufferService.Length != _cachedTextLength) UpdateCache(textBufferService);
+        if (textBufferService.Length != _cachedTextLength)
+            UpdateCache(textBufferService);
 
         var contentWidth = Math.Max(_cachedMaxLineWidth, _windowWidth);
         var contentHeight = Math.Max(_cachedLineHeight * _cachedLineCount, _windowHeight);
-        
+
         return (contentWidth, contentHeight);
     }
 
@@ -44,7 +45,8 @@ public class AvaloniaEditorSizeCalculator : IEditorSizeCalculator
             if (bufferIndex > lineStartIndex)
             {
                 var lineWidth = _textMeasurer.GetStringWidth(_buffer, lineStartIndex, bufferIndex - lineStartIndex);
-                if (lineWidth > _cachedMaxLineWidth) _cachedMaxLineWidth = lineWidth;
+                if (lineWidth > _cachedMaxLineWidth)
+                    _cachedMaxLineWidth = lineWidth;
             }
 
             _cachedLineCount++;
@@ -72,10 +74,7 @@ public class AvaloniaEditorSizeCalculator : IEditorSizeCalculator
             }
         });
 
-        if (bufferIndex > lineStartIndex)
-        {
-            ProcessLine();
-        }
+        if (bufferIndex > lineStartIndex) ProcessLine();
 
         _cachedTextLength = textBufferService.Length;
     }

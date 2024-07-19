@@ -23,7 +23,8 @@ public class EditorRenderer
     private readonly double _fontSize = 13;
     private readonly Typeface _typeface = new("Consolas");
     private readonly AvaloniaTextMeasurer _textMeasurer;
-
+    private ITabService _tabService;
+    
     private bool _showCursor = true;
     private DispatcherTimer _cursorBlinkTimer;
     private readonly Action _invalidateView;
@@ -50,8 +51,16 @@ public class EditorRenderer
         _cursorBlinkTimer.Start();
     }
 
-    public void UpdateLineInfo(ITextBufferService textBufferService)
+    public void UpdateTabService(ITabService tabService)
     {
+        _tabService = tabService;
+        UpdateLineInfo();
+    }
+
+    public void UpdateLineInfo()
+    {
+        var textBufferService = _tabService.GetActiveTextBufferService();
+        
         _lineInfo.Clear();
         _totalLines = 0;
         var currentIndex = 0;
@@ -69,11 +78,13 @@ public class EditorRenderer
         }
     }
 
-    public void Render(DrawingContext context, Rect bounds, ITextBufferService textBufferService,
+    public void Render(DrawingContext context, Rect bounds,
         IEnumerable<SyntaxHighlightingResult> highlightingResults,
         (int start, int length) selection, int cursorPosition,
         double scrollOffset, double offsetX)
     {
+        var textBufferService = _tabService.GetActiveTextBufferService();
+        
         context.DrawRectangle(Brushes.White, null, bounds);
 
         var lineHeight = _textMeasurer.GetLineHeight();
