@@ -10,7 +10,6 @@ namespace meteor.UI.Factories;
 public interface IEditorViewModelFactory
 {
     IEditorViewModel Create();
-    IEditorViewModel Create(ITextBufferService textBufferService);
 }
 
 public class EditorViewModelFactory : IEditorViewModelFactory
@@ -24,25 +23,13 @@ public class EditorViewModelFactory : IEditorViewModelFactory
 
     public IEditorViewModel Create()
     {
-        var textBufferService = new TextBufferService();
-        return CreateEditorViewModel(textBufferService);
+        return CreateEditorViewModel();
     }
 
-    public IEditorViewModel Create(ITextBufferService textBufferService)
-    {
-        return CreateEditorViewModel(textBufferService);
-    }
-
-    private IEditorViewModel CreateEditorViewModel(ITextBufferService textBufferService)
+    private IEditorViewModel CreateEditorViewModel()
     {
         return new EditorViewModel(
-            textBufferService,
-            _serviceProvider.GetRequiredService<ITabService>(),
-            _serviceProvider.GetRequiredService<ISyntaxHighlighter>(),
-            _serviceProvider.GetRequiredService<ISelectionService>(),
-            _serviceProvider.GetRequiredService<IInputService>(),
-            _serviceProvider.GetRequiredService<ICursorService>(),
-            _serviceProvider.GetRequiredService<IEditorSizeCalculator>(),
+            _serviceProvider.GetRequiredService<EditorViewModelServiceContainer>(),
             _serviceProvider.GetRequiredService<ITextMeasurer>()
         );
     }

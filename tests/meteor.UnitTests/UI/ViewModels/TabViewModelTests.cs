@@ -58,7 +58,7 @@ public class TabViewModelTests
 
         // Assert
         Assert.Single(_tabViewModel.Tabs);
-        Assert.Equal(tabToKeep, _tabViewModel.Tabs.First());
+        Assert.Equal(tabToKeep, _tabViewModel.Tabs[0]);
         Assert.Equal(tabToKeep, _tabViewModel.SelectedTab);
 
         _mockTabService.Verify(s => s.CloseOtherTabs(1), Times.Once);
@@ -90,7 +90,7 @@ public class TabViewModelTests
 
         // Assert
         Assert.Single(_tabViewModel.Tabs);
-        Assert.Equal(tabToKeep, _tabViewModel.Tabs.First());
+        Assert.Equal(tabToKeep, _tabViewModel.Tabs[0]);
         Assert.Equal(tabToKeep, _tabViewModel.SelectedTab);
 
         _mockTabService.Verify(s => s.CloseOtherTabs(2), Times.Once);

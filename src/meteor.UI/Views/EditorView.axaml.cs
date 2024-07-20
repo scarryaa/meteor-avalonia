@@ -5,6 +5,7 @@ using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Reactive;
 using meteor.Core.Interfaces.ViewModels;
+using meteor.Core.Models.Config;
 using meteor.UI.Adapters;
 using meteor.UI.Interfaces;
 using meteor.UI.Renderers;
@@ -28,8 +29,10 @@ public partial class EditorView : UserControl
 
         if (Application.Current is App app)
         {
-            var themeManager = app.ServiceProvider.GetRequiredService<IThemeManager>();
-            _editorRenderer = new EditorRenderer(InvalidateVisual, themeManager);
+            var serviceProvider = app.ServiceProvider;
+            var themeManager = serviceProvider.GetRequiredService<IThemeManager>();
+            var themeConfig = serviceProvider.GetRequiredService<ThemeConfig>();
+            _editorRenderer = new EditorRenderer(InvalidateVisual, themeManager, themeConfig);
         }
         else
         {
@@ -59,9 +62,8 @@ public partial class EditorView : UserControl
 
             _scrollViewer.PropertyChanged += (_, e) =>
             {
-                if (e.Property.Name == nameof(ScrollViewer.Viewport))
-                    if (_gutterView is { ViewModel: not null })
-                        _gutterView.ViewModel.ViewportHeight = _scrollViewer.Viewport.Height;
+                if (e.Property.Name == nameof(ScrollViewer.Viewport) && _gutterView is { ViewModel: not null })
+                    _gutterView.ViewModel.ViewportHeight = _scrollViewer.Viewport.Height;
             };
         }
 
@@ -181,16 +183,16 @@ public partial class EditorView : UserControl
     {
         base.OnKeyDown(e);
 
-        if (e.Key == Key.Back || e.Key == Key.Delete || e.Key == Key.Left || e.Key == Key.Right ||
-            e.Key == Key.Down || e.Key == Key.Up ||
-            e.Key == Key.Home || e.Key == Key.End || e.Key == Key.Enter ||
-            (e.KeyModifiers.HasFlag(KeyModifiers.Control) &&
-             e.Key is Key.A or Key.C or Key.X or Key.V))
+        if ((e.Key == Key.Back || e.Key == Key.Delete || e.Key == Key.Left || e.Key == Key.Right ||
+             e.Key == Key.Down || e.Key == Key.Up ||
+             e.Key == Key.Home || e.Key == Key.End || e.Key == Key.Enter ||
+             (e.KeyModifiers.HasFlag(KeyModifiers.Control) &&
+              e.Key is Key.A or Key.C or Key.X or Key.V)) && _viewModel != null)
         {
             var meteorKey = KeyMapper.ToMeteorKey(e.Key);
             var meteorKeyModifiers = KeyMapper.ToMeteorKeyModifiers(e.KeyModifiers);
             var meteorKeyEventArgs = new Core.Models.Events.KeyEventArgs(meteorKey, meteorKeyModifiers);
-            await _viewModel?.OnKeyDown(meteorKeyEventArgs);
+            await _viewModel.OnKeyDown(meteorKeyEventArgs);
         }
 
         _editorRenderer.UpdateLineInfo();

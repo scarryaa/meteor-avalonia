@@ -1,3 +1,4 @@
+using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
@@ -14,6 +15,7 @@ namespace meteor.UI.ViewModels;
 
 public sealed class EditorViewModel : IEditorViewModel
 {
+    private const double Epsilon = 0.000001;
     private readonly ICursorService _cursorService;
     private readonly IInputService _inputService;
     private readonly ISelectionService _selectionService;
@@ -27,23 +29,15 @@ public sealed class EditorViewModel : IEditorViewModel
     private Vector _scrollOffset;
     private ObservableCollection<SyntaxHighlightingResult> _highlightingResults = new();
 
-    public EditorViewModel(
-        ITextBufferService textBufferService,
-        ITabService tabService,
-        ISyntaxHighlighter syntaxHighlighter,
-        ISelectionService selectionService,
-        IInputService inputService,
-        ICursorService cursorService,
-        IEditorSizeCalculator sizeCalculator,
-        ITextMeasurer textMeasurer)
+    public EditorViewModel(EditorViewModelServiceContainer serviceContainer, ITextMeasurer textMeasurer)
     {
-        TextBufferService = textBufferService;
-        TabService = tabService;
-        _syntaxHighlighter = syntaxHighlighter;
-        _selectionService = selectionService;
-        _inputService = inputService;
-        _cursorService = cursorService;
-        _sizeCalculator = sizeCalculator;
+        TextBufferService = serviceContainer.TextBufferService;
+        TabService = serviceContainer.TabService;
+        _syntaxHighlighter = serviceContainer.SyntaxHighlighter;
+        _selectionService = serviceContainer.SelectionService;
+        _inputService = serviceContainer.InputService;
+        _cursorService = serviceContainer.CursorService;
+        _sizeCalculator = serviceContainer.SizeCalculator;
 
         GutterViewModel = new GutterViewModel(textMeasurer)
         {
@@ -91,7 +85,7 @@ public sealed class EditorViewModel : IEditorViewModel
         get => _editorWidth;
         private set
         {
-            if (_editorWidth != value)
+            if (Math.Abs(_editorWidth - value) > Epsilon)
             {
                 _editorWidth = value;
                 OnPropertyChanged();
@@ -104,7 +98,7 @@ public sealed class EditorViewModel : IEditorViewModel
         get => _editorHeight;
         private set
         {
-            if (_editorHeight != value)
+            if (Math.Abs(_editorHeight - value) > Epsilon)
             {
                 _editorHeight = value;
                 OnPropertyChanged();

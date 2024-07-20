@@ -3,6 +3,7 @@ using meteor.Core.Enums;
 using meteor.Core.Interfaces.Services;
 using meteor.Core.Models;
 using meteor.Core.Models.Events;
+using meteor.Core.Services;
 using meteor.UI.ViewModels;
 using Moq;
 
@@ -12,36 +13,30 @@ public class EditorViewModelTests
 {
     private readonly Mock<ITextBufferService> _mockTextBufferService;
     private readonly Mock<ITabService> _mockTabService;
-    private readonly Mock<ISyntaxHighlighter> _mockSyntaxHighlighter;
-    private readonly Mock<ISelectionService> _mockSelectionService;
     private readonly Mock<IInputService> _mockInputService;
-    private readonly Mock<ICursorService> _mockCursorService;
     private readonly Mock<IEditorSizeCalculator> _mockSizeCalculator;
     private readonly Mock<ITextMeasurer> _mockTextMeasurer;
     private readonly EditorViewModel _viewModel;
+    private readonly Mock<EditorViewModelServiceContainer> _mockEditorViewModelServiceContainer;
 
     public EditorViewModelTests()
     {
         _mockTextBufferService = new Mock<ITextBufferService>();
         _mockTabService = new Mock<ITabService>();
-        _mockSyntaxHighlighter = new Mock<ISyntaxHighlighter>();
-        _mockSelectionService = new Mock<ISelectionService>();
+        new Mock<ISyntaxHighlighter>();
+        new Mock<ISelectionService>();
         _mockInputService = new Mock<IInputService>();
-        _mockCursorService = new Mock<ICursorService>();
+        new Mock<ICursorService>();
         _mockSizeCalculator = new Mock<IEditorSizeCalculator>();
         _mockTextMeasurer = new Mock<ITextMeasurer>();
+        _mockEditorViewModelServiceContainer = new Mock<EditorViewModelServiceContainer>();
 
         _mockTabService.Setup(ts => ts.GetActiveTextBufferService()).Returns(_mockTextBufferService.Object);
 
         _viewModel = new EditorViewModel(
-            _mockTextBufferService.Object,
-            _mockTabService.Object,
-            _mockSyntaxHighlighter.Object,
-            _mockSelectionService.Object,
-            _mockInputService.Object,
-            _mockCursorService.Object,
-            _mockSizeCalculator.Object,
-            _mockTextMeasurer.Object);
+            _mockEditorViewModelServiceContainer.Object,
+            _mockTextMeasurer.Object
+        );
     }
 
     [Fact]

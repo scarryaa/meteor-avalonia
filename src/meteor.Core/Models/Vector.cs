@@ -18,7 +18,8 @@ public struct Vector : IEquatable<Vector>
 
     public bool Equals(Vector other)
     {
-        return X == other.X && Y == other.Y;
+        const double epsilon = 1e-10;
+        return Math.Abs(X - other.X) < epsilon && Math.Abs(Y - other.Y) < epsilon;
     }
 
     public override int GetHashCode()
@@ -30,7 +31,7 @@ public struct Vector : IEquatable<Vector>
     {
         return left.Equals(right);
     }
-
+    
     public static bool operator !=(Vector left, Vector right)
     {
         return !(left == right);

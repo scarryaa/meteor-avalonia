@@ -1,11 +1,10 @@
-using System;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using meteor.Core.Interfaces.ViewModels;
 
 namespace meteor.UI.ViewModels;
 
-public sealed class TabItemViewModel : ITabItemViewModel, IDisposable
+public sealed class TabItemViewModel : ITabItemViewModel
 {
     private int _index;
     private IEditorViewModel _editorViewModel;

@@ -10,7 +10,7 @@ public class TextAnalysisService : ITextAnalysisService
             return (Math.Min(index, textBuffer.Length), Math.Min(index, textBuffer.Length));
 
         var start = index;
-        var end = index;
+        int end;
 
         // Helper function to check if a character is part of a word
         bool IsWordChar(char c)

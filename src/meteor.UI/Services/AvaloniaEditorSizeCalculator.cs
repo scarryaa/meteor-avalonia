@@ -22,7 +22,7 @@ public class AvaloniaEditorSizeCalculator : IEditorSizeCalculator
     }
 
     public (double width, double height) CalculateEditorSize(ITextBufferService textBufferService,
-        double availableWidth, double availableHeight)
+        double windowWidth, double windowHeight)
     {
         if (textBufferService.Length != _cachedTextLength)
             UpdateCache(textBufferService);
@@ -62,7 +62,7 @@ public class AvaloniaEditorSizeCalculator : IEditorSizeCalculator
                 if (lineWidth > _cachedMaxLineWidth)
                     _cachedMaxLineWidth = lineWidth;
             }
-
+            
             _cachedLineCount++;
             lineStartIndex = bufferIndex;
         }
@@ -88,7 +88,7 @@ public class AvaloniaEditorSizeCalculator : IEditorSizeCalculator
             }
         });
 
-        if (bufferIndex > lineStartIndex) ProcessLine();
+        ProcessLine();
 
         _cachedTextLength = textBufferService.Length;
     }

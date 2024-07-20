@@ -23,7 +23,8 @@ public class EditorViewModelIntegrationTests : IDisposable
     private readonly ITextBufferService _textBufferService;
     private readonly ITextMeasurer _textMeasurer;
     private readonly EditorViewModel _viewModel;
-
+    private readonly EditorViewModelServiceContainer _serviceContainer;
+    
     public EditorViewModelIntegrationTests()
     {
         _tabService = new TabService();
@@ -37,20 +38,22 @@ public class EditorViewModelIntegrationTests : IDisposable
         _inputService = new InputService(_tabService, _cursorService, _textAnalysisService, _selectionService,
             _clipboardService, _textMeasurer);
         _editorSizeCalculator = new AvaloniaEditorSizeCalculator(_textMeasurer);
-
+        _serviceContainer = new EditorViewModelServiceContainer(
+            _textBufferService,
+            _tabService,
+            _syntaxHighlighter,
+            _selectionService,
+            _inputService,
+            _cursorService,
+            _editorSizeCalculator
+        );
         // Initialize the tab service and set up tabs
         _tabService.CloseAllTabs();
         var tab = _tabService.AddTab(_textBufferService);
         _tabService.SwitchTab(tab.Index);
         
         _viewModel = new EditorViewModel(
-            _tabService.GetActiveTextBufferService(),
-            _tabService,
-            _syntaxHighlighter,
-            _selectionService,
-            _inputService,
-            _cursorService,
-            _editorSizeCalculator,
+            _serviceContainer,
             _textMeasurer
         );
     }
@@ -252,7 +255,7 @@ public class EditorViewModelIntegrationTests : IDisposable
         _viewModel.OnPointerPressed(args);
 
         // Assert
-        Assert.Equal((0, 5), _viewModel.Selection); // Include newline character
+        Assert.Equal((0, 5), _viewModel.Selection);
         Assert.Equal(5, _viewModel.CursorPosition);
     }
 

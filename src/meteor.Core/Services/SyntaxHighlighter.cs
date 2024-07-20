@@ -1,4 +1,3 @@
-using System.Text;
 using meteor.Core.Enums.SyntaxHighlighting;
 using meteor.Core.Interfaces.Services;
 using meteor.Core.Models.SyntaxHighlighting;
@@ -13,13 +12,7 @@ public class SyntaxHighlighter : ISyntaxHighlighter
     private List<SyntaxHighlightingResult> _cachedResults = new();
     private readonly Dictionary<int, List<SyntaxHighlightingResult>> _chunkCache = new();
     private readonly KeywordTrie _keywordTrie;
-    private readonly List<int> _lineEndPositions = new();
-    private readonly List<int> _lineStartPositions = new();
     private readonly ITabService _tabService;
-    private int _commentStartIndex = -1;
-
-    private CommentState _currentCommentState = CommentState.None;
-    private int _iterationCount;
     private string _lastProcessedText = string.Empty;
 
     public SyntaxHighlighter(ITabService tabService)
@@ -115,7 +108,8 @@ public class SyntaxHighlighter : ISyntaxHighlighter
     private void MergeOverlappingResults()
     {
         _cachedResults = _cachedResults.OrderBy(r => r.StartIndex).ToList();
-        for (int i = 0; i < _cachedResults.Count - 1; i++)
+        var i = 0;
+        while (i < _cachedResults.Count - 1)
         {
             var current = _cachedResults[i];
             var next = _cachedResults[i + 1];
@@ -131,42 +125,12 @@ public class SyntaxHighlighter : ISyntaxHighlighter
                     Type = current.Type
                 };
                 _cachedResults.RemoveAt(i + 1);
-                i--; // Recheck this index in case of multiple merges
+            }
+            else
+            {
+                i++;
             }
         }
-    }
-    
-    private string GetFullText(ITextBufferService textBufferService)
-    {
-        var sb = new StringBuilder();
-        textBufferService.AppendTo(sb);
-        return sb.ToString();
-    }
-
-    private bool IsInString(char c, ITextBufferService textBufferService, int position)
-    {
-        if (c != '"') return false;
-
-        // Count the number of backslashes before this quote
-        var backslashCount = 0;
-        var i = position - 1;
-        while (i >= 0 && textBufferService.Substring(i, 1)[0] == '\\')
-        {
-            backslashCount++;
-            i--;
-        }
-
-        // If there's an odd number of backslashes, this quote is escaped
-        return backslashCount % 2 == 0;
-    }
-
-    private int FindStringStart(ITextBufferService textBufferService, int endPosition)
-    {
-        for (var i = endPosition - 1; i >= 0; i--)
-            if (textBufferService.Substring(i, 1)[0] == '"')
-                if (i == 0 || textBufferService.Substring(i - 1, 1)[0] != '\\')
-                    return i;
-        return 0; // If no start found, assume start of document
     }
 
     private void ProcessChunk(ReadOnlySpan<char> span, int offset, ref bool inString, ref int stringStart)
@@ -221,40 +185,56 @@ public class SyntaxHighlighter : ISyntaxHighlighter
     {
         var index = 0;
         while (index < span.Length - 1)
-            if (span[index] == '/' && span[index + 1] == '/')
-            {
-                // Single-line comment
-                var start = index;
-                index = span.Slice(index).IndexOf('\n');
-                if (index == -1) index = span.Length;
-                else index += start;
-
-                results.Add(new SyntaxHighlightingResult
-                {
-                    StartIndex = offset + start,
-                    Length = index - start,
-                    Type = SyntaxHighlightingType.Comment
-                });
-            }
-            else if (span[index] == '/' && span[index + 1] == '*')
-            {
-                // Multi-line comment
-                var start = index;
-                index += 2;
-                while (index < span.Length - 1 && !(span[index] == '*' && span[index + 1] == '/')) index++;
-                if (index < span.Length - 1) index += 2;
-
-                results.Add(new SyntaxHighlightingResult
-                {
-                    StartIndex = offset + start,
-                    Length = index - start,
-                    Type = SyntaxHighlightingType.Comment
-                });
-            }
+            if (IsStartOfSingleLineComment(span, index))
+                index = HighlightSingleLineComment(span, offset, index, results);
+            else if (IsStartOfMultiLineComment(span, index))
+                index = HighlightMultiLineComment(span, offset, index, results);
             else
-            {
                 index++;
-            }
+    }
+
+    private bool IsStartOfSingleLineComment(ReadOnlySpan<char> span, int index)
+    {
+        return span[index] == '/' && span[index + 1] == '/';
+    }
+
+    private bool IsStartOfMultiLineComment(ReadOnlySpan<char> span, int index)
+    {
+        return span[index] == '/' && span[index + 1] == '*';
+    }
+
+    private int HighlightSingleLineComment(ReadOnlySpan<char> span, int offset, int start,
+        List<SyntaxHighlightingResult> results)
+    {
+        var end = span.Slice(start).IndexOf('\n');
+        if (end == -1) end = span.Length;
+        else end += start;
+
+        results.Add(new SyntaxHighlightingResult
+        {
+            StartIndex = offset + start,
+            Length = end - start,
+            Type = SyntaxHighlightingType.Comment
+        });
+
+        return end;
+    }
+
+    private int HighlightMultiLineComment(ReadOnlySpan<char> span, int offset, int start,
+        List<SyntaxHighlightingResult> results)
+    {
+        var index = start + 2;
+        while (index < span.Length - 1 && !(span[index] == '*' && span[index + 1] == '/')) index++;
+        if (index < span.Length - 1) index += 2;
+
+        results.Add(new SyntaxHighlightingResult
+        {
+            StartIndex = offset + start,
+            Length = index - start,
+            Type = SyntaxHighlightingType.Comment
+        });
+
+        return index;
     }
 
     private void HighlightStrings(ReadOnlySpan<char> span, int offset, List<SyntaxHighlightingResult> results,
@@ -280,93 +260,5 @@ public class SyntaxHighlighter : ISyntaxHighlighter
                     stringStart = -1;
                 }
             }
-    }
-
-    private void HighlightKeywordsAndComments(ReadOnlySpan<char> span, int offset,
-        List<SyntaxHighlightingResult> results)
-    {
-        var inString = false;
-        for (var i = 0; i < span.Length; i++)
-        {
-            if (span[i] == '"' && (i == 0 || span[i - 1] != '\\'))
-            {
-                inString = !inString;
-                continue;
-            }
-
-            if (!inString)
-            {
-                // Check for keywords
-                if (char.IsLetter(span[i]))
-                {
-                    var wordEnd = i + 1;
-                    while (wordEnd < span.Length && char.IsLetterOrDigit(span[wordEnd])) wordEnd++;
-                    var word = span.Slice(i, wordEnd - i);
-                    if (_keywordTrie.Contains(word))
-                        results.Add(new SyntaxHighlightingResult
-                        {
-                            StartIndex = offset + i,
-                            Length = wordEnd - i,
-                            Type = SyntaxHighlightingType.Keyword
-                        });
-                    i = wordEnd - 1;
-                }
-                // Check for comments
-                else if (i < span.Length - 1 && span[i] == '/' && span[i + 1] == '/')
-                {
-                    var commentEnd = span.Slice(i).IndexOf('\n');
-                    if (commentEnd == -1) commentEnd = span.Length - i;
-                    results.Add(new SyntaxHighlightingResult
-                    {
-                        StartIndex = offset + i,
-                        Length = commentEnd,
-                        Type = SyntaxHighlightingType.Comment
-                    });
-                    i += commentEnd - 1;
-                }
-                else if (i < span.Length - 1 && span[i] == '/' && span[i + 1] == '*')
-                {
-                    var commentEnd = span.Slice(i + 2).IndexOf("*/");
-                    if (commentEnd == -1) commentEnd = span.Length - i;
-                    else commentEnd += 4; // Include the "*/" in the highlight
-                    results.Add(new SyntaxHighlightingResult
-                    {
-                        StartIndex = offset + i,
-                        Length = commentEnd,
-                        Type = SyntaxHighlightingType.Comment
-                    });
-                    i += commentEnd - 1;
-                }
-            }
-        }
-    }
-
-    private void AddCommentResult(int start, int length, List<SyntaxHighlightingResult> results)
-    {
-        results.Add(new SyntaxHighlightingResult
-        {
-            StartIndex = start,
-            Length = length,
-            Type = SyntaxHighlightingType.Comment
-        });
-    }
-
-    private void PrecomputeLineBoundaries(string text)
-    {
-        _lineStartPositions.Clear();
-        _lineEndPositions.Clear();
-
-        var lineStart = 0;
-        _lineStartPositions.Add(lineStart);
-
-        for (var i = 0; i < text.Length; i++)
-            if (text[i] == '\n')
-            {
-                _lineEndPositions.Add(i);
-                lineStart = i + 1;
-                _lineStartPositions.Add(lineStart);
-            }
-
-        _lineEndPositions.Add(text.Length);
     }
 }

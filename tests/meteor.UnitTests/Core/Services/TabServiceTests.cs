@@ -38,7 +38,7 @@ public class TabServiceTests
     [Fact]
     public void SwitchTab_ValidIndex_SwitchesActiveTab()
     {
-        var tabInfo1 = _tabService.AddTab(_mockTextBufferService.Object);
+        _tabService.AddTab(_mockTextBufferService.Object);
         var tabInfo2 = _tabService.AddTab(new Mock<ITextBufferService>().Object);
 
         _tabService.SwitchTab(tabInfo2.Index);
@@ -112,9 +112,9 @@ public class TabServiceTests
     [Fact]
     public void CloseOtherTabs_KeepsSpecifiedTabAndClosesOthers()
     {
-        var tabInfo1 = _tabService.AddTab(_mockTextBufferService.Object);
+        _tabService.AddTab(_mockTextBufferService.Object);
         var tabInfo2 = _tabService.AddTab(new Mock<ITextBufferService>().Object);
-        var tabInfo3 = _tabService.AddTab(new Mock<ITextBufferService>().Object);
+        _tabService.AddTab(new Mock<ITextBufferService>().Object);
 
         _tabService.CloseOtherTabs(tabInfo2.Index);
 
@@ -157,7 +157,7 @@ public class TabServiceTests
     [Fact]
     public void GetActiveTab_WithActiveTabs_ReturnsCorrectTab()
     {
-        var tabInfo1 = _tabService.AddTab(_mockTextBufferService.Object);
+        _tabService.AddTab(_mockTextBufferService.Object);
         var tabInfo2 = _tabService.AddTab(new Mock<ITextBufferService>().Object);
         _tabService.SwitchTab(tabInfo2.Index);
 

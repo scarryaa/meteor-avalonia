@@ -126,7 +126,7 @@ public sealed class TabViewModel : ITabViewModel
         _tabs.Clear();
         foreach (var tabInfo in _tabService.GetAllTabs())
         {
-            var editorViewModel = _editorViewModelFactory.Create(tabInfo.TextBufferService);
+            var editorViewModel = _editorViewModelFactory.Create();
             var tabViewModel = new TabItemViewModel(tabInfo.Index, tabInfo.Title, editorViewModel);
             _tabs.Add(tabViewModel);
         }

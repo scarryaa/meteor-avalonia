@@ -10,15 +10,15 @@ using meteor.Core.Models;
 
 namespace meteor.UI.Services;
 
-public class AvaloniaTextMeasurer : ITextMeasurer
+public sealed class AvaloniaTextMeasurer : ITextMeasurer
 {
+    private bool _disposed;
     private const int MaxCacheSize = 1000;
     private const int ChunkSize = 100;
     private readonly Dictionary<char, double> _charWidthCache;
     private readonly double _fontSize;
     private readonly double _lineHeight;
     private readonly TextLayout _singleCharLayout;
-    private readonly ObjectPool<StringBuilder> _stringBuilderPool;
     private readonly LruCache<string, TextLayout> _textLayoutCache;
     private readonly Typeface _typeface;
 
@@ -40,8 +40,6 @@ public class AvaloniaTextMeasurer : ITextMeasurer
         _singleCharLayout = CreateTextLayout("X");
         _textLayoutCache = new LruCache<string, TextLayout>(MaxCacheSize);
         _charWidthCache = new Dictionary<char, double>();
-
-        _stringBuilderPool = new ObjectPool<StringBuilder>(() => new StringBuilder(ChunkSize));
     }
 
     public int GetIndexAtPosition(ITextBufferService textBufferService, double x, double y, double verticalScrollOffset,
@@ -136,12 +134,6 @@ public class AvaloniaTextMeasurer : ITextMeasurer
         _charWidthCache.Clear();
     }
 
-    public void Dispose()
-    {
-        _textLayoutCache.Clear();
-        _charWidthCache.Clear();
-    }
-
     private double GetCharWidth(char c)
     {
         if (_charWidthCache.TryGetValue(c, out var width)) return width;
@@ -222,5 +214,30 @@ public class AvaloniaTextMeasurer : ITextMeasurer
             TextWrapping.NoWrap,
             TextTrimming.None
         );
+    }
+
+    private void Dispose(bool disposing)
+    {
+        if (!_disposed)
+        {
+            if (disposing)
+            {
+                _singleCharLayout.Dispose();
+                _textLayoutCache.Clear();
+            }
+
+            _disposed = true;
+        }
+    }
+
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    ~AvaloniaTextMeasurer()
+    {
+        Dispose(false);
     }
 }

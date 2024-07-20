@@ -7,6 +7,7 @@ using Avalonia.Media;
 using meteor.Core.Interfaces;
 using meteor.Core.Interfaces.Services;
 using meteor.Core.Interfaces.ViewModels;
+using meteor.Core.Models.Config;
 using meteor.Core.Services;
 using meteor.Infrastructure.Data;
 using meteor.UI.Factories;
@@ -14,6 +15,7 @@ using meteor.UI.Interfaces;
 using meteor.UI.Services;
 using meteor.UI.ViewModels;
 using meteor.UI.Views;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace meteor.UI;
@@ -22,6 +24,7 @@ public class App : Application
 {
     private IServiceProvider? _serviceProvider;
     private static IThemeManager? ThemeManager { get; set; }
+    public static IConfiguration Configuration { get; private set; }
 
     public IServiceProvider ServiceProvider =>
         _serviceProvider ?? throw new InvalidOperationException("Service provider not initialized.");
@@ -33,6 +36,12 @@ public class App : Application
 
     public override void OnFrameworkInitializationCompleted()
     {
+        var builder = new ConfigurationBuilder()
+            .AddJsonFile("appsettings.json", false, true)
+            .AddEnvironmentVariables();
+
+        Configuration = builder.Build();
+
         var services = new ServiceCollection();
 
         // Create and register ThemeManager before setting the theme
@@ -57,6 +66,11 @@ public class App : Application
 
     private void ConfigureServices(IServiceCollection services)
     {
+        // Bind the ThemeConfig section
+        var themeConfig = new ThemeConfig();
+        Configuration.GetSection("ThemeConfig").Bind(themeConfig);
+        services.AddSingleton(themeConfig);
+
         services.AddSingleton<IRope, Rope>(sp => new Rope(""));
         services.AddSingleton<IClipboardService>(sp => new AvaloniaClipboardService(() => GetMainWindow(sp)));
 
@@ -76,7 +90,8 @@ public class App : Application
                 !baseTheme.TryGetValue("TextEditorFontSize", out var fontSizeValue))
                 throw new InvalidOperationException("FontFamily or FontSize not found in the theme.");
 
-            var fontFamily = new FontFamily(new Uri("avares://meteor.UI/"), fontFamilyValue.ToString());
+            var themeConfig = sp.GetRequiredService<ThemeConfig>();
+            var fontFamily = new FontFamily(new Uri(themeConfig.FontFamilyUri), fontFamilyValue.ToString());
             var fontSize = Convert.ToDouble(fontSizeValue);
 
             return new AvaloniaTextMeasurer(new Typeface(fontFamily), fontSize);
@@ -97,6 +112,16 @@ public class App : Application
         services.AddSingleton<MainWindow>();
         services.AddTransient<GutterView>();
         services.AddTransient<EditorView>();
+
+        services.AddSingleton<EditorViewModelServiceContainer>(sp => new EditorViewModelServiceContainer(
+            sp.GetRequiredService<ITextBufferService>(),
+            sp.GetRequiredService<ITabService>(),
+            sp.GetRequiredService<ISyntaxHighlighter>(),
+            sp.GetRequiredService<ISelectionService>(),
+            sp.GetRequiredService<IInputService>(),
+            sp.GetRequiredService<ICursorService>(),
+            sp.GetRequiredService<IEditorSizeCalculator>()
+        ));
     }
 
     private static Window GetMainWindow(IServiceProvider serviceProvider)

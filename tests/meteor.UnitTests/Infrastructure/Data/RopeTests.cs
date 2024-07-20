@@ -31,6 +31,8 @@ public class RopeTests
     public void Length_EmptyRope_ReturnsZero()
     {
         var rope = new Rope();
+        rope = (Rope)rope.Insert(0, "Hello");
+        rope = (Rope)rope.Delete(0, 5);
         Assert.Equal(0, rope.Length);
     }
 
@@ -39,8 +41,14 @@ public class RopeTests
     {
         var rope = new Rope("hello");
         Assert.Equal(5, rope.Length);
-    }
 
+        rope = (Rope)rope.Insert(5, " world");
+        Assert.Equal(11, rope.Length);
+
+        rope = (Rope)rope.Delete(5, 1);
+        Assert.Equal(10, rope.Length);
+    }
+    
     [Fact]
     public void Indexer_ValidIndex_ReturnsCorrectCharacter()
     {

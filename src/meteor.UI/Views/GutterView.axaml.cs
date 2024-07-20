@@ -8,6 +8,7 @@ using Avalonia.Media;
 using Avalonia.Reactive;
 using Avalonia.Threading;
 using meteor.Core.Interfaces.ViewModels;
+using meteor.Core.Models.Config;
 using meteor.UI.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -27,9 +28,8 @@ public partial class GutterView : UserControl
     private FormattedText? _cachedFormattedText;
     private int _cachedLineNumber = -1;
     private readonly IThemeManager _themeManager;
+    private readonly ThemeConfig _themeConfig;
 
-    private const double IconWidth = 16;
-    private const double TextPadding = 5;
     private const double EndPadding = 10;
 
     private Typeface _typeface;
@@ -47,9 +47,15 @@ public partial class GutterView : UserControl
     public GutterView()
     {
         if (Application.Current is App app)
-            _themeManager = app.ServiceProvider.GetRequiredService<IThemeManager>();
+        {
+            var serviceProvider = app.ServiceProvider;
+            _themeManager = serviceProvider.GetRequiredService<IThemeManager>();
+            _themeConfig = serviceProvider.GetRequiredService<ThemeConfig>();
+        }
         else
+        {
             throw new InvalidOperationException("Unable to access the application's service provider.");
+        }
 
         this.GetObservable(ViewModelProperty)
             .Subscribe(new AnonymousObserver<IGutterViewModel>(vm =>
@@ -90,7 +96,7 @@ public partial class GutterView : UserControl
     private void UpdateThemeResources()
     {
         var baseTheme = _themeManager.GetBaseTheme();
-        var fontFamilyUri = new Uri("avares://meteor.UI/");
+        var fontFamilyUri = new Uri(_themeConfig.GutterFontFamilyUri);
 
         _typeface = new Typeface(new FontFamily(fontFamilyUri, baseTheme["GutterFontFamily"].ToString()));
         _fontSize = Convert.ToDouble(baseTheme["GutterFontSize"]);
@@ -105,12 +111,6 @@ public partial class GutterView : UserControl
         var result = new Size(ViewModel?.GutterWidth ?? 0, availableSize.Height);
         if (ViewModel != null) ViewModel.ViewportHeight = availableSize.Height;
         return result;
-    }
-
-    private void UpdateGutterWidth()
-    {
-        ViewModel?.UpdateGutterWidth();
-        InvalidateMeasure();
     }
 
     public override void Render(DrawingContext context)

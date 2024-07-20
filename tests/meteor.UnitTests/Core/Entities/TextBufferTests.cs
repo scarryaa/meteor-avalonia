@@ -49,7 +49,6 @@ public class TextBufferTests
         using (var textBuffer = new TextBuffer("hello"))
         {
             textBuffer.Insert(2, "world");
-            Thread.Sleep(100); // Allow time for async processing
             Assert.Equal("heworldllo", textBuffer.GetText());
         }
     }
@@ -149,7 +148,6 @@ public class TextBufferTests
         using (var textBuffer = new TextBuffer("hello"))
         {
             textBuffer.Insert(2, "");
-            Thread.Sleep(100); // Allow time for async processing
             Assert.Equal("hello", textBuffer.GetText());
         }
     }

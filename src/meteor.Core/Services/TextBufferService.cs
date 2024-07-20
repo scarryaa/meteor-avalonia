@@ -80,7 +80,7 @@ public class TextBufferService : ITextBufferService
     public string Substring(int start, int length)
     {
         if (start < 0 || length < 0 || start + length > _textBuffer.Length)
-            throw new ArgumentOutOfRangeException("Start or length is out of range.");
+            throw new ArgumentOutOfRangeException("start");
 
         _stringBuilder.Clear();
         _textBuffer.GetTextSegment(start, length, _stringBuilder);

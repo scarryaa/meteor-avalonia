@@ -47,7 +47,7 @@ public class Rope : IRope
             try
             {
                 if (index < 0 || index >= (_root?.Length ?? 0))
-                    throw new IndexOutOfRangeException();
+                    throw new ArgumentOutOfRangeException();
 
                 return Index(_root, index);
             }
@@ -69,7 +69,7 @@ public class Rope : IRope
             _insertionCount++;
             var currentLength = _root?.Length ?? 0;
             if (index < 0 || index > currentLength)
-                throw new IndexOutOfRangeException("Index was outside the bounds of the rope.");
+                throw new ArgumentOutOfRangeException("Index was outside the bounds of the rope.");
 
             _root = Insert(_root, index, s);
             Console.WriteLine($"Insertion {_insertionCount}: Root length after insertion = {_root.Length}");
@@ -100,7 +100,7 @@ public class Rope : IRope
         try
         {
             if (index < 0 || index + length > GetLengthInternal())
-                throw new IndexOutOfRangeException("Index and length were outside the bounds of the rope.");
+                throw new ArgumentOutOfRangeException("Index and length were outside the bounds of the rope.");
 
             if (length == 0)
                 return this;
@@ -124,7 +124,8 @@ public class Rope : IRope
         try
         {
             if (start < 0 || start + length > GetLengthInternal())
-                throw new IndexOutOfRangeException("Start and length were outside the bounds of the rope.");
+                throw new ArgumentOutOfRangeException(nameof(start),
+                    "Start and length were outside the bounds of the rope.");
 
             var result = new StringBuilder(length);
             SubstringHelper(_root, start, length, result);
@@ -288,26 +289,11 @@ public class Rope : IRope
         if (length > 0 && node.Right != null)
             newRight = Delete(node.Right, index, length);
 
-        return newLeft == null ? newRight : newRight == null ? newLeft : new Node(newLeft, newRight);
-    }
-
-    private Node CreateNode(string data = null)
-    {
-        var node = NodePool.Get();
-        node.Data = data;
-        node.Left = null;
-        node.Right = null;
-        node.Length = data?.Length ?? 0;
-        return node;
-    }
-
-    private void ReleaseNode(Node node)
-    {
-        node.Data = null;
-        node.Left = null;
-        node.Right = null;
-        node.Length = 0;
-        NodePool.Return(node);
+        if (newLeft == null)
+            return newRight;
+        if (newRight == null)
+            return newLeft;
+        return new Node(newLeft, newRight);
     }
 
     private void SubstringHelper(Node node, int start, int length, StringBuilder result)
@@ -437,7 +423,7 @@ public class Rope : IRope
         return ToString().GetHashCode();
     }
 
-    private class Node
+    private sealed class Node
     {
         public string Data;
         public Node Left;
@@ -468,7 +454,7 @@ public class Rope : IRope
         }
     }
 
-    private class LazyString
+    private sealed class LazyString
     {
         private readonly Rope _rope;
         private string _cachedString;

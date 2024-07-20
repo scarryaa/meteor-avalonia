@@ -7,14 +7,18 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using meteor.Core.Enums.SyntaxHighlighting;
 using meteor.Core.Interfaces.Services;
+using meteor.Core.Models.Config;
+using meteor.Core.Models.Rendering;
 using meteor.Core.Models.SyntaxHighlighting;
 using meteor.UI.Interfaces;
 using meteor.UI.Services;
 
 namespace meteor.UI.Renderers;
 
-public class EditorRenderer
+public class EditorRenderer : IDisposable
 {
+    private readonly ThemeConfig _themeConfig;
+    private bool _disposed;
     private const int BufferLines = 5;
     private readonly Action _invalidateView;
     private ITextMeasurer _textMeasurer;
@@ -34,9 +38,11 @@ public class EditorRenderer
 
     private readonly List<(int start, int length)> _lineInfo = new();
 
-    public EditorRenderer(Action invalidateView, IThemeManager themeManager)
+
+    public EditorRenderer(Action invalidateView, IThemeManager themeManager, ThemeConfig themeConfig)
     {
         _invalidateView = invalidateView;
+        _themeConfig = themeConfig;
         UpdateThemeResources(themeManager);
 
         _cursorBlinkTimer = new DispatcherTimer
@@ -55,9 +61,9 @@ public class EditorRenderer
     private void UpdateThemeResources(IThemeManager themeManager)
     {
         var baseTheme = themeManager.GetBaseTheme();
-        var fontFamilyUri = new Uri("avares://meteor.UI/");
+        var fontFamilyUri = _themeConfig.FontFamilyUri;
 
-        _typeface = new Typeface(new FontFamily(fontFamilyUri, baseTheme["TextEditorFontFamily"].ToString()));
+        _typeface = new Typeface(new FontFamily(new Uri(fontFamilyUri), baseTheme["TextEditorFontFamily"].ToString()));
         _fontSize = Convert.ToDouble(baseTheme["TextEditorFontSize"]);
         _commentBrush = new SolidColorBrush(Color.Parse(baseTheme["CommentColor"].ToString()));
         _cursorPen = new Pen(new SolidColorBrush(Color.Parse(baseTheme["TextEditorCursor"].ToString())));
@@ -120,19 +126,20 @@ public class EditorRenderer
             var (lineStart, lineLength) = _lineInfo[lineNumber];
             var lineY = lineNumber * lineHeight - scrollOffset;
 
-            RenderLine(context, textBufferService, lineNumber, lineStart, lineLength, lineY,
+            var renderContext = new RenderLineContext(lineStart, lineLength, lineY,
                 highlightingResults, selection, cursorPosition, offsetX);
+
+            RenderLine(context, textBufferService, renderContext);
         }
     }
 
-    private void RenderLine(DrawingContext context, ITextBufferService textBufferService, int lineNumber, int lineStart,
-        int lineLength, double lineY, IEnumerable<SyntaxHighlightingResult> highlightingResults,
-        (int start, int length) selection, int cursorPosition, double offsetX)
+    private void RenderLine(DrawingContext context, ITextBufferService textBufferService,
+        RenderLineContext renderContext)
     {
-        DrawLineSelection(context, textBufferService, lineStart, lineLength, lineY, selection, offsetX);
+        DrawLineSelection(context, textBufferService, renderContext);
 
-        var sb = new StringBuilder(lineLength);
-        textBufferService.GetTextSegment(lineStart, lineLength, sb);
+        var sb = new StringBuilder(renderContext.LineLength);
+        textBufferService.GetTextSegment(renderContext.LineStart, renderContext.LineLength, sb);
 
         var formattedText = new FormattedText(
             sb.ToString(),
@@ -145,46 +152,51 @@ public class EditorRenderer
 
         formattedText.MaxTextWidth = double.PositiveInfinity;
 
-        ApplySyntaxHighlighting(formattedText, lineStart, lineLength, highlightingResults);
+        ApplySyntaxHighlighting(formattedText, renderContext.LineStart, renderContext.LineLength,
+            renderContext.HighlightingResults);
 
-        context.DrawText(formattedText, new Point(-offsetX, lineY));
+        context.DrawText(formattedText, new Point(-renderContext.OffsetX, renderContext.LineY));
 
-        if (_showCursor && cursorPosition >= lineStart && cursorPosition <= lineStart + lineLength)
+        if (_showCursor && renderContext.CursorPosition >= renderContext.LineStart &&
+            renderContext.CursorPosition <= renderContext.LineStart + renderContext.LineLength)
         {
             double cursorX;
-            if (lineLength == 0)
-                // For empty lines, position the cursor at the start of the line
+            if (renderContext.LineLength == 0)
                 cursorX = 0;
             else
-                cursorX = _textMeasurer.GetPositionAtIndex(sb.ToString(), cursorPosition - lineStart).X;
+                cursorX = _textMeasurer
+                    .GetPositionAtIndex(sb.ToString(), renderContext.CursorPosition - renderContext.LineStart).X;
 
             context.DrawLine(_cursorPen,
-                new Point(cursorX - offsetX + 1, lineY),
-                new Point(cursorX - offsetX + 1, lineY + _textMeasurer.GetLineHeight()));
+                new Point(cursorX - renderContext.OffsetX + 1, renderContext.LineY),
+                new Point(cursorX - renderContext.OffsetX + 1, renderContext.LineY + _textMeasurer.GetLineHeight()));
         }
     }
 
-    private void DrawLineSelection(DrawingContext context, ITextBufferService textBufferService, int lineStart,
-        int lineLength, double lineY, (int start, int length) selection, double offsetX)
+    private void DrawLineSelection(DrawingContext context, ITextBufferService textBufferService,
+        RenderLineContext renderContext)
     {
-        var lineEnd = lineStart + lineLength;
+        var lineEnd = renderContext.LineStart + renderContext.LineLength;
 
-        if (selection.length != 0)
+        if (renderContext.Selection.length != 0)
         {
-            var selectionStart = selection.start;
-            var selectionEnd = selection.start + selection.length;
+            var selectionStart = renderContext.Selection.start;
+            var selectionEnd = renderContext.Selection.start + renderContext.Selection.length;
 
-            if (!(selectionEnd <= lineStart || selectionStart >= lineEnd))
+            if (!(selectionEnd <= renderContext.LineStart || selectionStart >= lineEnd))
             {
-                var startX = selectionStart > lineStart
-                    ? GetXPositionForIndex(textBufferService, lineStart, selectionStart - lineStart)
+                var startX = selectionStart > renderContext.LineStart
+                    ? GetXPositionForIndex(textBufferService, renderContext.LineStart,
+                        selectionStart - renderContext.LineStart)
                     : 0;
                 var endX = selectionEnd < lineEnd
-                    ? GetXPositionForIndex(textBufferService, lineStart, selectionEnd - lineStart)
-                    : GetXPositionForIndex(textBufferService, lineStart, lineLength);
+                    ? GetXPositionForIndex(textBufferService, renderContext.LineStart,
+                        selectionEnd - renderContext.LineStart)
+                    : GetXPositionForIndex(textBufferService, renderContext.LineStart, renderContext.LineLength);
 
                 context.DrawRectangle(_selectionBrush, null,
-                    new Rect(startX - offsetX, lineY, endX - startX, _textMeasurer.GetLineHeight()));
+                    new Rect(startX - renderContext.OffsetX, renderContext.LineY, endX - startX,
+                        _textMeasurer.GetLineHeight()));
             }
         }
     }
@@ -220,9 +232,31 @@ public class EditorRenderer
         };
     }
 
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!_disposed)
+        {
+            if (disposing)
+            {
+                // Dispose managed resources
+                _cursorBlinkTimer.Stop();
+                _cursorBlinkTimer = null;
+            }
+
+            // Dispose unmanaged resources here, if any
+
+            _disposed = true;
+        }
+    }
+
     public void Dispose()
     {
-        _cursorBlinkTimer.Stop();
-        _cursorBlinkTimer = null;
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    ~EditorRenderer()
+    {
+        Dispose(false);
     }
 }
