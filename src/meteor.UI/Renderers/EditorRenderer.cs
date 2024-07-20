@@ -8,35 +8,36 @@ using Avalonia.Threading;
 using meteor.Core.Enums.SyntaxHighlighting;
 using meteor.Core.Interfaces.Services;
 using meteor.Core.Models.SyntaxHighlighting;
+using meteor.UI.Interfaces;
 using meteor.UI.Services;
 
 namespace meteor.UI.Renderers;
 
 public class EditorRenderer
 {
-    private const int BufferLines = 5; // Number of extra lines to render above and below the visible area
-    private readonly IBrush _commentBrush = Brushes.Green;
-    private readonly IPen _cursorPen = new Pen(Brushes.Black);
-    private readonly double _fontSize = 13;
+    private const int BufferLines = 5;
     private readonly Action _invalidateView;
-    private readonly IBrush _keywordBrush = Brushes.Blue;
-
-    private readonly List<(int start, int length)> _lineInfo = new();
-    private readonly IBrush _plainTextBrush = Brushes.Black;
-    private readonly IBrush _selectionBrush = new SolidColorBrush(Color.FromArgb(128, 173, 214, 255));
-    private readonly IBrush _stringBrush = Brushes.Red;
-    private readonly AvaloniaTextMeasurer _textMeasurer;
-    private readonly Typeface _typeface = new("Consolas");
+    private ITextMeasurer _textMeasurer;
     private DispatcherTimer _cursorBlinkTimer;
-
     private bool _showCursor = true;
     private ITabService _tabService;
     private int _totalLines;
 
-    public EditorRenderer(Action invalidateView)
+    private IBrush _commentBrush;
+    private IPen _cursorPen;
+    private double _fontSize;
+    private IBrush _keywordBrush;
+    private IBrush _plainTextBrush;
+    private IBrush _selectionBrush;
+    private IBrush _stringBrush;
+    private Typeface _typeface;
+
+    private readonly List<(int start, int length)> _lineInfo = new();
+
+    public EditorRenderer(Action invalidateView, IThemeManager themeManager)
     {
-        _textMeasurer = new AvaloniaTextMeasurer(_typeface, _fontSize);
         _invalidateView = invalidateView;
+        UpdateThemeResources(themeManager);
 
         _cursorBlinkTimer = new DispatcherTimer
         {
@@ -49,6 +50,23 @@ public class EditorRenderer
             _invalidateView();
         };
         _cursorBlinkTimer.Start();
+    }
+
+    private void UpdateThemeResources(IThemeManager themeManager)
+    {
+        var baseTheme = themeManager.GetBaseTheme();
+        var fontFamilyUri = new Uri("avares://meteor.UI/");
+
+        _typeface = new Typeface(new FontFamily(fontFamilyUri, baseTheme["TextEditorFontFamily"].ToString()));
+        _fontSize = Convert.ToDouble(baseTheme["TextEditorFontSize"]);
+        _commentBrush = new SolidColorBrush(Color.Parse(baseTheme["CommentColor"].ToString()));
+        _cursorPen = new Pen(new SolidColorBrush(Color.Parse(baseTheme["TextEditorCursor"].ToString())));
+        _keywordBrush = new SolidColorBrush(Color.Parse(baseTheme["KeywordColor"].ToString()));
+        _plainTextBrush = new SolidColorBrush(Color.Parse(baseTheme["Text"].ToString()));
+        _selectionBrush = new SolidColorBrush(Color.Parse(baseTheme["TextEditorSelection"].ToString()));
+        _stringBrush = new SolidColorBrush(Color.Parse(baseTheme["StringColor"].ToString()));
+
+        _textMeasurer = new AvaloniaTextMeasurer(_typeface, _fontSize);
     }
 
     public void UpdateTabService(ITabService tabService)

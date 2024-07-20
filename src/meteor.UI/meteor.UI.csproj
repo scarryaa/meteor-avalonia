@@ -33,4 +33,10 @@
             <DependentUpon>TabItemView.axaml</DependentUpon>
         </Compile>
     </ItemGroup>
+
+    <ItemGroup>
+        <None Update="themes.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+    </ItemGroup>
 </Project>

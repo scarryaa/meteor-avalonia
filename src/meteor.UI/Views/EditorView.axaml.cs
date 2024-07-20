@@ -6,7 +6,9 @@ using Avalonia.Media;
 using Avalonia.Reactive;
 using meteor.Core.Interfaces.ViewModels;
 using meteor.UI.Adapters;
+using meteor.UI.Interfaces;
 using meteor.UI.Renderers;
+using Microsoft.Extensions.DependencyInjection;
 using Vector = meteor.Core.Models.Vector;
 
 namespace meteor.UI.Views;
@@ -21,7 +23,17 @@ public partial class EditorView : UserControl
     public EditorView()
     {
         InitializeComponent();
-        _editorRenderer = new EditorRenderer(InvalidateVisual);
+
+        if (Application.Current is App app)
+        {
+            var themeManager = app.ServiceProvider.GetRequiredService<IThemeManager>();
+            _editorRenderer = new EditorRenderer(InvalidateVisual, themeManager);
+        }
+        else
+        {
+            throw new InvalidOperationException("Unable to access the application's service provider.");
+        }
+        
         DataContextChanged += OnDataContextChanged;
     }
 

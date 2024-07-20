@@ -1,4 +1,5 @@
 using System;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
@@ -10,7 +11,6 @@ using meteor.Core.Services;
 using meteor.Infrastructure.Data;
 using meteor.UI.Factories;
 using meteor.UI.Interfaces;
-using meteor.UI.Resources;
 using meteor.UI.Services;
 using meteor.UI.ViewModels;
 using meteor.UI.Views;
@@ -18,10 +18,13 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace meteor.UI;
 
-public class App : Avalonia.Application
+public class App : Application
 {
     private IServiceProvider? _serviceProvider;
     private static IThemeManager? ThemeManager { get; set; }
+
+    public IServiceProvider ServiceProvider =>
+        _serviceProvider ?? throw new InvalidOperationException("Service provider not initialized.");
 
     public override void Initialize()
     {
@@ -31,15 +34,17 @@ public class App : Avalonia.Application
     public override void OnFrameworkInitializationCompleted()
     {
         var services = new ServiceCollection();
+
+        // Create and register ThemeManager before setting the theme
+        ThemeManager = new ThemeManager(this);
+        services.AddSingleton(ThemeManager);
+
+        // Load themes and set the initial theme
+        ThemeManager.LoadThemesFromJson("themes.json");
+        ThemeManager.SetTheme("Light");
+
         ConfigureServices(services);
         _serviceProvider = services.BuildServiceProvider();
-
-        ThemeManager = new ThemeManager(this);
-
-        ThemeManager.AddTheme("Dark", new DarkTheme());
-        ThemeManager.AddTheme("Light", new LightTheme());
-
-        ThemeManager.SetTheme("Light");
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
@@ -59,16 +64,24 @@ public class App : Avalonia.Application
 
         services.AddSingleton<ITabService, TabService>();
         services.AddTransient<ITextBufferService, TextBufferService>();
-        services.AddSingleton<ISyntaxHighlighter, SyntaxHighlighter>();
+        services.AddSingleton<ISyntaxHighlighter, SyntaxHighlighter>();     
         services.AddSingleton<ICursorService, CursorService>();
         services.AddSingleton<ISelectionService, SelectionService>();
         services.AddSingleton<ITextAnalysisService, TextAnalysisService>();
         services.AddSingleton<IInputService, InputService>();
         services.AddSingleton<ITextMeasurer>(sp =>
-            new AvaloniaTextMeasurer(
-                new Typeface("Consolas"),
-                13
-            ));
+        {
+            var themeManager = sp.GetService<IThemeManager>();
+            var baseTheme = themeManager.GetBaseTheme();
+            if (!baseTheme.TryGetValue("TextEditorFontFamily", out var fontFamilyValue) ||
+                !baseTheme.TryGetValue("TextEditorFontSize", out var fontSizeValue))
+                throw new InvalidOperationException("FontFamily or FontSize not found in the theme.");
+
+            var fontFamily = new FontFamily(new Uri("avares://meteor.UI/"), fontFamilyValue.ToString());
+            var fontSize = Convert.ToDouble(fontSizeValue);
+
+            return new AvaloniaTextMeasurer(new Typeface(fontFamily), fontSize);
+        });
         services.AddSingleton<IEditorSizeCalculator, AvaloniaEditorSizeCalculator>();
 
         services.AddTransient<IEditorViewModel, EditorViewModel>();

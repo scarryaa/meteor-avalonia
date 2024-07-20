@@ -18,20 +18,15 @@
     <UserControl.Styles>
         <Style Selector="Border.TabBorder">
             <Setter Property="BorderBrush" Value="{DynamicResource TabBorderBrush}" />
-            <Setter Property="Background">
-                <Setter.Value>
-                    <MultiBinding Converter="{StaticResource BoolToResourceConverter}">
-                        <Binding Path="IsSelected" />
-                        <Binding Source="TabBackground" />
-                        <Binding Source="TabBackgroundActive" />
-                        <Binding RelativeSource="{RelativeSource Self}" />
-                    </MultiBinding>
-                </Setter.Value>
-            </Setter>
+            <Setter Property="Background" Value="{DynamicResource TabBackground}" />
             <Setter Property="BorderThickness" Value="{DynamicResource TabBorderThickness}" />
             <Setter Property="Padding" Value="{DynamicResource TabPadding}" />
         </Style>
 
+        <Style Selector="Border.TabBorder.Selected">
+            <Setter Property="Background" Value="{DynamicResource TabBackgroundActive}" />
+        </Style>
+        
         <Style Selector="TextBlock.TabTitle">
             <Setter Property="VerticalAlignment" Value="Center" />
             <Setter Property="HorizontalAlignment" Value="Left" />
@@ -75,7 +70,8 @@
 
     <Border Classes="TabBorder"
             behaviors:MiddleClickTabBehavior.CloseCommand="{Binding $parent[views:HorizontalScrollableTabControl].((viewModels1:ITabViewModel)DataContext).CloseTabCommand}"
-            behaviors:MiddleClickTabBehavior.CloseCommandParameter="{Binding}">
+            behaviors:MiddleClickTabBehavior.CloseCommandParameter="{Binding}"
+            Classes.Selected="{Binding IsSelected}">
         <Border.ContextMenu>
             <ContextMenu>
                 <MenuItem Header="Close Tab"
