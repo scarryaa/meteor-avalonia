@@ -1,3 +1,4 @@
+using System;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using meteor.Core.Interfaces.ViewModels;
@@ -6,16 +7,31 @@ namespace meteor.UI.ViewModels;
 
 public sealed class TabItemViewModel : ITabItemViewModel
 {
+    private int _index;
     private IEditorViewModel _editorViewModel;
     private bool _isDirty;
     private bool _isSelected;
     private bool _isTemporary;
     private string _title;
 
-    public TabItemViewModel(string title, IEditorViewModel editorViewModel)
+    public TabItemViewModel(int index, string title, IEditorViewModel editorViewModel)
     {
+        Index = index;
         Title = title;
         EditorViewModel = editorViewModel;
+    }
+
+    public int Index
+    {
+        get => _index;
+        set
+        {
+            if (_index != value)
+            {
+                _index = value;
+                OnPropertyChanged();
+            }
+        }
     }
 
     public string Title
@@ -87,7 +103,7 @@ public sealed class TabItemViewModel : ITabItemViewModel
 
     public void Dispose()
     {
-        // TODO dispose editor view model?
+        EditorViewModel?.Dispose();
     }
 
     private void OnPropertyChanged([CallerMemberName] string propertyName = null)

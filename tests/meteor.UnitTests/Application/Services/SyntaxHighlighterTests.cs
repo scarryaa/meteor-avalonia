@@ -1,4 +1,5 @@
 using System.Text;
+using meteor.Application.Services;
 using meteor.Core.Enums.SyntaxHighlighting;
 using meteor.Core.Interfaces.Services;
 using meteor.Core.Models.Text;

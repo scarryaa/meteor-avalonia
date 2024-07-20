@@ -7,7 +7,7 @@ using meteor.Core.Models.SyntaxHighlighting;
 
 namespace meteor.Core.Interfaces.ViewModels;
 
-public interface IEditorViewModel : INotifyPropertyChanged
+public interface IEditorViewModel : INotifyPropertyChanged, IDisposable
 {
     string Text { get; set; }
     (int start, int length) Selection { get; }

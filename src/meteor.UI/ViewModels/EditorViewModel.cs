@@ -1,3 +1,4 @@
+using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
@@ -210,6 +211,7 @@ public sealed class EditorViewModel : IEditorViewModel
 
     private void UpdateHighlighting()
     {
+        Console.WriteLine("Text: " + Text);
         var results = _syntaxHighlighter.Highlight(Text);
         HighlightingResults = new ObservableCollection<SyntaxHighlightingResult>(results);
     }
@@ -217,5 +219,10 @@ public sealed class EditorViewModel : IEditorViewModel
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+
+    public void Dispose()
+    {
+        // TODO release managed resources here
     }
 }

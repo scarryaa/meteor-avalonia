@@ -6,6 +6,8 @@ using meteor.Core.Models.Events;
 using meteor.UI.ViewModels;
 using Moq;
 
+namespace meteor.UnitTests.UI.ViewModels;
+
 public class EditorViewModelTests
 {
     private readonly Mock<ITextBufferService> _mockTextBufferService;

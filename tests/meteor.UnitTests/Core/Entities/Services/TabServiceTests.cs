@@ -6,16 +6,20 @@ namespace meteor.UnitTests.Core.Entities.Services;
 
 public class TabServiceTests
 {
-    [Fact]
-    public void GetActiveTextBufferService_NoActiveTab_ReturnsNewTextBufferService()
+    private readonly TabService _tabService;
+    private readonly Mock<ITextBufferService> _mockTextBufferService;
+
+    public TabServiceTests()
     {
-        // Arrange
-        var tabService = new TabService();
+        _tabService = new TabService();
+        _mockTextBufferService = new Mock<ITextBufferService>();
+    }
 
-        // Act
-        var result = tabService.GetActiveTextBufferService();
+    [Fact]
+    public void GetActiveTextBufferService_NoActiveTabs_ReturnsNewTextBufferService()
+    {
+        var result = _tabService.GetActiveTextBufferService();
 
-        // Assert
         Assert.NotNull(result);
         Assert.IsType<TextBufferService>(result);
     }
@@ -23,96 +27,142 @@ public class TabServiceTests
     [Fact]
     public void GetActiveTextBufferService_WithActiveTab_ReturnsCorrectTextBufferService()
     {
-        // Arrange
-        var tabService = new TabService();
-        var textBufferServiceMock = new Mock<ITextBufferService>();
-        var tabIndex = tabService.GetNextAvailableTabIndex();
-        tabService.RegisterTab(tabIndex, textBufferServiceMock.Object);
-        tabService.SwitchTab(tabIndex);
+        var tabInfo = _tabService.AddTab(_mockTextBufferService.Object);
+        _tabService.SwitchTab(tabInfo.Index);
 
-        // Act
-        var result = tabService.GetActiveTextBufferService();
+        var result = _tabService.GetActiveTextBufferService();
 
-        // Assert
-        Assert.Same(textBufferServiceMock.Object, result);
+        Assert.Same(_mockTextBufferService.Object, result);
     }
 
     [Fact]
-    public void SwitchTab_ValidTabIndex_ChangesActiveTab()
+    public void SwitchTab_ValidIndex_SwitchesActiveTab()
     {
-        // Arrange
-        var tabService = new TabService();
-        var textBufferServiceMock1 = new Mock<ITextBufferService>();
-        var textBufferServiceMock2 = new Mock<ITextBufferService>();
-        var tabIndex1 = tabService.GetNextAvailableTabIndex();
-        var tabIndex2 = tabService.GetNextAvailableTabIndex();
-        tabService.RegisterTab(tabIndex1, textBufferServiceMock1.Object);
-        tabService.RegisterTab(tabIndex2, textBufferServiceMock2.Object);
+        var tabInfo1 = _tabService.AddTab(_mockTextBufferService.Object);
+        var tabInfo2 = _tabService.AddTab(new Mock<ITextBufferService>().Object);
 
-        // Act
-        tabService.SwitchTab(tabIndex2);
+        _tabService.SwitchTab(tabInfo2.Index);
 
-        // Assert
-        var activeTextBufferService = tabService.GetActiveTextBufferService();
-        Assert.Same(textBufferServiceMock2.Object, activeTextBufferService);
+        Assert.Equal(tabInfo2.Index, _tabService.GetActiveTab().Index);
     }
 
     [Fact]
-    public void SwitchTab_InvalidTabIndex_ThrowsArgumentException()
+    public void SwitchTab_InvalidIndex_ThrowsArgumentException()
     {
-        // Arrange
-        var tabService = new TabService();
-        var invalidTabIndex = 999;
-
-        // Act & Assert
-        Assert.Throws<ArgumentException>(() => tabService.SwitchTab(invalidTabIndex));
+        Assert.Throws<ArgumentException>(() => _tabService.SwitchTab(999));
     }
 
     [Fact]
-    public void RegisterTab_ValidParameters_AddsOrUpdatesTab()
+    public void AddTab_CreatesNewTabWithCorrectIndex()
     {
-        // Arrange
-        var tabService = new TabService();
-        var textBufferServiceMock = new Mock<ITextBufferService>();
-        var tabIndex = tabService.GetNextAvailableTabIndex();
+        var tabInfo1 = _tabService.AddTab(_mockTextBufferService.Object);
+        var tabInfo2 = _tabService.AddTab(new Mock<ITextBufferService>().Object);
 
-        // Act
-        tabService.RegisterTab(tabIndex, textBufferServiceMock.Object);
-
-        // Assert
-        var result = tabService.GetActiveTextBufferService();
-        Assert.Same(textBufferServiceMock.Object, result);
+        Assert.Equal(1, tabInfo1.Index);
+        Assert.Equal(2, tabInfo2.Index);
     }
 
     [Fact]
-    public void RegisterTab_NullTextBufferService_RemovesTab()
+    public void AddTab_SetsFirstTabAsActive()
     {
-        // Arrange
-        var tabService = new TabService();
-        var textBufferServiceMock = new Mock<ITextBufferService>();
-        var tabIndex = tabService.GetNextAvailableTabIndex();
-        tabService.RegisterTab(tabIndex, textBufferServiceMock.Object);
-        tabService.RegisterTab(tabIndex, null);
+        var tabInfo = _tabService.AddTab(_mockTextBufferService.Object);
 
-        // Act
-        var result = tabService.GetActiveTextBufferService();
-
-        // Assert
-        Assert.IsType<TextBufferService>(result);
+        Assert.Equal(tabInfo.Index, _tabService.GetActiveTab().Index);
     }
 
     [Fact]
-    public void GetNextAvailableTabIndex_ReturnsUniqueIndex()
+    public void CloseTab_RemovesTabAndUpdatesActiveTab()
     {
-        // Arrange
-        var tabService = new TabService();
+        var tabInfo1 = _tabService.AddTab(_mockTextBufferService.Object);
+        var tabInfo2 = _tabService.AddTab(new Mock<ITextBufferService>().Object);
+        _tabService.SwitchTab(tabInfo2.Index);
 
-        // Act
-        var index1 = tabService.GetNextAvailableTabIndex();
-        var index2 = tabService.GetNextAvailableTabIndex();
+        _tabService.CloseTab(tabInfo2.Index);
 
-        // Assert
-        Assert.NotEqual(index1, index2);
-        Assert.Equal(index1 + 1, index2);
+        Assert.Single(_tabService.GetAllTabs());
+        Assert.Equal(tabInfo1.Index, _tabService.GetActiveTab().Index);
+    }
+
+    [Fact]
+    public void CloseTab_LastTab_SetsActiveTabToNull()
+    {
+        var tabInfo = _tabService.AddTab(_mockTextBufferService.Object);
+
+        _tabService.CloseTab(tabInfo.Index);
+
+        Assert.Empty(_tabService.GetAllTabs());
+        Assert.Null(_tabService.GetActiveTab());
+    }
+
+    [Fact]
+    public void CloseAllTabs_RemovesAllTabsAndResetsState()
+    {
+        _tabService.AddTab(_mockTextBufferService.Object);
+        _tabService.AddTab(new Mock<ITextBufferService>().Object);
+
+        _tabService.CloseAllTabs();
+
+        Assert.Empty(_tabService.GetAllTabs());
+        Assert.Null(_tabService.GetActiveTab());
+        // Verify that the next tab index is reset
+        var newTab = _tabService.AddTab(_mockTextBufferService.Object);
+        Assert.Equal(1, newTab.Index);
+    }
+
+    [Fact]
+    public void CloseOtherTabs_KeepsSpecifiedTabAndClosesOthers()
+    {
+        var tabInfo1 = _tabService.AddTab(_mockTextBufferService.Object);
+        var tabInfo2 = _tabService.AddTab(new Mock<ITextBufferService>().Object);
+        var tabInfo3 = _tabService.AddTab(new Mock<ITextBufferService>().Object);
+
+        _tabService.CloseOtherTabs(tabInfo2.Index);
+
+        var remainingTabs = _tabService.GetAllTabs().ToList();
+        Assert.Single(remainingTabs);
+        Assert.Equal(tabInfo2.Index, remainingTabs[0].Index);
+        Assert.Equal(tabInfo2.Index, _tabService.GetActiveTab().Index);
+    }
+
+    [Fact]
+    public void CloseOtherTabs_InvalidIndex_DoesNothing()
+    {
+        _tabService.AddTab(_mockTextBufferService.Object);
+        _tabService.AddTab(new Mock<ITextBufferService>().Object);
+
+        _tabService.CloseOtherTabs(999);
+
+        Assert.Equal(2, _tabService.GetAllTabs().Count());
+    }
+
+    [Fact]
+    public void GetAllTabs_ReturnsAllTabs()
+    {
+        _tabService.AddTab(_mockTextBufferService.Object);
+        _tabService.AddTab(new Mock<ITextBufferService>().Object);
+
+        var allTabs = _tabService.GetAllTabs().ToList();
+
+        Assert.Equal(2, allTabs.Count);
+        Assert.Equal(1, allTabs[0].Index);
+        Assert.Equal(2, allTabs[1].Index);
+    }
+
+    [Fact]
+    public void GetActiveTab_NoActiveTabs_ReturnsNull()
+    {
+        Assert.Null(_tabService.GetActiveTab());
+    }
+
+    [Fact]
+    public void GetActiveTab_WithActiveTabs_ReturnsCorrectTab()
+    {
+        var tabInfo1 = _tabService.AddTab(_mockTextBufferService.Object);
+        var tabInfo2 = _tabService.AddTab(new Mock<ITextBufferService>().Object);
+        _tabService.SwitchTab(tabInfo2.Index);
+
+        var activeTab = _tabService.GetActiveTab();
+
+        Assert.Equal(tabInfo2.Index, activeTab.Index);
     }
 }

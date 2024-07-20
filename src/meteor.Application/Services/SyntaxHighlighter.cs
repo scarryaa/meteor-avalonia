@@ -4,6 +4,8 @@ using meteor.Core.Interfaces.Services;
 using meteor.Core.Models.SyntaxHighlighting;
 using meteor.Core.Models.Text;
 
+namespace meteor.Application.Services;
+
 public class SyntaxHighlighter : ISyntaxHighlighter
 {
     private const int ChunkSize = 4096;

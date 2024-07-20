@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Headless.XUnit;
 using meteor.UI.Services;
 using Moq;
 
@@ -19,7 +20,7 @@ public class ThemeManagerTests : IDisposable
     {
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void AddTheme_ValidTheme_StoresTheme()
     {
         // Arrange
@@ -36,7 +37,7 @@ public class ThemeManagerTests : IDisposable
         Assert.Null(exception);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void SetTheme_ValidTheme_ChangesCurrentTheme()
     {
         // Arrange
@@ -53,7 +54,7 @@ public class ThemeManagerTests : IDisposable
         Assert.Equal(themeName, themeManager.CurrentTheme);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void SetTheme_InvalidTheme_ThrowsException()
     {
         // Arrange
@@ -65,7 +66,7 @@ public class ThemeManagerTests : IDisposable
         Assert.Throws<ArgumentException>(() => themeManager.SetTheme(invalidThemeName));
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void AddTheme_ExistingTheme_OverwritesTheme()
     {
         // Arrange
@@ -85,7 +86,7 @@ public class ThemeManagerTests : IDisposable
         Assert.Equal(themeName, themeManager.CurrentTheme);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void AddTheme_EmptyThemeName_ThrowsException()
     {
         // Arrange
@@ -98,7 +99,7 @@ public class ThemeManagerTests : IDisposable
         Assert.Throws<ArgumentException>(() => themeManager.AddTheme(emptyThemeName, theme));
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void SetTheme_EmptyThemeName_ThrowsException()
     {
         // Arrange

@@ -79,7 +79,7 @@ public class App : Avalonia.Application
 
         services.AddSingleton<ITabService, TabService>();
         services.AddTransient<IEditorViewModelFactory>(sp =>
-            new EditorViewModelFactory(sp, sp.GetRequiredService<ITabService>()));
+            new EditorViewModelFactory(sp));
         services.AddSingleton<ICommandFactory, CommandFactory>();
 
         services.AddSingleton<MainWindow>();

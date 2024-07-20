@@ -1,19 +1,19 @@
 using meteor.Core.Interfaces.Services;
+using meteor.Core.Models.Tabs;
 
 namespace meteor.Core.Services;
 
 public class TabService : ITabService
 {
-    private readonly Dictionary<int, ITextBufferService> _tabs = new();
+    private readonly Dictionary<int, TabInfo> _tabs = new();
     private int _activeTabIndex = -1;
     private int _nextTabIndex = 1;
 
     public ITextBufferService GetActiveTextBufferService()
     {
-        if (_activeTabIndex == -1 || !_tabs.TryGetValue(_activeTabIndex, out var textBufferService))
-            // Return an empty TextBufferService if there's no active tab
+        if (_activeTabIndex == -1 || !_tabs.TryGetValue(_activeTabIndex, out var tab))
             return new TextBufferService();
-        return textBufferService;
+        return tab.TextBufferService;
     }
 
     public void SwitchTab(int tabIndex)
@@ -24,24 +24,56 @@ public class TabService : ITabService
             throw new ArgumentException("Tab does not exist.");
     }
 
-    public void RegisterTab(int tabIndex, ITextBufferService textBufferService)
+    public TabInfo AddTab(ITextBufferService textBufferService)
     {
-        if (textBufferService == null && _tabs.ContainsKey(tabIndex))
-            _tabs.Remove(tabIndex);
-        else
-            _tabs[tabIndex] = textBufferService;
+        var tabIndex = _nextTabIndex++;
+        var newTab = new TabInfo(tabIndex, $"Tab {tabIndex}", textBufferService);
+        _tabs[tabIndex] = newTab;
 
-        // If this is the first tab, make it active
         if (_activeTabIndex == -1)
             _activeTabIndex = tabIndex;
 
-        // Update _nextTabIndex if necessary
-        if (tabIndex >= _nextTabIndex)
-            _nextTabIndex = tabIndex + 1;
+        return newTab;
     }
 
-    public int GetNextAvailableTabIndex()
+    public void CloseTab(int tabIndex)
     {
-        return _nextTabIndex++;
+        if (_tabs.ContainsKey(tabIndex))
+        {
+            _tabs.Remove(tabIndex);
+
+            if (_activeTabIndex == tabIndex)
+                _activeTabIndex = _tabs.Keys.LastOrDefault(-1);
+        }
+    }
+
+    public void CloseAllTabs()
+    {
+        _tabs.Clear();
+        _activeTabIndex = -1;
+        _nextTabIndex = 1;
+    }
+
+    public void CloseOtherTabs(int keepTabIndex)
+    {
+        if (_tabs.ContainsKey(keepTabIndex))
+        {
+            var tabToKeep = _tabs[keepTabIndex];
+            _tabs.Clear();
+            _tabs[keepTabIndex] = tabToKeep;
+            _activeTabIndex = keepTabIndex;
+        }
+    }
+
+    public IEnumerable<TabInfo> GetAllTabs()
+    {
+        return _tabs.Values;
+    }
+
+    public TabInfo? GetActiveTab()
+    {
+        return _activeTabIndex != -1 && _tabs.TryGetValue(_activeTabIndex, out var tab)
+            ? tab
+            : null;
     }
 }

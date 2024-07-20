@@ -10,37 +10,39 @@ namespace meteor.UI.Factories;
 public interface IEditorViewModelFactory
 {
     IEditorViewModel Create();
+    IEditorViewModel Create(ITextBufferService textBufferService);
 }
 
 public class EditorViewModelFactory : IEditorViewModelFactory
 {
     private readonly IServiceProvider _serviceProvider;
-    private readonly ITabService _tabService;
 
-    public EditorViewModelFactory(IServiceProvider serviceProvider, ITabService tabService)
+    public EditorViewModelFactory(IServiceProvider serviceProvider)
     {
         _serviceProvider = serviceProvider;
-        _tabService = tabService;
     }
 
     public IEditorViewModel Create()
     {
-        // Create new instances of services for each view model
         var textBufferService = new TextBufferService();
-        var editorViewModel = new EditorViewModel(
+        return CreateEditorViewModel(textBufferService);
+    }
+
+    public IEditorViewModel Create(ITextBufferService textBufferService)
+    {
+        return CreateEditorViewModel(textBufferService);
+    }
+
+    private IEditorViewModel CreateEditorViewModel(ITextBufferService textBufferService)
+    {
+        return new EditorViewModel(
             textBufferService,
-            _tabService,
+            _serviceProvider.GetRequiredService<ITabService>(),
             _serviceProvider.GetRequiredService<ISyntaxHighlighter>(),
             _serviceProvider.GetRequiredService<ISelectionService>(),
             _serviceProvider.GetRequiredService<IInputService>(),
             _serviceProvider.GetRequiredService<ICursorService>(),
             _serviceProvider.GetRequiredService<IEditorSizeCalculator>()
         );
-
-        // Register the new text buffer service with the tab service
-        var tabIndex = _tabService.GetNextAvailableTabIndex();
-        _tabService.RegisterTab(tabIndex, textBufferService);
-
-        return editorViewModel;
     }
 }

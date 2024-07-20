@@ -1,4 +1,3 @@
-using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
@@ -13,19 +12,23 @@ namespace meteor.UI.ViewModels;
 public sealed class TabViewModel : ITabViewModel
 {
     private readonly ITabService _tabService;
-    private ITabItemViewModel _selectedTab;
+    private readonly IEditorViewModelFactory _editorViewModelFactory;
+    private ITabItemViewModel? _selectedTab;
     private ObservableCollection<ITabItemViewModel> _tabs;
 
     public TabViewModel(IEditorViewModelFactory editorViewModelFactory, ICommandFactory commandFactory,
         ITabService tabService)
     {
         _tabService = tabService;
+        _editorViewModelFactory = editorViewModelFactory;
         _tabs = new ObservableCollection<ITabItemViewModel>();
 
-        AddTabCommand = commandFactory.CreateCommand(() => AddTab(editorViewModelFactory));
+        AddTabCommand = commandFactory.CreateCommand(AddTab);
         CloseTabCommand = commandFactory.CreateCommand<ITabItemViewModel>(CloseTab);
-        CloseAllTabsCommand = commandFactory.CreateCommand(() => CloseAllTabs());
-        CloseOtherTabsCommand = commandFactory.CreateCommand(() => CloseOtherTabs());
+        CloseAllTabsCommand = commandFactory.CreateCommand(CloseAllTabs);
+        CloseOtherTabsCommand = commandFactory.CreateCommand<ITabItemViewModel>(CloseOtherTabs);
+
+        RefreshTabs();
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -58,7 +61,7 @@ public sealed class TabViewModel : ITabViewModel
                 if (_selectedTab != null)
                 {
                     _selectedTab.IsSelected = true;
-                    _tabService.SwitchTab(Tabs.IndexOf(_selectedTab) + 1);
+                    _tabService.SwitchTab(_selectedTab.Index);
                 }
 
                 OnPropertyChanged();
@@ -73,73 +76,66 @@ public sealed class TabViewModel : ITabViewModel
 
     public void Dispose()
     {
-        foreach (var tab in Tabs.ToList())
-        {
-            Tabs.Remove(tab);
-            tab.Dispose();
-            // Unregister the tab from the service
-            var index = Tabs.Count + 1;
-            _tabService.RegisterTab(index, null);
-        }
+        CloseAllTabs();
     }
 
-    private void AddTab(IEditorViewModelFactory editorViewModelFactory)
+    private void AddTab()
     {
-        var newEditor = editorViewModelFactory.Create();
-        var tabIndex = _tabs.Count + 1;
-        _tabService.RegisterTab(tabIndex, newEditor.TextBufferService);
-        var newTab = new TabItemViewModel($"Tab {tabIndex}", newEditor);
-        _tabs.Add(newTab);
-        SelectedTab = newTab;
+        var newEditor = _editorViewModelFactory.Create();
+        var newTabInfo = _tabService.AddTab(newEditor.TextBufferService);
+        var newTabViewModel = new TabItemViewModel(newTabInfo.Index, newTabInfo.Title, newEditor);
+        _tabs.Add(newTabViewModel);
+        SelectedTab = newTabViewModel;
     }
 
     private void CloseTab(ITabItemViewModel tab)
     {
-        if (Tabs.Count > 0)
-        {
-            var index = Tabs.IndexOf(tab) + 1;
-            if (SelectedTab == tab)
-                // Select the previous tab if available
-                SelectedTab = Tabs.Count > 1 ? Tabs[Math.Max(0, index - 2)] : null;
-
-            Tabs.Remove(tab);
-
-            // Unregister the tab from the service
-            _tabService.RegisterTab(index, null);
-        }
+        _tabService.CloseTab(tab.Index);
+        _tabs.Remove(tab);
+        tab.Dispose();
+        SelectedTab = _tabs.FirstOrDefault(t => t.Index == _tabService.GetActiveTab()?.Index);
     }
 
     private void CloseAllTabs()
     {
-        // Deselect the selected tab before clearing the list
+        _tabService.CloseAllTabs();
+        foreach (var tab in _tabs) tab.Dispose();
+        _tabs.Clear();
         SelectedTab = null;
-        foreach (var tab in Tabs.ToList())
-        {
-            Tabs.Remove(tab);
-            tab.Dispose();
-            // Unregister the tab from the service
-            var index = Tabs.Count + 1;
-            _tabService.RegisterTab(index, null);
-        }
     }
 
-    private void CloseOtherTabs()
+    private void CloseOtherTabs(ITabItemViewModel? tabToKeep)
     {
-        if (SelectedTab != null)
+        if (tabToKeep != null)
         {
-            var tabsToRemove = Tabs.Where(t => t != SelectedTab).ToList();
+            _tabService.CloseOtherTabs(tabToKeep.Index);
+            var tabsToRemove = _tabs.Where(t => t != tabToKeep).ToList();
             foreach (var tab in tabsToRemove)
             {
-                Tabs.Remove(tab);
+                _tabs.Remove(tab);
                 tab.Dispose();
-                // Unregister the tab from the service
-                var index = Tabs.Count + 1;
-                _tabService.RegisterTab(index, null);
             }
+
+            SelectedTab = tabToKeep;
         }
     }
 
-    private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+    private void RefreshTabs()
+    {
+        foreach (var tab in _tabs) tab.Dispose();
+        _tabs.Clear();
+        foreach (var tabInfo in _tabService.GetAllTabs())
+        {
+            var editorViewModel = _editorViewModelFactory.Create(tabInfo.TextBufferService);
+            var tabViewModel = new TabItemViewModel(tabInfo.Index, tabInfo.Title, editorViewModel);
+            _tabs.Add(tabViewModel);
+        }
+
+        var activeTabInfo = _tabService.GetActiveTab();
+        SelectedTab = activeTabInfo != null ? _tabs.FirstOrDefault(t => t.Index == activeTabInfo.Index) : null;
+    }
+
+    private void OnPropertyChanged([CallerMemberName] string propertyName = null)
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
