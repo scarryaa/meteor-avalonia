@@ -205,7 +205,7 @@ public partial class EditorView : UserControl
             var offset = _scrollViewer.Offset;
             var viewport = _scrollViewer.Viewport;
 
-            var clipRect = new Rect(_gutterWidth, 0, viewport.Width + _gutterWidth, viewport.Height);
+            var clipRect = new Rect(_gutterWidth, 0, viewport.Width + _gutterWidth + 1, viewport.Height);
 
             using (context.PushClip(clipRect))
             {

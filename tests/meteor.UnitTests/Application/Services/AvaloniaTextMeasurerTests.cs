@@ -26,7 +26,7 @@ public class AvaloniaTextMeasurerTests
     [InlineData("Line1\nLine2\nLine3", 0, 25, 12)]
     [InlineData("LongWord", 3.5, 0, 0)]
     [InlineData("Short", 100, 100, 5)]
-    [InlineData("", 10, 10, 1)]
+    [InlineData("", 10, 10, 0)]
     public void GetIndexAtPosition_ReturnsCorrectIndex(string text, double x, double y, int expectedIndex)
     {
         // Arrange
@@ -51,7 +51,7 @@ public class AvaloniaTextMeasurerTests
     [InlineData("Line1\nLine2\nLine3", 0, 25, 12)] // Position on third line
     [InlineData("LongWord", 3.5, 0, 0)] // Position between characters
     [InlineData("Short", 100, 100, 5)] // Position beyond end of text
-    [InlineData("", 10, 10, 1)] // Empty text buffer
+    [InlineData("", 10, 10, 0)] // Empty text buffer
     public void GetIndexAtPosition_AdditionalScenarios(string text, double x, double y, int expectedIndex)
     {
         _textBufferService.Setup(s => s.Length).Returns(text.Length);

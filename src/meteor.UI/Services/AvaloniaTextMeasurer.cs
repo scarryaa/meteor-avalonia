@@ -90,7 +90,7 @@ public class AvaloniaTextMeasurer : ITextMeasurer
         }
     }
 
-    public (double x, double y) GetPositionAtIndex(string text, int index)
+    public (double X, double Y) GetPositionAtIndex(string text, int index)
     {
         var textLayout = GetOrCreateTextLayout(text);
         var textBounds = textLayout.HitTestTextPosition(index);

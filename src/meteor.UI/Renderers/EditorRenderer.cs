@@ -83,7 +83,7 @@ public class EditorRenderer
         _totalLines = 0;
         var currentIndex = 0;
 
-        while (currentIndex < textBufferService.Length)
+        while (currentIndex <= textBufferService.Length) // Changed < to <=
         {
             var lineEndIndex = textBufferService.IndexOf('\n', currentIndex);
             if (lineEndIndex == -1) lineEndIndex = textBufferService.Length;
@@ -91,6 +91,9 @@ public class EditorRenderer
             var lineLength = lineEndIndex - currentIndex;
             _lineInfo.Add((currentIndex, lineLength));
             _totalLines++;
+
+            if (lineEndIndex == textBufferService.Length)
+                break; // Exit the loop after adding the last line
 
             currentIndex = lineEndIndex + 1;
         }
@@ -148,10 +151,16 @@ public class EditorRenderer
 
         if (_showCursor && cursorPosition >= lineStart && cursorPosition <= lineStart + lineLength)
         {
-            var cursorX = _textMeasurer.GetPositionAtIndex(sb.ToString(), cursorPosition - lineStart).x;
+            double cursorX;
+            if (lineLength == 0)
+                // For empty lines, position the cursor at the start of the line
+                cursorX = 0;
+            else
+                cursorX = _textMeasurer.GetPositionAtIndex(sb.ToString(), cursorPosition - lineStart).X;
+
             context.DrawLine(_cursorPen,
-                new Point(cursorX - offsetX, lineY),
-                new Point(cursorX - offsetX, lineY + _textMeasurer.GetLineHeight()));
+                new Point(cursorX - offsetX + 1, lineY),
+                new Point(cursorX - offsetX + 1, lineY + _textMeasurer.GetLineHeight()));
         }
     }
 
@@ -211,26 +220,9 @@ public class EditorRenderer
         };
     }
 
-    public void ResetCursorBlink()
-    {
-        _showCursor = true;
-        _cursorBlinkTimer.Stop();
-        _cursorBlinkTimer.Start();
-        _invalidateView();
-    }
-
     public void Dispose()
     {
         _cursorBlinkTimer.Stop();
         _cursorBlinkTimer = null;
-    }
-
-    public (int firstVisibleLine, int visibleLineCount) CalculateVisibleLines(double viewportHeight,
-        double scrollOffset)
-    {
-        var lineHeight = _textMeasurer.GetLineHeight();
-        var firstVisibleLine = (int)(scrollOffset / lineHeight);
-        var visibleLineCount = (int)(viewportHeight / lineHeight) + 1;
-        return (firstVisibleLine, visibleLineCount);
     }
 }
