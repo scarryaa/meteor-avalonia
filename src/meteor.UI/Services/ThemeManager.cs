@@ -16,7 +16,7 @@ public class ThemeManager : IThemeManager
     }
 
     public event EventHandler<string>? ThemeChanged;
-
+    
     public string CurrentTheme { get; set; }
 
     public void AddTheme(string name, ResourceDictionary theme)

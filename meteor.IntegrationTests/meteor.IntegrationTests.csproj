@@ -24,7 +24,6 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\src\meteor.Application\meteor.Application.csproj"/>
         <ProjectReference Include="..\src\meteor.Core\meteor.Core.csproj"/>
         <ProjectReference Include="..\src\meteor.UI\meteor.UI.csproj"/>
     </ItemGroup>

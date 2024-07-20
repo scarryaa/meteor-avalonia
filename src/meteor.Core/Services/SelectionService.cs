@@ -1,6 +1,6 @@
 using meteor.Core.Interfaces.Services;
 
-namespace meteor.Application.Services;
+namespace meteor.Core.Services;
 
 public class SelectionService : ISelectionService
 {

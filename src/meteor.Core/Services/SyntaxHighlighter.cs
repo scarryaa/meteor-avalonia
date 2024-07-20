@@ -4,12 +4,11 @@ using meteor.Core.Interfaces.Services;
 using meteor.Core.Models.SyntaxHighlighting;
 using meteor.Core.Models.Text;
 
-namespace meteor.Application.Services;
+namespace meteor.Core.Services;
 
 public class SyntaxHighlighter : ISyntaxHighlighter
 {
     private const int ChunkSize = 4096;
-    private const int MaxIterations = 1000000;
 
     private List<SyntaxHighlightingResult> _cachedResults = new();
     private readonly Dictionary<int, List<SyntaxHighlightingResult>> _chunkCache = new();

@@ -44,7 +44,7 @@ public class TabViewModelTests
         var tabToClose1 = CreateMockTabItemViewModel(2, "Tab 2");
         var tabToClose2 = CreateMockTabItemViewModel(3, "Tab 3");
 
-        _tabViewModel.Tabs = new ObservableCollection<ITabItemViewModel>
+        _tabViewModel.Tabs = new ObservableCollection<ITabItemViewModel?>
         {
             tabToKeep,
             tabToClose1,
@@ -72,7 +72,7 @@ public class TabViewModelTests
         var tabToKeep = CreateMockTabItemViewModel(2, "Tab 2");
         var tabToClose = CreateMockTabItemViewModel(3, "Tab 3");
 
-        _tabViewModel.Tabs = new ObservableCollection<ITabItemViewModel>
+        _tabViewModel.Tabs = new ObservableCollection<ITabItemViewModel?>
         {
             selectedTab,
             tabToKeep,
@@ -112,9 +112,9 @@ public class TabViewModelTests
         _mockTabService.Verify(s => s.CloseOtherTabs(It.IsAny<int>()), Times.Never);
     }
 
-    private ITabItemViewModel CreateMockTabItemViewModel(int index, string title)
+    private ITabItemViewModel? CreateMockTabItemViewModel(int index, string title)
     {
-        var mockTabItemViewModel = new Mock<ITabItemViewModel>();
+        var mockTabItemViewModel = new Mock<ITabItemViewModel?>();
         mockTabItemViewModel.Setup(t => t.Index).Returns(index);
         mockTabItemViewModel.Setup(t => t.Title).Returns(title);
         return mockTabItemViewModel.Object;

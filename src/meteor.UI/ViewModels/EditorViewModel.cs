@@ -211,7 +211,6 @@ public sealed class EditorViewModel : IEditorViewModel
 
     private void UpdateHighlighting()
     {
-        Console.WriteLine("Text: " + Text);
         var results = _syntaxHighlighter.Highlight(Text);
         HighlightingResults = new ObservableCollection<SyntaxHighlightingResult>(results);
     }

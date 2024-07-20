@@ -5,8 +5,6 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "meteor.Core", "src\meteor.Core\meteor.Core.csproj", "{45CF2D1E-0ACC-4CDD-93C4-7EAC4CA998EB}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "meteor.Application", "src\meteor.Application\meteor.Application.csproj", "{E4129962-4B6C-4EAA-9226-52DC1949C69F}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "meteor.Infrastructure", "src\meteor.Infrastructure\meteor.Infrastructure.csproj", "{897AA1E8-8DE4-43DD-8670-D7B007472D21}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "meteor.UI", "src\meteor.UI\meteor.UI.csproj", "{DA9EB253-6200-4883-BD59-9319DC316494}"
@@ -28,10 +26,6 @@ Global
 		{45CF2D1E-0ACC-4CDD-93C4-7EAC4CA998EB}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{45CF2D1E-0ACC-4CDD-93C4-7EAC4CA998EB}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{45CF2D1E-0ACC-4CDD-93C4-7EAC4CA998EB}.Release|Any CPU.Build.0 = Release|Any CPU
-		{E4129962-4B6C-4EAA-9226-52DC1949C69F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{E4129962-4B6C-4EAA-9226-52DC1949C69F}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{E4129962-4B6C-4EAA-9226-52DC1949C69F}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{E4129962-4B6C-4EAA-9226-52DC1949C69F}.Release|Any CPU.Build.0 = Release|Any CPU
 		{897AA1E8-8DE4-43DD-8670-D7B007472D21}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{897AA1E8-8DE4-43DD-8670-D7B007472D21}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{897AA1E8-8DE4-43DD-8670-D7B007472D21}.Release|Any CPU.ActiveCfg = Release|Any CPU

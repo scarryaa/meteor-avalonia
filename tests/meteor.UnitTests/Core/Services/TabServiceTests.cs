@@ -2,7 +2,7 @@ using meteor.Core.Interfaces.Services;
 using meteor.Core.Services;
 using Moq;
 
-namespace meteor.UnitTests.Core.Entities.Services;
+namespace meteor.UnitTests.Core.Services;
 
 public class TabServiceTests
 {

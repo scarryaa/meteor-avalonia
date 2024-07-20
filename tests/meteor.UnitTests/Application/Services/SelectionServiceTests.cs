@@ -1,4 +1,4 @@
-using meteor.Application.Services;
+using meteor.Core.Services;
 
 namespace meteor.UnitTests.Application.Services;
 

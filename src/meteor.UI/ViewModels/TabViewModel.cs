@@ -14,14 +14,14 @@ public sealed class TabViewModel : ITabViewModel
     private readonly ITabService _tabService;
     private readonly IEditorViewModelFactory _editorViewModelFactory;
     private ITabItemViewModel? _selectedTab;
-    private ObservableCollection<ITabItemViewModel> _tabs;
+    private ObservableCollection<ITabItemViewModel?> _tabs;
 
     public TabViewModel(IEditorViewModelFactory editorViewModelFactory, ICommandFactory commandFactory,
         ITabService tabService)
     {
         _tabService = tabService;
         _editorViewModelFactory = editorViewModelFactory;
-        _tabs = new ObservableCollection<ITabItemViewModel>();
+        _tabs = new ObservableCollection<ITabItemViewModel?>();
 
         AddTabCommand = commandFactory.CreateCommand(AddTab);
         CloseTabCommand = commandFactory.CreateCommand<ITabItemViewModel>(CloseTab);
@@ -33,7 +33,7 @@ public sealed class TabViewModel : ITabViewModel
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    public ObservableCollection<ITabItemViewModel> Tabs
+    public ObservableCollection<ITabItemViewModel?> Tabs
     {
         get => _tabs;
         set
@@ -46,7 +46,7 @@ public sealed class TabViewModel : ITabViewModel
         }
     }
 
-    public ITabItemViewModel SelectedTab
+    public ITabItemViewModel? SelectedTab
     {
         get => _selectedTab;
         set
@@ -113,7 +113,7 @@ public sealed class TabViewModel : ITabViewModel
             foreach (var tab in tabsToRemove)
             {
                 _tabs.Remove(tab);
-                tab.Dispose();
+                tab?.Dispose();
             }
 
             SelectedTab = tabToKeep;

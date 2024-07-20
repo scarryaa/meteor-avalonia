@@ -1,7 +1,6 @@
 using System.Text;
 using Avalonia.Headless.XUnit;
 using Avalonia.Media;
-using meteor.Application.Services;
 using meteor.Core.Interfaces.Services;
 using meteor.Core.Models.Events;
 using meteor.Core.Services;

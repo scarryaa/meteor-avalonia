@@ -3,7 +3,6 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
-using meteor.Application.Services;
 using meteor.Core.Interfaces;
 using meteor.Core.Interfaces.Services;
 using meteor.Core.Interfaces.ViewModels;
