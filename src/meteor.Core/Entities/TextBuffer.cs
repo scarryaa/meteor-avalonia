@@ -36,20 +36,40 @@ public class TextBuffer : ITextBuffer
 
     public void GetTextSegment(int start, int length, StringBuilder output)
     {
+        if (start < 0 || length < 0)
+            throw new ArgumentOutOfRangeException($"Invalid range: start={start}, length={length}");
+
         lock (_lock)
         {
             ProcessQueuedInsertions();
+
+            // Ensure we don't go out of bounds
+            var actualLength = Math.Min(length, _buffer.Length - start);
+            if (actualLength <= 0)
+                return;
+
             output.Clear();
-            output.Append(_buffer, start, length);
+            output.Append(_buffer, start, actualLength);
         }
     }
 
     public void GetTextSegment(int start, int length, char[] output)
     {
+        if (start < 0 || length < 0 || output == null)
+            throw new ArgumentOutOfRangeException(
+                $"Invalid arguments: start={start}, length={length}, output={output}");
+
         lock (_lock)
         {
             ProcessQueuedInsertions();
-            for (var i = 0; i < length && i + start < _buffer.Length; i++) output[i] = _buffer[start + i];
+
+            // Ensure we don't go out of bounds
+            var actualLength = Math.Min(Math.Min(length, output.Length), _buffer.Length - start);
+            if (actualLength <= 0)
+                return;
+
+            for (var i = 0; i < actualLength; i++)
+                output[i] = _buffer[start + i];
         }
     }
 
@@ -150,10 +170,8 @@ public class TextBuffer : ITextBuffer
         {
             var (index, text) = insertion;
             // Ensure the index is within valid bounds
-            if (index < 0 || index > _buffer.Length)
-                throw new ArgumentOutOfRangeException(nameof(index), index,
-                    "Index out of range during insertion processing.");
-            _buffer.Insert(Math.Min(index, _buffer.Length), text);
+            index = Math.Max(0, Math.Min(index, _buffer.Length));
+            _buffer.Insert(index, text);
             Interlocked.Add(ref _pendingInsertionsLength, -text.Length);
         }
     }

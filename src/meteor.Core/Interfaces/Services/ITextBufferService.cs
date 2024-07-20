@@ -15,5 +15,6 @@ public interface ITextBufferService
     int IndexOf(char value, int startIndex = 0);
     void Iterate(Action<char> action);
     void AppendTo(StringBuilder sb);
+    public string Substring(int start, int length);
     ReadOnlySpan<char> AsSpan(int start, int length);
 }

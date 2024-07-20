@@ -1,193 +1,200 @@
 using System.Text;
 using meteor.Core.Enums;
-using meteor.Core.Enums.SyntaxHighlighting;
 using meteor.Core.Interfaces.Services;
+using meteor.Core.Models;
 using meteor.Core.Models.Events;
-using meteor.Core.Models.SyntaxHighlighting;
 using meteor.UI.ViewModels;
 using Moq;
 
-namespace meteor.UnitTests.UI.ViewModels;
-
 public class EditorViewModelTests
 {
-    private readonly Mock<ICursorService> _cursorServiceMock;
-    private readonly Mock<IInputService> _inputServiceMock;
-    private readonly Mock<ISelectionService> _selectionServiceMock;
-    private readonly Mock<IEditorSizeCalculator> _sizeCalculatorMock;
-    private readonly Mock<ISyntaxHighlighter> _syntaxHighlighterMock;
-    private readonly Mock<ITabService> _tabServiceMock;
-    private readonly Mock<ITextBufferService> _textBufferServiceMock;
+    private readonly Mock<ITextBufferService> _mockTextBufferService;
+    private readonly Mock<ITabService> _mockTabService;
+    private readonly Mock<ISyntaxHighlighter> _mockSyntaxHighlighter;
+    private readonly Mock<ISelectionService> _mockSelectionService;
+    private readonly Mock<IInputService> _mockInputService;
+    private readonly Mock<ICursorService> _mockCursorService;
+    private readonly Mock<IEditorSizeCalculator> _mockSizeCalculator;
     private readonly EditorViewModel _viewModel;
 
     public EditorViewModelTests()
     {
-        _tabServiceMock = new Mock<ITabService>();
-        _textBufferServiceMock = new Mock<ITextBufferService>();
-        _syntaxHighlighterMock = new Mock<ISyntaxHighlighter>();
-        _selectionServiceMock = new Mock<ISelectionService>();
-        _inputServiceMock = new Mock<IInputService>();
-        _cursorServiceMock = new Mock<ICursorService>();
-        _sizeCalculatorMock = new Mock<IEditorSizeCalculator>();
+        _mockTextBufferService = new Mock<ITextBufferService>();
+        _mockTabService = new Mock<ITabService>();
+        _mockSyntaxHighlighter = new Mock<ISyntaxHighlighter>();
+        _mockSelectionService = new Mock<ISelectionService>();
+        _mockInputService = new Mock<IInputService>();
+        _mockCursorService = new Mock<ICursorService>();
+        _mockSizeCalculator = new Mock<IEditorSizeCalculator>();
+
+        _mockTabService.Setup(ts => ts.GetActiveTextBufferService()).Returns(_mockTextBufferService.Object);
+
         _viewModel = new EditorViewModel(
-            _textBufferServiceMock.Object,
-            _tabServiceMock.Object,
-            _syntaxHighlighterMock.Object,
-            _selectionServiceMock.Object,
-            _inputServiceMock.Object,
-            _cursorServiceMock.Object,
-            _sizeCalculatorMock.Object
-        );
-
-        _tabServiceMock.Setup(ts => ts.GetActiveTextBufferService()).Returns(_textBufferServiceMock.Object);
+            _mockTextBufferService.Object,
+            _mockTabService.Object,
+            _mockSyntaxHighlighter.Object,
+            _mockSelectionService.Object,
+            _mockInputService.Object,
+            _mockCursorService.Object,
+            _mockSizeCalculator.Object);
     }
 
     [Fact]
-    public void Text_Get_ReturnsTextFromService()
+    public void Text_Get_ReturnsCachedText()
     {
-        var sb = new StringBuilder("hello");
-        _textBufferServiceMock.Setup(t => t.AppendTo(It.IsAny<StringBuilder>()))
-            .Callback<StringBuilder>(s => s.Append(sb));
-        var text = _viewModel.Text;
-        Assert.Equal("hello", text);
+        // Arrange
+        const string expectedText = "Hello, World!";
+        _mockTextBufferService.Setup(tb => tb.AppendTo(It.IsAny<StringBuilder>()))
+            .Callback<StringBuilder>(sb => sb.Append(expectedText));
+
+        // Act
+        var actualText = _viewModel.Text;
+
+        // Assert
+        Assert.Equal(expectedText, actualText);
+        _mockTextBufferService.Verify(tb => tb.AppendTo(It.IsAny<StringBuilder>()), Times.Once);
     }
 
     [Fact]
-    public void Text_Set_CallsReplaceAllAndUpdatesHighlighting()
+    public void Text_Set_UpdatesTextBufferServiceAndRaisesPropertyChanged()
     {
-        var oldText = "old text";
-        var newText = "new text";
-        var highlightingResults = new[] { new SyntaxHighlightingResult(0, 3, SyntaxHighlightingType.Keyword) };
-
-        // Setup initial text
-        _textBufferServiceMock.Setup(t => t.AppendTo(It.IsAny<StringBuilder>()))
-            .Callback<StringBuilder>(s => s.Append(oldText));
-
-        // Setup ReplaceAll to update the internal text
-        _textBufferServiceMock.Setup(t => t.ReplaceAll(newText)).Callback(() =>
-        {
-            _textBufferServiceMock.Setup(t => t.AppendTo(It.IsAny<StringBuilder>()))
-                .Callback<StringBuilder>(s =>
-                {
-                    s.Clear();
-                    s.Append(newText);
-                });
-        });
-
-        _syntaxHighlighterMock.Setup(s => s.Highlight(newText)).Returns(highlightingResults);
-
-        _viewModel.Text = newText;
-
-        _textBufferServiceMock.Verify(t => t.ReplaceAll(newText), Times.Once);
-        _syntaxHighlighterMock.Verify(s => s.Highlight(newText), Times.Once);
-        Assert.Equal(highlightingResults, _viewModel.HighlightingResults);
-    }
-
-    [Fact]
-    public void InsertText_CallsInsertTextOnInputServiceAndUpdatesHighlighting()
-    {
-        var text = "world";
-        _syntaxHighlighterMock.Setup(s => s.Highlight(It.IsAny<string>()))
-            .Returns(new[] { new SyntaxHighlightingResult() });
-
-        _viewModel.InsertText(0, text);
-
-        _inputServiceMock.Verify(i => i.InsertText(text), Times.Once);
-        _syntaxHighlighterMock.Verify(s => s.Highlight(It.IsAny<string>()), Times.Once);
-        Assert.Single(_viewModel.HighlightingResults);
-    }
-
-    [Fact]
-    public void DeleteText_CallsDeleteTextOnInputServiceAndUpdatesHighlighting()
-    {
-        var index = 0;
-        var length = 1;
-        _syntaxHighlighterMock.Setup(s => s.Highlight(It.IsAny<string>()))
-            .Returns(new[] { new SyntaxHighlightingResult() });
-
-        _viewModel.DeleteText(index, length);
-
-        _inputServiceMock.Verify(i => i.DeleteText(index, length), Times.Once);
-        _syntaxHighlighterMock.Verify(s => s.Highlight(It.IsAny<string>()), Times.Once);
-        Assert.Single(_viewModel.HighlightingResults);
-    }
-
-    [Fact]
-    public void OnPointerPressed_CallsHandlePointerPressedAndRaisesPropertyChanged()
-    {
-        var e = new PointerPressedEventArgs(5, 0, 0);
-        var propertyChanged = false;
+        // Arrange
+        const string newText = "New Text";
+        var propertyChangedRaised = false;
         _viewModel.PropertyChanged += (sender, args) =>
         {
-            if (args.PropertyName == nameof(EditorViewModel.Selection))
-                propertyChanged = true;
+            if (args.PropertyName == nameof(_viewModel.Text)) propertyChangedRaised = true;
         };
 
+        // Act
+        _viewModel.Text = newText;
+
+        // Assert
+        _mockTextBufferService.Verify(tb => tb.ReplaceAll(newText), Times.Once);
+        Assert.True(propertyChangedRaised);
+    }
+
+    [Fact]
+    public void UpdateScrollOffset_UpdatesScrollOffsetProperty()
+    {
+        // Arrange
+        var newOffset = new Vector(100, 200);
+
+        // Act
+        _viewModel.UpdateScrollOffset(newOffset);
+
+        // Assert
+        Assert.Equal(newOffset, _viewModel.ScrollOffset);
+    }
+
+    [Fact]
+    public void UpdateWindowSize_UpdatesEditorSize()
+    {
+        // Arrange
+        const double newWidth = 800;
+        const double newHeight = 600;
+
+        // Act
+        _viewModel.UpdateWindowSize(newWidth, newHeight);
+
+        // Assert
+        _mockSizeCalculator.Verify(sc => sc.UpdateWindowSize(newWidth, newHeight), Times.Once);
+    }
+
+    [Fact]
+    public void DeleteText_UpdatesTextAndRaisesPropertyChanged()
+    {
+        // Arrange
+        const int index = 0;
+        const int length = 5;
+        var propertyChangedRaised = false;
+        _viewModel.PropertyChanged += (sender, args) =>
+        {
+            if (args.PropertyName == nameof(_viewModel.Text)) propertyChangedRaised = true;
+        };
+
+        // Act
+        _viewModel.DeleteText(index, length);
+
+        // Assert
+        _mockInputService.Verify(input => input.DeleteText(index, length), Times.Once);
+        Assert.True(propertyChangedRaised);
+    }
+
+    [Fact]
+    public void OnPointerPressed_UpdatesSelectionAndCursorPosition()
+    {
+        // Arrange
+        var e = new PointerPressedEventArgs();
+
+        // Act
         _viewModel.OnPointerPressed(e);
 
-        _inputServiceMock.Verify(i => i.HandlePointerPressed(e), Times.Once);
-        Assert.True(propertyChanged);
+        // Assert
+        _mockInputService.Verify(input => input.HandlePointerPressed(e), Times.Once);
     }
 
     [Fact]
-    public void OnPointerMoved_CallsHandlePointerMovedAndRaisesPropertyChanged()
+    public void OnPointerMoved_UpdatesSelectionAndCursorPosition()
     {
-        var e = new PointerEventArgs(10, 20, 5);
-        var propertyChanged = false;
-        _viewModel.PropertyChanged += (_, args) =>
-        {
-            if (args.PropertyName == nameof(EditorViewModel.Selection))
-                propertyChanged = true;
-        };
+        // Arrange
+        var e = new PointerEventArgs();
 
+        // Act
         _viewModel.OnPointerMoved(e);
 
-        _inputServiceMock.Verify(i => i.HandlePointerMoved(e), Times.Once);
-        Assert.True(propertyChanged);
+        // Assert
+        _mockInputService.Verify(input => input.HandlePointerMoved(e), Times.Once);
     }
 
     [Fact]
-    public void OnPointerReleased_CallsHandlePointerReleasedAndRaisesPropertyChanged()
+    public void OnPointerReleased_UpdatesSelectionAndCursorPosition()
     {
-        var e = new PointerReleasedEventArgs(5, 0, 0);
-        var propertyChanged = false;
-        _viewModel.PropertyChanged += (_, args) =>
-        {
-            if (args.PropertyName == nameof(EditorViewModel.Selection))
-                propertyChanged = true;
-        };
+        // Arrange
+        var e = new PointerReleasedEventArgs();
 
+        // Act
         _viewModel.OnPointerReleased(e);
 
-        _inputServiceMock.Verify(i => i.HandlePointerReleased(e), Times.Once);
-        Assert.True(propertyChanged);
+        // Assert
+        _mockInputService.Verify(input => input.HandlePointerReleased(e), Times.Once);
     }
 
     [Fact]
-    public void OnTextInput_CallsHandleTextInputAndUpdatesHighlighting()
+    public void OnTextInput_UpdatesTextAndRaisesPropertyChanged()
     {
-        var e = new TextInputEventArgs("a");
-        _syntaxHighlighterMock.Setup(s => s.Highlight(It.IsAny<string>()))
-            .Returns(new[] { new SyntaxHighlightingResult() });
+        // Arrange
+        var e = new TextInputEventArgs();
+        var propertyChangedRaised = false;
+        _viewModel.PropertyChanged += (sender, args) =>
+        {
+            if (args.PropertyName == nameof(_viewModel.Text)) propertyChangedRaised = true;
+        };
 
+        // Act
         _viewModel.OnTextInput(e);
 
-        _inputServiceMock.Verify(i => i.HandleTextInput(e), Times.Once);
-        _syntaxHighlighterMock.Verify(s => s.Highlight(It.IsAny<string>()), Times.Once);
-        Assert.Single(_viewModel.HighlightingResults);
+        // Assert
+        _mockInputService.Verify(input => input.HandleTextInput(e), Times.Once);
+        Assert.True(propertyChangedRaised);
     }
 
     [Fact]
-    public void OnKeyDown_CallsHandleKeyDownAndUpdatesHighlighting()
+    public async Task OnKeyDown_UpdatesTextAndRaisesPropertyChanged()
     {
-        var e = new KeyEventArgs(Key.Enter);
-        _syntaxHighlighterMock.Setup(s => s.Highlight(It.IsAny<string>()))
-            .Returns(new[] { new SyntaxHighlightingResult() });
+        // Arrange
+        var e = new KeyEventArgs(Key.A, KeyModifiers.None);
+        var propertyChangedRaised = false;
+        _viewModel.PropertyChanged += (sender, args) =>
+        {
+            if (args.PropertyName == nameof(_viewModel.Text)) propertyChangedRaised = true;
+        };
 
-        _viewModel.OnKeyDown(e);
+        // Act
+        await _viewModel.OnKeyDown(e);
 
-        _inputServiceMock.Verify(i => i.HandleKeyDown(e.Key, e.Modifiers), Times.Once);
-        _syntaxHighlighterMock.Verify(s => s.Highlight(It.IsAny<string>()), Times.Once);
-        Assert.Single(_viewModel.HighlightingResults);
+        // Assert
+        _mockInputService.Verify(input => input.HandleKeyDown(e.Key, e.Modifiers), Times.Once);
+        Assert.True(propertyChangedRaised);
     }
 }

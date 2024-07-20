@@ -30,7 +30,7 @@ public class EditorViewModelIntegrationTests : IDisposable
     {
         _tabService = new TabService();
         _textBufferService = new TextBufferService();
-        _syntaxHighlighter = new SyntaxHighlighter(_textBufferService);
+        _syntaxHighlighter = new SyntaxHighlighter(_tabService);
         _cursorService = new CursorService(_tabService);
         _selectionService = new SelectionService();
         _textAnalysisService = new TextAnalysisService();
@@ -87,25 +87,6 @@ public class EditorViewModelIntegrationTests : IDisposable
         var sb = new StringBuilder();
         _textBufferService.AppendTo(sb);
         Assert.Equal(newText, sb.ToString());
-        Assert.Empty(_viewModel.HighlightingResults);
-    }
-
-    [AvaloniaFact]
-    public void InsertText_UpdatesTextAndHighlighting()
-    {
-        // Arrange
-        var initialText = "Initial";
-        var textToInsert = " text";
-        _textBufferService.ReplaceAll(initialText);
-        _cursorService.SetCursorPosition(initialText.Length);
-
-        // Act
-        _viewModel.InsertText(initialText.Length, textToInsert);
-
-        // Assert
-        var sb = new StringBuilder();
-        _textBufferService.AppendTo(sb);
-        Assert.Equal(initialText + textToInsert, sb.ToString());
         Assert.Empty(_viewModel.HighlightingResults);
     }
 

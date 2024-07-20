@@ -38,8 +38,8 @@ public sealed class EditorViewModel : IEditorViewModel
         ICursorService cursorService,
         IEditorSizeCalculator sizeCalculator)
     {
-        TabService = tabService;
         TextBufferService = textBufferService;
+        TabService = tabService;
         _syntaxHighlighter = syntaxHighlighter;
         _selectionService = selectionService;
         _inputService = inputService;
@@ -64,8 +64,8 @@ public sealed class EditorViewModel : IEditorViewModel
     }
 
     public (int start, int length) Selection => _selectionService.GetSelection();
-    public ITextBufferService TextBufferService { get; }
     public ITabService TabService { get; }
+    public ITextBufferService TextBufferService { get; }
 
     public int CursorPosition => _cursorService.GetCursorPosition();
 
@@ -101,8 +101,9 @@ public sealed class EditorViewModel : IEditorViewModel
         {
             if (_isTextDirty)
             {
+                var textBufferService = TabService.GetActiveTextBufferService();
                 _stringBuilder.Clear();
-                TextBufferService.AppendTo(_stringBuilder);
+                textBufferService.AppendTo(_stringBuilder);
                 _cachedText = _stringBuilder.ToString();
                 _isTextDirty = false;
             }
@@ -113,7 +114,8 @@ public sealed class EditorViewModel : IEditorViewModel
         {
             if (_cachedText != value)
             {
-                TextBufferService.ReplaceAll(value);
+                var textBufferService = TabService.GetActiveTextBufferService();
+                textBufferService.ReplaceAll(value);
                 _cachedText = value;
                 _isTextDirty = false;
                 OnPropertyChanged();
@@ -146,16 +148,7 @@ public sealed class EditorViewModel : IEditorViewModel
         _sizeCalculator.UpdateWindowSize(width, height);
         UpdateEditorSize();
     }
-
-    public void InsertText(int index, string text)
-    {
-        _inputService.InsertText(text);
-        _isTextDirty = true;
-        OnPropertyChanged(nameof(Text));
-        UpdateHighlighting();
-    }
-
-
+    
     public void DeleteText(int index, int length)
     {
         _inputService.DeleteText(index, length);
@@ -193,6 +186,7 @@ public sealed class EditorViewModel : IEditorViewModel
         OnPropertyChanged(nameof(CursorPosition));
         UpdateHighlighting();
         UpdateEditorSize();
+        _isTextDirty = true;
     }
 
     public async Task OnKeyDown(KeyEventArgs e)
@@ -203,11 +197,13 @@ public sealed class EditorViewModel : IEditorViewModel
         OnPropertyChanged(nameof(CursorPosition));
         UpdateHighlighting();
         UpdateEditorSize();
+        _isTextDirty = true;
     }
 
     private void UpdateEditorSize()
     {
-        var (width, height) = _sizeCalculator.CalculateEditorSize(TextBufferService, EditorWidth, EditorHeight);
+        var textBufferService = TabService.GetActiveTextBufferService();
+        var (width, height) = _sizeCalculator.CalculateEditorSize(textBufferService, EditorWidth, EditorHeight);
         EditorWidth = width;
         EditorHeight = height;
     }

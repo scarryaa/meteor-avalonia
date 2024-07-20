@@ -29,6 +29,7 @@ public class AvaloniaTextMeasurerTests
     [InlineData("", 10, 10, 1)]
     public void GetIndexAtPosition_ReturnsCorrectIndex(string text, double x, double y, int expectedIndex)
     {
+        // Arrange
         _textBufferService.Setup(s => s.Length).Returns(text.Length);
         _textBufferService.Setup(s => s.IndexOf('\n', It.IsAny<int>()))
             .Returns((char c, int startIndex) => text.IndexOf('\n', startIndex));
@@ -39,7 +40,10 @@ public class AvaloniaTextMeasurerTests
                 sb.Append(text.Substring(start, Math.Min(length, text.Length - start)));
             });
 
+        // Act
         var result = _measurer.GetIndexAtPosition(_textBufferService.Object, x, y, 0, 0);
+
+        // Assert
         Assert.Equal(expectedIndex, result);
     }
 

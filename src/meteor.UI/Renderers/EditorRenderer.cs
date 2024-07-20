@@ -137,7 +137,6 @@ public class EditorRenderer
         }
     }
 
-
     private void DrawLineSelection(DrawingContext context, ITextBufferService textBufferService, int lineStart,
         int lineLength, double lineY, (int start, int length) selection, double offsetX)
     {

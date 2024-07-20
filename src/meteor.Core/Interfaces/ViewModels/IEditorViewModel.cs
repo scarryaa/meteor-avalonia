@@ -15,11 +15,10 @@ public interface IEditorViewModel : INotifyPropertyChanged
     double EditorWidth { get; }
     double EditorHeight { get; }
     Vector ScrollOffset { get; set; }
-    ITextBufferService TextBufferService { get; }
     ObservableCollection<SyntaxHighlightingResult> HighlightingResults { get; }
     ITabService TabService { get; }
-
-    void InsertText(int index, string text);
+    ITextBufferService TextBufferService { get; }
+    
     void DeleteText(int index, int length);
 
     void UpdateScrollOffset(Vector offset);
