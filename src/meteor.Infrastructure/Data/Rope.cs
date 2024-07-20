@@ -8,7 +8,6 @@ public class Rope : IRope
 {
     private const int ChunkSize = 4096;
     private const int RebalanceThreshold = 4;
-    private static readonly ObjectPool<Node> NodePool = new(() => new Node());
     private readonly LruCache<int, string> _cache = new(100);
     private readonly ReaderWriterLockSlim _lock = new(LockRecursionPolicy.SupportsRecursion);
     private int _insertionCount;
@@ -47,7 +46,7 @@ public class Rope : IRope
             try
             {
                 if (index < 0 || index >= (_root?.Length ?? 0))
-                    throw new ArgumentOutOfRangeException();
+                    throw new ArgumentOutOfRangeException("index");
 
                 return Index(_root, index);
             }
@@ -69,7 +68,7 @@ public class Rope : IRope
             _insertionCount++;
             var currentLength = _root?.Length ?? 0;
             if (index < 0 || index > currentLength)
-                throw new ArgumentOutOfRangeException("Index was outside the bounds of the rope.");
+                throw new ArgumentOutOfRangeException("index");
 
             _root = Insert(_root, index, s);
             Console.WriteLine($"Insertion {_insertionCount}: Root length after insertion = {_root.Length}");
@@ -100,7 +99,7 @@ public class Rope : IRope
         try
         {
             if (index < 0 || index + length > GetLengthInternal())
-                throw new ArgumentOutOfRangeException("Index and length were outside the bounds of the rope.");
+                throw new ArgumentOutOfRangeException("index");
 
             if (length == 0)
                 return this;

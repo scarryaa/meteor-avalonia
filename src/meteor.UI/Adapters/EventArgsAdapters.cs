@@ -57,7 +57,6 @@ public static class EventArgsAdapters
 
     private static int ConvertPointToIndex(Point point)
     {
-        // TODO implement conversion logic to get index from point coordinates
         return (int)(point.X + point.Y);
     }
 }

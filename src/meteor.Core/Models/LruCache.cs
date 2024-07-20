@@ -46,7 +46,7 @@ public class LruCache<TKey, TValue>
         _lruList.Clear();
     }
 
-    private class CacheItem
+    private sealed class CacheItem
     {
         public TKey Key { get; set; }
         public TValue Value { get; set; }

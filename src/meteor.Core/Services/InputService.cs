@@ -17,7 +17,7 @@ public class InputService : IInputService
     private int _clickCount;
     private double _horizontalScrollOffset;
     private bool _isSelecting;
-    private DateTime _lastClickTime = DateTime.MinValue;
+    private DateTime _lastClickTime = DateTime.UtcNow;
     private int _selectionStart = -1;
     private double _verticalScrollOffset;
 
@@ -40,7 +40,7 @@ public class InputService : IInputService
     public void InsertText(string text)
     {
         var textBufferService = _tabService.GetActiveTextBufferService();
-        var (selectionStart, selectionLength) = _selectionService.GetSelection();
+        var (_, selectionLength) = _selectionService.GetSelection();
         if (selectionLength != 0) DeleteSelectedText();
 
         var cursorPosition = _cursorService.GetCursorPosition();
@@ -128,17 +128,19 @@ public class InputService : IInputService
     public void HandlePointerPressed(PointerPressedEventArgs e)
     {
         int index;
-        if (e.X != 0 || e.Y != 0)
+        const double epsilon = 1e-10;
+
+        if (Math.Abs(e.X) > epsilon || Math.Abs(e.Y) > epsilon)
             index = ClampIndex(_textMeasurer.GetIndexAtPosition(_tabService.GetActiveTextBufferService(), e.X, e.Y,
                 _verticalScrollOffset, _horizontalScrollOffset));
         else
             index = ClampIndex(e.Index);
 
-        if ((DateTime.Now - _lastClickTime).TotalMilliseconds < 500)
+        if ((DateTime.UtcNow - _lastClickTime).TotalMilliseconds < 500)
             _clickCount++;
         else
             _clickCount = 1;
-        _lastClickTime = DateTime.Now;
+        _lastClickTime = DateTime.UtcNow;
 
         switch (_clickCount)
         {
@@ -192,7 +194,7 @@ public class InputService : IInputService
     private void HandleBackspace(bool isCtrlPressed)
     {
         var textBufferService = _tabService.GetActiveTextBufferService();
-        var (selectionStart, selectionLength) = _selectionService.GetSelection();
+        var (_, selectionLength) = _selectionService.GetSelection();
         if (selectionLength != 0)
         {
             DeleteSelectedText();
@@ -220,7 +222,7 @@ public class InputService : IInputService
     private void HandleDelete(bool isCtrlPressed)
     {
         var textBufferService = _tabService.GetActiveTextBufferService();
-        var (selectionStart, selectionLength) = _selectionService.GetSelection();
+        var (_, selectionLength) = _selectionService.GetSelection();
         if (selectionLength != 0)
         {
             DeleteSelectedText();
@@ -465,26 +467,6 @@ public class InputService : IInputService
     private int GetLineStart(int position)
     {
         while (position > 0 && _tabService.GetActiveTextBufferService()[position - 1] != '\n') position--;
-        return position;
-    }
-
-    private int GetLineEnd(int position)
-    {
-        while (position < _tabService.GetActiveTextBufferService().Length &&
-               _tabService.GetActiveTextBufferService()[position] != '\n') position++;
-        return position;
-    }
-
-    private int GetWordStart(int position)
-    {
-        while (position > 0 && !char.IsWhiteSpace(_tabService.GetActiveTextBufferService()[position - 1])) position--;
-        return position;
-    }
-
-    private int GetWordEnd(int position)
-    {
-        while (position < _tabService.GetActiveTextBufferService().Length &&
-               !char.IsWhiteSpace(_tabService.GetActiveTextBufferService()[position])) position++;
         return position;
     }
 }

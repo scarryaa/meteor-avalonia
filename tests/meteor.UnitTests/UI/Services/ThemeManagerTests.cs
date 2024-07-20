@@ -8,16 +8,13 @@ namespace meteor.UnitTests.UI.Services;
 public class ThemeManagerTests : IDisposable
 {
     private readonly Avalonia.Application app;
+    private bool disposed;
 
     public ThemeManagerTests()
     {
         app = new Avalonia.Application();
         app.RegisterServices();
         app.Initialize();
-    }
-
-    public void Dispose()
-    {
     }
 
     [AvaloniaFact]
@@ -109,5 +106,16 @@ public class ThemeManagerTests : IDisposable
 
         // Act & Assert
         Assert.Throws<ArgumentException>(() => themeManager.SetTheme(emptyThemeName));
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!disposed) disposed = true;
+    }
+
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
     }
 }

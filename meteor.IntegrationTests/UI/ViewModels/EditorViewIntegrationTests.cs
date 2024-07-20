@@ -24,6 +24,7 @@ public class EditorViewModelIntegrationTests : IDisposable
     private readonly ITextMeasurer _textMeasurer;
     private readonly EditorViewModel _viewModel;
     private readonly EditorViewModelServiceContainer _serviceContainer;
+    private bool _disposed;
     
     public EditorViewModelIntegrationTests()
     {
@@ -56,11 +57,6 @@ public class EditorViewModelIntegrationTests : IDisposable
             _serviceContainer,
             _textMeasurer
         );
-    }
-
-    public void Dispose()
-    {
-        _tabService.CloseAllTabs(); // Clean up tabs
     }
 
     [AvaloniaFact]
@@ -273,4 +269,21 @@ public class EditorViewModelIntegrationTests : IDisposable
         Assert.Equal((0, 5), _viewModel.Selection);
         Assert.Equal(5, _viewModel.CursorPosition);
     }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!_disposed)
+        {
+            if (disposing) _tabService.CloseAllTabs();
+
+            _disposed = true;
+        }
+    }
+
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
 }

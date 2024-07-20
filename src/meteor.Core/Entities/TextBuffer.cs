@@ -11,7 +11,7 @@ public class TextBuffer : ITextBuffer
     private readonly ConcurrentQueue<(int Index, string Text)> _insertQueue = new();
     private readonly object _lock = new();
     private readonly Task _processTask;
-    private bool _isDisposed;
+    private bool _disposed;
     private long _pendingInsertionsLength;
 
     public TextBuffer(string initialText = "")
@@ -143,25 +143,41 @@ public class TextBuffer : ITextBuffer
 
     public void Dispose()
     {
-        if (_isDisposed) return;
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
 
-        _cts.Cancel();
-        try
+    protected virtual void Dispose(bool disposing)
+    {
+        if (_disposed)
+            return;
+
+        if (disposing)
         {
-            _processTask.Wait();
-        }
-        catch (AggregateException ae)
-        {
-            ae.Handle(ex => ex is TaskCanceledException);
+            _cts.Cancel();
+            try
+            {
+                _processTask.Wait();
+            }
+            catch (AggregateException ae)
+            {
+                ae.Handle(ex => ex is TaskCanceledException);
+            }
+
+            lock (_lock)
+            {
+                ProcessQueuedInsertions();
+            }
+
+            _cts.Dispose();
         }
 
-        lock (_lock)
-        {
-            ProcessQueuedInsertions();
-        }
+        _disposed = true;
+    }
 
-        _cts.Dispose();
-        _isDisposed = true;
+    ~TextBuffer()
+    {
+        Dispose(false);
     }
 
     private void ProcessQueuedInsertions()

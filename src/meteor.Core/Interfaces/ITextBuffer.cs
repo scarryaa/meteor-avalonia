@@ -9,10 +9,10 @@ public interface ITextBuffer : IDisposable
     void Insert(int index, string text);
     void Delete(int index, int length);
     string Substring(int start, int length);
-    string GetText();
+    void GetTextSegment(int start, int length, char[] output);
     void GetTextSegment(int start, int length, StringBuilder output);
     string GetText(int start, int length);
+    string GetText();
     void ReplaceAll(string newText);
     void Iterate(Action<char> action);
-    void GetTextSegment(int start, int length, char[] output);
 }

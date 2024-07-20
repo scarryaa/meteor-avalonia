@@ -18,6 +18,9 @@ public class GutterViewModel : IGutterViewModel
     private int _lastMeasuredDigitCount = 1;
     private double _viewportHeight;
     private int _visibleLineCount;
+    private readonly HashSet<int> _breakpoints = new();
+    private readonly HashSet<int> _collapsibleLines = new();
+    private readonly HashSet<int> _collapsedLines = new();
 
     public event PropertyChangedEventHandler? PropertyChanged;
     public event EventHandler<double>? ScrollOffsetChanged;
@@ -84,6 +87,41 @@ public class GutterViewModel : IGutterViewModel
     {
         get => _gutterWidth;
         private set => SetProperty(ref _gutterWidth, value);
+    }
+
+    public bool CanCollapseLine(int lineNumber)
+    {
+        return _collapsibleLines.Contains(lineNumber);
+    }
+
+    public bool IsLineCollapsed(int lineNumber)
+    {
+        return _collapsedLines.Contains(lineNumber);
+    }
+
+    public bool HasBreakpoint(int lineNumber)
+    {
+        return _breakpoints.Contains(lineNumber);
+    }
+
+    public void ToggleBreakpoint(int lineNumber)
+    {
+        if (_breakpoints.Contains(lineNumber))
+            _breakpoints.Remove(lineNumber);
+        else
+            _breakpoints.Add(lineNumber);
+        OnPropertyChanged(nameof(HasBreakpoint));
+    }
+
+    public void ToggleLineCollapse(int lineNumber)
+    {
+        if (!CanCollapseLine(lineNumber)) return;
+
+        if (_collapsedLines.Contains(lineNumber))
+            _collapsedLines.Remove(lineNumber);
+        else
+            _collapsedLines.Add(lineNumber);
+        OnPropertyChanged(nameof(IsLineCollapsed));
     }
 
     public void UpdateScrollOffset(double newOffset)

@@ -2,7 +2,7 @@ namespace meteor.Core.Models.SyntaxHighlighting;
 
 public class KeywordTrie
 {
-    private class TrieNode
+    private sealed class TrieNode
     {
         public Dictionary<char, TrieNode> Children { get; } = new();
         public bool IsEndOfWord { get; set; }

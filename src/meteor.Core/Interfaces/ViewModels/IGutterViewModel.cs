@@ -15,6 +15,11 @@ public interface IGutterViewModel : INotifyPropertyChanged
 
     event EventHandler<double> ScrollOffsetChanged;
 
+    void ToggleLineCollapse(int lineNumber);
+    void ToggleBreakpoint(int lineNumber);
+    bool CanCollapseLine(int lineNumber);
+    bool IsLineCollapsed(int lineNumber);
+    bool HasBreakpoint(int lineNumber);
     void UpdateScrollOffset(double newOffset);
     void UpdateGutterWidth();
 }

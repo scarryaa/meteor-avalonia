@@ -12,7 +12,6 @@ public class InputServiceTests
     private readonly Mock<IClipboardService> _clipboardServiceMock;
     private readonly Mock<ICursorService> _cursorServiceMock;
     private readonly InputService _inputService;
-    private readonly ITestOutputHelper _output;
     private readonly Mock<ISelectionService> _selectionServiceMock;
     private readonly Mock<ITabService> _tabServiceMock;
     private readonly Mock<ITextAnalysisService> _textAnalysisServiceMock;
@@ -35,7 +34,6 @@ public class InputServiceTests
             _selectionServiceMock.Object,
             _clipboardServiceMock.Object,
             _textMeasurerMock.Object);
-        _output = output;
 
         _tabServiceMock.Setup(ts => ts.GetActiveTextBufferService()).Returns(_textBufferServiceMock.Object);
     }
@@ -359,6 +357,10 @@ public class InputServiceTests
         // Assert
         _cursorServiceMock.Verify(c => c.SetCursorPosition(5), Times.Once);
         _selectionServiceMock.Verify(s => s.StartSelection(5), Times.Once);
+
+        // Additional assertions to differentiate this test
+        _selectionServiceMock.Verify(s => s.ClearSelection(), Times.Once);
+        _selectionServiceMock.Verify(s => s.SetSelection(It.IsAny<int>(), It.IsAny<int>()), Times.Never);
     }
 
     [Fact]
@@ -386,9 +388,9 @@ public class InputServiceTests
     {
         // Arrange
         var e = new PointerPressedEventArgs { X = 10, Y = 20 };
-        _textBufferServiceMock.Setup(t => t.Length).Returns(11);
-        _textAnalysisServiceMock.Setup(t => t.GetWordBoundaries(_textBufferServiceMock.Object, It.IsAny<int>()))
-            .Returns((0, 11));
+        _textBufferServiceMock.Setup(t => t.Length).Returns(30);
+        _textAnalysisServiceMock.Setup(t => t.GetLineBoundaries(_textBufferServiceMock.Object, It.IsAny<int>()))
+            .Returns((5, 25));
 
         // Act
         _inputService.HandlePointerPressed(e);
@@ -396,8 +398,10 @@ public class InputServiceTests
         _inputService.HandlePointerPressed(e);
 
         // Assert
-        _selectionServiceMock.Verify(s => s.SetSelection(0, 11), Times.Exactly(1));
-        _cursorServiceMock.Verify(c => c.SetCursorPosition(11), Times.Exactly(1));
+        _selectionServiceMock.Verify(s => s.SetSelection(5, 25), Times.Once);
+        _cursorServiceMock.Verify(c => c.SetCursorPosition(25), Times.Once);
+        _textAnalysisServiceMock.Verify(t => t.GetLineBoundaries(_textBufferServiceMock.Object, It.IsAny<int>()),
+            Times.Once);
     }
 
     [Fact]

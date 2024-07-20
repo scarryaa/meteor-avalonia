@@ -32,6 +32,8 @@ public partial class GutterView : UserControl
 
     private const double EndPadding = 10;
 
+    private const double IconSize = 12;
+    private const double IconMargin = 2;
     private Typeface _typeface;
     private double _fontSize;
     private IBrush _backgroundBrush;
@@ -71,7 +73,29 @@ public partial class GutterView : UserControl
 
         UpdateThemeResources();
 
+        PointerPressed += OnPointerPressed;
         PointerWheelChanged += OnPointerWheelChanged;
+    }
+
+    private void OnPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (ViewModel == null) return;
+
+        var point = e.GetPosition(this);
+        var lineNumber = (int)(point.Y / ViewModel.LineHeight) + 1;
+
+        if (point.X < IconSize + IconMargin * 2)
+        {
+            // Click on collapse/expand icon
+            if (ViewModel.CanCollapseLine(lineNumber)) ViewModel.ToggleLineCollapse(lineNumber);
+        }
+        else if (point.X > Bounds.Width - IconSize - IconMargin * 2)
+        {
+            // Click on breakpoint area
+            ViewModel.ToggleBreakpoint(lineNumber);
+        }
+
+        InvalidateVisual();
     }
 
     private void OnPointerWheelChanged(object? sender, PointerWheelEventArgs e)
@@ -145,12 +169,38 @@ public partial class GutterView : UserControl
 
     private void DrawCollapseExpandIcon(DrawingContext context, int lineNumber, double y)
     {
-        // TODO: Implement
+        if (ViewModel.CanCollapseLine(lineNumber))
+        {
+            var iconX = IconMargin;
+            var iconY = y + (ViewModel.LineHeight - IconSize) / 2;
+            var rect = new Rect(iconX, iconY, IconSize, IconSize);
+
+            context.DrawRectangle(null, new Pen(_defaultBrush), rect);
+
+            // Draw the plus or minus sign
+            var isCollapsed = ViewModel.IsLineCollapsed(lineNumber);
+            var middleX = iconX + IconSize / 2;
+            var middleY = iconY + IconSize / 2;
+
+            context.DrawLine(new Pen(_defaultBrush), new Point(iconX + 2, middleY),
+                new Point(iconX + IconSize - 2, middleY));
+
+            if (isCollapsed)
+                context.DrawLine(new Pen(_defaultBrush), new Point(middleX, iconY + 2),
+                    new Point(middleX, iconY + IconSize - 2));
+        }
     }
 
     private void DrawBreakpoint(DrawingContext context, int lineNumber, double y)
     {
-        // TODO: Implement
+        if (ViewModel.HasBreakpoint(lineNumber))
+        {
+            var iconX = Bounds.Width - IconSize - IconMargin;
+            var iconY = y + (ViewModel.LineHeight - IconSize) / 2;
+            var center = new Point(iconX + IconSize / 2, iconY + IconSize / 2);
+
+            context.DrawEllipse(new SolidColorBrush(Colors.Red), null, center, IconSize / 2, IconSize / 2);
+        }
     }
 
     private FormattedText GetFormattedText(int lineNumber)
