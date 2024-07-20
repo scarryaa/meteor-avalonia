@@ -5,7 +5,7 @@ using meteor.Core.Interfaces.ViewModels;
 
 namespace meteor.UI.ViewModels;
 
-public sealed class TabItemViewModel : ITabItemViewModel
+public sealed class TabItemViewModel : ITabItemViewModel, IDisposable
 {
     private int _index;
     private IEditorViewModel _editorViewModel;

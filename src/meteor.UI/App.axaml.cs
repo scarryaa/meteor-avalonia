@@ -58,9 +58,7 @@ public class App : Application
     private void ConfigureServices(IServiceCollection services)
     {
         services.AddSingleton<IRope, Rope>(sp => new Rope(""));
-        services.AddSingleton<IClipboardService>(sp =>
-            new AvaloniaClipboardService(() => GetMainWindow(sp))
-        );
+        services.AddSingleton<IClipboardService>(sp => new AvaloniaClipboardService(() => GetMainWindow(sp)));
 
         services.AddSingleton<ITabService, TabService>();
         services.AddTransient<ITextBufferService, TextBufferService>();
@@ -69,6 +67,7 @@ public class App : Application
         services.AddSingleton<ISelectionService, SelectionService>();
         services.AddSingleton<ITextAnalysisService, TextAnalysisService>();
         services.AddSingleton<IInputService, InputService>();
+
         services.AddSingleton<ITextMeasurer>(sp =>
         {
             var themeManager = sp.GetService<IThemeManager>();
@@ -82,6 +81,7 @@ public class App : Application
 
             return new AvaloniaTextMeasurer(new Typeface(fontFamily), fontSize);
         });
+
         services.AddSingleton<IEditorSizeCalculator, AvaloniaEditorSizeCalculator>();
 
         services.AddTransient<IGutterViewModel, GutterViewModel>();
@@ -91,12 +91,10 @@ public class App : Application
         services.AddTransient<IMainWindowViewModel, MainWindowViewModel>();
 
         services.AddSingleton<ITabService, TabService>();
-        services.AddTransient<IEditorViewModelFactory>(sp =>
-            new EditorViewModelFactory(sp));
+        services.AddTransient<IEditorViewModelFactory>(sp => new EditorViewModelFactory(sp));
         services.AddSingleton<ICommandFactory, CommandFactory>();
 
         services.AddSingleton<MainWindow>();
-        services.AddTransient<GutterView>();
         services.AddTransient<GutterView>();
         services.AddTransient<EditorView>();
     }

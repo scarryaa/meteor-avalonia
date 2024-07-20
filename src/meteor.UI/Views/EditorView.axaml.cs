@@ -122,7 +122,7 @@ public partial class EditorView : UserControl
 
         var updatedArgs = new Core.Models.Events.PointerPressedEventArgs(
             adaptedArgs.Index,
-            position.X - _gutterWidth,
+            position.X,
             position.Y,
             adaptedArgs.Modifiers,
             adaptedArgs.IsLeftButtonPressed,
@@ -140,7 +140,7 @@ public partial class EditorView : UserControl
 
         var updatedArgs = new Core.Models.Events.PointerEventArgs(
             index: adaptedArgs.Index,
-            x: position.X - _gutterWidth,
+            x: position.X,
             y: position.Y,
             modifiers: adaptedArgs.Modifiers,
             isLeftButtonPressed: adaptedArgs.IsLeftButtonPressed,
@@ -158,7 +158,7 @@ public partial class EditorView : UserControl
 
         var updatedArgs = new Core.Models.Events.PointerReleasedEventArgs(
             adaptedArgs.Index,
-            position.X - _gutterWidth,
+            position.X,
             position.Y,
             adaptedArgs.Modifiers,
             adaptedArgs.IsLeftButtonPressed,

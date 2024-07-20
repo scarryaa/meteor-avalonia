@@ -53,6 +53,7 @@ public class AvaloniaTextMeasurer : ITextMeasurer
         var currentIndex = 0;
         var currentLine = 0;
 
+        // Find the start of the clicked line
         while (currentIndex < textBufferService.Length && currentLine < lineNumber)
         {
             var nextNewLine = textBufferService.IndexOf('\n', currentIndex);
@@ -62,6 +63,11 @@ public class AvaloniaTextMeasurer : ITextMeasurer
             currentLine++;
         }
 
+        // If we're at the end of the text or the line is empty, return the current index
+        if (currentIndex >= textBufferService.Length || textBufferService[currentIndex] == '\n')
+            return currentIndex;
+
+        // Otherwise, calculate the position within the line
         var lineEndIndex = textBufferService.IndexOf('\n', currentIndex);
         if (lineEndIndex == -1)
             lineEndIndex = textBufferService.Length;

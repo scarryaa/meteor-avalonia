@@ -57,6 +57,8 @@ public sealed class EditorViewModel : IEditorViewModel
             if (args.PropertyName == nameof(ScrollOffset))
                 GutterViewModel.ScrollOffset = ScrollOffset.Y;
         };
+
+        TabService.TabChanged += OnTabChanged;
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -221,6 +223,13 @@ public sealed class EditorViewModel : IEditorViewModel
         UpdateLineCount();
     }
 
+    private void OnTabChanged(object sender, TabChangedEventArgs e)
+    {
+        UpdateLineCount();
+        GutterViewModel.ViewportHeight = GutterViewModel.LineCount * GutterViewModel.LineHeight;
+        OnPropertyChanged(nameof(Text));
+    }
+
     private void OnGutterScrollOffsetChanged(object? sender, double newOffset)
     {
         ScrollOffset = new Vector(ScrollOffset.X, newOffset);
@@ -266,6 +275,7 @@ public sealed class EditorViewModel : IEditorViewModel
 
     public void Dispose()
     {
-        // TODO release managed resources here
+        TabService.TabChanged -= OnTabChanged;
+        GutterViewModel.ScrollOffsetChanged -= OnGutterScrollOffsetChanged;
     }
 }
