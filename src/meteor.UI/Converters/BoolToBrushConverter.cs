@@ -10,8 +10,8 @@ public class BoolToBrushConverter : IMultiValueConverter
 {
     public object Convert(IList<object> values, Type targetType, object parameter, CultureInfo culture)
     {
-        if (values.Count == 3 && values[0] is bool isActive && values[1] is IBrush inactiveBrush &&
-            values[2] is IBrush activeBrush) return isActive ? activeBrush : inactiveBrush;
+        if (values is [bool isActive, IBrush inactiveBrush, IBrush activeBrush])
+            return isActive ? activeBrush : inactiveBrush;
 
         return Brushes.Transparent;
     }

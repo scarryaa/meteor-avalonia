@@ -19,6 +19,8 @@ public partial class EditorView : UserControl
     private Panel? _editorPanel;
     private ScrollViewer? _scrollViewer;
     private IEditorViewModel? _viewModel;
+    private GutterView? _gutterView;
+    private double _gutterWidth;
 
     public EditorView()
     {
@@ -33,7 +35,7 @@ public partial class EditorView : UserControl
         {
             throw new InvalidOperationException("Unable to access the application's service provider.");
         }
-        
+
         DataContextChanged += OnDataContextChanged;
     }
 
@@ -42,8 +44,10 @@ public partial class EditorView : UserControl
         base.OnInitialized();
         _scrollViewer = this.FindControl<ScrollViewer>("ScrollViewer");
         _editorPanel = this.FindControl<Panel>("EditorPanel");
+        _gutterView = this.FindControl<GutterView>("GutterView");
 
         if (_scrollViewer != null && _viewModel != null)
+        {
             _scrollViewer.ScrollChanged += (sender, _) =>
             {
                 if (sender is ScrollViewer scrollViewer)
@@ -53,14 +57,30 @@ public partial class EditorView : UserControl
                 }
             };
 
+            _scrollViewer.PropertyChanged += (_, e) =>
+            {
+                if (e.Property.Name == nameof(ScrollViewer.Viewport))
+                    if (_gutterView is { ViewModel: not null })
+                        _gutterView.ViewModel.ViewportHeight = _scrollViewer.Viewport.Height;
+            };
+        }
+
         PointerPressed += OnEditorPointerPressed;
         PointerMoved += OnEditorPointerMoved;
         PointerReleased += OnEditorPointerReleased;
 
         this.GetObservable(BoundsProperty).Subscribe(new AnonymousObserver<Rect>(bounds =>
         {
-            if (_viewModel != null) _viewModel.UpdateWindowSize(bounds.Width, bounds.Height);
+            if (_viewModel != null) _viewModel.UpdateWindowSize(bounds.Width, bounds.Height);   
         }));
+
+        if (_gutterView != null)
+            _gutterView.PropertyChanged += (_, __) =>
+            {
+                _gutterWidth = _gutterView.Bounds.Width;
+                InvalidateMeasure();
+                InvalidateVisual();
+            };
     }
 
     private void OnDataContextChanged(object? sender, EventArgs e)
@@ -71,13 +91,10 @@ public partial class EditorView : UserControl
             _editorRenderer.UpdateTabService(_viewModel.TabService);
             _viewModel.PropertyChanged += (_, _e) =>
             {
-                if (_e.PropertyName == nameof(IEditorViewModel.Text) ||
-                    _e.PropertyName == nameof(IEditorViewModel.HighlightingResults) ||
-                    _e.PropertyName == nameof(IEditorViewModel.Selection) ||
-                    _e.PropertyName == nameof(IEditorViewModel.CursorPosition) ||
-                    _e.PropertyName == nameof(IEditorViewModel.EditorWidth) ||
-                    _e.PropertyName == nameof(IEditorViewModel.EditorHeight) ||
-                    _e.PropertyName == nameof(IEditorViewModel.ScrollOffset))
+                if (_e.PropertyName is nameof(IEditorViewModel.Text) or nameof(IEditorViewModel.HighlightingResults)
+                    or nameof(IEditorViewModel.Selection) or nameof(IEditorViewModel.CursorPosition)
+                    or nameof(IEditorViewModel.EditorWidth) or nameof(IEditorViewModel.EditorHeight)
+                    or nameof(IEditorViewModel.ScrollOffset))
                 {
                     InvalidateMeasure();
                     InvalidateVisual();
@@ -89,13 +106,13 @@ public partial class EditorView : UserControl
 
     protected override Size MeasureOverride(Size availableSize)
     {
-        if (_viewModel == null || _editorPanel == null)
+        if (_viewModel == null || _editorPanel == null || _gutterView == null)
             return base.MeasureOverride(availableSize);
 
-        _editorPanel.Width = Math.Max(_viewModel.EditorWidth, availableSize.Width);
+        _editorPanel.Width = Math.Max(_viewModel.EditorWidth, availableSize.Width - _gutterWidth);
         _editorPanel.Height = Math.Max(_viewModel.EditorHeight, availableSize.Height);
 
-        return new Size(_editorPanel.Width, _editorPanel.Height);
+        return new Size(_editorPanel.Width + _gutterWidth, _editorPanel.Height);
     }
 
     private void OnEditorPointerPressed(object? sender, PointerPressedEventArgs e)
@@ -105,7 +122,7 @@ public partial class EditorView : UserControl
 
         var updatedArgs = new Core.Models.Events.PointerPressedEventArgs(
             adaptedArgs.Index,
-            position.X,
+            position.X - _gutterWidth,
             position.Y,
             adaptedArgs.Modifiers,
             adaptedArgs.IsLeftButtonPressed,
@@ -123,7 +140,7 @@ public partial class EditorView : UserControl
 
         var updatedArgs = new Core.Models.Events.PointerEventArgs(
             index: adaptedArgs.Index,
-            x: position.X,
+            x: position.X - _gutterWidth,
             y: position.Y,
             modifiers: adaptedArgs.Modifiers,
             isLeftButtonPressed: adaptedArgs.IsLeftButtonPressed,
@@ -141,7 +158,7 @@ public partial class EditorView : UserControl
 
         var updatedArgs = new Core.Models.Events.PointerReleasedEventArgs(
             adaptedArgs.Index,
-            position.X,
+            position.X - _gutterWidth,
             position.Y,
             adaptedArgs.Modifiers,
             adaptedArgs.IsLeftButtonPressed,
@@ -168,7 +185,7 @@ public partial class EditorView : UserControl
             e.Key == Key.Down || e.Key == Key.Up ||
             e.Key == Key.Home || e.Key == Key.End || e.Key == Key.Enter ||
             (e.KeyModifiers.HasFlag(KeyModifiers.Control) &&
-             (e.Key == Key.A || e.Key == Key.C || e.Key == Key.X || e.Key == Key.V)))
+             e.Key is Key.A or Key.C or Key.X or Key.V))
         {
             var meteorKey = KeyMapper.ToMeteorKey(e.Key);
             var meteorKeyModifiers = KeyMapper.ToMeteorKeyModifiers(e.KeyModifiers);
@@ -188,14 +205,14 @@ public partial class EditorView : UserControl
             var offset = _scrollViewer.Offset;
             var viewport = _scrollViewer.Viewport;
 
-            // Adjust the clip rectangle to match the viewport
-            var clipRect = new Rect(0, 0, viewport.Width, viewport.Height);
+            var clipRect = new Rect(_gutterWidth, 0, viewport.Width + _gutterWidth, viewport.Height);
 
             using (context.PushClip(clipRect))
             {
                 // Render the content
-                _editorRenderer.Render(context, Bounds, _viewModel.HighlightingResults,
-                    _viewModel.Selection, _viewModel.CursorPosition, offset.Y, offset.X);
+                _editorRenderer.Render(context, new Rect(_gutterWidth, 0, Bounds.Width - _gutterWidth, Bounds.Height),
+                    _viewModel.HighlightingResults,
+                    _viewModel.Selection, _viewModel.CursorPosition, offset.Y, offset.X - _gutterWidth);
             }
         }
     }

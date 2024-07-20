@@ -84,6 +84,7 @@ public class App : Application
         });
         services.AddSingleton<IEditorSizeCalculator, AvaloniaEditorSizeCalculator>();
 
+        services.AddTransient<IGutterViewModel, GutterViewModel>();
         services.AddTransient<IEditorViewModel, EditorViewModel>();
         services.AddTransient<ITabItemViewModel, TabItemViewModel>();
         services.AddSingleton<ITabViewModel, TabViewModel>();
@@ -95,15 +96,9 @@ public class App : Application
         services.AddSingleton<ICommandFactory, CommandFactory>();
 
         services.AddSingleton<MainWindow>();
-        services.AddSingleton<EditorView>(provider =>
-        {
-            var viewModel = provider.GetService<IEditorViewModel>();
-            var editorView = new EditorView
-            {
-                DataContext = viewModel
-            };
-            return editorView;
-        });
+        services.AddTransient<GutterView>();
+        services.AddTransient<GutterView>();
+        services.AddTransient<EditorView>();
     }
 
     private static Window GetMainWindow(IServiceProvider serviceProvider)

@@ -17,6 +17,7 @@ public class EditorViewModelTests
     private readonly Mock<IInputService> _mockInputService;
     private readonly Mock<ICursorService> _mockCursorService;
     private readonly Mock<IEditorSizeCalculator> _mockSizeCalculator;
+    private readonly Mock<ITextMeasurer> _mockTextMeasurer;
     private readonly EditorViewModel _viewModel;
 
     public EditorViewModelTests()
@@ -28,6 +29,7 @@ public class EditorViewModelTests
         _mockInputService = new Mock<IInputService>();
         _mockCursorService = new Mock<ICursorService>();
         _mockSizeCalculator = new Mock<IEditorSizeCalculator>();
+        _mockTextMeasurer = new Mock<ITextMeasurer>();
 
         _mockTabService.Setup(ts => ts.GetActiveTextBufferService()).Returns(_mockTextBufferService.Object);
 
@@ -38,7 +40,8 @@ public class EditorViewModelTests
             _mockSelectionService.Object,
             _mockInputService.Object,
             _mockCursorService.Object,
-            _mockSizeCalculator.Object);
+            _mockSizeCalculator.Object,
+            _mockTextMeasurer.Object);
     }
 
     [Fact]

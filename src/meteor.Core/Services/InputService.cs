@@ -108,7 +108,7 @@ public class InputService : IInputService
                 if (isCtrlPressed) await HandlePaste();
                 break;
             default:
-                if (key >= Key.A && key <= Key.Z) InsertText(key.ToString());
+                if (key is >= Key.A and <= Key.Z) InsertText(key.ToString());
                 break;
         }
     }

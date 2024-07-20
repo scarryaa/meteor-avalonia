@@ -11,11 +11,7 @@ public class BoolToResourceConverter : IMultiValueConverter
 {
     public object Convert(IList<object> values, Type targetType, object parameter, CultureInfo culture)
     {
-        if (values.Count == 4 &&
-            values[0] is bool isActive &&
-            values[1] is string inactiveKey &&
-            values[2] is string activeKey &&
-            values[3] is Control control)
+        if (values is [bool isActive, string inactiveKey, string activeKey, Control control])
         {
             var resourceKey = isActive ? activeKey : inactiveKey;
 

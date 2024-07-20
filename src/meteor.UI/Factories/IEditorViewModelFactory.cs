@@ -42,7 +42,8 @@ public class EditorViewModelFactory : IEditorViewModelFactory
             _serviceProvider.GetRequiredService<ISelectionService>(),
             _serviceProvider.GetRequiredService<IInputService>(),
             _serviceProvider.GetRequiredService<ICursorService>(),
-            _serviceProvider.GetRequiredService<IEditorSizeCalculator>()
+            _serviceProvider.GetRequiredService<IEditorSizeCalculator>(),
+            _serviceProvider.GetRequiredService<ITextMeasurer>()
         );
     }
 }

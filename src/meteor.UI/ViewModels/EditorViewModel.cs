@@ -1,4 +1,3 @@
-using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
@@ -21,14 +20,12 @@ public sealed class EditorViewModel : IEditorViewModel
     private readonly IEditorSizeCalculator _sizeCalculator;
     private readonly StringBuilder _stringBuilder = new();
     private readonly ISyntaxHighlighter _syntaxHighlighter;
-    private string _cachedText;
+    private string _cachedText = string.Empty;
     private double _editorHeight;
     private double _editorWidth;
-    private ObservableCollection<SyntaxHighlightingResult> _highlightingResults = new();
-    private double _horizontalScrollOffset;
     private bool _isTextDirty = true;
     private Vector _scrollOffset;
-    private double _verticalScrollOffset;
+    private ObservableCollection<SyntaxHighlightingResult> _highlightingResults = new();
 
     public EditorViewModel(
         ITextBufferService textBufferService,
@@ -37,7 +34,8 @@ public sealed class EditorViewModel : IEditorViewModel
         ISelectionService selectionService,
         IInputService inputService,
         ICursorService cursorService,
-        IEditorSizeCalculator sizeCalculator)
+        IEditorSizeCalculator sizeCalculator,
+        ITextMeasurer textMeasurer)
     {
         TextBufferService = textBufferService;
         TabService = tabService;
@@ -46,9 +44,24 @@ public sealed class EditorViewModel : IEditorViewModel
         _inputService = inputService;
         _cursorService = cursorService;
         _sizeCalculator = sizeCalculator;
+
+        GutterViewModel = new GutterViewModel(textMeasurer)
+        {
+            LineCount = 1
+        };
+        GutterViewModel.ScrollOffsetChanged += OnGutterScrollOffsetChanged;
+        UpdateLineCount();
+
+        PropertyChanged += (sender, args) =>
+        {
+            if (args.PropertyName == nameof(ScrollOffset))
+                GutterViewModel.ScrollOffset = ScrollOffset.Y;
+        };
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
+
+    public GutterViewModel GutterViewModel { get; }
 
     public Vector ScrollOffset
     {
@@ -60,6 +73,7 @@ public sealed class EditorViewModel : IEditorViewModel
                 _scrollOffset = value;
                 OnPropertyChanged();
                 UpdateScrollOffset(_scrollOffset);
+                GutterViewModel.ScrollOffset = value.Y;
             }
         }
     }
@@ -95,7 +109,7 @@ public sealed class EditorViewModel : IEditorViewModel
             }
         }
     }
-
+    
     public string Text
     {
         get
@@ -107,6 +121,7 @@ public sealed class EditorViewModel : IEditorViewModel
                 textBufferService.AppendTo(_stringBuilder);
                 _cachedText = _stringBuilder.ToString();
                 _isTextDirty = false;
+                UpdateLineCount();
             }
 
             return _cachedText;
@@ -121,6 +136,7 @@ public sealed class EditorViewModel : IEditorViewModel
                 _isTextDirty = false;
                 OnPropertyChanged();
                 UpdateHighlighting();
+                UpdateLineCount();
             }
         }
     }
@@ -142,6 +158,7 @@ public sealed class EditorViewModel : IEditorViewModel
     {
         ScrollOffset = offset;
         (_inputService as InputService)?.UpdateScrollOffset(offset.Y, offset.X);
+        GutterViewModel.ScrollOffset = offset.Y;
     }
 
     public void UpdateWindowSize(double width, double height)
@@ -149,13 +166,14 @@ public sealed class EditorViewModel : IEditorViewModel
         _sizeCalculator.UpdateWindowSize(width, height);
         UpdateEditorSize();
     }
-    
+
     public void DeleteText(int index, int length)
     {
         _inputService.DeleteText(index, length);
         _isTextDirty = true;
         OnPropertyChanged(nameof(Text));
         UpdateHighlighting();
+        UpdateLineCount();
     }
 
     public void OnPointerPressed(PointerPressedEventArgs e)
@@ -182,23 +200,49 @@ public sealed class EditorViewModel : IEditorViewModel
     public void OnTextInput(TextInputEventArgs e)
     {
         _inputService.HandleTextInput(e);
+        _isTextDirty = true;
         OnPropertyChanged(nameof(Text));
         OnPropertyChanged(nameof(Selection));
         OnPropertyChanged(nameof(CursorPosition));
         UpdateHighlighting();
         UpdateEditorSize();
-        _isTextDirty = true;
+        UpdateLineCount();
     }
 
     public async Task OnKeyDown(KeyEventArgs e)
     {
         await _inputService.HandleKeyDown(e.Key, e.Modifiers);
+        _isTextDirty = true;
         OnPropertyChanged(nameof(Text));
         OnPropertyChanged(nameof(Selection));
         OnPropertyChanged(nameof(CursorPosition));
         UpdateHighlighting();
         UpdateEditorSize();
-        _isTextDirty = true;
+        UpdateLineCount();
+    }
+
+    private void OnGutterScrollOffsetChanged(object? sender, double newOffset)
+    {
+        ScrollOffset = new Vector(ScrollOffset.X, newOffset);
+    }
+
+    private void UpdateLineCount()
+    {
+        var textBufferService = TabService.GetActiveTextBufferService();
+        var lineCount = 1;
+        var index = 0;
+
+        while (index < textBufferService.Length)
+        {
+            var newLineIndex = textBufferService.IndexOf('\n', index);
+            if (newLineIndex == -1)
+                break;
+
+            lineCount++;
+            index = newLineIndex + 1;
+        }
+
+        GutterViewModel.LineCount = lineCount;
     }
 
     private void UpdateEditorSize()

@@ -50,7 +50,8 @@ public class EditorViewModelIntegrationTests : IDisposable
             _selectionService,
             _inputService,
             _cursorService,
-            _editorSizeCalculator
+            _editorSizeCalculator,
+            _textMeasurer
         );
     }
 
