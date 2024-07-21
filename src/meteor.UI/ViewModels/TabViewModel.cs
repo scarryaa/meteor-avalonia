@@ -5,6 +5,7 @@ using System.Runtime.CompilerServices;
 using System.Windows.Input;
 using meteor.Core.Interfaces.Services;
 using meteor.Core.Interfaces.ViewModels;
+using meteor.Core.Models.Events;
 using meteor.UI.Factories;
 
 namespace meteor.UI.ViewModels;
@@ -27,6 +28,8 @@ public sealed class TabViewModel : ITabViewModel
         CloseTabCommand = commandFactory.CreateCommand<ITabItemViewModel>(CloseTab);
         CloseAllTabsCommand = commandFactory.CreateCommand(CloseAllTabs);
         CloseOtherTabsCommand = commandFactory.CreateCommand<ITabItemViewModel>(CloseOtherTabs);
+
+        _tabService.TabChanged += OnTabChanged;
 
         RefreshTabs();
     }
@@ -61,14 +64,14 @@ public sealed class TabViewModel : ITabViewModel
                 if (_selectedTab != null)
                 {
                     _selectedTab.IsSelected = true;
-                    _tabService.SwitchTab(_selectedTab.Index);
+                    _tabService.SelectTab(_selectedTab.Index);
                 }
 
                 OnPropertyChanged();
             }
         }
     }
-
+    
     public ICommand AddTabCommand { get; }
     public ICommand CloseTabCommand { get; }
     public ICommand CloseAllTabsCommand { get; }
@@ -77,12 +80,13 @@ public sealed class TabViewModel : ITabViewModel
     public void Dispose()
     {
         CloseAllTabs();
+        _tabService.TabChanged -= OnTabChanged;
     }
 
     private void AddTab()
     {
         var newEditor = _editorViewModelFactory.Create();
-        var newTabInfo = _tabService.AddTab(newEditor.TextBufferService);
+        var newTabInfo = _tabService.AddTab(newEditor.TextBufferService, newEditor);
         var newTabViewModel = new TabItemViewModel(newTabInfo.Index, newTabInfo.Title, newEditor);
         _tabs.Add(newTabViewModel);
         SelectedTab = newTabViewModel;
@@ -133,6 +137,28 @@ public sealed class TabViewModel : ITabViewModel
 
         var activeTabInfo = _tabService.GetActiveTab();
         SelectedTab = activeTabInfo != null ? _tabs.FirstOrDefault(t => t.Index == activeTabInfo.Index) : null;
+    }
+
+    private void OnTabChanged(object sender, TabChangedEventArgs e)
+    {
+        var activeTabInfo = e.NewTab;
+        if (activeTabInfo != null)
+        {
+            var activeTab = _tabs.FirstOrDefault(t => t.Index == activeTabInfo.Index);
+            if (activeTab != null)
+            {
+                SelectedTab = activeTab;
+
+                // Restore tab state
+                activeTab.EditorViewModel.CursorPosition = activeTabInfo.CursorPosition;
+                activeTab.EditorViewModel.Selection = activeTabInfo.Selection;
+                activeTab.EditorViewModel.ScrollOffset = activeTabInfo.ScrollOffset;
+            }
+        }
+        else
+        {
+            SelectedTab = null;
+        }
     }
 
     private void OnPropertyChanged([CallerMemberName] string propertyName = null)

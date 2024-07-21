@@ -74,11 +74,20 @@ public sealed class EditorViewModel : IEditorViewModel
         }
     }
 
-    public (int start, int length) Selection => _selectionService.GetSelection();
+    public (int start, int length) Selection
+    {
+        get => _selectionService.GetSelection();
+        set => _selectionService.SetSelection(value.start, value.length);
+    }
+
     public ITabService TabService { get; }
     public ITextBufferService TextBufferService { get; }
 
-    public int CursorPosition => _cursorService.GetCursorPosition();
+    public int CursorPosition
+    {
+        get => _cursorService.GetCursorPosition();
+        set => _cursorService.SetCursorPosition(value);
+    }
 
     public double EditorWidth
     {
@@ -217,10 +226,9 @@ public sealed class EditorViewModel : IEditorViewModel
         UpdateLineCount();
     }
 
-    private void OnTabChanged(object sender, TabChangedEventArgs e)
+    private void OnTabChanged(object? sender, TabChangedEventArgs e)
     {
         UpdateLineCount();
-        GutterViewModel.ViewportHeight = GutterViewModel.LineCount * GutterViewModel.LineHeight;
         OnPropertyChanged(nameof(Text));
     }
 

@@ -1,4 +1,6 @@
 using meteor.Core.Interfaces.Services;
+using meteor.Core.Interfaces.ViewModels;
+using meteor.Core.Models;
 using meteor.Core.Models.Events;
 using meteor.Core.Models.Tabs;
 
@@ -23,6 +25,12 @@ public class TabService : ITabService
     {
         if (_tabs.ContainsKey(tabIndex))
         {
+            // Save current tab state
+            if (_activeTabIndex != -1 && _tabs.TryGetValue(_activeTabIndex, out var currentTab))
+            {
+                // Nothing to do here
+            }
+
             _activeTabIndex = tabIndex;
             OnTabChanged(new TabChangedEventArgs(GetActiveTab()));
         }
@@ -32,10 +40,10 @@ public class TabService : ITabService
         }
     }
 
-    public TabInfo? AddTab(ITextBufferService textBufferService)
+    public TabInfo AddTab(ITextBufferService textBufferService, IEditorViewModel editorViewModel)
     {
         var tabIndex = _nextTabIndex++;
-        var newTab = new TabInfo(tabIndex, $"Tab {tabIndex}", textBufferService);
+        var newTab = new TabInfo(tabIndex, $"Tab {tabIndex}", textBufferService, editorViewModel);
         _tabs[tabIndex] = newTab;
 
         if (_activeTabIndex == -1)
@@ -80,6 +88,46 @@ public class TabService : ITabService
         }
     }
 
+    public void SelectTab(int tabIndex)
+    {
+        if (_tabs.ContainsKey(tabIndex) && _activeTabIndex != tabIndex)
+        {
+            _activeTabIndex = tabIndex;
+            OnTabChanged(new TabChangedEventArgs(GetActiveTab()));
+        }
+    }
+
+    public void UpdateTabState(int tabIndex, int cursorPosition, (int start, int length) selection, Vector scrollOffset)
+    {
+        if (_tabs.TryGetValue(tabIndex, out var tab))
+        {
+            tab.CursorPosition = cursorPosition;
+            tab.Selection = selection;
+            tab.ScrollOffset = scrollOffset;
+        }
+    }
+
+    public int GetCursorPosition()
+    {
+        if (_activeTabIndex != -1 && _tabs.TryGetValue(_activeTabIndex, out var activeTab))
+            return activeTab.EditorViewModel.CursorPosition;
+        return 0;
+    }
+
+    public (int start, int length) GetSelection()
+    {
+        if (_activeTabIndex != -1 && _tabs.TryGetValue(_activeTabIndex, out var activeTab))
+            return activeTab.EditorViewModel.Selection;
+        return (0, 0);
+    }
+
+    public Vector GetScrollOffset()
+    {
+        if (_activeTabIndex != -1 && _tabs.TryGetValue(_activeTabIndex, out var activeTab))
+            return activeTab.EditorViewModel.ScrollOffset;
+        return new Vector(0, 0);
+    }
+    
     public IEnumerable<TabInfo?> GetAllTabs()
     {
         return _tabs.Values;

@@ -82,7 +82,7 @@ public class TabViewModelTests
 
         _mockTabService.Setup(s => s.GetAllTabs()).Returns(new List<TabInfo>
         {
-            new(2, "Tab 2", new Mock<ITextBufferService>().Object)
+            new(2, "Tab 2", new Mock<ITextBufferService>().Object, new Mock<IEditorViewModel>().Object)
         });
 
         // Act

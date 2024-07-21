@@ -24,6 +24,7 @@ public class EditorViewModelIntegrationTests : IDisposable
     private readonly ITextMeasurer _textMeasurer;
     private readonly EditorViewModel _viewModel;
     private readonly EditorViewModelServiceContainer _serviceContainer;
+    private readonly EditorViewModel _editorViewModel;
     private bool _disposed;
     
     public EditorViewModelIntegrationTests()
@@ -48,9 +49,14 @@ public class EditorViewModelIntegrationTests : IDisposable
             _cursorService,
             _editorSizeCalculator
         );
+        _editorViewModel = new EditorViewModel(
+            _serviceContainer,
+            _textMeasurer
+        );
+        
         // Initialize the tab service and set up tabs
         _tabService.CloseAllTabs();
-        var tab = _tabService.AddTab(_textBufferService);
+        var tab = _tabService.AddTab(_textBufferService, _editorViewModel);
         _tabService.SwitchTab(tab.Index);
         
         _viewModel = new EditorViewModel(

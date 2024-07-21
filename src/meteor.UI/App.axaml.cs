@@ -113,7 +113,7 @@ public class App : Application
         services.AddTransient<GutterView>();
         services.AddTransient<EditorView>();
 
-        services.AddSingleton<EditorViewModelServiceContainer>(sp => new EditorViewModelServiceContainer(
+        services.AddTransient<EditorViewModelServiceContainer>(sp => new EditorViewModelServiceContainer(
             sp.GetRequiredService<ITextBufferService>(),
             sp.GetRequiredService<ITabService>(),
             sp.GetRequiredService<ISyntaxHighlighter>(),

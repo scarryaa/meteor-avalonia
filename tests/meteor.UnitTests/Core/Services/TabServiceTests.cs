@@ -1,4 +1,5 @@
 using meteor.Core.Interfaces.Services;
+using meteor.Core.Interfaces.ViewModels;
 using meteor.Core.Services;
 using Moq;
 
@@ -8,11 +9,13 @@ public class TabServiceTests
 {
     private readonly TabService _tabService;
     private readonly Mock<ITextBufferService> _mockTextBufferService;
+    private readonly Mock<IEditorViewModel> _mockEditorViewModel;
 
     public TabServiceTests()
     {
         _tabService = new TabService();
         _mockTextBufferService = new Mock<ITextBufferService>();
+        _mockEditorViewModel = new Mock<IEditorViewModel>();
     }
 
     [Fact]
@@ -27,7 +30,7 @@ public class TabServiceTests
     [Fact]
     public void GetActiveTextBufferService_WithActiveTab_ReturnsCorrectTextBufferService()
     {
-        var tabInfo = _tabService.AddTab(_mockTextBufferService.Object);
+        var tabInfo = _tabService.AddTab(_mockTextBufferService.Object, _mockEditorViewModel.Object);
         _tabService.SwitchTab(tabInfo.Index);
 
         var result = _tabService.GetActiveTextBufferService();
@@ -38,8 +41,8 @@ public class TabServiceTests
     [Fact]
     public void SwitchTab_ValidIndex_SwitchesActiveTab()
     {
-        _tabService.AddTab(_mockTextBufferService.Object);
-        var tabInfo2 = _tabService.AddTab(new Mock<ITextBufferService>().Object);
+        _tabService.AddTab(_mockTextBufferService.Object, _mockEditorViewModel.Object);
+        var tabInfo2 = _tabService.AddTab(new Mock<ITextBufferService>().Object, new Mock<IEditorViewModel>().Object);
 
         _tabService.SwitchTab(tabInfo2.Index);
 
@@ -55,8 +58,8 @@ public class TabServiceTests
     [Fact]
     public void AddTab_CreatesNewTabWithCorrectIndex()
     {
-        var tabInfo1 = _tabService.AddTab(_mockTextBufferService.Object);
-        var tabInfo2 = _tabService.AddTab(new Mock<ITextBufferService>().Object);
+        var tabInfo1 = _tabService.AddTab(_mockTextBufferService.Object, _mockEditorViewModel.Object);
+        var tabInfo2 = _tabService.AddTab(new Mock<ITextBufferService>().Object, new Mock<IEditorViewModel>().Object);
 
         Assert.Equal(1, tabInfo1.Index);
         Assert.Equal(2, tabInfo2.Index);
@@ -65,7 +68,7 @@ public class TabServiceTests
     [Fact]
     public void AddTab_SetsFirstTabAsActive()
     {
-        var tabInfo = _tabService.AddTab(_mockTextBufferService.Object);
+        var tabInfo = _tabService.AddTab(_mockTextBufferService.Object, _mockEditorViewModel.Object);
 
         Assert.Equal(tabInfo.Index, _tabService.GetActiveTab().Index);
     }
@@ -73,8 +76,8 @@ public class TabServiceTests
     [Fact]
     public void CloseTab_RemovesTabAndUpdatesActiveTab()
     {
-        var tabInfo1 = _tabService.AddTab(_mockTextBufferService.Object);
-        var tabInfo2 = _tabService.AddTab(new Mock<ITextBufferService>().Object);
+        var tabInfo1 = _tabService.AddTab(_mockTextBufferService.Object, _mockEditorViewModel.Object);
+        var tabInfo2 = _tabService.AddTab(new Mock<ITextBufferService>().Object, new Mock<IEditorViewModel>().Object);
         _tabService.SwitchTab(tabInfo2.Index);
 
         _tabService.CloseTab(tabInfo2.Index);
@@ -86,7 +89,7 @@ public class TabServiceTests
     [Fact]
     public void CloseTab_LastTab_SetsActiveTabToNull()
     {
-        var tabInfo = _tabService.AddTab(_mockTextBufferService.Object);
+        var tabInfo = _tabService.AddTab(_mockTextBufferService.Object, _mockEditorViewModel.Object);
 
         _tabService.CloseTab(tabInfo.Index);
 
@@ -97,24 +100,24 @@ public class TabServiceTests
     [Fact]
     public void CloseAllTabs_RemovesAllTabsAndResetsState()
     {
-        _tabService.AddTab(_mockTextBufferService.Object);
-        _tabService.AddTab(new Mock<ITextBufferService>().Object);
+        _tabService.AddTab(_mockTextBufferService.Object, _mockEditorViewModel.Object);
+        _tabService.AddTab(new Mock<ITextBufferService>().Object, new Mock<IEditorViewModel>().Object);
 
         _tabService.CloseAllTabs();
 
         Assert.Empty(_tabService.GetAllTabs());
         Assert.Null(_tabService.GetActiveTab());
         // Verify that the next tab index is reset
-        var newTab = _tabService.AddTab(_mockTextBufferService.Object);
+        var newTab = _tabService.AddTab(_mockTextBufferService.Object, _mockEditorViewModel.Object);
         Assert.Equal(1, newTab.Index);
     }
 
     [Fact]
     public void CloseOtherTabs_KeepsSpecifiedTabAndClosesOthers()
     {
-        _tabService.AddTab(_mockTextBufferService.Object);
-        var tabInfo2 = _tabService.AddTab(new Mock<ITextBufferService>().Object);
-        _tabService.AddTab(new Mock<ITextBufferService>().Object);
+        _tabService.AddTab(_mockTextBufferService.Object, _mockEditorViewModel.Object);
+        var tabInfo2 = _tabService.AddTab(new Mock<ITextBufferService>().Object, new Mock<IEditorViewModel>().Object);
+        _tabService.AddTab(new Mock<ITextBufferService>().Object, new Mock<IEditorViewModel>().Object);
 
         _tabService.CloseOtherTabs(tabInfo2.Index);
 
@@ -127,8 +130,8 @@ public class TabServiceTests
     [Fact]
     public void CloseOtherTabs_InvalidIndex_DoesNothing()
     {
-        _tabService.AddTab(_mockTextBufferService.Object);
-        _tabService.AddTab(new Mock<ITextBufferService>().Object);
+        _tabService.AddTab(_mockTextBufferService.Object, _mockEditorViewModel.Object);
+        _tabService.AddTab(new Mock<ITextBufferService>().Object, new Mock<IEditorViewModel>().Object);
 
         _tabService.CloseOtherTabs(999);
 
@@ -138,8 +141,8 @@ public class TabServiceTests
     [Fact]
     public void GetAllTabs_ReturnsAllTabs()
     {
-        _tabService.AddTab(_mockTextBufferService.Object);
-        _tabService.AddTab(new Mock<ITextBufferService>().Object);
+        _tabService.AddTab(_mockTextBufferService.Object, _mockEditorViewModel.Object);
+        _tabService.AddTab(new Mock<ITextBufferService>().Object, new Mock<IEditorViewModel>().Object);
 
         var allTabs = _tabService.GetAllTabs().ToList();
 
@@ -157,8 +160,8 @@ public class TabServiceTests
     [Fact]
     public void GetActiveTab_WithActiveTabs_ReturnsCorrectTab()
     {
-        _tabService.AddTab(_mockTextBufferService.Object);
-        var tabInfo2 = _tabService.AddTab(new Mock<ITextBufferService>().Object);
+        _tabService.AddTab(_mockTextBufferService.Object, _mockEditorViewModel.Object);
+        var tabInfo2 = _tabService.AddTab(new Mock<ITextBufferService>().Object, new Mock<IEditorViewModel>().Object);
         _tabService.SwitchTab(tabInfo2.Index);
 
         var activeTab = _tabService.GetActiveTab();

@@ -17,24 +17,34 @@ public class EditorViewModelTests
     private readonly Mock<IEditorSizeCalculator> _mockSizeCalculator;
     private readonly Mock<ITextMeasurer> _mockTextMeasurer;
     private readonly EditorViewModel _viewModel;
-    private readonly Mock<EditorViewModelServiceContainer> _mockEditorViewModelServiceContainer;
+    private readonly EditorViewModelServiceContainer _editorViewModelServiceContainer;
 
     public EditorViewModelTests()
     {
         _mockTextBufferService = new Mock<ITextBufferService>();
         _mockTabService = new Mock<ITabService>();
-        new Mock<ISyntaxHighlighter>();
-        new Mock<ISelectionService>();
+        var mockSyntaxHighlighter = new Mock<ISyntaxHighlighter>();
+        var mockSelectionService = new Mock<ISelectionService>();
         _mockInputService = new Mock<IInputService>();
-        new Mock<ICursorService>();
+        var mockCursorService = new Mock<ICursorService>();
         _mockSizeCalculator = new Mock<IEditorSizeCalculator>();
         _mockTextMeasurer = new Mock<ITextMeasurer>();
-        _mockEditorViewModelServiceContainer = new Mock<EditorViewModelServiceContainer>();
+
+        // Create a concrete instance of EditorViewModelServiceContainer with mocked dependencies
+        _editorViewModelServiceContainer = new EditorViewModelServiceContainer(
+            _mockTextBufferService.Object,
+            _mockTabService.Object,
+            mockSyntaxHighlighter.Object,
+            mockSelectionService.Object,
+            _mockInputService.Object,
+            mockCursorService.Object,
+            _mockSizeCalculator.Object
+        );
 
         _mockTabService.Setup(ts => ts.GetActiveTextBufferService()).Returns(_mockTextBufferService.Object);
 
         _viewModel = new EditorViewModel(
-            _mockEditorViewModelServiceContainer.Object,
+            _editorViewModelServiceContainer,
             _mockTextMeasurer.Object
         );
     }

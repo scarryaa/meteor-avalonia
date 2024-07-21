@@ -60,8 +60,8 @@ public class RopeTests
     public void Indexer_InvalidIndex_ThrowsIndexOutOfRangeException()
     {
         var rope = new Rope("hello");
-        Assert.Throws<IndexOutOfRangeException>(() => rope[-1]);
-        Assert.Throws<IndexOutOfRangeException>(() => rope[5]);
+        Assert.Throws<ArgumentOutOfRangeException>(() => rope[-1]);
+        Assert.Throws<ArgumentOutOfRangeException>(() => rope[5]);
     }
 
     [Fact]
@@ -76,8 +76,8 @@ public class RopeTests
     public void Insert_InvalidIndex_ThrowsIndexOutOfRangeException()
     {
         var rope = new Rope("hello");
-        Assert.Throws<IndexOutOfRangeException>(() => rope.Insert(-1, "world"));
-        Assert.Throws<IndexOutOfRangeException>(() => rope.Insert(6, "world"));
+        Assert.Throws<ArgumentOutOfRangeException>(() => rope.Insert(-1, "world"));
+        Assert.Throws<ArgumentOutOfRangeException>(() => rope.Insert(6, "world"));
     }
 
     [Fact]
@@ -92,8 +92,8 @@ public class RopeTests
     public void Delete_InvalidIndexOrLength_ThrowsIndexOutOfRangeException()
     {
         var rope = new Rope("hello world");
-        Assert.Throws<IndexOutOfRangeException>(() => rope.Delete(-1, 5));
-        Assert.Throws<IndexOutOfRangeException>(() => rope.Delete(6, 6));
+        Assert.Throws<ArgumentOutOfRangeException>(() => rope.Delete(-1, 5));
+        Assert.Throws<ArgumentOutOfRangeException>(() => rope.Delete(6, 6));
     }
 
     [Fact]
@@ -219,13 +219,13 @@ public class RopeTests
     {
         var rope = new Rope("a");
         Assert.Equal('a', rope[0]);
-        Assert.Throws<IndexOutOfRangeException>(() => rope[-1]);
-        Assert.Throws<IndexOutOfRangeException>(() => rope[1]);
+        Assert.Throws<ArgumentOutOfRangeException>(() => rope[-1]);
+        Assert.Throws<ArgumentOutOfRangeException>(() => rope[1]);
         var rope2 = new Rope("ab");
         Assert.Equal('a', rope2[0]);
         Assert.Equal('b', rope2[1]);
-        Assert.Throws<IndexOutOfRangeException>(() => rope2[-1]);
-        Assert.Throws<IndexOutOfRangeException>(() => rope2[2]);
+        Assert.Throws<ArgumentOutOfRangeException>(() => rope2[-1]);
+        Assert.Throws<ArgumentOutOfRangeException>(() => rope2[2]);
     }
 
     [Fact]

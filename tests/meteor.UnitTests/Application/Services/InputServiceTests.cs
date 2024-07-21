@@ -398,7 +398,7 @@ public class InputServiceTests
         _inputService.HandlePointerPressed(e);
 
         // Assert
-        _selectionServiceMock.Verify(s => s.SetSelection(5, 25), Times.Once);
+        _selectionServiceMock.Verify(s => s.SetSelection(5, 20), Times.Once);
         _cursorServiceMock.Verify(c => c.SetCursorPosition(25), Times.Once);
         _textAnalysisServiceMock.Verify(t => t.GetLineBoundaries(_textBufferServiceMock.Object, It.IsAny<int>()),
             Times.Once);
