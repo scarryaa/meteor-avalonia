@@ -30,6 +30,7 @@ public sealed class EditorViewModel : IEditorViewModel
     private bool _isTextDirty = true;
     private Vector _scrollOffset;
     private double _maxScrollHeight;
+    private int _currentLine;
     private ObservableCollection<SyntaxHighlightingResult> _highlightingResults = new();
 
     public EditorViewModel(EditorViewModelServiceContainer serviceContainer, ITextMeasurer textMeasurer)
@@ -62,6 +63,20 @@ public sealed class EditorViewModel : IEditorViewModel
 
     public GutterViewModel GutterViewModel { get; }
 
+    public int CurrentLine
+    {
+        get => _currentLine;
+        set
+        {
+            if (_currentLine != value)
+            {
+                _currentLine = value;
+                OnPropertyChanged();
+                UpdateGutterCurrentLine();
+            }
+        }
+    }
+    
     public Vector ScrollOffset
     {
         get => _scrollOffset;
@@ -93,10 +108,16 @@ public sealed class EditorViewModel : IEditorViewModel
 
     public int CursorPosition
     {
-        get => _cursorService.GetCursorPosition();
+        get
+        {
+            var position = _cursorService.GetCursorPosition();
+            SynchronizeCurrentLine(position);
+            return position;
+        }
         set
         {
             _cursorService.SetCursorPosition(value);
+            SynchronizeCurrentLine(value);
             UpdateTabState();
         }
     }
@@ -206,11 +227,17 @@ public sealed class EditorViewModel : IEditorViewModel
         OnPropertyChanged(nameof(Text));
         UpdateHighlighting();
         UpdateLineCount();
+        CursorPosition = Math.Max(0, index - length);
     }
 
     public void RaiseInvalidateMeasure()
     {
         InvalidateMeasureRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void UpdateGutterCurrentLine()
+    {
+        GutterViewModel.CurrentLine = CurrentLine;
     }
 
     public void DispatcherInvoke(Action action)
@@ -221,6 +248,7 @@ public sealed class EditorViewModel : IEditorViewModel
     public void OnPointerPressed(PointerPressedEventArgs e)
     {
         _inputService.HandlePointerPressed(e);
+        CursorPosition = _cursorService.GetCursorPosition();
         OnPropertyChanged(nameof(Selection));
         OnPropertyChanged(nameof(CursorPosition));
     }
@@ -228,6 +256,7 @@ public sealed class EditorViewModel : IEditorViewModel
     public void OnPointerMoved(PointerEventArgs e)
     {
         _inputService.HandlePointerMoved(e);
+        CursorPosition = _cursorService.GetCursorPosition();
         OnPropertyChanged(nameof(Selection));
         OnPropertyChanged(nameof(CursorPosition));
     }
@@ -245,6 +274,7 @@ public sealed class EditorViewModel : IEditorViewModel
         _isTextDirty = true;
         OnPropertyChanged(nameof(Text));
         OnPropertyChanged(nameof(Selection));
+        SynchronizeCurrentLine(_cursorService.GetCursorPosition());
         OnPropertyChanged(nameof(CursorPosition));
         UpdateHighlighting();
         UpdateEditorSize();
@@ -257,12 +287,18 @@ public sealed class EditorViewModel : IEditorViewModel
         _isTextDirty = true;
         OnPropertyChanged(nameof(Text));
         OnPropertyChanged(nameof(Selection));
+        SynchronizeCurrentLine(_cursorService.GetCursorPosition());
         OnPropertyChanged(nameof(CursorPosition));
         UpdateHighlighting();
         UpdateEditorSize();
         UpdateLineCount();
     }
 
+    private void SynchronizeCurrentLine(int cursorPosition)
+    {
+        CurrentLine = TextBufferService.GetLineNumberFromPosition(cursorPosition);
+    }
+    
     private void OnTabChanged(object? sender, TabChangedEventArgs e)
     {
         UpdateLineCount();

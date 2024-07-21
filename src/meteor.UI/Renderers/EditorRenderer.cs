@@ -27,6 +27,7 @@ public class EditorRenderer : IDisposable
     private ITabService _tabService;
     private int _totalLines;
 
+    private IBrush _highlightBrush;
     private IBrush _commentBrush;
     private IPen _cursorPen;
     private double _fontSize;
@@ -71,6 +72,7 @@ public class EditorRenderer : IDisposable
         _plainTextBrush = new SolidColorBrush(Color.Parse(baseTheme["Text"].ToString()));
         _selectionBrush = new SolidColorBrush(Color.Parse(baseTheme["TextEditorSelection"].ToString()));
         _stringBrush = new SolidColorBrush(Color.Parse(baseTheme["StringColor"].ToString()));
+        _highlightBrush = new SolidColorBrush(Color.Parse(baseTheme["GutterHighlight"].ToString()));
 
         _textMeasurer = new AvaloniaTextMeasurer(_typeface, _fontSize);
     }
@@ -89,7 +91,7 @@ public class EditorRenderer : IDisposable
         _totalLines = 0;
         var currentIndex = 0;
 
-        while (currentIndex <= textBufferService.Length) // Changed < to <=
+        while (currentIndex <= textBufferService.Length)
         {
             var lineEndIndex = textBufferService.IndexOf('\n', currentIndex);
             if (lineEndIndex == -1) lineEndIndex = textBufferService.Length;
@@ -99,7 +101,7 @@ public class EditorRenderer : IDisposable
             _totalLines++;
 
             if (lineEndIndex == textBufferService.Length)
-                break; // Exit the loop after adding the last line
+                break;
 
             currentIndex = lineEndIndex + 1;
         }
@@ -129,12 +131,12 @@ public class EditorRenderer : IDisposable
             var renderContext = new RenderLineContext(lineStart, lineLength, lineY,
                 highlightingResults, selection, cursorPosition, offsetX);
 
-            RenderLine(context, textBufferService, renderContext);
+            RenderLine(context, textBufferService, renderContext, bounds);
         }
     }
 
     private void RenderLine(DrawingContext context, ITextBufferService textBufferService,
-        RenderLineContext renderContext)
+        RenderLineContext renderContext, Rect bounds)
     {
         DrawLineSelection(context, textBufferService, renderContext);
 
@@ -154,6 +156,15 @@ public class EditorRenderer : IDisposable
 
         ApplySyntaxHighlighting(formattedText, renderContext.LineStart, renderContext.LineLength,
             renderContext.HighlightingResults);
+
+        var currentLineNumber = _tabService.GetActiveTab().EditorViewModel.CurrentLine - 1;
+
+        var renderLineNumber = _lineInfo.FindIndex(info => info.start == renderContext.LineStart);
+
+        if (currentLineNumber == renderLineNumber)
+            context.FillRectangle(_highlightBrush,
+                new Rect(0, renderContext.LineY, bounds.X + bounds.Width,
+                    _textMeasurer.GetLineHeight()));
 
         context.DrawText(formattedText, new Point(-renderContext.OffsetX, renderContext.LineY));
 

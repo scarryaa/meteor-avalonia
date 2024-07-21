@@ -17,4 +17,5 @@ public interface ITextBufferService
     void AppendTo(StringBuilder sb);
     public string Substring(int start, int length);
     ReadOnlySpan<char> AsSpan(int start, int length);
+    int GetLineNumberFromPosition(int index);
 }

@@ -72,6 +72,20 @@ public class TextBufferService : ITextBufferService
         return new ReadOnlySpan<char>(_spanBuffer, 0, length);
     }
 
+    public int GetLineNumberFromPosition(int index)
+    {
+        if (index < 0 || index > Length)
+            throw new ArgumentOutOfRangeException(nameof(index));
+
+        var lineNumber = 1;
+
+        for (var i = 0; i < index; i++)
+            if (_textBuffer[i] == '\n')
+                lineNumber++;
+
+        return lineNumber;
+    }
+
     public void AppendTo(StringBuilder sb)
     {
         _textBuffer.GetTextSegment(0, _textBuffer.Length, sb);

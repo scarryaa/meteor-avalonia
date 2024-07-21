@@ -10,7 +10,8 @@ namespace meteor.Core.Interfaces.ViewModels;
 public interface IEditorViewModel : INotifyPropertyChanged, IDisposable
 {
     event EventHandler InvalidateMeasureRequested;
-    
+
+    int CurrentLine { get; set; }
     string Text { get; set; }
     (int start, int length) Selection { get; set; }
     int CursorPosition { get; set; }
