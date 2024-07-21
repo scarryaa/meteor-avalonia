@@ -74,6 +74,7 @@ public class App : Application
         services.AddSingleton<IRope, Rope>(sp => new Rope(""));
         services.AddSingleton<IClipboardService>(sp => new AvaloniaClipboardService(() => GetMainWindow(sp)));
 
+        services.AddSingleton<IScrollManager, ScrollManager>();
         services.AddSingleton<ITabService, TabService>();
         services.AddTransient<ITextBufferService, TextBufferService>();
         services.AddSingleton<ISyntaxHighlighter, SyntaxHighlighter>();     

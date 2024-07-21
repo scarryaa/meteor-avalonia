@@ -16,6 +16,8 @@ namespace meteor.UI.ViewModels;
 
 public sealed class EditorViewModel : IEditorViewModel
 {
+    private double _viewportHeight;
+    private double _viewportWidth;
     private bool _suppressNotifications;
     private const double Epsilon = 0.000001;
     private readonly ICursorService _cursorService;
@@ -24,6 +26,7 @@ public sealed class EditorViewModel : IEditorViewModel
     private readonly IEditorSizeCalculator _sizeCalculator;
     private readonly StringBuilder _stringBuilder = new();
     private readonly ISyntaxHighlighter _syntaxHighlighter;
+    private readonly IScrollManager _scrollManager;
     private string _cachedText = string.Empty;
     private double _editorHeight;
     private double _editorWidth;
@@ -33,7 +36,8 @@ public sealed class EditorViewModel : IEditorViewModel
     private int _currentLine;
     private ObservableCollection<SyntaxHighlightingResult> _highlightingResults = new();
 
-    public EditorViewModel(EditorViewModelServiceContainer serviceContainer, ITextMeasurer textMeasurer)
+    public EditorViewModel(EditorViewModelServiceContainer serviceContainer, ITextMeasurer textMeasurer,
+        IScrollManager scrollManager)
     {
         TextBufferService = serviceContainer.TextBufferService;
         TabService = serviceContainer.TabService;
@@ -42,6 +46,7 @@ public sealed class EditorViewModel : IEditorViewModel
         _inputService = serviceContainer.InputService;
         _cursorService = serviceContainer.CursorService;
         _sizeCalculator = serviceContainer.SizeCalculator;
+        _scrollManager = scrollManager;
 
         GutterViewModel = new GutterViewModel(textMeasurer)
         {
@@ -76,7 +81,7 @@ public sealed class EditorViewModel : IEditorViewModel
             }
         }
     }
-    
+
     public Vector ScrollOffset
     {
         get => _scrollOffset;
@@ -268,7 +273,7 @@ public sealed class EditorViewModel : IEditorViewModel
         OnPropertyChanged(nameof(CursorPosition));
     }
 
-    public void OnTextInput(TextInputEventArgs e)
+    public async void OnTextInput(TextInputEventArgs e)
     {
         _inputService.HandleTextInput(e);
         _isTextDirty = true;
@@ -279,6 +284,10 @@ public sealed class EditorViewModel : IEditorViewModel
         UpdateHighlighting();
         UpdateEditorSize();
         UpdateLineCount();
+        var offset = await _scrollManager.CalculateScrollOffsetAsync(CursorPosition, EditorWidth, EditorHeight,
+            _viewportWidth,
+            _viewportHeight, new Vector(ScrollOffset.X, ScrollOffset.Y), Text.Length);
+        UpdateScrollOffset(offset);
     }
 
     public async Task OnKeyDown(KeyEventArgs e)
@@ -292,13 +301,17 @@ public sealed class EditorViewModel : IEditorViewModel
         UpdateHighlighting();
         UpdateEditorSize();
         UpdateLineCount();
+        var offset = await _scrollManager.CalculateScrollOffsetAsync(CursorPosition, EditorWidth, EditorHeight,
+            _viewportWidth,
+            _viewportHeight, new Vector(ScrollOffset.X, ScrollOffset.Y), Text.Length);
+        UpdateScrollOffset(offset);
     }
 
     private void SynchronizeCurrentLine(int cursorPosition)
     {
         CurrentLine = TextBufferService.GetLineNumberFromPosition(cursorPosition);
     }
-    
+
     private void OnTabChanged(object? sender, TabChangedEventArgs e)
     {
         UpdateLineCount();
@@ -338,6 +351,16 @@ public sealed class EditorViewModel : IEditorViewModel
         MaxScrollHeight = Math.Max(0, EditorHeight);
     }
 
+    public void UpdateViewportSize(double width, double height)
+    {
+        if (Math.Abs(_viewportWidth - width) > Epsilon || Math.Abs(_viewportHeight - height) > Epsilon)
+        {
+            _viewportWidth = width;
+            _viewportHeight = height;
+            UpdateScrollOffset(ScrollOffset);
+        }
+    }
+
     private void UpdateHighlighting()
     {
         var results = _syntaxHighlighter.Highlight(Text);
@@ -353,11 +376,12 @@ public sealed class EditorViewModel : IEditorViewModel
             TabService.UpdateTabState(activeTabInfo.Index, CursorPosition, Selection, ScrollOffset, MaxScrollHeight);
     }
 
-    public void UpdateEditorSize(double width, double height, double viewportHeight)
+    public void UpdateEditorSize(double width, double height, double viewportHeight, double viewportWidth)
     {
         EditorWidth = width;
         EditorHeight = height;
         MaxScrollHeight = Math.Max(0, EditorHeight - viewportHeight);
+        UpdateViewportSize(viewportWidth, viewportHeight);
         UpdateTabState();
     }
 

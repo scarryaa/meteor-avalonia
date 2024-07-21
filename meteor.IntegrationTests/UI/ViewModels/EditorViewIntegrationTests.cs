@@ -25,6 +25,7 @@ public class EditorViewModelIntegrationTests : IDisposable
     private readonly EditorViewModel _viewModel;
     private readonly EditorViewModelServiceContainer _serviceContainer;
     private readonly EditorViewModel _editorViewModel;
+    private readonly IScrollManager _scrollManager;
     private bool _disposed;
     
     public EditorViewModelIntegrationTests()
@@ -37,6 +38,7 @@ public class EditorViewModelIntegrationTests : IDisposable
         _textAnalysisService = new TextAnalysisService();
         _clipboardService = new MockClipboardService();
         _textMeasurer = new AvaloniaTextMeasurer(new Typeface("Consolas"), 13);
+        _scrollManager = new ScrollManager(_tabService, _textMeasurer);
         _inputService = new InputService(_tabService, _cursorService, _textAnalysisService, _selectionService,
             _clipboardService, _textMeasurer);
         _editorSizeCalculator = new AvaloniaEditorSizeCalculator(_textMeasurer);
@@ -51,7 +53,8 @@ public class EditorViewModelIntegrationTests : IDisposable
         );
         _editorViewModel = new EditorViewModel(
             _serviceContainer,
-            _textMeasurer
+            _textMeasurer,
+            _scrollManager
         );
         
         // Initialize the tab service and set up tabs
@@ -61,7 +64,8 @@ public class EditorViewModelIntegrationTests : IDisposable
         
         _viewModel = new EditorViewModel(
             _serviceContainer,
-            _textMeasurer
+            _textMeasurer,
+            _scrollManager
         );
     }
 

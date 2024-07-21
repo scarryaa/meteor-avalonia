@@ -228,8 +228,9 @@ public partial class EditorView : UserControl
         if (_viewModel != null && _scrollViewer != null)
         {
             var viewportHeight = _scrollViewer.Viewport.Height;
+            var viewportWidth = _scrollViewer.Viewport.Width;
             var extentHeight = _scrollViewer.Extent.Height;
-            _viewModel.UpdateEditorSize(_viewModel.EditorWidth, extentHeight, viewportHeight);
+            _viewModel.UpdateEditorSize(_viewModel.EditorWidth, extentHeight, viewportHeight, viewportWidth);
         }
     }
 

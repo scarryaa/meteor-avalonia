@@ -30,7 +30,7 @@ public interface IEditorViewModel : INotifyPropertyChanged, IDisposable
     void SuppressNotifications(bool suppress);
     void RaiseInvalidateMeasure();
     void UpdateScrollOffset(Vector offset);
-    void UpdateEditorSize(double width, double height, double viewportHeight);
+    void UpdateEditorSize(double width, double height, double viewportHeight, double viewportWidth);
     void UpdateWindowSize(double width, double height);
     void OnPointerPressed(PointerPressedEventArgs e);
     void OnPointerMoved(PointerEventArgs e);

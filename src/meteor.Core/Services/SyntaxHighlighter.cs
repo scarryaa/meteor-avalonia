@@ -27,6 +27,13 @@ public class SyntaxHighlighter : ISyntaxHighlighter
 
         var textBufferService = _tabService.GetActiveTextBufferService();
 
+        if (textBufferService == null)
+        {
+            // Log this unexpected state
+            Console.WriteLine("Warning: TextBufferService is null in SyntaxHighlighter.Highlight");
+            return Enumerable.Empty<SyntaxHighlightingResult>();
+        }
+
         if (changeInfo != null)
         {
             UpdateHighlighting(changeInfo, textBufferService);
@@ -42,8 +49,11 @@ public class SyntaxHighlighter : ISyntaxHighlighter
         return _cachedResults;
     }
 
+
     private void HighlightEntireText(string text)
     {
+        if (string.IsNullOrEmpty(text)) return;
+
         var span = text.AsSpan();
         var inString = false;
         var stringStart = -1;

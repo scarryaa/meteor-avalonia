@@ -29,6 +29,7 @@ public class EditorViewModelTests
         var mockCursorService = new Mock<ICursorService>();
         _mockSizeCalculator = new Mock<IEditorSizeCalculator>();
         _mockTextMeasurer = new Mock<ITextMeasurer>();
+        var mockScrollManager = new Mock<IScrollManager>();
 
         // Create a concrete instance of EditorViewModelServiceContainer with mocked dependencies
         _editorViewModelServiceContainer = new EditorViewModelServiceContainer(
@@ -45,7 +46,8 @@ public class EditorViewModelTests
 
         _viewModel = new EditorViewModel(
             _editorViewModelServiceContainer,
-            _mockTextMeasurer.Object
+            _mockTextMeasurer.Object,
+            mockScrollManager.Object
         );
     }
 

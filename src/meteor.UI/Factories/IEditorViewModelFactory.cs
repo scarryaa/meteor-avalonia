@@ -30,7 +30,8 @@ public class EditorViewModelFactory : IEditorViewModelFactory
     {
         return new EditorViewModel(
             _serviceProvider.GetRequiredService<EditorViewModelServiceContainer>(),
-            _serviceProvider.GetRequiredService<ITextMeasurer>()
+            _serviceProvider.GetRequiredService<ITextMeasurer>(),
+            _serviceProvider.GetRequiredService<IScrollManager>()
         );
     }
 }

@@ -18,4 +18,7 @@ public interface ITextBufferService
     public string Substring(int start, int length);
     ReadOnlySpan<char> AsSpan(int start, int length);
     int GetLineNumberFromPosition(int index);
+    (int X, int Y) CalculatePositionFromIndex(int index, ITextMeasurer textMeasurer);
+    int GetLineCount();
+    string GetLineText(int lineNumber);
 }
