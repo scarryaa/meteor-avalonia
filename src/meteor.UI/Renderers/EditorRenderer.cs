@@ -123,7 +123,7 @@ public class EditorRenderer : IDisposable
 
         for (var lineNumber = firstVisibleLine; lineNumber <= lastVisibleLine; lineNumber++)
         {
-            if (lineNumber >= _lineInfo.Count) break;
+            if (lineNumber >= _lineInfo.Count) break;   
 
             var (lineStart, lineLength) = _lineInfo[lineNumber];
             var lineY = lineNumber * lineHeight - scrollOffset;
@@ -138,7 +138,17 @@ public class EditorRenderer : IDisposable
     private void RenderLine(DrawingContext context, ITextBufferService textBufferService,
         RenderLineContext renderContext, Rect bounds)
     {
-        DrawLineSelection(context, textBufferService, renderContext);
+        var lineHeight = _textMeasurer.GetLineHeight();
+
+        // Draw line highlight first, but handle intersection with selection
+        var currentLineNumber = _tabService.GetActiveTab().EditorViewModel.CurrentLine - 1;
+        var renderLineNumber = _lineInfo.FindIndex(info => info.start == renderContext.LineStart);
+
+        if (currentLineNumber == renderLineNumber)
+            DrawLineHighlight(context, textBufferService, renderContext, bounds, lineHeight);
+
+        // Draw selection after line highlight
+        DrawLineSelection(context, textBufferService, renderContext, lineHeight);
 
         var sb = new StringBuilder(renderContext.LineLength);
         textBufferService.GetTextSegment(renderContext.LineStart, renderContext.LineLength, sb);
@@ -157,17 +167,12 @@ public class EditorRenderer : IDisposable
         ApplySyntaxHighlighting(formattedText, renderContext.LineStart, renderContext.LineLength,
             renderContext.HighlightingResults);
 
-        var currentLineNumber = _tabService.GetActiveTab().EditorViewModel.CurrentLine - 1;
+        // Calculate the vertical offset to center the text
+        var textHeight = formattedText.Height;
+        var verticalOffset = (lineHeight - textHeight) / 2;
 
-        var renderLineNumber = _lineInfo.FindIndex(info => info.start == renderContext.LineStart);
-
-        if (currentLineNumber == renderLineNumber)
-            context.FillRectangle(_highlightBrush,
-                new Rect(0, renderContext.LineY, bounds.X + bounds.Width,
-                    _textMeasurer.GetLineHeight()));
-
-        context.DrawText(formattedText, new Point(-renderContext.OffsetX, renderContext.LineY));
-
+        context.DrawText(formattedText, new Point(-renderContext.OffsetX, renderContext.LineY + verticalOffset));
+        
         if (_showCursor && renderContext.CursorPosition >= renderContext.LineStart &&
             renderContext.CursorPosition <= renderContext.LineStart + renderContext.LineLength)
         {
@@ -180,12 +185,63 @@ public class EditorRenderer : IDisposable
 
             context.DrawLine(_cursorPen,
                 new Point(cursorX - renderContext.OffsetX + 1, renderContext.LineY),
-                new Point(cursorX - renderContext.OffsetX + 1, renderContext.LineY + _textMeasurer.GetLineHeight()));
+                new Point(cursorX - renderContext.OffsetX + 1, renderContext.LineY + lineHeight));
+        }
+    }
+
+    private void DrawLineHighlight(DrawingContext context, ITextBufferService textBufferService,
+        RenderLineContext renderContext, Rect bounds, double lineHeight)
+    {
+        var lineStart = renderContext.LineStart;
+        var lineEnd = lineStart + renderContext.LineLength;
+        var selectionStart = renderContext.Selection.start;
+        var selectionEnd = selectionStart + renderContext.Selection.length;
+
+        if (renderContext.Selection.length == 0 || selectionEnd <= lineStart || selectionStart >= lineEnd)
+        {
+            context.FillRectangle(_highlightBrush,
+                new Rect(0, renderContext.LineY, bounds.X + bounds.Width, lineHeight));
+            return;
+        }
+
+        double startX, width;
+
+        // Part before the selection
+        if (selectionStart > lineStart)
+        {
+            startX = 0;
+            width = GetXPositionForIndex(textBufferService, lineStart, selectionStart - lineStart) -
+                    renderContext.OffsetX;
+            context.FillRectangle(_highlightBrush,
+                new Rect(startX, renderContext.LineY, width, lineHeight));
+        }
+
+        // Part after the selection
+        if (selectionEnd < lineEnd)
+        {
+            startX = GetXPositionForIndex(textBufferService, lineStart, selectionEnd - lineStart) -
+                     renderContext.OffsetX;
+            width = bounds.X + bounds.Width - startX;
+            context.FillRectangle(_highlightBrush,
+                new Rect(startX, renderContext.LineY, width, lineHeight));
+        }
+        else if (selectionEnd == lineEnd)
+        {
+            startX = GetXPositionForIndex(textBufferService, lineStart, selectionEnd - lineStart) -
+                     renderContext.OffsetX;
+            width = bounds.Width;
+            context.FillRectangle(_highlightBrush,
+                new Rect(startX, renderContext.LineY, width, lineHeight));
+        }
+        else
+        {
+            context.FillRectangle(_highlightBrush,
+                new Rect(0, renderContext.LineY, bounds.Width + 200, lineHeight));
         }
     }
 
     private void DrawLineSelection(DrawingContext context, ITextBufferService textBufferService,
-        RenderLineContext renderContext)
+        RenderLineContext renderContext, double lineHeight)
     {
         var lineEnd = renderContext.LineStart + renderContext.LineLength;
 
@@ -206,8 +262,7 @@ public class EditorRenderer : IDisposable
                     : GetXPositionForIndex(textBufferService, renderContext.LineStart, renderContext.LineLength);
 
                 context.DrawRectangle(_selectionBrush, null,
-                    new Rect(startX - renderContext.OffsetX, renderContext.LineY, endX - startX,
-                        _textMeasurer.GetLineHeight()));
+                    new Rect(startX - renderContext.OffsetX, renderContext.LineY, endX - startX, lineHeight));
             }
         }
     }
@@ -249,12 +304,9 @@ public class EditorRenderer : IDisposable
         {
             if (disposing)
             {
-                // Dispose managed resources
                 _cursorBlinkTimer.Stop();
                 _cursorBlinkTimer = null;
             }
-
-            // Dispose unmanaged resources here, if any
 
             _disposed = true;
         }

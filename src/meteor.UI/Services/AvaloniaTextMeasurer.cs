@@ -35,7 +35,7 @@ public sealed class AvaloniaTextMeasurer : ITextMeasurer
             _fontSize,
             Brushes.Transparent
         );
-        _lineHeight = formattedText.Height;
+        _lineHeight = formattedText.Height * 1.25;
 
         _singleCharLayout = CreateTextLayout("X");
         _textLayoutCache = new LruCache<string, TextLayout>(MaxCacheSize);

@@ -5,6 +5,7 @@ namespace meteor.UI.Services;
 
 public class AvaloniaEditorSizeCalculator : IEditorSizeCalculator
 {
+    private const double WidthPadding = 100;
     private const int ChunkSize = 4096;
     private readonly char[] _buffer = new char[ChunkSize];
     private readonly double _cachedLineHeight;
@@ -27,8 +28,8 @@ public class AvaloniaEditorSizeCalculator : IEditorSizeCalculator
         if (textBufferService.Length != _cachedTextLength)
             UpdateCache(textBufferService);
 
-        var contentWidth = Math.Max(_cachedMaxLineWidth, _windowWidth);
-        var contentHeight = Math.Max(_cachedLineHeight * _cachedLineCount, _windowHeight);
+        var contentWidth = Math.Max(_cachedMaxLineWidth + WidthPadding, _windowWidth);
+        var contentHeight = Math.Max(_cachedLineHeight * _cachedLineCount + _cachedLineHeight * 5, _windowHeight);
 
         return (contentWidth, contentHeight);
     }

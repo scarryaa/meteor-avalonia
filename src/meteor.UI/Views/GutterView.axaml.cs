@@ -7,6 +7,7 @@ using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Reactive;
 using Avalonia.Threading;
+using meteor.Core.Interfaces.Services;
 using meteor.Core.Interfaces.ViewModels;
 using meteor.Core.Models.Config;
 using meteor.UI.Interfaces;
@@ -31,7 +32,6 @@ public partial class GutterView : UserControl
     private readonly ThemeConfig _themeConfig;
 
     private const double EndPadding = 10;
-
     private const double IconSize = 12;
     private const double IconMargin = 2;
     private Typeface _typeface;
@@ -53,6 +53,7 @@ public partial class GutterView : UserControl
             var serviceProvider = app.ServiceProvider;
             _themeManager = serviceProvider.GetRequiredService<IThemeManager>();
             _themeConfig = serviceProvider.GetRequiredService<ThemeConfig>();
+            serviceProvider.GetRequiredService<IEditorSizeCalculator>();
         }
         else
         {
@@ -105,7 +106,8 @@ public partial class GutterView : UserControl
             var delta = e.Delta.Y;
             var newOffset = ViewModel.ScrollOffset - delta * ViewModel.LineHeight * 4;
 
-            var maxScrollOffset = Math.Max(0, ViewModel.TotalHeight - ViewModel.ViewportHeight);
+            var maxScrollOffset =
+                Math.Max(0, ViewModel.TotalHeight - ViewModel.ViewportHeight + ViewModel.LineHeight * 5);
             newOffset = Math.Clamp(newOffset, 0, maxScrollOffset);
 
             ViewModel.UpdateScrollOffset(newOffset);
@@ -132,9 +134,16 @@ public partial class GutterView : UserControl
 
     protected override Size MeasureOverride(Size availableSize)
     {
-        var result = new Size(ViewModel?.GutterWidth ?? 0, availableSize.Height);
-        if (ViewModel != null) ViewModel.ViewportHeight = availableSize.Height;
-        return result;
+        if (ViewModel == null) return new Size(0, availableSize.Height);
+
+        ViewModel.ViewportHeight = availableSize.Height - ViewModel.LineHeight * 5;
+        var totalHeight = ViewModel.TotalHeight + ViewModel.LineHeight * 5;
+        return new Size(ViewModel.GutterWidth, totalHeight);
+    }
+
+    protected override Size ArrangeOverride(Size finalSize)
+    {
+        return finalSize;
     }
 
     public override void Render(DrawingContext context)
