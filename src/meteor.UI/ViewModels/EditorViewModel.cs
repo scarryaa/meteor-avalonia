@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
+using Avalonia.Threading;
 using meteor.Core.Interfaces.Services;
 using meteor.Core.Interfaces.ViewModels;
 using meteor.Core.Models;
@@ -15,6 +16,7 @@ namespace meteor.UI.ViewModels;
 
 public sealed class EditorViewModel : IEditorViewModel
 {
+    private bool _suppressNotifications;
     private const double Epsilon = 0.000001;
     private readonly ICursorService _cursorService;
     private readonly IInputService _inputService;
@@ -27,6 +29,7 @@ public sealed class EditorViewModel : IEditorViewModel
     private double _editorWidth;
     private bool _isTextDirty = true;
     private Vector _scrollOffset;
+    private double _maxScrollHeight;
     private ObservableCollection<SyntaxHighlightingResult> _highlightingResults = new();
 
     public EditorViewModel(EditorViewModelServiceContainer serviceContainer, ITextMeasurer textMeasurer)
@@ -70,6 +73,7 @@ public sealed class EditorViewModel : IEditorViewModel
                 OnPropertyChanged();
                 UpdateScrollOffset(_scrollOffset);
                 GutterViewModel.ScrollOffset = value.Y;
+                UpdateTabState();
             }
         }
     }
@@ -77,7 +81,11 @@ public sealed class EditorViewModel : IEditorViewModel
     public (int start, int length) Selection
     {
         get => _selectionService.GetSelection();
-        set => _selectionService.SetSelection(value.start, value.length);
+        set
+        {
+            _selectionService.SetSelection(value.start, value.length);
+            UpdateTabState();
+        }
     }
 
     public ITabService TabService { get; }
@@ -86,7 +94,11 @@ public sealed class EditorViewModel : IEditorViewModel
     public int CursorPosition
     {
         get => _cursorService.GetCursorPosition();
-        set => _cursorService.SetCursorPosition(value);
+        set
+        {
+            _cursorService.SetCursorPosition(value);
+            UpdateTabState();
+        }
     }
 
     public double EditorWidth
@@ -114,7 +126,22 @@ public sealed class EditorViewModel : IEditorViewModel
             }
         }
     }
-    
+
+    public double MaxScrollHeight
+    {
+        get => _maxScrollHeight;
+        set
+        {
+            if (Math.Abs(_maxScrollHeight - value) > Epsilon)
+            {
+                _maxScrollHeight = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    public event EventHandler? InvalidateMeasureRequested;
+
     public string Text
     {
         get
@@ -179,6 +206,16 @@ public sealed class EditorViewModel : IEditorViewModel
         OnPropertyChanged(nameof(Text));
         UpdateHighlighting();
         UpdateLineCount();
+    }
+
+    public void RaiseInvalidateMeasure()
+    {
+        InvalidateMeasureRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void DispatcherInvoke(Action action)
+    {
+        Dispatcher.UIThread.Post(action, DispatcherPriority.Background);
     }
 
     public void OnPointerPressed(PointerPressedEventArgs e)
@@ -262,6 +299,7 @@ public sealed class EditorViewModel : IEditorViewModel
         var (width, height) = _sizeCalculator.CalculateEditorSize(textBufferService, EditorWidth, EditorHeight);
         EditorWidth = width;
         EditorHeight = height;
+        MaxScrollHeight = Math.Max(0, EditorHeight);
     }
 
     private void UpdateHighlighting()
@@ -270,14 +308,37 @@ public sealed class EditorViewModel : IEditorViewModel
         HighlightingResults = new ObservableCollection<SyntaxHighlightingResult>(results);
     }
 
+    private void UpdateTabState()
+    {
+        if (_suppressNotifications) return;
+
+        var activeTabInfo = TabService.GetActiveTab();
+        if (activeTabInfo != null)
+            TabService.UpdateTabState(activeTabInfo.Index, CursorPosition, Selection, ScrollOffset, MaxScrollHeight);
+    }
+
+    public void UpdateEditorSize(double width, double height, double viewportHeight)
+    {
+        EditorWidth = width;
+        EditorHeight = height;
+        MaxScrollHeight = Math.Max(0, EditorHeight - viewportHeight);
+        UpdateTabState();
+    }
+
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        if (!_suppressNotifications) PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+
+    public void SuppressNotifications(bool suppress)
+    {
+        _suppressNotifications = suppress;
     }
 
     public void Dispose()
     {
         TabService.TabChanged -= OnTabChanged;
         GutterViewModel.ScrollOffsetChanged -= OnGutterScrollOffsetChanged;
+        PropertyChanged = null;
     }
 }

@@ -64,14 +64,14 @@ public sealed class TabViewModel : ITabViewModel
                 if (_selectedTab != null)
                 {
                     _selectedTab.IsSelected = true;
-                    _tabService.SelectTab(_selectedTab.Index);
+                    _tabService.SwitchTab(_selectedTab.Index);
                 }
 
                 OnPropertyChanged();
             }
         }
     }
-    
+
     public ICommand AddTabCommand { get; }
     public ICommand CloseTabCommand { get; }
     public ICommand CloseAllTabsCommand { get; }
@@ -147,17 +147,16 @@ public sealed class TabViewModel : ITabViewModel
             var activeTab = _tabs.FirstOrDefault(t => t.Index == activeTabInfo.Index);
             if (activeTab != null)
             {
-                SelectedTab = activeTab;
+                _selectedTab = activeTab;
+                _selectedTab.IsSelected = true;
 
-                // Restore tab state
-                activeTab.EditorViewModel.CursorPosition = activeTabInfo.CursorPosition;
-                activeTab.EditorViewModel.Selection = activeTabInfo.Selection;
-                activeTab.EditorViewModel.ScrollOffset = activeTabInfo.ScrollOffset;
+                OnPropertyChanged(nameof(SelectedTab));
             }
         }
         else
         {
-            SelectedTab = null;
+            _selectedTab = null;
+            OnPropertyChanged(nameof(SelectedTab));
         }
     }
 

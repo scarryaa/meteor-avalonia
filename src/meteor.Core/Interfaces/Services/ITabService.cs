@@ -16,7 +16,9 @@ public interface ITabService
     void SelectTab(int tabIndex);
     void CloseAllTabs();
     void CloseOtherTabs(int keepTabIndex);
-    void UpdateTabState(int tabIndex, int cursorPosition, (int start, int length) selection, Vector scrollOffset);
+
+    void UpdateTabState(int tabIndex, int cursorPosition, (int start, int length) selection, Vector scrollOffset,
+        double maxScrollHeight);
     IEnumerable<TabInfo?> GetAllTabs();
     TabInfo? GetActiveTab();
 }

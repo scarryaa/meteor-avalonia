@@ -36,4 +36,9 @@ public struct Vector : IEquatable<Vector>
     {
         return !(left == right);
     }
+
+    public override string ToString()
+    {
+        return $"({X}, {Y})";
+    }
 }

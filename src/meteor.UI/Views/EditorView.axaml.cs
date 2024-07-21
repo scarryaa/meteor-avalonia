@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -19,6 +20,7 @@ public partial class EditorView : UserControl
     private readonly EditorRenderer _editorRenderer;
     private Panel? _editorPanel;
     private ScrollViewer? _scrollViewer;
+    private IEditorViewModel? _oldViewModel;
     private IEditorViewModel? _viewModel;
     private GutterView? _gutterView;
     private double _gutterWidth;
@@ -51,7 +53,7 @@ public partial class EditorView : UserControl
 
         if (_scrollViewer != null && _viewModel != null)
         {
-            _scrollViewer.ScrollChanged += (sender, _) =>
+            _scrollViewer.ScrollChanged += (sender, e) =>
             {
                 if (sender is ScrollViewer scrollViewer)
                 {
@@ -62,18 +64,18 @@ public partial class EditorView : UserControl
 
             _scrollViewer.PropertyChanged += (_, e) =>
             {
-                if (e.Property.Name == nameof(ScrollViewer.Viewport) && _gutterView is { ViewModel: not null })
-                    _gutterView.ViewModel.ViewportHeight = _scrollViewer.Viewport.Height;
+                if (e.Property.Name == nameof(ScrollViewer.Viewport) || e.Property.Name == nameof(ScrollViewer.Extent))
+                    UpdateEditorSize();
             };
         }
-
+        
         PointerPressed += OnEditorPointerPressed;
         PointerMoved += OnEditorPointerMoved;
         PointerReleased += OnEditorPointerReleased;
 
         this.GetObservable(BoundsProperty).Subscribe(new AnonymousObserver<Rect>(bounds =>
         {
-            if (_viewModel != null) _viewModel.UpdateWindowSize(bounds.Width, bounds.Height);   
+            UpdateEditorSize();
         }));
 
         if (_gutterView != null)
@@ -85,24 +87,46 @@ public partial class EditorView : UserControl
             };
     }
 
+
     private void OnDataContextChanged(object? sender, EventArgs e)
     {
+        // Unsubscribe from old view model events
+        if (_oldViewModel != null)
+        {
+            _oldViewModel.InvalidateMeasureRequested -= OnInvalidateMeasureRequested;
+            _oldViewModel.PropertyChanged -= OnViewModelPropertyChanged;
+        }
+
         _viewModel = DataContext as IEditorViewModel;
+
         if (_viewModel != null)
         {
             _editorRenderer.UpdateTabService(_viewModel.TabService);
-            _viewModel.PropertyChanged += (_, _e) =>
-            {
-                if (_e.PropertyName is nameof(IEditorViewModel.Text) or nameof(IEditorViewModel.HighlightingResults)
-                    or nameof(IEditorViewModel.Selection) or nameof(IEditorViewModel.CursorPosition)
-                    or nameof(IEditorViewModel.EditorWidth) or nameof(IEditorViewModel.EditorHeight)
-                    or nameof(IEditorViewModel.ScrollOffset))
-                {
-                    InvalidateMeasure();
-                    InvalidateVisual();
-                }
-            };
+
+            _viewModel.InvalidateMeasureRequested += OnInvalidateMeasureRequested;
+
+            _viewModel.PropertyChanged += OnViewModelPropertyChanged;
+
             InvalidateMeasure();
+        }
+
+        _oldViewModel = _viewModel;
+    }
+
+    private void OnInvalidateMeasureRequested(object? sender, EventArgs e)
+    {
+        InvalidateMeasure();
+    }
+
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(IEditorViewModel.Text) or nameof(IEditorViewModel.HighlightingResults)
+            or nameof(IEditorViewModel.Selection) or nameof(IEditorViewModel.CursorPosition)
+            or nameof(IEditorViewModel.EditorWidth) or nameof(IEditorViewModel.EditorHeight)
+            or nameof(IEditorViewModel.ScrollOffset))
+        {
+            InvalidateMeasure();
+            InvalidateVisual();
         }
     }
 
@@ -196,6 +220,17 @@ public partial class EditorView : UserControl
         }
 
         _editorRenderer.UpdateLineInfo();
+    }
+
+
+    private void UpdateEditorSize()
+    {
+        if (_viewModel != null && _scrollViewer != null)
+        {
+            var viewportHeight = _scrollViewer.Viewport.Height;
+            var extentHeight = _scrollViewer.Extent.Height;
+            _viewModel.UpdateEditorSize(_viewModel.EditorWidth, extentHeight, viewportHeight);
+        }
     }
 
     public override void Render(DrawingContext context)
