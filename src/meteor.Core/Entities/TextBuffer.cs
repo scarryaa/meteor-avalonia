@@ -1,26 +1,27 @@
 using System.Collections.Concurrent;
 using System.Text;
 using meteor.Core.Interfaces;
+using meteor.Core.Models;
 
 namespace meteor.Core.Entities;
 
 public class TextBuffer : ITextBuffer
 {
-    private readonly StringBuilder _buffer;
     private readonly CancellationTokenSource _cts = new();
     private readonly ConcurrentQueue<(int Index, string Text)> _insertQueue = new();
     private readonly object _lock = new();
     private readonly Task _processTask;
+    private Rope _rope;
     private bool _disposed;
     private long _pendingInsertionsLength;
 
     public TextBuffer(string initialText = "")
     {
-        _buffer = new StringBuilder(initialText);
+        _rope = new Rope(initialText);
         _processTask = Task.Run(ProcessInsertionsAsync);
     }
 
-    public int Length => _buffer.Length + (int)Interlocked.Read(ref _pendingInsertionsLength);
+    public int Length => _rope.Length + (int)Interlocked.Read(ref _pendingInsertionsLength);
 
     public char this[int index]
     {
@@ -29,7 +30,7 @@ public class TextBuffer : ITextBuffer
             lock (_lock)
             {
                 ProcessQueuedInsertions();
-                return _buffer[index];
+                return _rope[index];
             }
         }
     }
@@ -42,14 +43,8 @@ public class TextBuffer : ITextBuffer
         lock (_lock)
         {
             ProcessQueuedInsertions();
-
-            // Ensure we don't go out of bounds
-            var actualLength = Math.Min(length, _buffer.Length - start);
-            if (actualLength <= 0)
-                return;
-
             output.Clear();
-            output.Append(_buffer, start, actualLength);
+            output.Append(_rope.Substring(start, Math.Min(length, _rope.Length - start)));
         }
     }
 
@@ -62,14 +57,8 @@ public class TextBuffer : ITextBuffer
         lock (_lock)
         {
             ProcessQueuedInsertions();
-
-            // Ensure we don't go out of bounds
-            var actualLength = Math.Min(Math.Min(length, output.Length), _buffer.Length - start);
-            if (actualLength <= 0)
-                return;
-
-            for (var i = 0; i < actualLength; i++)
-                output[i] = _buffer[start + i];
+            var segment = _rope.Substring(start, Math.Min(length, Math.Min(_rope.Length - start, output.Length)));
+            segment.CopyTo(0, output, 0, segment.Length);
         }
     }
 
@@ -85,10 +74,8 @@ public class TextBuffer : ITextBuffer
     {
         lock (_lock)
         {
-            if (index < 0 || index >= _buffer.Length) throw new ArgumentOutOfRangeException(nameof(index));
-            if (length < 0 || index + length > _buffer.Length) throw new ArgumentOutOfRangeException(nameof(length));
             ProcessQueuedInsertions();
-            _buffer.Remove(index, length);
+            _rope.Delete(index, length);
         }
     }
 
@@ -96,10 +83,8 @@ public class TextBuffer : ITextBuffer
     {
         lock (_lock)
         {
-            if (start < 0 || start >= _buffer.Length) throw new ArgumentOutOfRangeException(nameof(start));
-            if (length < 0 || start + length > _buffer.Length) throw new ArgumentOutOfRangeException(nameof(length));
             ProcessQueuedInsertions();
-            return _buffer.ToString(start, length);
+            return _rope.Substring(start, length);
         }
     }
 
@@ -108,17 +93,13 @@ public class TextBuffer : ITextBuffer
         lock (_lock)
         {
             ProcessQueuedInsertions();
-            return _buffer.ToString();
+            return _rope.ToString();
         }
     }
 
     public string GetText(int start, int length)
     {
-        lock (_lock)
-        {
-            ProcessQueuedInsertions();
-            return _buffer.ToString(start, length);
-        }
+        return Substring(start, length);
     }
 
     public void ReplaceAll(string newText)
@@ -127,8 +108,7 @@ public class TextBuffer : ITextBuffer
         {
             _insertQueue.Clear();
             Interlocked.Exchange(ref _pendingInsertionsLength, 0);
-            _buffer.Clear();
-            _buffer.Append(newText);
+            _rope = new Rope(newText);
         }
     }
 
@@ -137,10 +117,24 @@ public class TextBuffer : ITextBuffer
         lock (_lock)
         {
             ProcessQueuedInsertions();
-            for (var i = 0; i < _buffer.Length; i++) action(_buffer[i]);
+            _rope.Iterate(action);
         }
     }
 
+    public void IndexedIterate(Action<char, int> action)
+    {
+        lock (_lock)
+        {
+            ProcessQueuedInsertions();
+            var index = 0;
+            _rope.Iterate(c =>
+            {
+                action(c, index);
+                index++;
+            });
+        }
+    }
+    
     public void Dispose()
     {
         Dispose(true);
@@ -185,9 +179,7 @@ public class TextBuffer : ITextBuffer
         while (_insertQueue.TryDequeue(out var insertion))
         {
             var (index, text) = insertion;
-            // Ensure the index is within valid bounds
-            index = Math.Max(0, Math.Min(index, _buffer.Length));
-            _buffer.Insert(index, text);
+            _rope.Insert(index, text);
             Interlocked.Add(ref _pendingInsertionsLength, -text.Length);
         }
     }

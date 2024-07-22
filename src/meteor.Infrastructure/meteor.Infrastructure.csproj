@@ -10,4 +10,8 @@
         <ProjectReference Include="..\meteor.Core\meteor.Core.csproj"/>
     </ItemGroup>
 
+    <ItemGroup>
+        <Folder Include="Data\"/>
+    </ItemGroup>
+
 </Project>

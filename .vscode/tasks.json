@@ -1,0 +1,39 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "build",
+                "${workspaceFolder}/src/meteor.UI/meteor.UI.csproj"
+            ],
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "Start Profiling",
+            "command": "dotnet-trace",
+            "type": "process",
+            "args": [
+                "collect",
+                "--output",
+                "${workspaceFolder}/trace.nettrace",
+                "--process-id",
+                "91648"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Stop Profiling",
+            "command": "pkill",
+            "type": "process",
+            "args": [
+                "-SIGINT",
+                "dotnet-trace"
+            ],
+            "problemMatcher": []
+        }
+    ]
+}
+                

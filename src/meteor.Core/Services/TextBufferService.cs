@@ -9,12 +9,13 @@ public class TextBufferService : ITextBufferService
     private readonly StringBuilder _stringBuilder = new();
     private readonly TextBuffer _textBuffer;
     private char[] _spanBuffer = new char[1024];
-    private readonly List<int> _lineStartIndices = new() { 0 };
+    private readonly SortedDictionary<int, int> _lineIndices = new();
     private bool _lineIndicesNeedUpdate = true;
 
     public TextBufferService(string initialText = "")
     {
         _textBuffer = new TextBuffer(initialText);
+        UpdateLineIndices();
     }
 
     public int Length => _textBuffer.Length;
@@ -40,19 +41,12 @@ public class TextBufferService : ITextBufferService
         if (index < 0 || index > bufferLength)
             throw new ArgumentOutOfRangeException(nameof(index));
 
-        var x = 0.0;
-        var y = 0.0;
+        UpdateLineIndices();
 
-        for (var i = 0; i < index; i++)
-            if (_textBuffer[i] == '\n')
-            {
-                y += textMeasurer.GetLineHeight();
-                x = 0;
-            }
-            else
-            {
-                x += textMeasurer.GetCharWidth();
-            }
+        var lineNumber = GetLineNumberFromPosition(index);
+        var lineStartIndex = _lineIndices.Keys.TakeWhile(i => i <= index).Last();
+        var x = (index - lineStartIndex) * textMeasurer.GetCharWidth();
+        var y = (lineNumber - 1) * textMeasurer.GetLineHeight();
 
         return (Convert.ToInt32(x), Convert.ToInt32(y));
     }
@@ -61,16 +55,22 @@ public class TextBufferService : ITextBufferService
     {
         if (!_lineIndicesNeedUpdate) return;
 
-        _lineStartIndices.Clear();
-        _lineStartIndices.Add(0);
+        _lineIndices.Clear();
+        _lineIndices[0] = 1; // First line always starts at index 0
 
-        for (var i = 0; i < _textBuffer.Length; i++)
-            if (_textBuffer[i] == '\n')
-                _lineStartIndices.Add(i + 1);
+        var lineNumber = 1;
+        _textBuffer.IndexedIterate((c, i) =>
+        {
+            if (c == '\n')
+            {
+                lineNumber++;
+                _lineIndices[i + 1] = lineNumber;
+            }
+        });
 
         _lineIndicesNeedUpdate = false;
     }
-    
+
     public int IndexOf(char value, int startIndex = 0)
     {
         for (var i = startIndex; i < Length; i++)
@@ -121,13 +121,10 @@ public class TextBufferService : ITextBufferService
         if (index < 0 || index > Length)
             throw new ArgumentOutOfRangeException(nameof(index));
 
-        var lineNumber = 1;
+        UpdateLineIndices();
 
-        for (var i = 0; i < index; i++)
-            if (_textBuffer[i] == '\n')
-                lineNumber++;
-
-        return lineNumber;
+        var entry = _lineIndices.LastOrDefault(kvp => kvp.Key <= index);
+        return entry.Value;
     }
 
     public void AppendTo(StringBuilder sb)
@@ -138,24 +135,27 @@ public class TextBufferService : ITextBufferService
     public int GetLineCount()
     {
         UpdateLineIndices();
-        return _lineStartIndices.Count;
+        return _lineIndices.Values.Last();
     }
 
     public string GetLineText(int lineNumber)
     {
         UpdateLineIndices();
 
-        if (lineNumber < 1 || lineNumber > _lineStartIndices.Count)
+        if (lineNumber < 1 || lineNumber > GetLineCount())
             throw new ArgumentOutOfRangeException(nameof(lineNumber));
 
-        var startIndex = _lineStartIndices[lineNumber - 1];
-        var endIndex = lineNumber < _lineStartIndices.Count
-            ? _lineStartIndices[lineNumber] - 1 // -1 to exclude the newline character
-            : _textBuffer.Length;
+        var startIndex = _lineIndices.FirstOrDefault(kvp => kvp.Value == lineNumber).Key;
+        var endIndex = _lineIndices.FirstOrDefault(kvp => kvp.Value == lineNumber + 1).Key;
+
+        if (endIndex == 0) // Last line
+            endIndex = _textBuffer.Length;
+        else
+            endIndex--; // Exclude the newline character
 
         return Substring(startIndex, endIndex - startIndex);
     }
-    
+
     public string Substring(int start, int length)
     {
         if (start < 0 || length < 0 || start + length > _textBuffer.Length)

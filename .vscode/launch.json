@@ -1,0 +1,42 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": ".NET Core Launch (web)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/src/meteor.UI/bin/Debug/net8.0/meteor.UI.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/src/meteor.UI",
+            "stopAtEntry": false,
+            "serverReadyAction": {  
+                "action": "openExternally", 
+                "pattern": "\\bNow listening on:\\s+(https?://\\S+)"
+            },
+            "env": {
+                "ASPNETCORE_ENVIRONMENT": "Development"
+            },
+            "sourceFileMap": {
+                "/Views": "${workspaceFolder}/src/meteor.UI/Views"
+            }
+        },
+        {
+            "name": ".NET Core Launch with Profiling",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "Start Profiling",
+            "program": "${workspaceFolder}/src/meteor.UI/bin/Debug/net8.0/meteor.UI.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/src/meteor.UI",
+            "stopAtEntry": false,
+            "postDebugTask": "Stop Profiling",
+            "env": {
+                "ASPNETCORE_ENVIRONMENT": "Development"
+            },
+            "sourceFileMap": {
+                "/Views": "${workspaceFolder}/src/meteor.UI/Views"
+            }
+        }
+    ]
+}

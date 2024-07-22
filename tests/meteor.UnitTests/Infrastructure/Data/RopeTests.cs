@@ -1,5 +1,5 @@
 using System.Diagnostics;
-using meteor.Infrastructure.Data;
+using meteor.Core.Models;
 using Xunit.Abstractions;
 
 namespace meteor.UnitTests.Infrastructure.Data;

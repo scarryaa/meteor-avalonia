@@ -16,6 +16,9 @@ namespace meteor.UI.ViewModels;
 
 public sealed class EditorViewModel : IEditorViewModel
 {
+    private int _cachedCursorPosition = -1;
+    private int _lastKnownCursorPosition = -1;
+    private int _lastKnownLine = 1;
     private double _viewportHeight;
     private double _viewportWidth;
     private bool _suppressNotifications;
@@ -115,15 +118,24 @@ public sealed class EditorViewModel : IEditorViewModel
     {
         get
         {
-            var position = _cursorService.GetCursorPosition();
-            SynchronizeCurrentLine(position);
-            return position;
+            if (_cachedCursorPosition == -1)
+            {
+                _cachedCursorPosition = _cursorService.GetCursorPosition();
+                SynchronizeCurrentLine(_cachedCursorPosition);
+            }
+
+            return _cachedCursorPosition;
         }
         set
         {
-            _cursorService.SetCursorPosition(value);
-            SynchronizeCurrentLine(value);
-            UpdateTabState();
+            if (_cachedCursorPosition != value)
+            {
+                _cursorService.SetCursorPosition(value);
+                _cachedCursorPosition = value;
+                SynchronizeCurrentLine(value);
+                UpdateTabState();
+                OnPropertyChanged();
+            }
         }
     }
 
@@ -229,10 +241,10 @@ public sealed class EditorViewModel : IEditorViewModel
     {
         _inputService.DeleteText(index, length);
         _isTextDirty = true;
+        InvalidateCursorPosition();
         OnPropertyChanged(nameof(Text));
         UpdateHighlighting();
         UpdateLineCount();
-        CursorPosition = Math.Max(0, index - length);
     }
 
     public void RaiseInvalidateMeasure()
@@ -253,7 +265,7 @@ public sealed class EditorViewModel : IEditorViewModel
     public void OnPointerPressed(PointerPressedEventArgs e)
     {
         _inputService.HandlePointerPressed(e);
-        CursorPosition = _cursorService.GetCursorPosition();
+        InvalidateCursorPosition();
         OnPropertyChanged(nameof(Selection));
         OnPropertyChanged(nameof(CursorPosition));
     }
@@ -261,7 +273,7 @@ public sealed class EditorViewModel : IEditorViewModel
     public void OnPointerMoved(PointerEventArgs e)
     {
         _inputService.HandlePointerMoved(e);
-        CursorPosition = _cursorService.GetCursorPosition();
+        InvalidateCursorPosition();
         OnPropertyChanged(nameof(Selection));
         OnPropertyChanged(nameof(CursorPosition));
     }
@@ -277,10 +289,9 @@ public sealed class EditorViewModel : IEditorViewModel
     {
         _inputService.HandleTextInput(e);
         _isTextDirty = true;
+        InvalidateCursorPosition();
         OnPropertyChanged(nameof(Text));
         OnPropertyChanged(nameof(Selection));
-        SynchronizeCurrentLine(_cursorService.GetCursorPosition());
-        OnPropertyChanged(nameof(CursorPosition));
         UpdateHighlighting();
         UpdateEditorSize();
         UpdateLineCount();
@@ -294,6 +305,7 @@ public sealed class EditorViewModel : IEditorViewModel
     {
         await _inputService.HandleKeyDown(e.Key, e.Modifiers);
         _isTextDirty = true;
+        InvalidateCursorPosition();
         OnPropertyChanged(nameof(Text));
         OnPropertyChanged(nameof(Selection));
         SynchronizeCurrentLine(_cursorService.GetCursorPosition());
@@ -309,7 +321,48 @@ public sealed class EditorViewModel : IEditorViewModel
 
     private void SynchronizeCurrentLine(int cursorPosition)
     {
-        CurrentLine = TextBufferService.GetLineNumberFromPosition(cursorPosition);
+        if (cursorPosition < 0 || cursorPosition > TextBufferService.Length)
+        {
+            // Invalid cursor position, reset to known good state
+            _lastKnownCursorPosition = 0;
+            _lastKnownLine = 1;
+            CurrentLine = 1;
+            return;
+        }
+
+        if (cursorPosition == _lastKnownCursorPosition)
+        {
+            CurrentLine = _lastKnownLine;
+            return;
+        }
+
+        int newLine;
+
+        if (cursorPosition > _lastKnownCursorPosition)
+            // Moving forward, start counting from last known position
+            newLine = _lastKnownLine + CountNewlinesBetween(_lastKnownCursorPosition, cursorPosition);
+        else
+            // Moving backward, start counting from the beginning
+            newLine = 1 + CountNewlinesBetween(0, cursorPosition);
+
+        CurrentLine = newLine;
+        _lastKnownCursorPosition = cursorPosition;
+        _lastKnownLine = newLine;
+    }
+
+    private int CountNewlinesBetween(int start, int end)
+    {
+        var count = 0;
+        var length = TextBufferService.Length;
+
+        // Ensure start and end are within bounds
+        start = Math.Max(0, Math.Min(start, length));
+        end = Math.Max(0, Math.Min(end, length));
+
+        for (var i = start; i < end; i++)
+            if (TextBufferService[i] == '\n')
+                count++;
+        return count;
     }
 
     private void OnTabChanged(object? sender, TabChangedEventArgs e)
@@ -388,6 +441,12 @@ public sealed class EditorViewModel : IEditorViewModel
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {
         if (!_suppressNotifications) PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+
+    public void InvalidateCursorPosition()
+    {
+        _cachedCursorPosition = -1;
+        OnPropertyChanged(nameof(CursorPosition));
     }
 
     public void SuppressNotifications(bool suppress)
