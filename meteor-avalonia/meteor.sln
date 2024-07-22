@@ -11,7 +11,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "meteor.UI", "src\meteor.UI\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "meteor.UnitTests", "tests\meteor.UnitTests\meteor.UnitTests.csproj", "{34D78F1C-3ACF-4EB5-AF08-0EE77CC6C7C6}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "meteor.IntegrationTests", "meteor.IntegrationTests\meteor.IntegrationTests.csproj", "{B10397B2-4FF5-4AC4-A527-952F1110284E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "meteor.IntegrationTests", "tests\meteor.IntegrationTests\meteor.IntegrationTests.csproj", "{B10397B2-4FF5-4AC4-A527-952F1110284E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
