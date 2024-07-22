@@ -20,7 +20,7 @@ public class ScrollManager : IScrollManager
     public async Task<Vector> CalculateScrollOffsetAsync(int cursorPosition, double editorWidth, double editorHeight,
         double viewportWidth, double viewportHeight, Vector currentScrollOffset, int textLength)
     {
-        if (DateTime.Now - _lastScrollTime < TimeSpan.FromMilliseconds(DebounceDelay)) return currentScrollOffset;
+        if (DateTime.UtcNow - _lastScrollTime < TimeSpan.FromMilliseconds(DebounceDelay)) return currentScrollOffset;
 
         _lastScrollTime = DateTime.Now;
 

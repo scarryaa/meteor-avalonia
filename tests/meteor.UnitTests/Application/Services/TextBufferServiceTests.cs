@@ -1,5 +1,7 @@
 using System.Text;
+using meteor.Core.Interfaces.Services;
 using meteor.Core.Services;
+using Moq;
 
 namespace meteor.UnitTests.Application.Services;
 
@@ -172,5 +174,190 @@ public class TextBufferServiceTests
         var service = new TextBufferService("hello world");
         var span = service.AsSpan(6, 5);
         Assert.Equal("world", new string(span));
+    }
+
+    [Fact]
+    public void CalculatePositionFromIndex_WithValidIndex_ReturnsCorrectPosition()
+    {
+        var textMeasurer = new Mock<ITextMeasurer>();
+        textMeasurer.Setup(m => m.GetCharWidth()).Returns(7);
+        textMeasurer.Setup(m => m.GetLineHeight()).Returns(10);
+
+        var service = new TextBufferService("line1\nline2\nline3");
+        var position = service.CalculatePositionFromIndex(8, textMeasurer.Object);
+
+        var expectedX = 7 * 2;
+        var expectedY = 10 * 1;
+
+        Assert.Equal((expectedX, expectedY), position);
+    }
+
+    [Fact]
+    public void CalculatePositionFromIndex_WithInvalidIndex_ThrowsArgumentOutOfRangeException()
+    {
+        var textMeasurer = new Mock<ITextMeasurer>();
+        textMeasurer.Setup(m => m.GetCharWidth()).Returns(7);
+        textMeasurer.Setup(m => m.GetLineHeight()).Returns(10);
+
+        var service = new TextBufferService("line1\nline2\nline3");
+        Assert.Throws<ArgumentOutOfRangeException>(() => service.CalculatePositionFromIndex(-1, textMeasurer.Object));
+        Assert.Throws<ArgumentOutOfRangeException>(() => service.CalculatePositionFromIndex(100, textMeasurer.Object));
+    }
+
+    [Fact]
+    public void GetLineNumberFromPosition_WithValidIndex_ReturnsCorrectLineNumber()
+    {
+        var service = new TextBufferService("line1\nline2\nline3");
+        Assert.Equal(1, service.GetLineNumberFromPosition(0));
+        Assert.Equal(2, service.GetLineNumberFromPosition(6));
+        Assert.Equal(3, service.GetLineNumberFromPosition(12));
+    }
+
+    [Fact]
+    public void GetLineNumberFromPosition_WithInvalidIndex_ThrowsArgumentOutOfRangeException()
+    {
+        var service = new TextBufferService("line1\nline2\nline3");
+        Assert.Throws<ArgumentOutOfRangeException>(() => service.GetLineNumberFromPosition(-1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => service.GetLineNumberFromPosition(100));
+    }
+
+    [Fact]
+    public void GetLineText_WithValidLineNumber_ReturnsCorrectLineText()
+    {
+        var service = new TextBufferService("line1\nline2\nline3");
+        Assert.Equal("line1", service.GetLineText(1));
+        Assert.Equal("line2", service.GetLineText(2));
+        Assert.Equal("line3", service.GetLineText(3));
+    }
+
+    [Fact]
+    public void GetLineText_WithInvalidLineNumber_ThrowsArgumentOutOfRangeException()
+    {
+        var service = new TextBufferService("line1\nline2\nline3");
+        Assert.Throws<ArgumentOutOfRangeException>(() => service.GetLineText(0));
+        Assert.Throws<ArgumentOutOfRangeException>(() => service.GetLineText(4));
+    }
+
+    [Fact]
+    public void UpdateLineIndices_UpdatesLineIndicesCorrectly()
+    {
+        var service = new TextBufferService("line1\nline2");
+        service.Insert(11, "\nline3");
+        var lineCount = service.GetLineCount();
+        Assert.Equal(3, lineCount);
+        Assert.Equal("line3", service.GetLineText(3));
+    }
+
+    [Fact]
+    public void PerformanceTest_LargeBuffer()
+    {
+        var text = new string('a', 10000); // Large buffer
+        var service = new TextBufferService(text);
+        var sb = new StringBuilder();
+        service.AppendTo(sb);
+        Assert.Equal(text, sb.ToString());
+    }
+
+    [Fact]
+    public void Insert_AtStart_UpdatesText()
+    {
+        var service = new TextBufferService("world");
+        service.Insert(0, "hello ");
+        var sb = new StringBuilder();
+        service.AppendTo(sb);
+        Assert.Equal("hello world", sb.ToString());
+    }
+
+    [Fact]
+    public void Delete_AtStart_UpdatesText()
+    {
+        var service = new TextBufferService("hello world");
+        service.Delete(0, 6); // Delete "hello "
+        var sb = new StringBuilder();
+        service.AppendTo(sb);
+        Assert.Equal("world", sb.ToString());
+    }
+
+    [Fact]
+    public void Insert_OverlapsEnd_UpdatesText()
+    {
+        var service = new TextBufferService("hello");
+        service.Insert(5, " world");
+        var sb = new StringBuilder();
+        service.AppendTo(sb);
+        Assert.Equal("hello world", sb.ToString());
+    }
+
+    [Fact]
+    public void ReplaceAll_WithNull_SetsEmptyText()
+    {
+        var service = new TextBufferService("hello world");
+        service.ReplaceAll(null);
+        Assert.Equal(0, service.Length);
+        var sb = new StringBuilder();
+        service.AppendTo(sb);
+        Assert.Equal("", sb.ToString());
+    }
+
+    [Fact]
+    public void AsSpan_WithInvalidArguments_ThrowsArgumentOutOfRangeException()
+    {
+        var service = new TextBufferService("hello world");
+        Assert.Throws<ArgumentOutOfRangeException>(() => service.AsSpan(-1, 5));
+        Assert.Throws<ArgumentOutOfRangeException>(() => service.AsSpan(6, -1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => service.AsSpan(6, 100));
+    }
+
+    [Fact]
+    public void CalculatePositionFromIndex_WithEdgeCases_ReturnsCorrectPosition()
+    {
+        var textMeasurer = new Mock<ITextMeasurer>();
+        textMeasurer.Setup(m => m.GetCharWidth()).Returns(7);
+        textMeasurer.Setup(m => m.GetLineHeight()).Returns(10);
+
+        var service = new TextBufferService("line1\nline2\nline3");
+
+        // Edge case at the start of each line
+        Assert.Equal((0, 0), service.CalculatePositionFromIndex(0, textMeasurer.Object));
+        Assert.Equal((0, 10), service.CalculatePositionFromIndex(6, textMeasurer.Object));
+        Assert.Equal((0, 20), service.CalculatePositionFromIndex(12, textMeasurer.Object));
+
+        // Edge case at the end of each line
+        Assert.Equal((35, 0), service.CalculatePositionFromIndex(5, textMeasurer.Object));
+        Assert.Equal((35, 10), service.CalculatePositionFromIndex(11, textMeasurer.Object));
+        Assert.Equal((35, 20), service.CalculatePositionFromIndex(17, textMeasurer.Object));
+    }
+
+    [Fact]
+    public void ConcurrentModifications_WorkCorrectly()
+    {
+        var service = new TextBufferService("hello world");
+
+        // Use Task.Run to simulate concurrent modifications
+        var tasks = new[]
+        {
+            Task.Run(() => service.Insert(5, " concurrent")),
+            Task.Run(() => service.Delete(6, 5))
+        };
+
+        Task.WaitAll(tasks);
+
+        var sb = new StringBuilder();
+        service.AppendTo(sb);
+        var result = sb.ToString();
+
+        // Verify that "concurrent" is present in the result
+        Assert.Contains("concurrent", result);
+    }
+
+    [Fact]
+    public void PerformanceTest_LargeInsertion()
+    {
+        var text = new string('a', 10000);
+        var service = new TextBufferService(text);
+        service.Insert(5000, "insertedText");
+        var sb = new StringBuilder();
+        service.AppendTo(sb);
+        Assert.Contains("insertedText", sb.ToString());
     }
 }

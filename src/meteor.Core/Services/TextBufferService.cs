@@ -111,6 +111,13 @@ public class TextBufferService : ITextBufferService
 
     public ReadOnlySpan<char> AsSpan(int start, int length)
     {
+        if (start < 0 || length < 0 || start + length > _textBuffer.Length)
+            throw new ArgumentOutOfRangeException(nameof(start));
+
+        if (length == 0) return ReadOnlySpan<char>.Empty;
+
+        if (start >= _textBuffer.Length) return ReadOnlySpan<char>.Empty;
+
         if (length > _spanBuffer.Length)
             _spanBuffer = new char[Math.Max(length, _spanBuffer.Length * 2)];
         _textBuffer.GetTextSegment(start, length, _spanBuffer);

@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 using meteor.Core.Interfaces.Services;
@@ -38,6 +39,8 @@ public sealed class EditorViewModel : IEditorViewModel
     private bool _suppressNotifications;
     private double _viewportHeight;
     private double _viewportWidth;
+    private bool _isUpdating;
+    private readonly DelayedAction _delayedUpdate;
 
     public EditorViewModel(EditorViewModelServiceContainer serviceContainer, ITextMeasurer textMeasurer,
         IScrollManager scrollManager)
@@ -65,6 +68,8 @@ public sealed class EditorViewModel : IEditorViewModel
         };
 
         TabService.TabChanged += OnTabChanged;
+
+        _delayedUpdate = new DelayedAction(UpdateAfterPaste, TimeSpan.FromMilliseconds(100));
     }
 
     public GutterViewModel GutterViewModel { get; }
@@ -285,15 +290,16 @@ public sealed class EditorViewModel : IEditorViewModel
         _inputService.HandleTextInput(e);
         _isTextDirty = true;
         InvalidateCursorPosition();
-        OnPropertyChanged(nameof(Text));
-        OnPropertyChanged(nameof(Selection));
-        UpdateHighlighting();
-        UpdateEditorSize();
-        UpdateLineCount();
-        var offset = await _scrollManager.CalculateScrollOffsetAsync(CursorPosition, EditorWidth, EditorHeight,
-            _viewportWidth,
-            _viewportHeight, new Vector(ScrollOffset.X, ScrollOffset.Y), Text.Length);
-        UpdateScrollOffset(offset);
+
+        if (IsPasteOperation(e))
+        {
+            _isUpdating = true;
+            _delayedUpdate.Trigger();
+        }
+        else
+        {
+            await UpdateAfterTextInput();
+        }
     }
 
     public async Task OnKeyDown(KeyEventArgs e)
@@ -344,7 +350,6 @@ public sealed class EditorViewModel : IEditorViewModel
     {
         if (cursorPosition < 0 || cursorPosition >= TextBufferService.Length)
         {
-            // Invalid cursor position, reset to known good state
             _lastKnownCursorPosition = 0;
             _lastKnownLine = 1;
             CurrentLine = 1;
@@ -360,10 +365,8 @@ public sealed class EditorViewModel : IEditorViewModel
         int newLine;
 
         if (cursorPosition > _lastKnownCursorPosition)
-            // Moving forward, start counting from last known position
             newLine = _lastKnownLine + CountNewlinesBetween(_lastKnownCursorPosition, cursorPosition);
         else
-            // Moving backward, start counting from the beginning
             newLine = 1 + CountNewlinesBetween(0, cursorPosition);
 
         CurrentLine = newLine;
@@ -376,11 +379,9 @@ public sealed class EditorViewModel : IEditorViewModel
         var count = 0;
         var length = TextBufferService.Length;
 
-        // Ensure start and end are within bounds
         start = Math.Max(0, Math.Min(start, length));
         end = Math.Max(0, Math.Min(end, length));
 
-        // Validate the indices before accessing TextBufferService
         if (start >= length || end > length || start >= end)
         {
             Console.WriteLine("Invalid range, returning count=0");
@@ -393,7 +394,6 @@ public sealed class EditorViewModel : IEditorViewModel
 
         return count;
     }
-
 
     private void OnTabChanged(object? sender, TabChangedEventArgs e)
     {
@@ -446,6 +446,8 @@ public sealed class EditorViewModel : IEditorViewModel
 
     private void UpdateHighlighting()
     {
+        if (_isUpdating) return; // Skip highlighting during batch update
+
         var results = _syntaxHighlighter.Highlight(Text);
         HighlightingResults = new ObservableCollection<SyntaxHighlightingResult>(results);
     }
@@ -468,5 +470,30 @@ public sealed class EditorViewModel : IEditorViewModel
     {
         _cachedCursorPosition = -1;
         OnPropertyChanged(nameof(CursorPosition));
+    }
+
+    private bool IsPasteOperation(TextInputEventArgs e)
+    {
+        return e.Text.Length > 50;
+    }
+
+    private async Task UpdateAfterTextInput()
+    {
+        OnPropertyChanged(nameof(Text));
+        OnPropertyChanged(nameof(Selection));
+        UpdateHighlighting();
+        UpdateEditorSize();
+        UpdateLineCount();
+        var offset = await _scrollManager.CalculateScrollOffsetAsync(CursorPosition, EditorWidth, EditorHeight,
+            _viewportWidth, _viewportHeight, new Vector(ScrollOffset.X, ScrollOffset.Y), Text.Length);
+        UpdateScrollOffset(offset);
+    }
+
+    private async Task UpdateAfterPaste()
+    {
+        if (!_isUpdating) return;
+
+        await UpdateAfterTextInput();
+        _isUpdating = false;
     }
 }

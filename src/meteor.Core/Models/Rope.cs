@@ -252,14 +252,22 @@ namespace meteor.Core.Models
             if (node == null || length == 0)
                 return node;
 
-            if (node.Data != null)
-            {
-                if (index == 0 && length >= node.Length)
-                    return null;
-                var newData = node.Data.Remove(index, Math.Min(length, node.Length - index));
-                return newData.Length > 0 ? new ImmutableNode(newData) : null;
-            }
+            if (node.Data != null) return DeleteFromLeaf(node, index, length);
 
+            return DeleteFromInternalNode(node, index, length);
+        }
+
+        private ImmutableNode? DeleteFromLeaf(ImmutableNode node, int index, int length)
+        {
+            if (index == 0 && length >= node.Length)
+                return null;
+
+            var newData = node.Data.Remove(index, Math.Min(length, node.Length - index));
+            return newData.Length > 0 ? new ImmutableNode(newData) : null;
+        }
+
+        private ImmutableNode? DeleteFromInternalNode(ImmutableNode node, int index, int length)
+        {
             if (node.Left != null && index < node.Left.Length)
             {
                 var newLeft = Delete(node.Left, index, length);
