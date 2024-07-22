@@ -1,0 +1,38 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:views="clr-namespace:meteor.UI.Views"
+        xmlns:viewModels="clr-namespace:meteor.UI.ViewModels"
+        xmlns:viewModels1="clr-namespace:meteor.Core.Interfaces.ViewModels;assembly=meteor.Core"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        x:Class="meteor.UI.Views.MainWindow"
+        x:DataType="viewModels:MainWindowViewModel"
+        WindowStartupLocation="CenterScreen"
+        Width="500" Height="500"
+        Title="meteor">
+
+    <Window.KeyBindings>
+        <KeyBinding Command="{Binding TabViewModel.AddTabCommand}" Gesture="Ctrl+N" />
+        <KeyBinding Command="{Binding TabViewModel.CloseTabCommand}"
+                    CommandParameter="{Binding TabViewModel.SelectedTab}" Gesture="Ctrl+W" />
+    </Window.KeyBindings>
+
+    <Window.DataTemplates>
+        <DataTemplate x:DataType="viewModels:TabItemViewModel">
+            <views:TabItemView />
+        </DataTemplate>
+    </Window.DataTemplates>
+
+    <DockPanel>
+        <views:HorizontalScrollableTabControl ItemsSource="{Binding Tabs}"
+                                              SelectedItem="{Binding SelectedTab, Mode=TwoWay}"
+                                              DataContext="{Binding TabViewModel}">
+            <views:HorizontalScrollableTabControl.ContentTemplate>
+                <DataTemplate DataType="{x:Type viewModels1:ITabItemViewModel}">
+                    <views:EditorView DataContext="{Binding EditorViewModel}" />
+                </DataTemplate>
+            </views:HorizontalScrollableTabControl.ContentTemplate>
+        </views:HorizontalScrollableTabControl>
+    </DockPanel>
+</Window>

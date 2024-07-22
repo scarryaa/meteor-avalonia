@@ -1,0 +1,102 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:behaviors="clr-namespace:meteor.UI.Behaviors"
+             xmlns:viewModels1="clr-namespace:meteor.Core.Interfaces.ViewModels;assembly=meteor.Core"
+             xmlns:views="clr-namespace:meteor.UI.Views"
+             xmlns:converters="clr-namespace:meteor.UI.Converters"
+             x:Class="meteor.UI.Views.TabItemView"
+             x:DataType="viewModels1:ITabItemViewModel">
+
+    <UserControl.Resources>
+        <converters:BoolToResourceConverter x:Key="BoolToResourceConverter" />
+        <converters:IsTemporaryTabToFontStyleConverter x:Key="IsTemporaryTabToFontStyleConverter" />
+        <converters:IsTemporaryTabToFontFamilyConverter x:Key="IsTemporaryTabToFontFamilyConverter"
+                                                        SanFrancisco="{StaticResource SanFrancisco}"
+                                                        SanFranciscoItalic="{StaticResource SanFranciscoItalic}" />
+    </UserControl.Resources>
+
+    <UserControl.Styles>
+        <Style Selector="Border.TabBorder">
+            <Setter Property="BorderBrush" Value="{DynamicResource TabBorderBrush}" />
+            <Setter Property="Background" Value="{DynamicResource TabBackground}" />
+            <Setter Property="BorderThickness" Value="{DynamicResource TabBorderThickness}" />
+            <Setter Property="Padding" Value="{DynamicResource TabPadding}" />
+        </Style>
+
+        <Style Selector="Border.TabBorder.Selected">
+            <Setter Property="Background" Value="{DynamicResource TabBackgroundActive}" />
+        </Style>
+        
+        <Style Selector="TextBlock.TabTitle">
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="HorizontalAlignment" Value="Left" />
+            <Setter Property="FontSize" Value="{DynamicResource TabFontSize}" />
+            <Setter Property="Margin" Value="0 1 0 0" />
+            <Setter Property="Foreground" Value="{DynamicResource TabForeground}" />
+            <Setter Property="FontFamily"
+                    Value="{Binding IsTemporary, Converter={StaticResource IsTemporaryTabToFontFamilyConverter}}" />
+            <Setter Property="FontStyle"
+                    Value="{Binding IsTemporary, Converter={StaticResource IsTemporaryTabToFontStyleConverter}}" />
+        </Style>
+
+        <Style Selector="Button#CloseButton">
+            <Setter Property="Opacity" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource TabCloseButtonForeground}" />
+            <Setter Property="Width" Value="18" />
+            <Setter Property="Height" Value="16" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="2 1 0 0" />
+        </Style>
+
+        <Style Selector="Border.TabBorder:pointerover Button#CloseButton">
+            <Setter Property="Opacity" Value="1" />
+        </Style>
+
+        <Style Selector="Button#CloseButton:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource TabCloseButtonHoverBackground}" />
+        </Style>
+
+        <Style Selector="TextBlock.CloseButtonText">
+            <Setter Property="Text" Value="×" />
+            <Setter Property="FontFamily" Value="{DynamicResource TabFontFamily}" />
+            <Setter Property="FontSize" Value="{DynamicResource TabFontSize}" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+    </UserControl.Styles>
+
+    <Border Classes="TabBorder"
+            behaviors:MiddleClickTabBehavior.CloseCommand="{Binding $parent[views:HorizontalScrollableTabControl].((viewModels1:ITabViewModel)DataContext).CloseTabCommand}"
+            behaviors:MiddleClickTabBehavior.CloseCommandParameter="{Binding}"
+            Classes.Selected="{Binding IsSelected}">
+        <Border.ContextMenu>
+            <ContextMenu>
+                <MenuItem Header="Close Tab"
+                          Command="{Binding $parent[views:HorizontalScrollableTabControl].((viewModels1:ITabViewModel)DataContext).CloseTabCommand}"
+                          CommandParameter="{Binding}" />
+                <MenuItem Header="Close Other Tabs"
+                          Command="{Binding $parent[views:HorizontalScrollableTabControl].((viewModels1:ITabViewModel)DataContext).CloseOtherTabsCommand}"
+                          CommandParameter="{Binding}" />
+                <MenuItem Header="Close All Tabs"
+                          Command="{Binding $parent[views:HorizontalScrollableTabControl].((viewModels1:ITabViewModel)DataContext).CloseAllTabsCommand}"
+                          CommandParameter="{Binding}" />
+            </ContextMenu>
+        </Border.ContextMenu>
+        <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
+            <Ellipse Grid.Column="0" Width="8" Height="8"
+                     Fill="{DynamicResource TabDirtyIndicator}"
+                     IsVisible="{Binding IsDirty}"
+                     Margin="-4,0,6,0" />
+            <TextBlock Grid.Column="1" Classes="TabTitle"
+                       Text="{Binding Title}" />
+            <Button x:Name="CloseButton" Grid.Column="2"
+                    Command="{Binding $parent[views:HorizontalScrollableTabControl].((viewModels1:ITabViewModel)DataContext).CloseTabCommand}"
+                    CommandParameter="{Binding}">
+                <TextBlock Classes="CloseButtonText" />
+            </Button>
+        </Grid>
+    </Border>
+</UserControl>

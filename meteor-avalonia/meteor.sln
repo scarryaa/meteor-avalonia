@@ -1,0 +1,46 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "meteor.Core", "src\meteor.Core\meteor.Core.csproj", "{45CF2D1E-0ACC-4CDD-93C4-7EAC4CA998EB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "meteor.Infrastructure", "src\meteor.Infrastructure\meteor.Infrastructure.csproj", "{897AA1E8-8DE4-43DD-8670-D7B007472D21}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "meteor.UI", "src\meteor.UI\meteor.UI.csproj", "{DA9EB253-6200-4883-BD59-9319DC316494}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "meteor.UnitTests", "tests\meteor.UnitTests\meteor.UnitTests.csproj", "{34D78F1C-3ACF-4EB5-AF08-0EE77CC6C7C6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "meteor.IntegrationTests", "meteor.IntegrationTests\meteor.IntegrationTests.csproj", "{B10397B2-4FF5-4AC4-A527-952F1110284E}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{45CF2D1E-0ACC-4CDD-93C4-7EAC4CA998EB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{45CF2D1E-0ACC-4CDD-93C4-7EAC4CA998EB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{45CF2D1E-0ACC-4CDD-93C4-7EAC4CA998EB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{45CF2D1E-0ACC-4CDD-93C4-7EAC4CA998EB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{897AA1E8-8DE4-43DD-8670-D7B007472D21}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{897AA1E8-8DE4-43DD-8670-D7B007472D21}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{897AA1E8-8DE4-43DD-8670-D7B007472D21}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{897AA1E8-8DE4-43DD-8670-D7B007472D21}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DA9EB253-6200-4883-BD59-9319DC316494}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DA9EB253-6200-4883-BD59-9319DC316494}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DA9EB253-6200-4883-BD59-9319DC316494}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DA9EB253-6200-4883-BD59-9319DC316494}.Release|Any CPU.Build.0 = Release|Any CPU
+		{34D78F1C-3ACF-4EB5-AF08-0EE77CC6C7C6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{34D78F1C-3ACF-4EB5-AF08-0EE77CC6C7C6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{34D78F1C-3ACF-4EB5-AF08-0EE77CC6C7C6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{34D78F1C-3ACF-4EB5-AF08-0EE77CC6C7C6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B10397B2-4FF5-4AC4-A527-952F1110284E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B10397B2-4FF5-4AC4-A527-952F1110284E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B10397B2-4FF5-4AC4-A527-952F1110284E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B10397B2-4FF5-4AC4-A527-952F1110284E}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
