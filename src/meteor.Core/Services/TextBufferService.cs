@@ -8,11 +8,11 @@ public class TextBufferService : ITextBufferService
 {
     private readonly StringBuilder _stringBuilder = new();
     private readonly TextBuffer _textBuffer;
-    private char[] _spanBuffer = new char[1024];
-    private readonly SortedDictionary<int, int> _lineIndices = new();
+    private char[] _spanBuffer = Array.Empty<char>();
+    private readonly SortedList<int, int> _lineIndices = new();
     private bool _lineIndicesNeedUpdate = true;
 
-    public TextBufferService(string initialText = "")
+    public TextBufferService(string? initialText = "")
     {
         _textBuffer = new TextBuffer(initialText);
         UpdateLineIndices();
@@ -56,7 +56,7 @@ public class TextBufferService : ITextBufferService
         if (!_lineIndicesNeedUpdate) return;
 
         _lineIndices.Clear();
-        _lineIndices[0] = 1; // First line always starts at index 0
+        _lineIndices.Add(0, 1); // First line always starts at index 0
 
         var lineNumber = 1;
         _textBuffer.IndexedIterate((c, i) =>
@@ -64,7 +64,7 @@ public class TextBufferService : ITextBufferService
             if (c == '\n')
             {
                 lineNumber++;
-                _lineIndices[i + 1] = lineNumber;
+                _lineIndices.Add(i + 1, lineNumber);
             }
         });
 
@@ -98,7 +98,7 @@ public class TextBufferService : ITextBufferService
         _textBuffer.GetTextSegment(start, length, output);
     }
 
-    public void ReplaceAll(string newText)
+    public void ReplaceAll(string? newText)
     {
         _textBuffer.ReplaceAll(newText);
         _lineIndicesNeedUpdate = true;
@@ -111,7 +111,8 @@ public class TextBufferService : ITextBufferService
 
     public ReadOnlySpan<char> AsSpan(int start, int length)
     {
-        if (length > _spanBuffer.Length) _spanBuffer = new char[Math.Max(length, _spanBuffer.Length * 2)];
+        if (length > _spanBuffer.Length)
+            _spanBuffer = new char[Math.Max(length, _spanBuffer.Length * 2)];
         _textBuffer.GetTextSegment(start, length, _spanBuffer);
         return new ReadOnlySpan<char>(_spanBuffer, 0, length);
     }
@@ -135,7 +136,7 @@ public class TextBufferService : ITextBufferService
     public int GetLineCount()
     {
         UpdateLineIndices();
-        return _lineIndices.Values.Last();
+        return _lineIndices.Values[^1];
     }
 
     public string GetLineText(int lineNumber)
@@ -159,7 +160,7 @@ public class TextBufferService : ITextBufferService
     public string Substring(int start, int length)
     {
         if (start < 0 || length < 0 || start + length > _textBuffer.Length)
-            throw new ArgumentOutOfRangeException("start");
+            throw new ArgumentOutOfRangeException(nameof(start));
 
         _stringBuilder.Clear();
         _textBuffer.GetTextSegment(start, length, _stringBuilder);

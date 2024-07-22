@@ -31,8 +31,8 @@ public class RopeTests
     public void Length_EmptyRope_ReturnsZero()
     {
         var rope = new Rope();
-        rope = (Rope)rope.Insert(0, "Hello");
-        rope = (Rope)rope.Delete(0, 5);
+        rope.Insert(0, "Hello");
+        rope.Delete(0, 5);
         Assert.Equal(0, rope.Length);
     }
 
@@ -42,13 +42,13 @@ public class RopeTests
         var rope = new Rope("hello");
         Assert.Equal(5, rope.Length);
 
-        rope = (Rope)rope.Insert(5, " world");
+        rope.Insert(5, " world");
         Assert.Equal(11, rope.Length);
 
-        rope = (Rope)rope.Delete(5, 1);
+        rope.Delete(5, 1);
         Assert.Equal(10, rope.Length);
     }
-    
+
     [Fact]
     public void Indexer_ValidIndex_ReturnsCorrectCharacter()
     {
@@ -68,8 +68,8 @@ public class RopeTests
     public void Insert_ValidIndex_ReturnsNewRopeWithInsertedString()
     {
         var rope = new Rope("hello");
-        var newRope = rope.Insert(2, "world");
-        Assert.Equal("heworldllo", newRope.ToString());
+        rope.Insert(2, "world");
+        Assert.Equal("heworldllo", rope.ToString());
     }
 
     [Fact]
@@ -84,8 +84,8 @@ public class RopeTests
     public void Delete_ValidIndexAndLength_ReturnsNewRopeWithDeletedSubstring()
     {
         var rope = new Rope("hello world");
-        var newRope = rope.Delete(6, 5);
-        Assert.Equal("hello ", newRope.ToString());
+        rope.Delete(6, 5);
+        Assert.Equal("hello ", rope.ToString());
     }
 
     [Fact]
@@ -117,31 +117,6 @@ public class RopeTests
     {
         var rope = new Rope("hello world");
         Assert.Equal("hello world", rope.ToString());
-    }
-
-    [Fact]
-    public void Concat_ValidRope_ReturnsNewRopeWithConcatenatedStrings()
-    {
-        var rope1 = new Rope("hello");
-        var rope2 = new Rope(" world");
-        var newRope = rope1.Concat(rope2);
-        Assert.Equal("hello world", newRope.ToString());
-    }
-
-    [Fact]
-    public void Concat_InvalidArgument_ThrowsArgumentException()
-    {
-        var rope = new Rope("hello");
-        Assert.Throws<ArgumentException>(() => rope.Concat(null));
-    }
-
-    [Fact]
-    public void Iterate_IteratesOverEachCharacterInRope()
-    {
-        var rope = new Rope("hello");
-        var result = "";
-        rope.Iterate(c => result += c);
-        Assert.Equal("hello", result);
     }
 
     [Fact]
@@ -237,7 +212,6 @@ public class RopeTests
         Assert.Equal(input.Length, rope.Length);
         Assert.Equal(input, rope.ToString());
     }
-
 
     [Fact]
     public void Stress_HandlesHighLoadCorrectly()

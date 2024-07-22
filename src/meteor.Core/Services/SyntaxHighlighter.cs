@@ -13,7 +13,7 @@ public class SyntaxHighlighter : ISyntaxHighlighter
     private readonly Dictionary<int, List<SyntaxHighlightingResult>> _chunkCache = new();
     private readonly KeywordTrie _keywordTrie;
     private readonly ITabService _tabService;
-    private string _lastProcessedText = string.Empty;
+    private string? _lastProcessedText = string.Empty;
 
     public SyntaxHighlighter(ITabService tabService)
     {
@@ -21,7 +21,7 @@ public class SyntaxHighlighter : ISyntaxHighlighter
         _keywordTrie = new KeywordTrie(new[] { "if", "else", "for", "while", "return", "var" });
     }
 
-    public IEnumerable<SyntaxHighlightingResult> Highlight(string text, TextChangeInfo changeInfo = null)
+    public IEnumerable<SyntaxHighlightingResult> Highlight(string? text, TextChangeInfo changeInfo = null)
     {
         if (string.IsNullOrEmpty(text)) return Enumerable.Empty<SyntaxHighlightingResult>();
 
@@ -50,7 +50,7 @@ public class SyntaxHighlighter : ISyntaxHighlighter
     }
 
 
-    private void HighlightEntireText(string text)
+    private void HighlightEntireText(string? text)
     {
         if (string.IsNullOrEmpty(text)) return;
 

@@ -5,5 +5,5 @@ namespace meteor.Core.Interfaces.Services;
 
 public interface ISyntaxHighlighter
 {
-    IEnumerable<SyntaxHighlightingResult> Highlight(string text, TextChangeInfo changeInfo = null);
+    IEnumerable<SyntaxHighlightingResult> Highlight(string? text, TextChangeInfo changeInfo = null);
 }

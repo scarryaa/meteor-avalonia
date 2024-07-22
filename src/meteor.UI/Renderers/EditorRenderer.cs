@@ -150,42 +150,54 @@ public class EditorRenderer : IDisposable
         // Draw selection after line highlight
         DrawLineSelection(context, textBufferService, renderContext, lineHeight);
 
-        var sb = new StringBuilder(renderContext.LineLength);
-        textBufferService.GetTextSegment(renderContext.LineStart, renderContext.LineLength, sb);
-
-        var formattedText = new FormattedText(
-            sb.ToString(),
-            CultureInfo.CurrentCulture,
-            FlowDirection.LeftToRight,
-            _typeface,
-            _fontSize,
-            _plainTextBrush
-        );
-
-        formattedText.MaxTextWidth = double.PositiveInfinity;
-
-        ApplySyntaxHighlighting(formattedText, renderContext.LineStart, renderContext.LineLength,
-            renderContext.HighlightingResults);
-
-        // Calculate the vertical offset to center the text
-        var textHeight = formattedText.Height;
-        var verticalOffset = (lineHeight - textHeight) / 2;
-
-        context.DrawText(formattedText, new Point(-renderContext.OffsetX, renderContext.LineY + verticalOffset));
-        
-        if (_showCursor && renderContext.CursorPosition >= renderContext.LineStart &&
-            renderContext.CursorPosition <= renderContext.LineStart + renderContext.LineLength)
+        if (renderContext.LineLength > 0)
         {
-            double cursorX;
-            if (renderContext.LineLength == 0)
-                cursorX = 0;
-            else
-                cursorX = _textMeasurer
+            var sb = new StringBuilder(renderContext.LineLength);
+
+            if (renderContext.LineStart < 0 || renderContext.LineLength < 0 ||
+                renderContext.LineStart + renderContext.LineLength > textBufferService.Length)
+                return;
+
+            textBufferService.GetTextSegment(renderContext.LineStart, renderContext.LineLength, sb);
+
+            var formattedText = new FormattedText(
+                sb.ToString(),
+                CultureInfo.CurrentCulture,
+                FlowDirection.LeftToRight,
+                _typeface,
+                _fontSize,
+                _plainTextBrush
+            );
+
+            formattedText.MaxTextWidth = double.PositiveInfinity;
+
+            ApplySyntaxHighlighting(formattedText, renderContext.LineStart, renderContext.LineLength,
+                renderContext.HighlightingResults);
+
+            // Calculate the vertical offset to center the text
+            var textHeight = formattedText.Height;
+            var verticalOffset = (lineHeight - textHeight) / 2;
+
+            context.DrawText(formattedText, new Point(-renderContext.OffsetX, renderContext.LineY + verticalOffset));
+
+            if (_showCursor && renderContext.CursorPosition >= renderContext.LineStart &&
+                renderContext.CursorPosition <= renderContext.LineStart + renderContext.LineLength)
+            {
+                var cursorX = _textMeasurer
                     .GetPositionAtIndex(sb.ToString(), renderContext.CursorPosition - renderContext.LineStart).X;
 
-            context.DrawLine(_cursorPen,
-                new Point(cursorX - renderContext.OffsetX + 1, renderContext.LineY),
-                new Point(cursorX - renderContext.OffsetX + 1, renderContext.LineY + lineHeight));
+                context.DrawLine(_cursorPen,
+                    new Point(cursorX - renderContext.OffsetX + 1, renderContext.LineY),
+                    new Point(cursorX - renderContext.OffsetX + 1, renderContext.LineY + lineHeight));
+            }
+        }
+        else
+        {
+            // Handle the case where the line length is 0
+            if (_showCursor && renderContext.CursorPosition == renderContext.LineStart)
+                context.DrawLine(_cursorPen,
+                    new Point(0 - renderContext.OffsetX + 1, renderContext.LineY),
+                    new Point(0 - renderContext.OffsetX + 1, renderContext.LineY + lineHeight));
         }
     }
 

@@ -71,7 +71,7 @@ public class EditorViewModelTests
     public void Text_Set_UpdatesTextBufferServiceAndRaisesPropertyChanged()
     {
         // Arrange
-        const string newText = "New Text";
+        const string? newText = "New Text";
         var propertyChangedRaised = false;
         _viewModel.PropertyChanged += (sender, args) =>
         {

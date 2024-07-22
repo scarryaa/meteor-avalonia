@@ -26,8 +26,8 @@ public class TextBufferServiceTests
     public void Indexer_WithInvalidIndex_ThrowsIndexOutOfRangeException()
     {
         var service = new TextBufferService("hello");
-        Assert.Throws<IndexOutOfRangeException>(() => service[-1]);
-        Assert.Throws<IndexOutOfRangeException>(() => service[5]);
+        Assert.Throws<ArgumentOutOfRangeException>(() => service[-1]);
+        Assert.Throws<ArgumentOutOfRangeException>(() => service[5]);
     }
 
     [Fact]

@@ -13,6 +13,6 @@ public interface ITextBuffer : IDisposable
     void GetTextSegment(int start, int length, StringBuilder output);
     string GetText(int start, int length);
     string GetText();
-    void ReplaceAll(string newText);
+    void ReplaceAll(string? newText);
     void Iterate(Action<char> action);
 }

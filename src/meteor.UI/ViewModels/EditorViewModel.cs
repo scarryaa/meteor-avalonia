@@ -16,28 +16,28 @@ namespace meteor.UI.ViewModels;
 
 public sealed class EditorViewModel : IEditorViewModel
 {
-    private int _cachedCursorPosition = -1;
-    private int _lastKnownCursorPosition = -1;
-    private int _lastKnownLine = 1;
-    private double _viewportHeight;
-    private double _viewportWidth;
-    private bool _suppressNotifications;
     private const double Epsilon = 0.000001;
     private readonly ICursorService _cursorService;
     private readonly IInputService _inputService;
+    private readonly IScrollManager _scrollManager;
     private readonly ISelectionService _selectionService;
     private readonly IEditorSizeCalculator _sizeCalculator;
     private readonly StringBuilder _stringBuilder = new();
     private readonly ISyntaxHighlighter _syntaxHighlighter;
-    private readonly IScrollManager _scrollManager;
-    private string _cachedText = string.Empty;
+    private int _cachedCursorPosition = -1;
+    private string? _cachedText = string.Empty;
+    private int _currentLine;
     private double _editorHeight;
     private double _editorWidth;
-    private bool _isTextDirty = true;
-    private Vector _scrollOffset;
-    private double _maxScrollHeight;
-    private int _currentLine;
     private ObservableCollection<SyntaxHighlightingResult> _highlightingResults = new();
+    private bool _isTextDirty = true;
+    private int _lastKnownCursorPosition = -1;
+    private int _lastKnownLine = 1;
+    private double _maxScrollHeight;
+    private Vector _scrollOffset;
+    private bool _suppressNotifications;
+    private double _viewportHeight;
+    private double _viewportWidth;
 
     public EditorViewModel(EditorViewModelServiceContainer serviceContainer, ITextMeasurer textMeasurer,
         IScrollManager scrollManager)
@@ -67,9 +67,9 @@ public sealed class EditorViewModel : IEditorViewModel
         TabService.TabChanged += OnTabChanged;
     }
 
-    public event PropertyChangedEventHandler? PropertyChanged;
-
     public GutterViewModel GutterViewModel { get; }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
 
     public int CurrentLine
     {
@@ -180,7 +180,7 @@ public sealed class EditorViewModel : IEditorViewModel
 
     public event EventHandler? InvalidateMeasureRequested;
 
-    public string Text
+    public string? Text
     {
         get
         {
@@ -252,11 +252,6 @@ public sealed class EditorViewModel : IEditorViewModel
         InvalidateMeasureRequested?.Invoke(this, EventArgs.Empty);
     }
 
-    private void UpdateGutterCurrentLine()
-    {
-        GutterViewModel.CurrentLine = CurrentLine;
-    }
-
     public void DispatcherInvoke(Action action)
     {
         Dispatcher.UIThread.Post(action, DispatcherPriority.Background);
@@ -319,9 +314,35 @@ public sealed class EditorViewModel : IEditorViewModel
         UpdateScrollOffset(offset);
     }
 
+    public void UpdateEditorSize(double width, double height, double viewportHeight, double viewportWidth)
+    {
+        EditorWidth = width;
+        EditorHeight = height;
+        MaxScrollHeight = Math.Max(0, EditorHeight - viewportHeight);
+        UpdateViewportSize(viewportWidth, viewportHeight);
+        UpdateTabState();
+    }
+
+    public void SuppressNotifications(bool suppress)
+    {
+        _suppressNotifications = suppress;
+    }
+
+    public void Dispose()
+    {
+        TabService.TabChanged -= OnTabChanged;
+        GutterViewModel.ScrollOffsetChanged -= OnGutterScrollOffsetChanged;
+        PropertyChanged = null;
+    }
+
+    private void UpdateGutterCurrentLine()
+    {
+        GutterViewModel.CurrentLine = CurrentLine;
+    }
+
     private void SynchronizeCurrentLine(int cursorPosition)
     {
-        if (cursorPosition < 0 || cursorPosition > TextBufferService.Length)
+        if (cursorPosition < 0 || cursorPosition >= TextBufferService.Length)
         {
             // Invalid cursor position, reset to known good state
             _lastKnownCursorPosition = 0;
@@ -359,11 +380,20 @@ public sealed class EditorViewModel : IEditorViewModel
         start = Math.Max(0, Math.Min(start, length));
         end = Math.Max(0, Math.Min(end, length));
 
+        // Validate the indices before accessing TextBufferService
+        if (start >= length || end > length || start >= end)
+        {
+            Console.WriteLine("Invalid range, returning count=0");
+            return count;
+        }
+
         for (var i = start; i < end; i++)
             if (TextBufferService[i] == '\n')
                 count++;
+
         return count;
     }
+
 
     private void OnTabChanged(object? sender, TabChangedEventArgs e)
     {
@@ -429,15 +459,6 @@ public sealed class EditorViewModel : IEditorViewModel
             TabService.UpdateTabState(activeTabInfo.Index, CursorPosition, Selection, ScrollOffset, MaxScrollHeight);
     }
 
-    public void UpdateEditorSize(double width, double height, double viewportHeight, double viewportWidth)
-    {
-        EditorWidth = width;
-        EditorHeight = height;
-        MaxScrollHeight = Math.Max(0, EditorHeight - viewportHeight);
-        UpdateViewportSize(viewportWidth, viewportHeight);
-        UpdateTabState();
-    }
-
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {
         if (!_suppressNotifications) PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
@@ -447,17 +468,5 @@ public sealed class EditorViewModel : IEditorViewModel
     {
         _cachedCursorPosition = -1;
         OnPropertyChanged(nameof(CursorPosition));
-    }
-
-    public void SuppressNotifications(bool suppress)
-    {
-        _suppressNotifications = suppress;
-    }
-
-    public void Dispose()
-    {
-        TabService.TabChanged -= OnTabChanged;
-        GutterViewModel.ScrollOffsetChanged -= OnGutterScrollOffsetChanged;
-        PropertyChanged = null;
     }
 }

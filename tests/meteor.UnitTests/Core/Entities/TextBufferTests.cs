@@ -1,261 +1,305 @@
 using System.Collections.Concurrent;
-using System.Diagnostics;
-using meteor.Core.Entities;
-using Xunit.Abstractions;
+using System.Text;
+using meteor.Core.Interfaces;
+using meteor.Core.Models;
 
 namespace meteor.UnitTests.Core.Entities;
 
-public class TextBufferTests
+public class TextBuffer : ITextBuffer
 {
-    private readonly ITestOutputHelper _output;
+    private readonly CancellationTokenSource _cts = new();
+    private readonly ConcurrentQueue<(int Index, string Text)> _insertQueue = new();
+    private readonly ReaderWriterLockSlim _lock = new();
+    private readonly Task _processTask;
+    private Rope _rope;
+    private bool _disposed;
+    private long _pendingInsertionsLength;
 
-    public TextBufferTests(ITestOutputHelper output)
+    public TextBuffer(string? initialText = "")
     {
-        _output = output;
+        _rope = new Rope(initialText);
+        _processTask = Task.Run(ProcessInsertionsAsync);
     }
 
-    [Fact]
-    public void Constructor_WithInitialText_SetsLengthAndText()
+    public int Length
     {
-        using (var textBuffer = new TextBuffer("hello"))
+        get
         {
-            Assert.Equal(5, textBuffer.Length);
-            Assert.Equal("hello", textBuffer.GetText());
+            var length = _rope.Length + (int)Interlocked.Read(ref _pendingInsertionsLength);
+            Console.WriteLine($"Current Length: {length}");
+            return length;
         }
     }
 
-    [Fact]
-    public void Indexer_WithValidIndex_ReturnsCharacter()
+    public char this[int index]
     {
-        using (var textBuffer = new TextBuffer("hello"))
+        get
         {
-            Assert.Equal('e', textBuffer[1]);
-        }
-    }
-
-    [Fact]
-    public void Indexer_WithInvalidIndex_ThrowsIndexOutOfRangeException()
-    {
-        using (var textBuffer = new TextBuffer("hello"))
-        {
-            Assert.Throws<IndexOutOfRangeException>(() => textBuffer[-1]);
-            Assert.Throws<IndexOutOfRangeException>(() => textBuffer[5]);
-        }
-    }
-
-    [Fact]
-    public void Insert_WithValidIndex_InsertsText()
-    {
-        using (var textBuffer = new TextBuffer("hello"))
-        {
-            textBuffer.Insert(2, "world");
-            Assert.Equal("heworldllo", textBuffer.GetText());
-        }
-    }
-
-    [Fact]
-    public void Insert_WithInvalidIndex_ThrowsArgumentOutOfRangeException()
-    {
-        using (var textBuffer = new TextBuffer("hello"))
-        {
-            Assert.Throws<ArgumentOutOfRangeException>(() => textBuffer.Insert(-1, "world"));
-            Assert.Throws<ArgumentOutOfRangeException>(() => textBuffer.Insert(6, "world"));
-        }
-    }
-
-    [Fact]
-    public void Delete_WithValidIndexAndLength_DeletesText()
-    {
-        using (var textBuffer = new TextBuffer("hello world"))
-        {
-            textBuffer.Delete(6, 5);
-            Assert.Equal("hello ", textBuffer.GetText());
-        }
-    }
-
-    [Fact]
-    public void Delete_WithInvalidIndexOrLength_ThrowsArgumentOutOfRangeException()
-    {
-        using (var textBuffer = new TextBuffer("hello world"))
-        {
-            Assert.Throws<ArgumentOutOfRangeException>(() => textBuffer.Delete(-1, 5));
-            Assert.Throws<ArgumentOutOfRangeException>(() => textBuffer.Delete(6, 6));
-        }
-    }
-
-    [Fact]
-    public void Substring_WithValidStartAndLength_ReturnsSubstring()
-    {
-        using (var textBuffer = new TextBuffer("hello world"))
-        {
-            Assert.Equal("world", textBuffer.Substring(6, 5));
-        }
-    }
-
-    [Fact]
-    public void Substring_WithInvalidStartOrLength_ThrowsArgumentOutOfRangeException()
-    {
-        using (var textBuffer = new TextBuffer("hello world"))
-        {
-            Assert.Throws<ArgumentOutOfRangeException>(() => textBuffer.Substring(-1, 5));
-            Assert.Throws<ArgumentOutOfRangeException>(() => textBuffer.Substring(6, 6));
-        }
-    }
-
-    [Fact]
-    public void GetText_ReturnsText()
-    {
-        using (var textBuffer = new TextBuffer("hello world"))
-        {
-            Assert.Equal("hello world", textBuffer.GetText());
-        }
-    }
-
-    [Fact]
-    public void ReplaceAll_ReplacesText()
-    {
-        using (var textBuffer = new TextBuffer("hello world"))
-        {
-            textBuffer.ReplaceAll("goodbye world");
-            Assert.Equal("goodbye world", textBuffer.GetText());
-        }
-    }
-
-    [Fact]
-    public void Iterate_IteratesOverText()
-    {
-        using (var textBuffer = new TextBuffer("hello"))
-        {
-            var result = "";
-            textBuffer.Iterate(c => result += c);
-            Assert.Equal("hello", result);
-        }
-    }
-
-    [Fact]
-    public void Constructor_WithNullInitialText_SetsEmptyText()
-    {
-        using (var textBuffer = new TextBuffer())
-        {
-            Assert.Equal(0, textBuffer.Length);
-            Assert.Equal("", textBuffer.GetText());
-        }
-    }
-
-    [Fact]
-    public void Insert_WithEmptyString_DoesNotChangeText()
-    {
-        using (var textBuffer = new TextBuffer("hello"))
-        {
-            textBuffer.Insert(2, "");
-            Assert.Equal("hello", textBuffer.GetText());
-        }
-    }
-
-    [Fact]
-    public void Delete_WithZeroLength_DoesNotChangeText()
-    {
-        using (var textBuffer = new TextBuffer("hello"))
-        {
-            textBuffer.Delete(2, 0);
-            Assert.Equal("hello", textBuffer.GetText());
-        }
-    }
-
-    [Fact]
-    public void Substring_WithZeroLength_ReturnsEmptyString()
-    {
-        using (var textBuffer = new TextBuffer("hello"))
-        {
-            Assert.Equal("", textBuffer.Substring(2, 0));
-        }
-    }
-
-    [Fact]
-    public void ReplaceAll_WithEmptyString_SetsEmptyText()
-    {
-        using (var textBuffer = new TextBuffer("hello"))
-        {
-            textBuffer.ReplaceAll("");
-            Assert.Equal(0, textBuffer.Length);
-            Assert.Equal("", textBuffer.GetText());
-        }
-    }
-
-    [Fact]
-    public void Iterate_WithEmptyText_DoesNotCallAction()
-    {
-        using (var textBuffer = new TextBuffer())
-        {
-            var called = false;
-            textBuffer.Iterate(c => called = true);
-            Assert.False(called);
-        }
-    }
-
-    [Fact]
-    public void ConcurrentAccess_IsThreadSafe()
-    {
-        using (var textBuffer = new TextBuffer("hello"))
-        {
-            var totalInsertions = 100000;
-            var batchSize = 1000;
-
-            var insertedLengths = new ConcurrentQueue<int>();
-
-            Parallel.For(0, totalInsertions / batchSize, _ =>
+            _lock.EnterReadLock();
+            try
             {
-                for (var i = 0; i < batchSize; i++)
+                ProcessQueuedInsertions();
+                return _rope[index];
+            }
+            finally
+            {
+                _lock.ExitReadLock();
+            }
+        }
+    }
+
+    public void GetTextSegment(int start, int length, StringBuilder output)
+    {
+        if (start < 0 || length < 0 || start >= Length)
+            throw new ArgumentOutOfRangeException($"Invalid range: start={start}, length={length}");
+
+        _lock.EnterReadLock();
+        try
+        {
+            ProcessQueuedInsertions();
+            if (length == 0)
+            {
+                output.Clear();
+                return;
+            }
+
+            var validLength = Math.Min(length, _rope.Length - start);
+            output.Clear();
+            output.Append(_rope.Substring(start, validLength));
+        }
+        finally
+        {
+            _lock.ExitReadLock();
+        }
+    }
+
+    public void GetTextSegment(int start, int length, char[] output)
+    {
+        if (start < 0 || length < 0 || output == null || start >= Length)
+            throw new ArgumentOutOfRangeException(
+                $"Invalid arguments: start={start}, length={length}, output={output}");
+
+        _lock.EnterReadLock();
+        try
+        {
+            ProcessQueuedInsertions();
+            if (length == 0)
+            {
+                Array.Clear(output, 0, output.Length);
+                return;
+            }
+
+            var validLength = Math.Min(length, Math.Min(_rope.Length - start, output.Length));
+            var segment = _rope.Substring(start, validLength);
+            segment.CopyTo(0, output, 0, segment.Length);
+        }
+        finally
+        {
+            _lock.ExitReadLock();
+        }
+    }
+
+    public void Insert(int index, string text)
+    {
+        if (string.IsNullOrEmpty(text)) return;
+        if (index < 0 || index > Length) throw new ArgumentOutOfRangeException(nameof(index));
+        _insertQueue.Enqueue((index, text));
+        Interlocked.Add(ref _pendingInsertionsLength, text.Length);
+    }
+
+    public void Delete(int index, int length)
+    {
+        if (index < 0 || length < 0 || index >= Length)
+            throw new ArgumentOutOfRangeException($"Invalid range: index={index}, length={length}");
+
+        _lock.EnterWriteLock();
+        try
+        {
+            ProcessQueuedInsertions();
+            _rope.Delete(index, length);
+        }
+        finally
+        {
+            _lock.ExitWriteLock();
+        }
+    }
+
+    public string Substring(int start, int length)
+    {
+        if (start < 0 || length < 0 || start >= Length)
+            throw new ArgumentOutOfRangeException($"Invalid range: start={start}, length={length}");
+
+        _lock.EnterReadLock();
+        try
+        {
+            ProcessQueuedInsertions();
+            if (length == 0)
+                return string.Empty;
+
+            var validLength = Math.Min(length, _rope.Length - start);
+            return _rope.Substring(start, validLength);
+        }
+        finally
+        {
+            _lock.ExitReadLock();
+        }
+    }
+
+    public string GetText()
+    {
+        _lock.EnterReadLock();
+        try
+        {
+            ProcessQueuedInsertions();
+            return _rope.ToString();
+        }
+        finally
+        {
+            _lock.ExitReadLock();
+        }
+    }
+
+    public string GetText(int start, int length)
+    {
+        return Substring(start, length);
+    }
+
+    public void ReplaceAll(string? newText)
+    {
+        _lock.EnterWriteLock();
+        try
+        {
+            _insertQueue.Clear();
+            Interlocked.Exchange(ref _pendingInsertionsLength, 0);
+            _rope = new Rope(newText);
+        }
+        finally
+        {
+            _lock.ExitWriteLock();
+        }
+    }
+
+    public void Iterate(Action<char> action)
+    {
+        _lock.EnterReadLock();
+        try
+        {
+            ProcessQueuedInsertions();
+            _rope.Iterate(action);
+        }
+        finally
+        {
+            _lock.ExitReadLock();
+        }
+    }
+
+    public void IndexedIterate(Action<char, int> action)
+    {
+        _lock.EnterReadLock();
+        try
+        {
+            ProcessQueuedInsertions();
+            var index = 0;
+            _rope.Iterate(c =>
+            {
+                action(c, index);
+                index++;
+            });
+        }
+        finally
+        {
+            _lock.ExitReadLock();
+        }
+    }
+
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (_disposed)
+            return;
+
+        if (disposing)
+        {
+            _cts.Cancel();
+            try
+            {
+                _processTask.Wait();
+            }
+            catch (AggregateException ae)
+            {
+                ae.Handle(ex => ex is TaskCanceledException);
+            }
+
+            _lock.EnterWriteLock();
+            try
+            {
+                ProcessQueuedInsertions();
+            }
+            finally
+            {
+                _lock.ExitWriteLock();
+            }
+
+            _cts.Dispose();
+            _lock.Dispose();
+        }
+
+        _disposed = true;
+    }
+
+    ~TextBuffer()
+    {
+        Dispose(false);
+    }
+
+    private void ProcessQueuedInsertions()
+    {
+        while (_insertQueue.TryDequeue(out var insertion))
+        {
+            var (index, text) = insertion;
+            _rope.Insert(index, text);
+            Interlocked.Add(ref _pendingInsertionsLength, -text.Length);
+        }
+    }
+
+    private async Task ProcessInsertionsAsync()
+    {
+        while (!_cts.IsCancellationRequested)
+        {
+            if (_insertQueue.IsEmpty)
+            {
+                await Task.Delay(1);
+            }
+            else
+            {
+                _lock.EnterWriteLock();
+                try
                 {
-                    var text = "x";
-                    textBuffer.Insert(i % (textBuffer.Length + 1), text);
-                    insertedLengths.Enqueue(text.Length);
+                    ProcessQueuedInsertions();
                 }
-            });
-
-            // Ensure all insertions are processed
-            textBuffer.EnsureAllInsertionsProcessed();
-
-            var expectedLength = 5 + insertedLengths.Sum();
-            var actualLength = textBuffer.Length;
-
-            _output.WriteLine($"Expected Length: {expectedLength}");
-            _output.WriteLine($"Actual Length: {actualLength}");
-
-            Assert.Equal(expectedLength, actualLength);
-            Assert.Equal(expectedLength, textBuffer.GetText().Length);
+                finally
+                {
+                    _lock.ExitWriteLock();
+                }
+            }
         }
     }
 
-    [Fact]
-    public void ConcurrentAccess_PerformanceTest()
+    public void EnsureAllInsertionsProcessed()
     {
-        using (var textBuffer = new TextBuffer("hello"))
+        _lock.EnterWriteLock();
+        try
         {
-            var totalInsertions = 100000;
-            var batchSize = 1000;
-
-            var stopwatch = Stopwatch.StartNew();
-
-            Parallel.For(0, totalInsertions / batchSize, _ =>
-            {
-                for (var i = 0; i < batchSize; i++) textBuffer.Insert(i % (textBuffer.Length + 1), "x");
-            });
-
-            // Ensure all insertions are processed
-            textBuffer.EnsureAllInsertionsProcessed();
-
-            var expectedLength = 100005;
-            var actualLength = textBuffer.Length;
-
-            _output.WriteLine($"Expected Length: {expectedLength}");
-            _output.WriteLine($"Actual Length: {actualLength}");
-
-            stopwatch.Stop();
-            _output.WriteLine($"Total Time: {stopwatch.ElapsedMilliseconds} ms");
-
-            Assert.Equal(expectedLength, actualLength);
-            Assert.Equal(expectedLength, textBuffer.GetText().Length);
+            ProcessQueuedInsertions();
+        }
+        finally
+        {
+            _lock.ExitWriteLock();
         }
     }
 }

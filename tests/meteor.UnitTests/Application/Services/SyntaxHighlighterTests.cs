@@ -246,7 +246,7 @@ public class SyntaxHighlighterTests
         Assert.Equal(2, results[0].Length);
     }
 
-    private void SetupTextBuffer(string text)
+    private void SetupTextBuffer(string? text)
     {
         _mockTextBufferService.Setup(tbs => tbs.Length).Returns(text.Length);
         _mockTextBufferService.Setup(tbs => tbs.Substring(It.IsAny<int>(), It.IsAny<int>()))

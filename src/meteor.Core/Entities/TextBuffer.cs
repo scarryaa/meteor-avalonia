@@ -9,7 +9,7 @@ public class TextBuffer : ITextBuffer
 {
     private readonly CancellationTokenSource _cts = new();
     private readonly ConcurrentQueue<(int Index, string Text)> _insertQueue = new();
-    private readonly object _lock = new();
+    private readonly ReaderWriterLockSlim _lock = new();
     private readonly Task _processTask;
     private Rope _rope;
     private bool _disposed;
@@ -27,43 +27,76 @@ public class TextBuffer : ITextBuffer
     {
         get
         {
-            lock (_lock)
+            EnsureNotDisposed();
+            _lock.EnterReadLock();
+            try
             {
                 ProcessQueuedInsertions();
                 return _rope[index];
+            }
+            finally
+            {
+                _lock.ExitReadLock();
             }
         }
     }
 
     public void GetTextSegment(int start, int length, StringBuilder output)
     {
-        if (start < 0 || length < 0)
+        EnsureNotDisposed();
+        if (start < 0 || length < 0 || start > Length)
             throw new ArgumentOutOfRangeException($"Invalid range: start={start}, length={length}");
 
-        lock (_lock)
+        _lock.EnterReadLock();
+        try
         {
             ProcessQueuedInsertions();
+            if (length == 0 || Length == 0)
+            {
+                output.Clear();
+                return;
+            }
+
+            var validLength = Math.Min(length, _rope.Length - start);
             output.Clear();
-            output.Append(_rope.Substring(start, Math.Min(length, _rope.Length - start)));
+            output.Append(_rope.Substring(start, validLength));
+        }
+        finally
+        {
+            _lock.ExitReadLock();
         }
     }
 
     public void GetTextSegment(int start, int length, char[] output)
     {
-        if (start < 0 || length < 0 || output == null)
+        EnsureNotDisposed();
+        if (start < 0 || length < 0 || output == null || start >= Length)
             throw new ArgumentOutOfRangeException(
                 $"Invalid arguments: start={start}, length={length}, output={output}");
 
-        lock (_lock)
+        _lock.EnterReadLock();
+        try
         {
             ProcessQueuedInsertions();
-            var segment = _rope.Substring(start, Math.Min(length, Math.Min(_rope.Length - start, output.Length)));
+            if (length == 0 || Length == 0)
+            {
+                Array.Clear(output, 0, output.Length);
+                return;
+            }
+
+            var validLength = Math.Min(length, Math.Min(_rope.Length - start, output.Length));
+            var segment = _rope.Substring(start, validLength);
             segment.CopyTo(0, output, 0, segment.Length);
+        }
+        finally
+        {
+            _lock.ExitReadLock();
         }
     }
 
     public void Insert(int index, string text)
     {
+        EnsureNotDisposed();
         if (string.IsNullOrEmpty(text)) return;
         if (index < 0 || index > Length) throw new ArgumentOutOfRangeException(nameof(index));
         _insertQueue.Enqueue((index, text));
@@ -72,29 +105,47 @@ public class TextBuffer : ITextBuffer
 
     public void Delete(int index, int length)
     {
-        lock (_lock)
+        EnsureNotDisposed();
+        if (index < 0 || length < 0 || index >= Length)
+            throw new ArgumentOutOfRangeException($"Invalid range: index={index}, length={length}");
+
+        _lock.EnterWriteLock();
+        try
         {
             ProcessQueuedInsertions();
             _rope.Delete(index, length);
+        }
+        finally
+        {
+            _lock.ExitWriteLock();
         }
     }
 
     public string Substring(int start, int length)
     {
-        lock (_lock)
+        EnsureNotDisposed();
+        if (start < 0 || length < 0 || start > Length)
+            throw new ArgumentOutOfRangeException($"Invalid range: start={start}, length={length}");
+
+        _lock.EnterReadLock();
+        try
         {
             ProcessQueuedInsertions();
-            return _rope.Substring(start, length);
+            if (length == 0 || Length == 0)
+                return string.Empty;
+
+            var validLength = Math.Min(length, _rope.Length - start);
+            return _rope.Substring(start, validLength);
+        }
+        finally
+        {
+            _lock.ExitReadLock();
         }
     }
 
     public string GetText()
     {
-        lock (_lock)
-        {
-            ProcessQueuedInsertions();
-            return _rope.ToString();
-        }
+        return Substring(0, Length);
     }
 
     public string GetText(int start, int length)
@@ -104,26 +155,40 @@ public class TextBuffer : ITextBuffer
 
     public void ReplaceAll(string newText)
     {
-        lock (_lock)
+        EnsureNotDisposed();
+        _lock.EnterWriteLock();
+        try
         {
             _insertQueue.Clear();
             Interlocked.Exchange(ref _pendingInsertionsLength, 0);
             _rope = new Rope(newText);
         }
+        finally
+        {
+            _lock.ExitWriteLock();
+        }
     }
 
     public void Iterate(Action<char> action)
     {
-        lock (_lock)
+        EnsureNotDisposed();
+        _lock.EnterReadLock();
+        try
         {
             ProcessQueuedInsertions();
             _rope.Iterate(action);
+        }
+        finally
+        {
+            _lock.ExitReadLock();
         }
     }
 
     public void IndexedIterate(Action<char, int> action)
     {
-        lock (_lock)
+        EnsureNotDisposed();
+        _lock.EnterReadLock();
+        try
         {
             ProcessQueuedInsertions();
             var index = 0;
@@ -133,8 +198,12 @@ public class TextBuffer : ITextBuffer
                 index++;
             });
         }
+        finally
+        {
+            _lock.ExitReadLock();
+        }
     }
-    
+
     public void Dispose()
     {
         Dispose(true);
@@ -158,12 +227,18 @@ public class TextBuffer : ITextBuffer
                 ae.Handle(ex => ex is TaskCanceledException);
             }
 
-            lock (_lock)
+            _lock.EnterWriteLock();
+            try
             {
                 ProcessQueuedInsertions();
             }
+            finally
+            {
+                _lock.ExitWriteLock();
+            }
 
             _cts.Dispose();
+            _lock.Dispose();
         }
 
         _disposed = true;
@@ -188,19 +263,40 @@ public class TextBuffer : ITextBuffer
     {
         while (!_cts.IsCancellationRequested)
             if (_insertQueue.IsEmpty)
-                await Task.Delay(1);
+            {
+                await Task.Delay(1, _cts.Token);
+            }
             else
-                lock (_lock)
+            {
+                _lock.EnterWriteLock();
+                try
                 {
                     ProcessQueuedInsertions();
                 }
+                finally
+                {
+                    _lock.ExitWriteLock();
+                }
+            }
     }
 
     public void EnsureAllInsertionsProcessed()
     {
-        lock (_lock)
+        EnsureNotDisposed();
+        _lock.EnterWriteLock();
+        try
         {
             ProcessQueuedInsertions();
         }
+        finally
+        {
+            _lock.ExitWriteLock();
+        }
+    }
+
+    private void EnsureNotDisposed()
+    {
+        if (_disposed)
+            throw new ObjectDisposedException(nameof(TextBuffer));
     }
 }
