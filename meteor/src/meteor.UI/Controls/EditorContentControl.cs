@@ -36,7 +36,6 @@ public class EditorContentControl : Control
     {
         var lineCount = _viewModel.GetLineCount();
         var maxLineWidth = _viewModel.GetMaxLineWidth();
-        Console.WriteLine($"Measuring content: lineCount={lineCount}, maxLineWidth={maxLineWidth}");
         _totalSize = new Size(maxLineWidth, lineCount * _lineHeight);
     }
 
@@ -53,7 +52,6 @@ public class EditorContentControl : Control
         var fetchEndLine = Math.Min(_viewModel.GetLineCount() - 1, endLine + bufferLines);
 
         var visibleContent = _viewModel.GetContentSlice(fetchStartLine, fetchEndLine);
-        Console.WriteLine($"Fetched lines {fetchStartLine}-{fetchEndLine}: {visibleContent}");
         var lines = visibleContent.Split('\n');
 
         for (var i = 0; i < lines.Length; i++)

@@ -63,14 +63,12 @@ public class TextBufferService : ITextBufferService
     {
         TextBuffer.InsertText(position, text);
         InvalidateCache();
-        Console.WriteLine($"Inserted text at position {position}: {text}");
     }
 
     public void DeleteText(int position, int length)
     {
         TextBuffer.DeleteText(position, length);
         InvalidateCache();
-        Console.WriteLine($"Deleted text at position {position}, length {length}");
     }
 
     public int GetLength()
@@ -92,11 +90,6 @@ public class TextBufferService : ITextBufferService
             _cachedMaxLineWidth = CalculateMaxLineWidth(fontFamily, fontSize);
             _cachedFontFamily = fontFamily;
             _cachedFontSize = fontSize;
-            Console.WriteLine($"Calculated new max line width: {_cachedMaxLineWidth}");
-        }
-        else
-        {
-            Console.WriteLine($"Returning cached max line width: {_cachedMaxLineWidth}");
         }
 
         return _cachedMaxLineWidth;
@@ -116,7 +109,6 @@ public class TextBufferService : ITextBufferService
                 {
                     var lineWidth = MeasureLineWidth(currentLine, fontFamily, fontSize);
                     maxWidth = Math.Max(maxWidth, lineWidth);
-                    Console.WriteLine($"Measured line: '{currentLine}', width: {lineWidth}, max width: {maxWidth}");
                     currentLine.Clear();
                 }
                 else
@@ -130,7 +122,6 @@ public class TextBufferService : ITextBufferService
         {
             var lineWidth = MeasureLineWidth(currentLine, fontFamily, fontSize);
             maxWidth = Math.Max(maxWidth, lineWidth);
-            Console.WriteLine($"Measured last line: '{currentLine}', width: {lineWidth}, max width: {maxWidth}");
         }
 
         return maxWidth;
@@ -139,7 +130,6 @@ public class TextBufferService : ITextBufferService
     private double MeasureLineWidth(StringBuilder line, string fontFamily, double fontSize)
     {
         var width = _textMeasurer.MeasureText(line.ToString(), fontFamily, fontSize).Width;
-        Console.WriteLine($"Measured text: '{line}', width: {width}");
         return width;
     }
 
@@ -155,13 +145,11 @@ public class TextBufferService : ITextBufferService
         }
 
         _cachedLineCount = lineCount;
-        Console.WriteLine($"Updated line count: {lineCount}");
     }
 
     private void InvalidateCache()
     {
         _cachedLineCount = -1;
         _cachedMaxLineWidth = -1;
-        Console.WriteLine("Cache invalidated");
     }
 }
