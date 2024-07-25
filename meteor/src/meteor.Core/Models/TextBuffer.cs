@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace meteor.Core.Models;
 
@@ -41,23 +42,38 @@ public class TextBuffer
 
     public static string GetDocumentSlice(int start, int end)
     {
-        var ptr = IntPtr.Zero;
-        try
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
+
+        const int MaxChunkSize = 1024 * 1024;
+        var result = new StringBuilder();
+
+        for (var chunkStart = start; chunkStart < end; chunkStart += MaxChunkSize)
         {
-            ptr = get_document_slice(start, end);
-            if (ptr == IntPtr.Zero) return string.Empty;
-            var content = Marshal.PtrToStringAnsi(ptr);
-            return content ?? string.Empty;
+            var chunkEnd = Math.Min(chunkStart + MaxChunkSize, end);
+            using (var safePtr = new SafeStringHandle(get_document_slice(chunkStart, chunkEnd), free_string))
+            {
+                if (safePtr.IsInvalid) continue;
+                try
+                {
+                    var chunk = Marshal.PtrToStringAuto(safePtr.DangerousGetHandle());
+                    if (chunk != null) result.Append(chunk);
+                }
+                catch (OutOfMemoryException ex)
+                {
+                    Console.WriteLine($"Error in GetDocumentSlice: Out of memory: {ex.Message}");
+                    return result.ToString(); // Return partial result
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error in GetDocumentSlice: {ex.Message}");
+                    // Continue processing other chunks
+                }
+            }
         }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error in GetDocumentSlice: {ex.Message}");
-            return string.Empty;
-        }
-        finally
-        {
-            if (ptr != IntPtr.Zero) free_string(ptr);
-        }
+
+        return result.ToString();
     }
 
     public static int GetDocumentLength()

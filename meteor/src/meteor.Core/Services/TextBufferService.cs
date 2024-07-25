@@ -18,7 +18,7 @@ public class TextBufferService : ITextBufferService
         _textMeasurer = textMeasurer;
         _cachedLineCount = -1;
         _cachedMaxLineWidth = -1;
-        _cachedFontFamily = string.Empty;
+        _cachedFontFamily = "Consolas";
         _cachedFontSize = -1;
     }
 
@@ -63,12 +63,14 @@ public class TextBufferService : ITextBufferService
     {
         TextBuffer.InsertText(position, text);
         InvalidateCache();
+        ForceRecalculateMaxLineWidth();
     }
 
     public void DeleteText(int position, int length)
     {
         TextBuffer.DeleteText(position, length);
         InvalidateCache();
+        ForceRecalculateMaxLineWidth();
     }
 
     public int GetLength()
@@ -84,12 +86,13 @@ public class TextBufferService : ITextBufferService
 
     public double GetMaxLineWidth(string fontFamily, double fontSize)
     {
-        // Always recalculate if the cache is invalid or font settings have changed
-        if (_cachedMaxLineWidth <= 0 || fontFamily != _cachedFontFamily || Math.Abs(fontSize - _cachedFontSize) > 0.001)
+        var recalculate = _cachedMaxLineWidth <= 0 ||
+                          fontFamily != _cachedFontFamily ||
+                          Math.Abs(fontSize - _cachedFontSize) > 0.001;
+
+        if (recalculate)
         {
             _cachedMaxLineWidth = CalculateMaxLineWidth(fontFamily, fontSize);
-            _cachedFontFamily = fontFamily;
-            _cachedFontSize = fontSize;
         }
 
         return _cachedMaxLineWidth;
@@ -99,6 +102,8 @@ public class TextBufferService : ITextBufferService
     {
         double maxWidth = 0;
         var length = GetLength();
+        var currentLineLength = 0;
+        var longestLine = new StringBuilder();
         var currentLine = new StringBuilder();
 
         for (var i = 0; i < length; i += ChunkSize)
@@ -107,8 +112,11 @@ public class TextBufferService : ITextBufferService
             foreach (var c in chunk)
                 if (c == '\n')
                 {
-                    var lineWidth = MeasureLineWidth(currentLine, fontFamily, fontSize);
-                    maxWidth = Math.Max(maxWidth, lineWidth);
+                    if (currentLine.Length > longestLine.Length)
+                    {
+                        longestLine.Clear();
+                        longestLine.Append(currentLine.ToString());
+                    }
                     currentLine.Clear();
                 }
                 else
@@ -117,14 +125,32 @@ public class TextBufferService : ITextBufferService
                 }
         }
 
-        // Check the last line
-        if (currentLine.Length > 0)
+        // Always check the last line, even if it doesn't end with a newline
+        if (currentLine.Length > longestLine.Length)
         {
-            var lineWidth = MeasureLineWidth(currentLine, fontFamily, fontSize);
-            maxWidth = Math.Max(maxWidth, lineWidth);
+            longestLine.Clear();
+            longestLine.Append(currentLine.ToString());
         }
 
+        // Measure the longest line
+        if (longestLine.Length > 0)
+        {
+            maxWidth = _textMeasurer.MeasureText(longestLine.ToString(), fontFamily, fontSize).Width;
+        }
+        
         return maxWidth;
+    }
+
+    private double UpdateMaxWidth(StringBuilder line, string fontFamily, double fontSize, double currentMaxWidth)
+    {
+        if (line.Length > 0)
+        {
+            var lineWidth = MeasureLineWidth(line, fontFamily, fontSize);
+            var newMaxWidth = Math.Max(currentMaxWidth, lineWidth);
+            return newMaxWidth;
+        }
+
+        return currentMaxWidth;
     }
 
     private double MeasureLineWidth(StringBuilder line, string fontFamily, double fontSize)
@@ -151,5 +177,11 @@ public class TextBufferService : ITextBufferService
     {
         _cachedLineCount = -1;
         _cachedMaxLineWidth = -1;
+    }
+
+    private void ForceRecalculateMaxLineWidth()
+    {
+        if (!string.IsNullOrEmpty(_cachedFontFamily) && _cachedFontSize > 0)
+            _cachedMaxLineWidth = CalculateMaxLineWidth(_cachedFontFamily, _cachedFontSize);
     }
 }
