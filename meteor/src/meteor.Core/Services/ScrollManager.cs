@@ -23,7 +23,6 @@ public class ScrollManager : IScrollManager
 
     public void UpdateViewportAndExtentSizes(Size viewport, Size extent)
     {
-        Console.WriteLine($"UpdateViewportAndExtentSizes: Viewport = {viewport}, Extent = {extent}");
         Viewport = viewport;
         ExtentSize = extent;
     }
@@ -37,7 +36,6 @@ public class ScrollManager : IScrollManager
         {
             if (_scrollOffset != value)
             {
-                Console.WriteLine($"ScrollOffset changing from {_scrollOffset} to {value}");
                 _scrollOffset = value;
                 ScrollChanged?.Invoke(this, value);
             }
@@ -51,7 +49,6 @@ public class ScrollManager : IScrollManager
         {
             if (_viewport != value)
             {
-                Console.WriteLine($"Viewport set: {value}");
                 _viewport = value;
             }
         }
@@ -64,7 +61,6 @@ public class ScrollManager : IScrollManager
         {
             if (_extentSize != value)
             {
-                Console.WriteLine($"ExtentSize set: {value}");
                 _extentSize = value;
             }
         }
@@ -73,51 +69,43 @@ public class ScrollManager : IScrollManager
     public void ScrollToLine(int lineNumber)
     {
         var newY = lineNumber * LineHeight;
-        Console.WriteLine($"Scrolling to line {lineNumber}, new Y offset: {newY}");
         ScrollOffset = new Vector(ScrollOffset.X, newY);
     }
 
     public void ScrollToPosition(Vector position)
     {
-        Console.WriteLine($"Scrolling to position {position}");
         ScrollOffset = position;
     }
 
     public void ScrollVertically(double delta)
     {
         var newY = Math.Max(0, ScrollOffset.Y + delta);
-        Console.WriteLine($"Scrolling vertically by {delta}, new Y offset: {newY}");
         ScrollOffset = new Vector(ScrollOffset.X, newY);
     }
 
     public void ScrollHorizontally(double delta)
     {
         var newX = Math.Max(0, ScrollOffset.X + delta);
-        Console.WriteLine($"Scrolling horizontally by {delta}, new X offset: {newX}");
         ScrollOffset = new Vector(newX, ScrollOffset.Y);
     }
 
     public void ScrollUp(int lines = 1)
     {
-        Console.WriteLine($"Scrolling up by {lines} lines");
         ScrollVertically(-lines * LineHeight);
     }
 
     public void ScrollDown(int lines = 1)
     {
-        Console.WriteLine($"Scrolling down by {lines} lines");
         ScrollVertically(lines * LineHeight);
     }
 
     public void PageUp()
     {
-        Console.WriteLine("Page Up");
         ScrollVertically(-_viewport.Height);
     }
 
     public void PageDown()
     {
-        Console.WriteLine("Page Down");
         ScrollVertically(_viewport.Height);
     }
 
@@ -139,12 +127,10 @@ public class ScrollManager : IScrollManager
 
         if (lineTop < ScrollOffset.Y)
         {
-            Console.WriteLine($"Line {lineNumber} is above the visible area, scrolling to line");
             ScrollToLine(lineNumber);
         }
         else if (lineBottom > ScrollOffset.Y + _viewport.Height)
         {
-            Console.WriteLine($"Line {lineNumber} is below the visible area, scrolling to line");
             ScrollToLine(lineNumber - GetVisibleLineCount() + 1);
         }
     }

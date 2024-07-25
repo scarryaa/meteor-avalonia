@@ -332,12 +332,6 @@ public class InputManager : IInputManager
 
         // Update the desired column
         _textAnalysisService.SetDesiredColumn(currentColumn);
-
-        // Enhanced logging for debugging
-        Console.WriteLine(
-            $"Target line: {targetLine}, New position: {newPosition}, Current line: {currentLine}, " +
-            $"Visible lines: {visibleLineCount}, Viewport: {_scrollManager.Viewport}, " +
-            $"Extent size: {_scrollManager.ExtentSize}, Scroll offset: {_scrollManager.ScrollOffset}");
     }
 
     private void HandleScrollUpKey()

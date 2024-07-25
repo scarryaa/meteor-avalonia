@@ -53,7 +53,6 @@ public class EditorContentControl : Control
         var lineCount = _viewModel.GetLineCount();
         var maxLineWidth = _viewModel.GetMaxLineWidth();
         _totalSize = new Size(maxLineWidth, lineCount * _lineHeight);
-        Console.WriteLine($"Updated content measurements: {_totalSize}");
     }
 
     public override void Render(DrawingContext context)

@@ -70,8 +70,6 @@ public partial class EditorControl : UserControl
         var newViewportSize = new Size(_scrollViewer.Viewport.Width, _scrollViewer.Viewport.Height);
         var newExtentSize = new Size(_scrollViewer.Extent.Width, _scrollViewer.Extent.Height);
 
-        Console.WriteLine($"New Viewport Size: {newViewportSize}, New Extent Size: {newExtentSize}");
-
         _scrollManager.UpdateViewportAndExtentSizes(newViewportSize, newExtentSize);
         _contentControl.Viewport = new Avalonia.Size(newViewportSize.Width, newViewportSize.Height);
     }
@@ -79,8 +77,7 @@ public partial class EditorControl : UserControl
     private void ScrollManager_ScrollChanged(object? sender, Vector e)
     {
         if (_isUpdatingFromScrollManager) return;
-
-        Console.WriteLine($"ScrollManager_ScrollChanged: {e}");
+        
         _isUpdatingFromScrollManager = true;
         _scrollViewer.Offset = new Avalonia.Vector(e.X, e.Y);
         _isUpdatingFromScrollManager = false;
@@ -89,6 +86,16 @@ public partial class EditorControl : UserControl
     protected override void OnKeyDown(KeyEventArgs e)
     {
         base.OnKeyDown(e);
+
+        var isModifierOrPageKey = e.Key == Key.LeftCtrl || e.Key == Key.RightCtrl ||
+                                  e.Key == Key.LeftShift || e.Key == Key.RightShift ||
+                                  e.Key == Key.LeftAlt || e.Key == Key.RightAlt ||
+                                  e.Key == Key.LWin || e.Key == Key.RWin ||
+                                  e.Key == Key.PageUp || e.Key == Key.PageDown ||
+                                  e.KeyModifiers.HasFlag(KeyModifiers.Alt) ||
+                                  e.KeyModifiers.HasFlag(KeyModifiers.Control) ||
+                                  e.KeyModifiers.HasFlag(KeyModifiers.Meta) ||
+                                  e.KeyModifiers.HasFlag(KeyModifiers.Shift);
 
         switch (e.Key)
         {
@@ -107,7 +114,8 @@ public partial class EditorControl : UserControl
 
         _contentControl.InvalidateVisual();
         _contentControl.InvalidateMeasure();
-        _scrollManager.EnsureLineIsVisible(_viewModel.GetCursorLine());
+
+        if (!isModifierOrPageKey) _scrollManager.EnsureLineIsVisible(_viewModel.GetCursorLine());
     }
 
     protected override void OnTextInput(TextInputEventArgs e)
