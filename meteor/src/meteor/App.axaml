@@ -11,4 +11,18 @@
     <Application.Styles>
         <FluentTheme />
     </Application.Styles>
+
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceInclude Source="avares://meteor.UI/Resources/Fonts.axaml" />
+                <ResourceInclude Source="avares://meteor.UI/Resources/Controls/ScrollViewer.axaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
+
+    <Application.Styles>
+        <FluentTheme />
+        <StyleInclude Source="avares://meteor.UI/Styles/ScrollBarStyles.axaml" />
+    </Application.Styles>
 </Application>

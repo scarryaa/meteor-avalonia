@@ -1,3 +1,4 @@
+using meteor.Core.Models;
 using meteor.Core.Models.EventArgs;
 using KeyEventArgs = meteor.Core.Models.EventArgs.KeyEventArgs;
 
@@ -42,5 +43,13 @@ public class KeyEventArgsAdapter : KeyEventArgs
     public static KeyEventArgs Convert(Avalonia.Input.KeyEventArgs avaloniaKeyEventArgs)
     {
         return new KeyEventArgsAdapter(avaloniaKeyEventArgs);
+    }
+}
+
+public static class SizeAdapter
+{
+    public static Size Convert(Avalonia.Size avaloniaSize)
+    {
+        return new Size(avaloniaSize.Width, avaloniaSize.Height);
     }
 }

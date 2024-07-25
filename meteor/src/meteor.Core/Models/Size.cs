@@ -10,4 +10,30 @@ public struct Size
         Width = width;
         Height = height;
     }
+
+    public override string ToString()
+    {
+        return $"Width: {Width}, Height: {Height}";
+    }
+
+    public override bool Equals(object obj)
+    {
+        if (obj is Size size) return Width == size.Width && Height == size.Height;
+        return false;
+    }
+
+    public override int GetHashCode()
+    {
+        return HashCode.Combine(Width, Height);
+    }
+
+    public static bool operator ==(Size left, Size right)
+    {
+        return left.Equals(right);
+    }
+
+    public static bool operator !=(Size left, Size right)
+    {
+        return !(left == right);
+    }
 }

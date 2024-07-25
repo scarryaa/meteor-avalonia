@@ -7,6 +7,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <AdditionalFiles Include="Resources\Fonts.axaml"/>
       <AdditionalFiles Include="Views\MainWindow.axaml" />
     </ItemGroup>
 
@@ -30,6 +31,14 @@
 
     <ItemGroup>
       <ProjectReference Include="..\meteor.Core\meteor.Core.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Folder Include="Assets\Fonts\"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <AvaloniaResource Include="Assets/Fonts/SanFrancisco/*.otf"/>
     </ItemGroup>
 
 </Project>

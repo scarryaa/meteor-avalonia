@@ -25,6 +25,7 @@ public class EditorViewModel : IEditorViewModel
         _inputManager = inputManager;
         _selectionManager = selectionManager;
 
+        // TODO optimize this
         _cursorManager.CursorPositionChanged += (_, _) => ContentChanged?.Invoke(this, EventArgs.Empty);
         _selectionManager.SelectionChanged += (_, _) => SelectionChanged?.Invoke(this, EventArgs.Empty);
     }

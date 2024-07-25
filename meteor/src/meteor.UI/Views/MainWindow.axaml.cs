@@ -9,12 +9,12 @@ namespace meteor.UI.Views;
 public partial class MainWindow : Window
 {
     public MainWindow(MainWindowViewModel mainWindowViewModel, EditorViewModel editorViewModel,
-        ITextMeasurer textMeasurer, IEditorConfig config)
+        ITextMeasurer textMeasurer, IEditorConfig config, IScrollManager scrollManager)
     {
         InitializeComponent();
         DataContext = mainWindowViewModel;
 
-        var editorControl = new EditorControl(editorViewModel, textMeasurer, config);
+        var editorControl = new EditorControl(editorViewModel, textMeasurer, config, scrollManager);
         Content = editorControl;
     }
 }

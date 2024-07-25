@@ -5,7 +5,7 @@ namespace meteor.Core.Config;
 
 public class EditorConfig : IEditorConfig
 {
-    public string FontFamily { get; set; } = "Consolas";
+    public string FontFamily { get; set; } = "San Francisco Mono";
     public double FontSize { get; set; } = 13;
     public double LineHeightMultiplier { get; set; } = 1.5;
     public Color TextColor { get; set; } = Color.Black;

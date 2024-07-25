@@ -26,6 +26,7 @@
     <ItemGroup>
       <UpToDateCheckInput Remove="Views\MainWindow.axaml" />
       <UpToDateCheckInput Remove="Assets\avalonia-logo.ico" />
+        <UpToDateCheckInput Remove="Resources\Fonts.axaml"/>
     </ItemGroup>
 
     <ItemGroup>
