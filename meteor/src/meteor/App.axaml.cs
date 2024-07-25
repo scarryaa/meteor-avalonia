@@ -33,8 +33,13 @@ public class App : Application
 
             var mainWindowViewModel = Services.GetRequiredService<MainWindowViewModel>();
             var editorViewModel = Services.GetRequiredService<EditorViewModel>();
+            var textMeasurer = Services.GetRequiredService<ITextMeasurer>();
 
-            desktop.MainWindow = new MainWindow(mainWindowViewModel, editorViewModel);
+            desktop.MainWindow = new MainWindow(mainWindowViewModel, editorViewModel,
+                textMeasurer);
+
+            var clipboardManager = Services.GetRequiredService<IClipboardManager>();
+            if (clipboardManager is ClipboardManager cm) cm.TopLevelRef = desktop.MainWindow;
         }
 
         base.OnFrameworkInitializationCompleted();
@@ -47,6 +52,8 @@ public class App : Application
         services.AddSingleton<IInputManager, InputManager>();
         services.AddSingleton<ITextMeasurer, AvaloniaTextMeasurer>();
         services.AddTransient<ITextBufferService, TextBufferService>();
+        services.AddSingleton<IClipboardManager, ClipboardManager>();
+        services.AddTransient<ITextMeasurer, AvaloniaTextMeasurer>();
 
         // ViewModels
         services.AddTransient<EditorViewModel>();

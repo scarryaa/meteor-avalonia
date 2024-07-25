@@ -8,44 +8,118 @@ public class InputManager : IInputManager
 {
     private readonly ITextBufferService _textBufferService;
     private readonly ICursorManager _cursorManager;
+    private readonly IClipboardManager _clipboardManager;
+    private bool _isClipboardOperationHandled;
 
-    public InputManager(ITextBufferService textBufferService, ICursorManager cursorManager)
+    public InputManager(ITextBufferService textBufferService, ICursorManager cursorManager,
+        IClipboardManager clipboardManager)
     {
-        _textBufferService = textBufferService;
-        _cursorManager = cursorManager;
+        _textBufferService = textBufferService ?? throw new ArgumentNullException(nameof(textBufferService));
+        _cursorManager = cursorManager ?? throw new ArgumentNullException(nameof(cursorManager));
+        _clipboardManager = clipboardManager ?? throw new ArgumentNullException(nameof(clipboardManager));
     }
 
-    public void HandleKeyDown(KeyEventArgs e)
+    public async Task HandleKeyDown(KeyEventArgs e)
     {
-        switch (e.Key)
+        try
         {
-            case Key.Enter:
-                _textBufferService.InsertText(_cursorManager.Position, "\n");
-                _cursorManager.MoveCursor(1);
-                break;
-            case Key.Left:
-                _cursorManager.MoveCursor(-1);
-                break;
-            case Key.Right:
-                _cursorManager.MoveCursor(1);
-                break;
-            case Key.Back:
-                if (_cursorManager.Position > 0)
-                {
-                    _textBufferService.DeleteText(_cursorManager.Position - 1, 1);
-                    _cursorManager.MoveCursor(-1);
-                }
+            _isClipboardOperationHandled = false;
 
-                break;
+            switch (e.Key)
+            {
+                case Key.Enter:
+                    _textBufferService.InsertText(_cursorManager.Position, "\n");
+                    _cursorManager.MoveCursor(1);
+                    e.Handled = true;
+                    break;
+                case Key.Left:
+                    _cursorManager.MoveCursor(-1);
+                    e.Handled = true;
+                    break;
+                case Key.Right:
+                    _cursorManager.MoveCursor(1);
+                    e.Handled = true;
+                    break;
+                case Key.Back:
+                    if (_cursorManager.Position > 0)
+                    {
+                        _textBufferService.DeleteText(_cursorManager.Position - 1, 1);
+                        _cursorManager.MoveCursor(-1);
+                    }
+
+                    e.Handled = true;
+                    break;
+                case Key.X:
+                case Key.C:
+                case Key.V:
+                    if (e.Modifiers.HasFlag(KeyModifiers.Control) || e.Modifiers.HasFlag(KeyModifiers.Meta))
+                    {
+                        await HandleClipboardOperation(e.Key);
+                        e.Handled = true;
+                        _isClipboardOperationHandled = true;
+                    }
+
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error handling key down event: {ex.Message}");
         }
     }
 
     public void HandleTextInput(TextInputEventArgs e)
     {
-        if (!string.IsNullOrEmpty(e.Text))
+        if (_isClipboardOperationHandled)
         {
-            _textBufferService.InsertText(_cursorManager.Position, e.Text);
-            _cursorManager.MoveCursor(e.Text.Length);
+            e.Handled = true;
+            return;
+        }
+
+        if (!string.IsNullOrEmpty(e.Text) && e.Text != "\b" && !e.Handled)
+            try
+            {
+                _textBufferService.InsertText(_cursorManager.Position, e.Text);
+                _cursorManager.MoveCursor(e.Text.Length);
+                e.Handled = true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error handling text input event: {ex.Message}");
+            }
+    }
+
+    private async Task HandleClipboardOperation(Key key)
+    {
+        switch (key)
+        {
+            case Key.X:
+                await CutAsync();
+                break;
+            case Key.C:
+                await CopyAsync();
+                break;
+            case Key.V:
+                await PasteAsync();
+                break;
+        }
+    }
+
+    private async Task CutAsync()
+    {
+    }
+
+    private async Task CopyAsync()
+    {
+    }
+
+    private async Task PasteAsync()
+    {
+        var clipboardText = await _clipboardManager.PasteAsync();
+        if (!string.IsNullOrEmpty(clipboardText))
+        {
+            _textBufferService.InsertText(_cursorManager.Position, clipboardText);
+            _cursorManager.MoveCursor(clipboardText.Length);
         }
     }
 }

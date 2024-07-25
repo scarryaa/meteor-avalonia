@@ -22,7 +22,7 @@ public class CursorManager : ICursorManager
     public (double X, double Y) GetCursorPosition(ITextMeasurer textMeasurer, string text)
     {
         var textUpToCursor = text.Substring(0, Math.Min(Position, text.Length));
-        var size = textMeasurer.Measure(textUpToCursor);
+        var size = textMeasurer.MeasureText(textUpToCursor, "Consolas", 13);
         return (size.Width, 0);
     }
 }

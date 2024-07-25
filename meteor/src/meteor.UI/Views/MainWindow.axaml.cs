@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using meteor.Core.Interfaces.Services;
 using meteor.UI.Controls;
 using meteor.UI.ViewModels;
 
@@ -6,12 +7,13 @@ namespace meteor.UI.Views;
 
 public partial class MainWindow : Window
 {
-    public MainWindow(MainWindowViewModel mainWindowViewModel, EditorViewModel editorViewModel)
+    public MainWindow(MainWindowViewModel mainWindowViewModel, EditorViewModel editorViewModel,
+        ITextMeasurer textMeasurer)
     {
         InitializeComponent();
         DataContext = mainWindowViewModel;
 
-        var editorControl = new EditorControl(editorViewModel);
+        var editorControl = new EditorControl(editorViewModel, textMeasurer);
         Content = editorControl;
     }
 }

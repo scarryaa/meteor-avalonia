@@ -1,7 +1,5 @@
 using meteor.Core.Models.EventArgs;
-using Key = meteor.Core.Enums.Key;
 using KeyEventArgs = meteor.Core.Models.EventArgs.KeyEventArgs;
-using KeyModifiers = meteor.Core.Enums.KeyModifiers;
 
 namespace meteor.UI.Adapters;
 
@@ -24,7 +22,7 @@ public class TextInputEventArgsAdapter : TextInputEventArgs
 public class KeyDownEventArgsAdapter : KeyEventArgs
 {
     public KeyDownEventArgsAdapter(Avalonia.Input.KeyEventArgs e)
-        : base((Key)e.Key, (KeyModifiers)e.KeyModifiers)
+        : base(KeyConverter.Convert(e.Key), KeyConverter.Convert(e.KeyModifiers))
     {
     }
 
@@ -37,7 +35,7 @@ public class KeyDownEventArgsAdapter : KeyEventArgs
 public class KeyEventArgsAdapter : KeyEventArgs
 {
     public KeyEventArgsAdapter(Avalonia.Input.KeyEventArgs avaloniaKeyEventArgs)
-        : base((Key)avaloniaKeyEventArgs.Key, (KeyModifiers)avaloniaKeyEventArgs.KeyModifiers)
+        : base(KeyConverter.Convert(avaloniaKeyEventArgs.Key), KeyConverter.Convert(avaloniaKeyEventArgs.KeyModifiers))
     {
     }
 

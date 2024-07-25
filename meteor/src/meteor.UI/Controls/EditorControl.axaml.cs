@@ -1,8 +1,7 @@
-using System.Globalization;
-using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Input;
-using Avalonia.Media;
+using meteor.Core.Interfaces.Services;
 using meteor.Core.Interfaces.ViewModels;
 using meteor.UI.Adapters;
 
@@ -11,42 +10,49 @@ namespace meteor.UI.Controls;
 public partial class EditorControl : UserControl
 {
     private readonly IEditorViewModel _viewModel;
+    private readonly ITextMeasurer _textMeasurer;
+    private ScrollViewer _scrollViewer;
+    private EditorContentControl _contentControl;
 
-    public EditorControl(IEditorViewModel viewModel)
+    public EditorControl(IEditorViewModel viewModel, ITextMeasurer textMeasurer)
     {
         Focusable = true;
-
         _viewModel = viewModel;
+        _textMeasurer = textMeasurer;
 
-        InitializeComponent();
+        SetupScrollViewer();
     }
 
-    public override void Render(DrawingContext context)
+    private void SetupScrollViewer()
     {
-        base.Render(context);
+        _contentControl = new EditorContentControl(_viewModel, _textMeasurer);
+        _scrollViewer = new ScrollViewer
+        {
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            Content = _contentControl
+        };
 
-        context.DrawRectangle(Brushes.White, null, Bounds);
+        Content = _scrollViewer;
 
-        var content = _viewModel.Content;
-        var formattedText = new FormattedText(content, CultureInfo.CurrentCulture, FlowDirection.LeftToRight,
-            new Typeface("Consolas"), 13, Brushes.Black);
-
-        context.DrawText(formattedText, new Point(0, 0));
+        _scrollViewer.ScrollChanged += (s, args) => { _contentControl.Offset = (s as ScrollViewer)!.Offset; };
+        _scrollViewer.SizeChanged += (s, args) =>
+            _contentControl.Viewport = (s as ScrollViewer)!.Viewport;
     }
 
     protected override void OnKeyDown(KeyEventArgs e)
     {
         base.OnKeyDown(e);
-
         _viewModel.HandleKeyDown(KeyEventArgsAdapter.Convert(e));
-        InvalidateVisual();
+        _contentControl.InvalidateVisual();
+        _contentControl.InvalidateMeasure();
     }
 
     protected override void OnTextInput(TextInputEventArgs e)
     {
         base.OnTextInput(e);
-
         _viewModel.HandleTextInput(TextInputEventArgsAdapter.Convert(e));
-        InvalidateVisual();
+        _contentControl.InvalidateVisual();
+        _contentControl.InvalidateMeasure();
     }
 }

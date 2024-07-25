@@ -18,13 +18,19 @@ pub extern "C" fn initialize_rope() {
 pub extern "C" fn insert_text(index: c_int, text: *const c_char) {
     let text = unsafe { CStr::from_ptr(text) }.to_str().unwrap();
     let mut rope = ROPE.lock().unwrap();
-    rope.insert(index as usize, text);
+    if index as usize <= rope.len_chars() {
+        rope.insert(index as usize, text);
+    }
 }
 
 #[no_mangle]
 pub extern "C" fn delete_text(index: c_int, length: c_int) {
     let mut rope = ROPE.lock().unwrap();
-    rope.remove(index as usize..(index as usize + length as usize));
+    let start = index as usize;
+    let end = start + length as usize;
+    if start <= rope.len_chars() && end <= rope.len_chars() {
+        rope.remove(start..end);
+    }
 }
 
 #[no_mangle]
