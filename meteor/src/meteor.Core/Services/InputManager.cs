@@ -96,11 +96,6 @@ public class InputManager : IInputManager
                 _selectionManager.ClearSelection();
                 _isSelectionInProgress = false;
             }
-
-            // Debug output
-            Console.WriteLine($"Cursor: {_cursorManager.Position}");
-            Console.WriteLine(
-                $"Selection: {_selectionManager.CurrentSelection.Start} - {_selectionManager.CurrentSelection.End}");
         }
         catch (Exception ex)
         {
