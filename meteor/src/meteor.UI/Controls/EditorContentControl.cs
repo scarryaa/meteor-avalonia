@@ -26,6 +26,7 @@ public class EditorContentControl : Control
         _lineHeight = _textMeasurer.GetLineHeight(_typeface.FontFamily.ToString(), FontSize) * 1.5;
 
         _viewModel.ContentChanged += (sender, e) => InvalidateVisual();
+        _viewModel.SelectionChanged += (sender, e) => InvalidateVisual();
     }
 
     protected override Size MeasureOverride(Size availableSize)
@@ -61,19 +62,28 @@ public class EditorContentControl : Control
 
         var currentLine = _viewModel.GetCursorLine();
 
+        var contentOffset = _viewModel.GetContentSlice(0, fetchStartLine).Length;
+
+        var yOffset = -(Offset.Y % _lineHeight);
+        
         for (var i = 0; i < lines.Length; i++)
         {
             var line = lines[i];
             if (line == null) continue;
 
-            var lineY = (fetchStartLine + i) * _lineHeight;
+            var verticalCenterOffset = (_lineHeight - textHeight) / 2;
+            var lineY = (fetchStartLine + i) * _lineHeight + verticalCenterOffset;
+            var lineStartOffset = fetchStartLine + lines.Take(i).Sum(l => l.Length + 1);
 
             // Highlight the current line
-            if (fetchStartLine + i == _viewModel.GetCursorLine())
+            if (fetchStartLine + i == currentLine)
             {
                 var highlightBrush = new SolidColorBrush(Color.Parse("#ededed"));
                 context.DrawRectangle(highlightBrush, null, new Rect(0, lineY, Bounds.Width, _lineHeight));
             }
+
+            // Render selection
+            RenderSelection(context, lineStartOffset, line, lineY);
 
             var formattedText = new FormattedText(
                 line,
@@ -85,27 +95,71 @@ public class EditorContentControl : Control
 
             var textY = lineY + verticalOffset;
             context.DrawText(formattedText, new Point(0, textY));
+
+            contentOffset += line.Length + 1; // +1 for the newline character
         }
 
         // Render cursor 
-        var cursorLine = currentLine;
-        var cursorColumn = _viewModel.GetCursorColumn();
+        RenderCursor(context, currentLine, _viewModel.GetCursorColumn());
+    }
 
-        Console.WriteLine($"Cursor: {cursorLine}, {cursorColumn}");
-        if (cursorLine >= 0 && cursorLine < lines.Length)
+    private void RenderSelection(DrawingContext context, int lineStartOffset, string line, double lineY)
+    {
+        var selectionStart = _viewModel.SelectionStart;
+        var selectionEnd = _viewModel.SelectionEnd;
+
+        if (selectionStart == selectionEnd) return;
+
+        var lineEndOffset = lineStartOffset + line.Length;
+
+        // Check if any part of the selection is in this line
+        if (selectionStart < lineEndOffset && selectionEnd > lineStartOffset)
         {
-            var cursorX = _textMeasurer.MeasureText(
-                lines[cursorLine].Substring(0, Math.Min(cursorColumn, lines[cursorLine].Length)),
-                _typeface.FontFamily.ToString(), FontSize).Width;
+            var selectionBrush = new SolidColorBrush(Color.FromArgb(128, 173, 214, 255));
 
-            var cursorTopY = cursorLine * _lineHeight;
-            var cursorBottomY = (cursorLine + 1) * _lineHeight;
+            var startX = Math.Max(0, selectionStart - lineStartOffset);
+            var endX = Math.Min(line.Length, selectionEnd - lineStartOffset);
 
-            context.DrawLine(
-                new Pen(Brushes.Black),
-                new Point(cursorX, cursorTopY),
-                new Point(cursorX, cursorBottomY)
+            var startXPosition = 0.0;
+            if (startX > 0 && startX <= line.Length)
+                startXPosition = _textMeasurer.MeasureText(
+                    line.Substring(0, startX),
+                    _typeface.FontFamily.ToString(),
+                    FontSize
+                ).Width;
+
+            var endXPosition = Bounds.Width;
+            if (endX >= 0 && endX <= line.Length)
+                endXPosition = _textMeasurer.MeasureText(
+                    line.Substring(0, endX),
+                    _typeface.FontFamily.ToString(),
+                    FontSize
+                ).Width;
+
+            var selectionWidth = Math.Max(
+                endXPosition - startXPosition,
+                _textMeasurer.MeasureText("A", _typeface.FontFamily.ToString(), FontSize).Width
+            );
+
+            context.DrawRectangle(
+                selectionBrush,
+                null,
+                new Rect(startXPosition, lineY, selectionWidth, _lineHeight)
             );
         }
+    }
+
+    private void RenderCursor(DrawingContext context, int cursorLine, int cursorColumn)
+    {
+        var cursorY = cursorLine * _lineHeight;
+        var cursorX = _textMeasurer.MeasureText(
+            _viewModel.GetContentSlice(cursorLine, cursorLine).Substring(0, cursorColumn),
+            _typeface.FontFamily.ToString(), FontSize).Width;
+
+        context.DrawLine(
+            new Pen(Brushes.Black),
+            new Point(cursorX, cursorY),
+            new Point(cursorX, cursorY + _lineHeight)
+        );
     }
 }

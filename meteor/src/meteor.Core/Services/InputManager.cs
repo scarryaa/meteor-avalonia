@@ -12,7 +12,10 @@ public class InputManager : IInputManager
     private readonly ISelectionManager _selectionManager;
     private bool _isClipboardOperationHandled;
     private bool _isShiftPressed;
+    private bool _isControlOrMetaPressed;
+    private bool _isAltPressed;
     private bool _isSelectionInProgress;
+    private (int Start, int End) _lastSelection;
 
     public InputManager(ITextBufferService textBufferService, ICursorManager cursorManager,
         IClipboardManager clipboardManager, ISelectionManager selectionManager)
@@ -29,15 +32,14 @@ public class InputManager : IInputManager
         {
             _isClipboardOperationHandled = false;
             _isShiftPressed = e.Modifiers.HasFlag(KeyModifiers.Shift);
+            _isControlOrMetaPressed =
+                e.Modifiers.HasFlag(KeyModifiers.Control) || e.Modifiers.HasFlag(KeyModifiers.Meta);
+            _isAltPressed = e.Modifiers.HasFlag(KeyModifiers.Alt);
 
             if (_isShiftPressed && !_isSelectionInProgress)
             {
                 _selectionManager.StartSelection(_cursorManager.Position);
                 _isSelectionInProgress = true;
-            }
-            else if (!_isShiftPressed)
-            {
-                _isSelectionInProgress = false;
             }
 
             switch (e.Key)
@@ -61,17 +63,36 @@ public class InputManager : IInputManager
                 case Key.X:
                 case Key.C:
                 case Key.V:
-                    if (e.Modifiers.HasFlag(KeyModifiers.Control) || e.Modifiers.HasFlag(KeyModifiers.Meta))
+                    if (_isControlOrMetaPressed)
                     {
                         await HandleClipboardOperation(e.Key);
                         e.Handled = true;
                         _isClipboardOperationHandled = true;
                     }
+
+                    break;
+                case Key.A:
+                    if (_isControlOrMetaPressed)
+                    {
+                        HandleSelectAll();
+                        e.Handled = true;
+                    }
+
+                    break;
+                case Key.LeftAlt:
+                case Key.RightAlt:
+                    // Do nothing for Alt key presses
+                    e.Handled = true;
                     break;
             }
 
-            if (!_isShiftPressed && e.Key != Key.LeftShift && e.Key != Key.RightShift)
+            if (!_isShiftPressed && !_isControlOrMetaPressed && !_isAltPressed &&
+                e.Key != Key.LeftShift && e.Key != Key.RightShift &&
+                e.Key != Key.LeftCtrl && e.Key != Key.RightCtrl &&
+                e.Key != Key.LeftAlt && e.Key != Key.RightAlt &&
+                e.Key != Key.LeftMeta && e.Key != Key.RightMeta)
             {
+                _lastSelection = (_selectionManager.CurrentSelection.Start, _selectionManager.CurrentSelection.End);
                 _selectionManager.ClearSelection();
                 _isSelectionInProgress = false;
             }
@@ -85,6 +106,38 @@ public class InputManager : IInputManager
         {
             Console.WriteLine($"Error handling key down event: {ex.Message}");
         }
+    }
+
+    public void HandleTextInput(TextInputEventArgs e)
+    {
+        if (_isClipboardOperationHandled || _isControlOrMetaPressed)
+        {
+            e.Handled = true;
+            return;
+        }
+
+        if (!string.IsNullOrEmpty(e.Text) && e.Text != "\b" && !e.Handled)
+        {
+            // Delete the selected text if there was a selection
+            if (_lastSelection.Start != _lastSelection.End)
+            {
+                _textBufferService.DeleteText(_lastSelection.Start, _lastSelection.End - _lastSelection.Start);
+                _cursorManager.SetPosition(_lastSelection.Start);
+            }
+
+            InsertTextAndMoveCursor(e.Text, e.Text.Length);
+            e.Handled = true;
+        }
+
+        _lastSelection = (0, 0);
+    }
+
+    private void HandleSelectAll()
+    {
+        var documentLength = _textBufferService.GetLength();
+        _selectionManager.SetSelection(0, documentLength);
+        _cursorManager.SetPosition(documentLength);
+        _isSelectionInProgress = true;
     }
 
     private void HandleEnterKey()
@@ -138,27 +191,6 @@ public class InputManager : IInputManager
             _textBufferService.DeleteText(_cursorManager.Position - 1, 1);
             _cursorManager.MoveCursor(-1);
         }
-    }
-
-    public void HandleTextInput(TextInputEventArgs e)
-    {
-        if (_isClipboardOperationHandled)
-        {
-            e.Handled = true;
-            return;
-        }
-
-        if (!string.IsNullOrEmpty(e.Text) && e.Text != "\b" && e.Text.Length == 1 && !e.Handled)
-            try
-            {
-                if (_selectionManager.HasSelection) DeleteSelectedText();
-                InsertTextAndMoveCursor(e.Text, e.Text.Length);
-                e.Handled = true;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error handling text input event: {ex.Message}");
-            }
     }
 
     private async Task HandleClipboardOperation(Key key)

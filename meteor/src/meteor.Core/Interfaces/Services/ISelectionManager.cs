@@ -4,6 +4,8 @@ namespace meteor.Core.Interfaces.Services;
 
 public interface ISelectionManager
 {
+    event EventHandler SelectionChanged;
+    
     Selection CurrentSelection { get; }
     bool HasSelection { get; }
     void SetSelection(int start, int end);

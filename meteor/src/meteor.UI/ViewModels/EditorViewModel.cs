@@ -9,20 +9,27 @@ public class EditorViewModel : IEditorViewModel
     private readonly ITextBufferService _textBufferService;
     private readonly ICursorManager _cursorManager;
     private readonly IInputManager _inputManager;
+    private readonly ISelectionManager _selectionManager;
     private const string FontFamily = "Consolas";
     private const double FontSize = 13;
 
     public event EventHandler ContentChanged;
+    public event EventHandler SelectionChanged;
     
     public EditorViewModel(ITextBufferService textBufferService, ICursorManager cursorManager,
-        IInputManager inputManager)
+        IInputManager inputManager, ISelectionManager selectionManager)
     {
         _textBufferService = textBufferService;
         _cursorManager = cursorManager;
         _inputManager = inputManager;
+        _selectionManager = selectionManager;
 
         _cursorManager.CursorPositionChanged += (sender, e) => ContentChanged?.Invoke(this, EventArgs.Empty);
+        _selectionManager.SelectionChanged += (sender, e) => SelectionChanged?.Invoke(this, EventArgs.Empty);
     }
+
+    public int SelectionStart => _selectionManager.CurrentSelection.Start;
+    public int SelectionEnd => _selectionManager.CurrentSelection.End;
 
     public int GetLineCount()
     {
