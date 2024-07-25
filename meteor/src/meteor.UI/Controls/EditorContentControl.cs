@@ -52,7 +52,7 @@ public class EditorContentControl : Control
     {
         var lineCount = _viewModel.GetLineCount();
         var maxLineWidth = _viewModel.GetMaxLineWidth();
-        _totalSize = new Size(maxLineWidth, lineCount * _lineHeight);
+        _totalSize = new Size(maxLineWidth + 50, lineCount * _lineHeight + _lineHeight * 2);
     }
 
     public override void Render(DrawingContext context)
@@ -64,8 +64,8 @@ public class EditorContentControl : Control
         var endLine = Math.Min(_viewModel.GetLineCount() - 1, startLine + visibleLines);
 
         var bufferLines = 10;
-        var fetchStartLine = Math.Max(0, startLine - bufferLines);
-        var fetchEndLine = Math.Min(_viewModel.GetLineCount() - 1, endLine + bufferLines);
+        var fetchStartLine = Math.Clamp(startLine - bufferLines, 0, _viewModel.GetLineCount() - 1);
+        var fetchEndLine = Math.Clamp(endLine + bufferLines, 0, _viewModel.GetLineCount() - 1);
 
         var visibleContent = _viewModel.GetContentSlice(fetchStartLine, fetchEndLine);
         var lines = visibleContent.Split('\n');

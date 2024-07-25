@@ -12,7 +12,7 @@ public class CursorManager : ICursorManager
     private int _column;
     private int _lastKnownLineStart;
 
-    public event EventHandler CursorPositionChanged;
+    public event EventHandler? CursorPositionChanged;
 
     public CursorManager(ITextBufferService textBufferService, IEditorConfig config)
     {

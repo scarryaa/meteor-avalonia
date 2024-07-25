@@ -115,7 +115,8 @@ public partial class EditorControl : UserControl
         _contentControl.InvalidateVisual();
         _contentControl.InvalidateMeasure();
 
-        if (!isModifierOrPageKey) _scrollManager.EnsureLineIsVisible(_viewModel.GetCursorLine());
+        if (!isModifierOrPageKey)
+            _scrollManager.EnsureLineIsVisible(_viewModel.GetCursorLine(), _viewModel.GetCursorX());
     }
 
     protected override void OnTextInput(TextInputEventArgs e)
@@ -124,6 +125,6 @@ public partial class EditorControl : UserControl
         _viewModel.HandleTextInput(TextInputEventArgsAdapter.Convert(e));
         _contentControl.InvalidateVisual();
         _contentControl.InvalidateMeasure();
-        _scrollManager.EnsureLineIsVisible(_viewModel.GetCursorLine());
+        _scrollManager.EnsureLineIsVisible(_viewModel.GetCursorLine(), _viewModel.GetCursorX());
     }
 }

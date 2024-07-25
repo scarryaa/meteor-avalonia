@@ -12,18 +12,21 @@ public class EditorViewModel : IEditorViewModel
     private readonly IInputManager _inputManager;
     private readonly ISelectionManager _selectionManager;
     private readonly IEditorConfig _config;
+    private readonly ITextMeasurer _textMeasurer;
 
     public event EventHandler? ContentChanged;
     public event EventHandler? SelectionChanged;
     
     public EditorViewModel(ITextBufferService textBufferService, ICursorManager cursorManager,
-        IInputManager inputManager, ISelectionManager selectionManager, IEditorConfig config)
+        IInputManager inputManager, ISelectionManager selectionManager, IEditorConfig config,
+        ITextMeasurer textMeasurer)
     {
         _config = config;
         _textBufferService = textBufferService;
         _cursorManager = cursorManager;
         _inputManager = inputManager;
         _selectionManager = selectionManager;
+        _textMeasurer = textMeasurer;
 
         // TODO optimize this
         _cursorManager.CursorPositionChanged += (_, _) => ContentChanged?.Invoke(this, EventArgs.Empty);
@@ -63,6 +66,16 @@ public class EditorViewModel : IEditorViewModel
         return _cursorManager.GetCursorColumn();
     }
 
+    public double GetCursorX()
+    {
+        var cursorLine = _cursorManager.GetCursorLine();
+        var cursorColumn = _cursorManager.GetCursorColumn();
+        var lineContent = _textBufferService.GetContentSlice(cursorLine, cursorLine);
+        var textUpToCursor = lineContent.Substring(0, cursorColumn);
+
+        return _textMeasurer.MeasureText(textUpToCursor, _config.FontFamily, _config.FontSize).Width;
+    }
+    
     public int CursorPosition => _cursorManager.Position;
 
     public void HandleKeyDown(KeyEventArgs e)

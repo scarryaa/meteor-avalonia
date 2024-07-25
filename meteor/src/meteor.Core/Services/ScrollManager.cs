@@ -83,6 +83,11 @@ public class ScrollManager : IScrollManager
         ScrollOffset = new Vector(ScrollOffset.X, newY);
     }
 
+    public void UpdateMaxLineWidth(double maxLineWidth)
+    {
+        ExtentSize = new Size(maxLineWidth, ExtentSize.Height);
+    }
+
     public void ScrollHorizontally(double delta)
     {
         var newX = Math.Max(0, ScrollOffset.X + delta);
@@ -120,18 +125,31 @@ public class ScrollManager : IScrollManager
         return lineTop >= ScrollOffset.Y && lineTop < ScrollOffset.Y + _viewport.Height;
     }
 
-    public void EnsureLineIsVisible(int lineNumber)
+    public void EnsureLineIsVisible(int lineNumber, double cursorX)
     {
         var lineTop = lineNumber * LineHeight;
         var lineBottom = (lineNumber + 1) * LineHeight;
 
-        if (lineTop < ScrollOffset.Y)
+        // Vertical scrolling
+        var verticalMargin = LineHeight * 3;
+        if (lineTop < ScrollOffset.Y + verticalMargin)
         {
-            ScrollToLine(lineNumber);
+            ScrollToLine(lineNumber - 3);
         }
-        else if (lineBottom > ScrollOffset.Y + _viewport.Height)
+        else if (lineBottom > ScrollOffset.Y + _viewport.Height - verticalMargin)
         {
-            ScrollToLine(lineNumber - GetVisibleLineCount() + 1);
+            ScrollToLine(lineNumber - GetVisibleLineCount() + 4);
         }
+
+        // Horizontal scrolling
+        var leftMargin = 50;
+        var rightMargin = 50;
+        var adjustedScrollOffsetX = ScrollOffset.X;
+        if (cursorX < ScrollOffset.X + leftMargin)
+            adjustedScrollOffsetX = Math.Max(0, cursorX - leftMargin);
+        else if (cursorX > ScrollOffset.X + _viewport.Width - rightMargin)
+            adjustedScrollOffsetX = cursorX - _viewport.Width + rightMargin;
+
+        if (adjustedScrollOffsetX != ScrollOffset.X) ScrollOffset = new Vector(adjustedScrollOffsetX, ScrollOffset.Y);
     }
 }
