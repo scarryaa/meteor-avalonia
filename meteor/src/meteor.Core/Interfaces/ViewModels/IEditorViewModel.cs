@@ -14,4 +14,5 @@ public interface IEditorViewModel
     string GetEntireContent();
     int GetCursorLine();
     int GetCursorColumn();
+    event EventHandler ContentChanged;
 }

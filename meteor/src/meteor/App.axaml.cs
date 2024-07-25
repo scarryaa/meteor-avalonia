@@ -54,6 +54,7 @@ public class App : Application
         services.AddTransient<ITextBufferService, TextBufferService>();
         services.AddSingleton<IClipboardManager, ClipboardManager>();
         services.AddTransient<ITextMeasurer, AvaloniaTextMeasurer>();
+        services.AddSingleton<ISelectionManager, SelectionManager>();
 
         // ViewModels
         services.AddTransient<EditorViewModel>();

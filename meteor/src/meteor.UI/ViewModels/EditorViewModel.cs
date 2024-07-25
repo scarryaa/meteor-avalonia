@@ -12,12 +12,16 @@ public class EditorViewModel : IEditorViewModel
     private const string FontFamily = "Consolas";
     private const double FontSize = 13;
 
+    public event EventHandler ContentChanged;
+    
     public EditorViewModel(ITextBufferService textBufferService, ICursorManager cursorManager,
         IInputManager inputManager)
     {
         _textBufferService = textBufferService;
         _cursorManager = cursorManager;
         _inputManager = inputManager;
+
+        _cursorManager.CursorPositionChanged += (sender, e) => ContentChanged?.Invoke(this, EventArgs.Empty);
     }
 
     public int GetLineCount()

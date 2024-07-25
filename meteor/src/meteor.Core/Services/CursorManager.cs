@@ -10,6 +10,8 @@ public class CursorManager : ICursorManager
     private int _column;
     private int _lastKnownLineStart;
 
+    public event EventHandler CursorPositionChanged;
+    
     public CursorManager(ITextBufferService textBufferService)
     {
         _textBufferService = textBufferService;
@@ -20,10 +22,7 @@ public class CursorManager : ICursorManager
 
     public void MoveCursor(int offset)
     {
-        var newPosition = Position + offset;
-        var contentLength = _textBufferService.GetLength();
-        Position = Math.Clamp(newPosition, 0, contentLength);
-        UpdateLineAndColumn();
+        SetPosition(Position + offset);
     }
 
     public (double X, double Y) GetCursorPosition(ITextMeasurer textMeasurer, string text)
@@ -43,27 +42,40 @@ public class CursorManager : ICursorManager
         return _column;
     }
 
+    public void SetPosition(int position)
+    {
+        var oldPosition = Position;
+        Position = Math.Max(0, Math.Min(position, _textBufferService.GetLength()));
+        if (Position != oldPosition)
+        {
+            UpdateLineAndColumn();
+            OnCursorPositionChanged();
+        }
+    }
+
+    protected virtual void OnCursorPositionChanged()
+    {
+        CursorPositionChanged?.Invoke(this, EventArgs.Empty);
+    }
+
     private void UpdateLineAndColumn()
     {
         var content = _textBufferService.GetContent();
-        if (Position < _lastKnownLineStart)
-        {
-            _line = 0;
-            _column = 0;
-            _lastKnownLineStart = 0;
-        }
+        _line = 0;
+        _column = 0;
 
-        for (var i = _lastKnownLineStart; i < Position; i++)
+        for (var i = 0; i < Position; i++)
             if (content[i] == '\n')
             {
                 _line++;
                 _column = 0;
-                _lastKnownLineStart = i + 1;
             }
             else
             {
                 _column++;
             }
+
+        _lastKnownLineStart = Position - _column;
     }
 
     private string GetCurrentLineText()

@@ -24,6 +24,8 @@ public class EditorContentControl : Control
         _viewModel = viewModel;
         _textMeasurer = textMeasurer;
         _lineHeight = _textMeasurer.GetLineHeight(_typeface.FontFamily.ToString(), FontSize) * 1.5;
+
+        _viewModel.ContentChanged += (sender, e) => InvalidateVisual();
     }
 
     protected override Size MeasureOverride(Size availableSize)
@@ -86,9 +88,10 @@ public class EditorContentControl : Control
         }
 
         // Render cursor 
-        var cursorLine = currentLine - fetchStartLine;
+        var cursorLine = currentLine;
         var cursorColumn = _viewModel.GetCursorColumn();
 
+        Console.WriteLine($"Cursor: {cursorLine}, {cursorColumn}");
         if (cursorLine >= 0 && cursorLine < lines.Length)
         {
             var cursorX = _textMeasurer.MeasureText(
