@@ -15,6 +15,7 @@ public class EditorContentControl : Control
     private readonly Typeface _typeface = new("Consolas");
     private readonly double _lineHeight;
     private Size _totalSize;
+    private readonly List<int> _lineStartOffsets;
 
     public Vector Offset { get; set; }
     public Size Viewport { get; set; }
@@ -24,9 +25,15 @@ public class EditorContentControl : Control
         _viewModel = viewModel;
         _textMeasurer = textMeasurer;
         _lineHeight = _textMeasurer.GetLineHeight(_typeface.FontFamily.ToString(), FontSize) * 1.5;
+        _lineStartOffsets = new List<int>();
 
-        _viewModel.ContentChanged += (sender, e) => { InvalidateVisual(); };
+        _viewModel.ContentChanged += (sender, e) =>
+        {
+            UpdateLineStartOffsets();
+            InvalidateVisual();
+        };
         _viewModel.SelectionChanged += (sender, e) => InvalidateVisual();
+        UpdateLineStartOffsets();
     }
 
     protected override Size MeasureOverride(Size availableSize)
@@ -110,6 +117,21 @@ public class EditorContentControl : Control
         );
     }
 
+    private void UpdateLineStartOffsets()
+    {
+        _lineStartOffsets.Clear();
+        var content = _viewModel.GetEntireContent();
+        var lines = content.Split('\n');
+        var totalLength = 0;
+
+        foreach (var line in lines)
+        {
+            _lineStartOffsets.Add(totalLength);
+            totalLength += line.Length + 1; // +1 for newline character
+        }
+    }
+
+
     private void RenderSelection(DrawingContext context, int lineIndex, string line, double lineY)
     {
         var selectionStart = _viewModel.SelectionStart;
@@ -120,7 +142,7 @@ public class EditorContentControl : Control
             return;
 
         // Calculate the start offset for the current line
-        var lineStartOffset = _viewModel.GetContentSlice(0, Math.Max(0, lineIndex - 1)).Length;
+        var lineStartOffset = _lineStartOffsets[lineIndex];
 
         if (selectionEnd <= lineStartOffset || selectionStart >= lineStartOffset + line.Length)
             return;
@@ -130,11 +152,18 @@ public class EditorContentControl : Control
 
         if (relativeSelectionStart < relativeSelectionEnd)
         {
-            var startX = MeasureTextWidth(line.Substring(0, relativeSelectionStart));
-            var endX = MeasureTextWidth(line.Substring(0, relativeSelectionEnd));
+            var startX = MeasureTextWidth(line.Substring(0, relativeSelectionStart)) - Offset.X;
+            var endX = MeasureTextWidth(line.Substring(0, relativeSelectionEnd)) - Offset.X;
 
-            var selectionBrush = new SolidColorBrush(Color.FromArgb(128, 173, 214, 255));
-            context.DrawRectangle(selectionBrush, null, new Rect(startX, lineY, endX - startX, _lineHeight));
+            // Clip the selection to the viewport
+            startX = Math.Max(0, Math.Min(startX, Viewport.Width));
+            endX = Math.Max(0, Math.Min(endX, Viewport.Width));
+
+            if (startX < endX)
+            {
+                var selectionBrush = new SolidColorBrush(Color.FromArgb(128, 173, 214, 255));
+                context.DrawRectangle(selectionBrush, null, new Rect(startX, lineY, endX - startX, _lineHeight));
+            }
         }
     }
 
