@@ -35,6 +35,21 @@ public class EditorViewModel : IEditorViewModel
         return _textBufferService.GetContentSlice(start, end);
     }
 
+    public string GetEntireContent()
+    {
+        return _textBufferService.GetEntireContent();
+    }
+
+    public int GetCursorLine()
+    {
+        return _cursorManager.GetCursorLine();
+    }
+
+    public int GetCursorColumn()
+    {
+        return _cursorManager.GetCursorColumn();
+    }
+
     public int CursorPosition => _cursorManager.Position;
 
     public void HandleKeyDown(KeyEventArgs e)

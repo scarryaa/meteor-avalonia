@@ -21,7 +21,7 @@ public class AvaloniaTextMeasurer : ITextMeasurer
             fontSize,
             Brushes.Black);
 
-        return (formattedText.Width, formattedText.Height);
+        return (formattedText.WidthIncludingTrailingWhitespace, formattedText.Height);
     }
 
     public double GetLineHeight(string fontFamily, double fontSize)

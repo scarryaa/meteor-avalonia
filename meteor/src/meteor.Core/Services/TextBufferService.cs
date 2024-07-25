@@ -37,14 +37,18 @@ public class TextBufferService : ITextBufferService
         var currentLine = 0;
         var startPos = 0;
         var endPos = length;
+        var startFound = false;
 
         for (var i = 0; i < length; i += ChunkSize)
         {
             var chunk = TextBuffer.GetDocumentSlice(i, Math.Min(i + ChunkSize, length));
             for (var j = 0; j < chunk.Length; j++)
             {
-                if (currentLine == startLine && startPos == 0)
+                if (currentLine == startLine && !startFound)
+                {
                     startPos = i + j;
+                    startFound = true;
+                }
                 if (currentLine == endLine + 1)
                 {
                     endPos = i + j;
@@ -52,7 +56,14 @@ public class TextBufferService : ITextBufferService
                 }
 
                 if (chunk[j] == '\n')
+                {
                     currentLine++;
+                    if (currentLine > endLine)
+                    {
+                        endPos = i + j + 1; // Include the newline character
+                        return TextBuffer.GetDocumentSlice(startPos, endPos);
+                    }
+                }
             }
         }
 
@@ -153,6 +164,11 @@ public class TextBufferService : ITextBufferService
         return currentMaxWidth;
     }
 
+    public string GetEntireContent()
+    {
+        return TextBuffer.GetDocumentSlice(0, TextBuffer.GetDocumentLength());
+    }
+    
     private double MeasureLineWidth(StringBuilder line, string fontFamily, double fontSize)
     {
         var width = _textMeasurer.MeasureText(line.ToString(), fontFamily, fontSize).Width;

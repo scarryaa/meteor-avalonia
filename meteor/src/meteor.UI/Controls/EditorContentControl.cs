@@ -23,7 +23,7 @@ public class EditorContentControl : Control
     {
         _viewModel = viewModel;
         _textMeasurer = textMeasurer;
-        _lineHeight = _textMeasurer.GetLineHeight(_typeface.FontFamily.ToString(), FontSize);
+        _lineHeight = _textMeasurer.GetLineHeight(_typeface.FontFamily.ToString(), FontSize) * 1.5;
     }
 
     protected override Size MeasureOverride(Size availableSize)
@@ -54,9 +54,14 @@ public class EditorContentControl : Control
         var visibleContent = _viewModel.GetContentSlice(fetchStartLine, fetchEndLine);
         var lines = visibleContent.Split('\n');
 
+        var textHeight = _textMeasurer.MeasureText("Xypg", _typeface.FontFamily.ToString(), FontSize).Height;
+        var verticalOffset = (_lineHeight - textHeight) / 2;
+
         for (var i = 0; i < lines.Length; i++)
         {
             var line = lines[i];
+            if (line == null) continue;
+
             var formattedText = new FormattedText(
                 line,
                 CultureInfo.CurrentCulture,
@@ -65,8 +70,28 @@ public class EditorContentControl : Control
                 FontSize,
                 Brushes.Black);
 
-            var y = (fetchStartLine + i) * _lineHeight;
+            var y = (fetchStartLine + i) * _lineHeight + verticalOffset;
             context.DrawText(formattedText, new Point(0, y));
+        }
+
+        // Render cursor 
+        var cursorLine = _viewModel.GetCursorLine() - fetchStartLine;
+        var cursorColumn = _viewModel.GetCursorColumn();
+
+        if (cursorLine >= 0 && cursorLine < lines.Length)
+        {
+            var cursorX = _textMeasurer.MeasureText(
+                lines[cursorLine].Substring(0, Math.Min(cursorColumn, lines[cursorLine].Length)),
+                _typeface.FontFamily.ToString(), FontSize).Width;
+
+            var cursorTopY = cursorLine * _lineHeight;
+            var cursorBottomY = (cursorLine + 1) * _lineHeight;
+
+            context.DrawLine(
+                new Pen(Brushes.Black),
+                new Point(cursorX, cursorTopY),
+                new Point(cursorX, cursorBottomY)
+            );
         }
     }
 }

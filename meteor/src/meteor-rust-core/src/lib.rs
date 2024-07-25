@@ -30,6 +30,10 @@ impl PieceTable {
     }
 
     fn insert(&mut self, index: usize, text: &str) {
+        if index > self.get_length() {
+            return; // Prevent inserting at an invalid position
+        }
+
         let mut remaining = text.len();
         let mut offset = 0;
         let mut piece_index = 0;
@@ -64,6 +68,10 @@ impl PieceTable {
     }
 
     fn delete(&mut self, start: usize, length: usize) {
+        if start + length > self.get_length() {
+            return; // Prevent deleting beyond the end of the content
+        }
+
         let mut remaining = length;
         let mut offset = 0;
         let mut piece_index = 0;
@@ -114,6 +122,10 @@ impl PieceTable {
             result.push_str(slice);
         }
         result
+    }
+
+    fn get_length(&self) -> usize {
+        self.pieces.iter().map(|p| p.length).sum()
     }
 }
 

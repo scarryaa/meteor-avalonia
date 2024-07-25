@@ -1,5 +1,4 @@
 using System.Runtime.InteropServices;
-using System.Text;
 
 namespace meteor.Core.Models;
 
@@ -42,15 +41,22 @@ public class TextBuffer
 
     public static string GetDocumentSlice(int start, int end)
     {
-        using (var safePtr = new SafeStringHandle(get_document_slice(start, end), free_string))
+        if (start < 0 || end < start) throw new ArgumentOutOfRangeException("Invalid start or end position.");
+
+        var documentSlicePtr = get_document_slice(start, end);
+        if (documentSlicePtr == IntPtr.Zero) return string.Empty;
+
+        using (var safePtr = new SafeStringHandle(documentSlicePtr, free_string))
         {
             if (safePtr.IsInvalid) return string.Empty;
+
             try
             {
                 return Marshal.PtrToStringAuto(safePtr.DangerousGetHandle()) ?? string.Empty;
             }
             catch (Exception ex)
             {
+                // Log exception details
                 Console.WriteLine($"Error in GetDocumentSlice: {ex.Message}");
                 return string.Empty;
             }

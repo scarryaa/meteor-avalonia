@@ -28,8 +28,7 @@ public class InputManager : IInputManager
             switch (e.Key)
             {
                 case Key.Enter:
-                    _textBufferService.InsertText(_cursorManager.Position, "\n");
-                    _cursorManager.MoveCursor(1);
+                    InsertTextAndMoveCursor("\n", 1);
                     e.Handled = true;
                     break;
                 case Key.Left:
@@ -79,8 +78,7 @@ public class InputManager : IInputManager
         if (!string.IsNullOrEmpty(e.Text) && e.Text != "\b" && !e.Handled)
             try
             {
-                _textBufferService.InsertText(_cursorManager.Position, e.Text);
-                _cursorManager.MoveCursor(e.Text.Length);
+                InsertTextAndMoveCursor(e.Text, e.Text.Length);
                 e.Handled = true;
             }
             catch (Exception ex)
@@ -116,10 +114,13 @@ public class InputManager : IInputManager
     private async Task PasteAsync()
     {
         var clipboardText = await _clipboardManager.PasteAsync();
-        if (!string.IsNullOrEmpty(clipboardText))
-        {
-            _textBufferService.InsertText(_cursorManager.Position, clipboardText);
-            _cursorManager.MoveCursor(clipboardText.Length);
-        }
+        if (!string.IsNullOrEmpty(clipboardText)) InsertTextAndMoveCursor(clipboardText, clipboardText.Length);
+    }
+
+    private void InsertTextAndMoveCursor(string text, int offset)
+    {
+        var currentPosition = _cursorManager.Position;
+        _textBufferService.InsertText(currentPosition, text);
+        _cursorManager.MoveCursor(offset);
     }
 }

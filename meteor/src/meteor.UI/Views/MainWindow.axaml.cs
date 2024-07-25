@@ -8,12 +8,12 @@ namespace meteor.UI.Views;
 public partial class MainWindow : Window
 {
     public MainWindow(MainWindowViewModel mainWindowViewModel, EditorViewModel editorViewModel,
-        ITextMeasurer textMeasurer, ITextBufferService textBufferService)
+        ITextMeasurer textMeasurer)
     {
         InitializeComponent();
         DataContext = mainWindowViewModel;
 
-        var editorControl = new EditorControl(editorViewModel, textMeasurer, textBufferService);
+        var editorControl = new EditorControl(editorViewModel, textMeasurer);
         Content = editorControl;
     }
 }
