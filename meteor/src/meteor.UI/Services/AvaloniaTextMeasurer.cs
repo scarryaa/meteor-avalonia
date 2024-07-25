@@ -1,6 +1,8 @@
 using System.Globalization;
 using Avalonia.Media;
+using meteor.Core.Interfaces.Config;
 using meteor.Core.Interfaces.Services;
+using meteor.UI.Config;
 
 namespace meteor.UI.Services;
 
@@ -8,7 +10,15 @@ public class AvaloniaTextMeasurer : ITextMeasurer
 {
     private readonly Dictionary<(string FontFamily, double FontSize), Typeface> _typefaceCache = new();
     private readonly Dictionary<(string FontFamily, double FontSize), double> _lineHeightCache = new();
+    private readonly IEditorConfig _config;
+    private readonly AvaloniaEditorConfig _avaloniaConfig;
 
+    public AvaloniaTextMeasurer(IEditorConfig config)
+    {
+        _config = config;
+        _avaloniaConfig = new AvaloniaEditorConfig();
+    }
+    
     public (double Width, double Height) MeasureText(string text, string fontFamily, double fontSize)
     {
         var typeface = GetOrCreateTypeface(fontFamily, fontSize);
@@ -50,7 +60,7 @@ public class AvaloniaTextMeasurer : ITextMeasurer
         var key = (fontFamily, fontSize);
         if (!_typefaceCache.TryGetValue(key, out var typeface))
         {
-            typeface = new Typeface(fontFamily);
+            typeface = _avaloniaConfig.Typeface;
             _typefaceCache[key] = typeface;
         }
 

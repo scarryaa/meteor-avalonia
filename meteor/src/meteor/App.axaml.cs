@@ -3,6 +3,8 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core.Plugins;
 using Avalonia.Markup.Xaml;
+using meteor.Core.Config;
+using meteor.Core.Interfaces.Config;
 using meteor.Core.Interfaces.Services;
 using meteor.Core.Services;
 using meteor.UI.Services;
@@ -34,9 +36,10 @@ public class App : Application
             var mainWindowViewModel = Services.GetRequiredService<MainWindowViewModel>();
             var editorViewModel = Services.GetRequiredService<EditorViewModel>();
             var textMeasurer = Services.GetRequiredService<ITextMeasurer>();
+            var config = Services.GetRequiredService<IEditorConfig>();
 
             desktop.MainWindow = new MainWindow(mainWindowViewModel, editorViewModel,
-                textMeasurer);
+                textMeasurer, config);
 
             var clipboardManager = Services.GetRequiredService<IClipboardManager>();
             if (clipboardManager is ClipboardManager cm) cm.TopLevelRef = desktop.MainWindow;
@@ -59,5 +62,8 @@ public class App : Application
         // ViewModels
         services.AddTransient<EditorViewModel>();
         services.AddTransient<MainWindowViewModel>();
+
+        // Config
+        services.AddSingleton<IEditorConfig, EditorConfig>();
     }
 }

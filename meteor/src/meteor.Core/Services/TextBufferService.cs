@@ -1,4 +1,5 @@
 using System.Text;
+using meteor.Core.Interfaces.Config;
 using meteor.Core.Interfaces.Services;
 using meteor.Core.Models;
 
@@ -8,17 +9,19 @@ public class TextBufferService : ITextBufferService
 {
     private const int ChunkSize = 4096;
     private readonly ITextMeasurer _textMeasurer;
+    private readonly IEditorConfig _config;
     private int _cachedLineCount;
     private double _cachedMaxLineWidth;
     private string _cachedFontFamily;
     private double _cachedFontSize;
 
-    public TextBufferService(ITextMeasurer textMeasurer)
+    public TextBufferService(ITextMeasurer textMeasurer, IEditorConfig config)
     {
+        _config = config;
         _textMeasurer = textMeasurer;
         _cachedLineCount = -1;
         _cachedMaxLineWidth = -1;
-        _cachedFontFamily = "Consolas";
+        _cachedFontFamily = _config.FontFamily;
         _cachedFontSize = -1;
     }
 

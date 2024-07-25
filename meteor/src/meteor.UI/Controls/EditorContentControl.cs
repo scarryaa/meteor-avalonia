@@ -2,8 +2,10 @@ using System.Globalization;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
+using meteor.Core.Interfaces.Config;
 using meteor.Core.Interfaces.Services;
 using meteor.Core.Interfaces.ViewModels;
+using meteor.UI.Config;
 
 namespace meteor.UI.Controls;
 
@@ -11,8 +13,9 @@ public class EditorContentControl : Control
 {
     private readonly IEditorViewModel _viewModel;
     private readonly ITextMeasurer _textMeasurer;
-    private const double FontSize = 13;
-    private readonly Typeface _typeface = new("Consolas");
+    private readonly IEditorConfig _config;
+    private readonly AvaloniaEditorConfig _avaloniaConfig;
+    
     private readonly double _lineHeight;
     private Size _totalSize;
     private readonly List<int> _lineStartOffsets;
@@ -20,11 +23,14 @@ public class EditorContentControl : Control
     public Vector Offset { get; set; }
     public Size Viewport { get; set; }
 
-    public EditorContentControl(IEditorViewModel viewModel, ITextMeasurer textMeasurer)
+    public EditorContentControl(IEditorViewModel viewModel, ITextMeasurer textMeasurer, IEditorConfig config)
     {
+        _config = config;
+        _avaloniaConfig = new AvaloniaEditorConfig();
+        
         _viewModel = viewModel;
         _textMeasurer = textMeasurer;
-        _lineHeight = _textMeasurer.GetLineHeight(_typeface.FontFamily.ToString(), FontSize) * 1.5;
+        _lineHeight = _textMeasurer.GetLineHeight(_config.FontFamily, _config.FontSize) * _config.LineHeightMultiplier;
         _lineStartOffsets = new List<int>();
 
         _viewModel.ContentChanged += (sender, e) =>
@@ -52,7 +58,7 @@ public class EditorContentControl : Control
 
     public override void Render(DrawingContext context)
     {
-        context.DrawRectangle(Brushes.White, null, new Rect(Bounds.Size));
+        context.DrawRectangle(_avaloniaConfig.BackgroundBrush, null, new Rect(Bounds.Size));
 
         var startLine = Math.Max(0, (int)(Offset.Y / _lineHeight));
         var visibleLines = (int)Math.Ceiling(Viewport.Height / _lineHeight) + 1;
@@ -65,7 +71,7 @@ public class EditorContentControl : Control
         var visibleContent = _viewModel.GetContentSlice(fetchStartLine, fetchEndLine);
         var lines = visibleContent.Split('\n');
 
-        var textHeight = _textMeasurer.MeasureText("Xypg", _typeface.FontFamily.ToString(), FontSize).Height;
+        var textHeight = _textMeasurer.MeasureText("Xypg", _config.FontFamily, _config.FontSize).Height;
         var verticalOffset = (_lineHeight - textHeight) / 2;
 
         var currentLine = _viewModel.GetCursorLine();
@@ -82,8 +88,8 @@ public class EditorContentControl : Control
             // Highlight the current line
             if (fetchStartLine + i == currentLine)
             {
-                var highlightBrush = new SolidColorBrush(Color.Parse("#ededed"));
-                context.DrawRectangle(highlightBrush, null, new Rect(0, lineY, Bounds.Width, _lineHeight));
+                context.DrawRectangle(_avaloniaConfig.CurrentLineHighlightBrush, null,
+                    new Rect(0, lineY, Bounds.Width, _lineHeight));
             }
 
             // Render selection
@@ -93,9 +99,9 @@ public class EditorContentControl : Control
                 line,
                 CultureInfo.CurrentCulture,
                 FlowDirection.LeftToRight,
-                _typeface,
-                FontSize,
-                Brushes.Black);
+                _avaloniaConfig.Typeface,
+                _config.FontSize,
+                _avaloniaConfig.TextBrush);
 
             var textY = lineY + verticalOffset;
             context.DrawText(formattedText, new Point(0, textY));
@@ -111,7 +117,7 @@ public class EditorContentControl : Control
         var cursorX = MeasureTextWidth(_viewModel.GetContentSlice(cursorLine, cursorLine).Substring(0, cursorColumn));
 
         context.DrawLine(
-            new Pen(Brushes.Black),
+            new Pen(_avaloniaConfig.TextBrush),
             new Point(cursorX, cursorY),
             new Point(cursorX, cursorY + _lineHeight)
         );
@@ -150,18 +156,20 @@ public class EditorContentControl : Control
         var relativeSelectionStart = Math.Max(0, selectionStart - lineStartOffset);
         var relativeSelectionEnd = Math.Min(line.Length, selectionEnd - lineStartOffset);
 
-        if (relativeSelectionStart < relativeSelectionEnd)
+        if (relativeSelectionStart < relativeSelectionEnd || string.IsNullOrEmpty(line))
         {
-            var startX = MeasureTextWidth(line.Substring(0, relativeSelectionStart)) - Offset.X;
-            var endX = MeasureTextWidth(line.Substring(0, relativeSelectionEnd)) - Offset.X;
+            var startX = MeasureTextWidth(line.Substring(0, relativeSelectionStart));
+            var endX = MeasureTextWidth(line.Substring(0, relativeSelectionEnd));
 
-            // Clip the selection to the viewport
-            startX = Math.Max(0, Math.Min(startX, Viewport.Width));
-            endX = Math.Max(0, Math.Min(endX, Viewport.Width));
+            if (string.IsNullOrEmpty(line))
+            {
+                startX = 0;
+                endX = 10;
+            }
 
             if (startX < endX)
             {
-                var selectionBrush = new SolidColorBrush(Color.FromArgb(128, 173, 214, 255));
+                var selectionBrush = _avaloniaConfig.SelectionBrush;
                 context.DrawRectangle(selectionBrush, null, new Rect(startX, lineY, endX - startX, _lineHeight));
             }
         }
@@ -169,6 +177,6 @@ public class EditorContentControl : Control
 
     private double MeasureTextWidth(string text)
     {
-        return _textMeasurer.MeasureText(text, _typeface.FontFamily.ToString(), FontSize).Width;
+        return _textMeasurer.MeasureText(text, _config.FontFamily, _config.FontSize).Width;
     }
 }

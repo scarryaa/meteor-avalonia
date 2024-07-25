@@ -1,3 +1,4 @@
+using meteor.Core.Interfaces.Config;
 using meteor.Core.Interfaces.Services;
 
 namespace meteor.Core.Services;
@@ -5,15 +6,17 @@ namespace meteor.Core.Services;
 public class CursorManager : ICursorManager
 {
     private readonly ITextBufferService _textBufferService;
+    private readonly IEditorConfig _config;
     public int Position { get; private set; }
     private int _line;
     private int _column;
     private int _lastKnownLineStart;
 
     public event EventHandler CursorPositionChanged;
-    
-    public CursorManager(ITextBufferService textBufferService)
+
+    public CursorManager(ITextBufferService textBufferService, IEditorConfig config)
     {
+        _config = config;
         _textBufferService = textBufferService;
         _line = 0;
         _column = 0;
@@ -28,8 +31,8 @@ public class CursorManager : ICursorManager
     public (double X, double Y) GetCursorPosition(ITextMeasurer textMeasurer, string text)
     {
         var lineText = GetCurrentLineText();
-        var size = textMeasurer.MeasureText(lineText.Substring(0, _column), "Consolas", 13);
-        return (size.Width, _line * textMeasurer.GetLineHeight("Consolas", 13));
+        var size = textMeasurer.MeasureText(lineText.Substring(0, _column), _config.FontFamily, _config.FontSize);
+        return (size.Width, _line * textMeasurer.GetLineHeight(_config.FontFamily, _config.FontSize));
     }
 
     public int GetCursorLine()
