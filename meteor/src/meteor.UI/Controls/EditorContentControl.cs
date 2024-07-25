@@ -57,10 +57,21 @@ public class EditorContentControl : Control
         var textHeight = _textMeasurer.MeasureText("Xypg", _typeface.FontFamily.ToString(), FontSize).Height;
         var verticalOffset = (_lineHeight - textHeight) / 2;
 
+        var currentLine = _viewModel.GetCursorLine();
+
         for (var i = 0; i < lines.Length; i++)
         {
             var line = lines[i];
             if (line == null) continue;
+
+            var lineY = (fetchStartLine + i) * _lineHeight;
+
+            // Highlight the current line
+            if (fetchStartLine + i == _viewModel.GetCursorLine())
+            {
+                var highlightBrush = new SolidColorBrush(Color.Parse("#ededed"));
+                context.DrawRectangle(highlightBrush, null, new Rect(0, lineY, Bounds.Width, _lineHeight));
+            }
 
             var formattedText = new FormattedText(
                 line,
@@ -70,12 +81,12 @@ public class EditorContentControl : Control
                 FontSize,
                 Brushes.Black);
 
-            var y = (fetchStartLine + i) * _lineHeight + verticalOffset;
-            context.DrawText(formattedText, new Point(0, y));
+            var textY = lineY + verticalOffset;
+            context.DrawText(formattedText, new Point(0, textY));
         }
 
         // Render cursor 
-        var cursorLine = _viewModel.GetCursorLine() - fetchStartLine;
+        var cursorLine = currentLine - fetchStartLine;
         var cursorColumn = _viewModel.GetCursorColumn();
 
         if (cursorLine >= 0 && cursorLine < lines.Length)
