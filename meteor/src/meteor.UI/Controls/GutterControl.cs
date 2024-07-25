@@ -21,7 +21,6 @@ public class GutterControl : Control
     private const int Padding = 25;
     private int _lastLineCount;
     private double _maxLineNumberWidth;
-    private FormattedText[] _cachedFormattedTexts;
 
     public double VerticalOffset { get; private set; }
     public Size Viewport { get; set; }
@@ -36,6 +35,7 @@ public class GutterControl : Control
         _lineHeight = _textMeasurer.GetLineHeight(_config.FontFamily, _config.FontSize) * _config.LineHeightMultiplier;
 
         _viewModel.ContentChanged += OnContentChanged;
+        _viewModel.SelectionChanged += OnSelectionChanged;
     }
 
     private void OnContentChanged(object sender, EventArgs e)
@@ -46,6 +46,11 @@ public class GutterControl : Control
             InvalidateVisual();
     }
 
+    private void OnSelectionChanged(object sender, EventArgs e)
+    {
+        InvalidateVisual();
+    }
+
     protected override Size MeasureOverride(Size availableSize)
     {
         var lineCount = _viewModel.GetLineCount();
@@ -54,7 +59,6 @@ public class GutterControl : Control
             _lastLineCount = lineCount;
             _maxLineNumberWidth = MeasureTextWidth(lineCount.ToString());
             _totalSize = new Size(_maxLineNumberWidth + Padding * 2, lineCount * _lineHeight);
-            UpdateCachedFormattedTexts(lineCount);
         }
 
         return _totalSize;
@@ -71,10 +75,26 @@ public class GutterControl : Control
         var textHeight = _textMeasurer.MeasureText("0", _config.FontFamily, _config.FontSize).Height;
         var verticalOffset = (_lineHeight - textHeight) / 2;
 
+        var currentLine = _viewModel.GetCursorLine();
+
         for (var i = startLine; i <= endLine; i++)
         {
-            var formattedText = _cachedFormattedTexts[i];
             var lineY = i * _lineHeight - VerticalOffset;
+
+            // Highlight the current line in the gutter
+            if (i == currentLine)
+                context.DrawRectangle(_avaloniaConfig.CurrentLineHighlightBrush, null,
+                    new Rect(0, lineY, Bounds.Width, _lineHeight));
+
+            var lineNumber = (i + 1).ToString();
+            var formattedText = new FormattedText(
+                lineNumber,
+                CultureInfo.CurrentCulture,
+                FlowDirection.LeftToRight,
+                _avaloniaConfig.Typeface,
+                _config.FontSize,
+                _avaloniaConfig.GutterTextBrush);
+
             var textY = lineY + verticalOffset;
             var textX = Bounds.Width - formattedText.Width - Padding;
 
@@ -91,21 +111,5 @@ public class GutterControl : Control
     {
         VerticalOffset = offset.Y;
         InvalidateVisual();
-    }
-
-    private void UpdateCachedFormattedTexts(int lineCount)
-    {
-        _cachedFormattedTexts = new FormattedText[lineCount];
-        for (var i = 0; i < lineCount; i++)
-        {
-            var lineNumber = (i + 1).ToString();
-            _cachedFormattedTexts[i] = new FormattedText(
-                lineNumber,
-                CultureInfo.CurrentCulture,
-                FlowDirection.LeftToRight,
-                _avaloniaConfig.Typeface,
-                _config.FontSize,
-                _avaloniaConfig.GutterTextBrush);
-        }
     }
 }

@@ -55,11 +55,11 @@ public class App : Application
         services.AddSingleton<ICursorManager, CursorManager>();
         services.AddSingleton<IInputManager, InputManager>();
         services.AddSingleton<ITextMeasurer, AvaloniaTextMeasurer>();
-        services.AddTransient<ITextBufferService, TextBufferService>();
+        services.AddSingleton<ITextBufferService, TextBufferService>();
         services.AddSingleton<IClipboardManager, ClipboardManager>();
-        services.AddTransient<ITextMeasurer, AvaloniaTextMeasurer>();
+        services.AddSingleton<ITextMeasurer, AvaloniaTextMeasurer>();
         services.AddSingleton<ISelectionManager, SelectionManager>();
-        services.AddTransient<ITextAnalysisService, TextAnalysisService>();
+        services.AddSingleton<ITextAnalysisService, TextAnalysisService>();
         services.AddSingleton<IScrollManager, ScrollManager>();
 
         // ViewModels

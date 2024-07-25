@@ -1,7 +1,6 @@
 using System.Text;
 using meteor.Core.Interfaces.Config;
 using meteor.Core.Interfaces.Services;
-using meteor.Core.Models;
 
 namespace meteor.Core.Services;
 
@@ -14,6 +13,7 @@ public class TextBufferService : ITextBufferService
     private double _cachedMaxLineWidth;
     private string _cachedFontFamily;
     private double _cachedFontSize;
+    private readonly StringBuilder _buffer = new();
 
     public TextBufferService(ITextMeasurer textMeasurer, IEditorConfig config)
     {
@@ -27,7 +27,46 @@ public class TextBufferService : ITextBufferService
 
     public string GetContent()
     {
-        return TextBuffer.GetDocumentSlice(0, TextBuffer.GetDocumentLength());
+        return _buffer.ToString();
+    }
+
+    public string GetContentSliceByIndex(int startIndex, int length)
+    {
+        startIndex = Math.Max(0, Math.Min(startIndex, _buffer.Length));
+        length = Math.Max(0, Math.Min(length, _buffer.Length - startIndex));
+
+        if (length == 0) return string.Empty;
+
+        return _buffer.ToString(startIndex, length);
+    }
+
+    public int GetLineIndexFromCharacterIndex(int charIndex)
+    {
+        if (charIndex < 0 || charIndex > _buffer.Length)
+            throw new ArgumentOutOfRangeException(nameof(charIndex));
+
+        var lineCount = 0;
+        for (var i = 0; i < charIndex; i++)
+            if (_buffer[i] == '\n')
+                lineCount++;
+        return lineCount;
+    }
+
+    public int GetCharacterIndexFromLineIndex(int lineIndex)
+    {
+        if (lineIndex < 0)
+            throw new ArgumentOutOfRangeException(nameof(lineIndex));
+
+        var currentLine = 0;
+        for (var i = 0; i < _buffer.Length; i++)
+        {
+            if (currentLine == lineIndex)
+                return i;
+            if (_buffer[i] == '\n')
+                currentLine++;
+        }
+
+        throw new ArgumentOutOfRangeException(nameof(lineIndex));
     }
 
     public string GetContentSlice(int startLine, int endLine)
@@ -36,60 +75,57 @@ public class TextBufferService : ITextBufferService
         if (startLine < 0 || endLine >= _cachedLineCount || startLine > endLine)
             throw new ArgumentException("Invalid line range");
 
-        var length = TextBuffer.GetDocumentLength();
+        var length = _buffer.Length;
         var currentLine = 0;
         var startPos = 0;
         var endPos = length;
         var startFound = false;
 
-        for (var i = 0; i < length; i += ChunkSize)
+        for (var i = 0; i < length; i++)
         {
-            var chunk = TextBuffer.GetDocumentSlice(i, Math.Min(i + ChunkSize, length));
-            for (var j = 0; j < chunk.Length; j++)
+            if (currentLine == startLine && !startFound)
             {
-                if (currentLine == startLine && !startFound)
-                {
-                    startPos = i + j;
-                    startFound = true;
-                }
-                if (currentLine == endLine + 1)
-                {
-                    endPos = i + j;
-                    return TextBuffer.GetDocumentSlice(startPos, endPos);
-                }
+                startPos = i;
+                startFound = true;
+            }
 
-                if (chunk[j] == '\n')
+            if (currentLine == endLine + 1)
+            {
+                endPos = i;
+                return _buffer.ToString(startPos, endPos - startPos);
+            }
+
+            if (_buffer[i] == '\n')
+            {
+                currentLine++;
+                if (currentLine > endLine)
                 {
-                    currentLine++;
-                    if (currentLine > endLine)
-                    {
-                        endPos = i + j + 1; // Include the newline character
-                        return TextBuffer.GetDocumentSlice(startPos, endPos);
-                    }
+                    endPos = i + 1; // Include the newline character
+                    return _buffer.ToString(startPos, endPos - startPos);
                 }
             }
         }
 
-        return TextBuffer.GetDocumentSlice(startPos, endPos);
+        return _buffer.ToString(startPos, endPos - startPos);
     }
 
     public void InsertText(int position, string text)
     {
-        TextBuffer.InsertText(position, text);
+        _buffer.Insert(position, text);
         InvalidateCache();
         ForceRecalculateMaxLineWidth();
     }
 
     public void DeleteText(int position, int length)
     {
-        TextBuffer.DeleteText(position, length);
+        _buffer.Remove(position, length);
         InvalidateCache();
         ForceRecalculateMaxLineWidth();
     }
 
     public int GetLength()
     {
-        return TextBuffer.GetDocumentLength();
+        return _buffer.Length;
     }
 
     public int GetLineCount()
@@ -115,81 +151,43 @@ public class TextBufferService : ITextBufferService
     private double CalculateMaxLineWidth(string fontFamily, double fontSize)
     {
         double maxWidth = 0;
-        var length = GetLength();
-        var currentLineLength = 0;
-        var longestLine = new StringBuilder();
         var currentLine = new StringBuilder();
 
-        for (var i = 0; i < length; i += ChunkSize)
+        for (var i = 0; i < _buffer.Length; i++)
         {
-            var chunk = TextBuffer.GetDocumentSlice(i, Math.Min(i + ChunkSize, length));
-            foreach (var c in chunk)
-                if (c == '\n')
-                {
-                    if (currentLine.Length > longestLine.Length)
-                    {
-                        longestLine.Clear();
-                        longestLine.Append(currentLine.ToString());
-                    }
-                    currentLine.Clear();
-                }
-                else
-                {
+            var c = _buffer[i];
+            if (c == '\n' || i == _buffer.Length - 1)
+            {
+                if (i == _buffer.Length - 1 && c != '\n')
                     currentLine.Append(c);
-                }
+
+                var lineWidth = _textMeasurer.MeasureText(currentLine.ToString(), fontFamily, fontSize).Width;
+                maxWidth = Math.Max(maxWidth, lineWidth);
+                currentLine.Clear();
+            }
+            else
+            {
+                currentLine.Append(c);
+            }
         }
 
-        // Always check the last line, even if it doesn't end with a newline
-        if (currentLine.Length > longestLine.Length)
-        {
-            longestLine.Clear();
-            longestLine.Append(currentLine.ToString());
-        }
-
-        // Measure the longest line
-        if (longestLine.Length > 0)
-        {
-            maxWidth = _textMeasurer.MeasureText(longestLine.ToString(), fontFamily, fontSize).Width;
-        }
+        _cachedFontFamily = fontFamily;
+        _cachedFontSize = fontSize;
         
         return maxWidth;
     }
 
-    private double UpdateMaxWidth(StringBuilder line, string fontFamily, double fontSize, double currentMaxWidth)
-    {
-        if (line.Length > 0)
-        {
-            var lineWidth = MeasureLineWidth(line, fontFamily, fontSize);
-            var newMaxWidth = Math.Max(currentMaxWidth, lineWidth);
-            return newMaxWidth;
-        }
-
-        return currentMaxWidth;
-    }
-
     public string GetEntireContent()
     {
-        return TextBuffer.GetDocumentSlice(0, TextBuffer.GetDocumentLength());
-    }
-    
-    private double MeasureLineWidth(StringBuilder line, string fontFamily, double fontSize)
-    {
-        var width = _textMeasurer.MeasureText(line.ToString(), fontFamily, fontSize).Width;
-        return width;
+        return _buffer.ToString();
     }
 
     private void UpdateLineCount()
     {
-        var lineCount = 1;
-        var length = TextBuffer.GetDocumentLength();
-
-        for (var i = 0; i < length; i += ChunkSize)
+        if (_cachedLineCount == -1)
         {
-            var chunk = TextBuffer.GetDocumentSlice(i, Math.Min(i + ChunkSize, length));
-            lineCount += chunk.Count(c => c == '\n');
+            _cachedLineCount = 1 + _buffer.ToString().Count(c => c == '\n');
         }
-
-        _cachedLineCount = lineCount;
     }
 
     private void InvalidateCache()
