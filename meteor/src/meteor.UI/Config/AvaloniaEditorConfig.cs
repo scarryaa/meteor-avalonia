@@ -17,4 +17,11 @@ public class AvaloniaEditorConfig : EditorConfig
 
     public IBrush SelectionBrush =>
         new SolidColorBrush(Color.FromArgb(SelectionColor.A, SelectionColor.R, SelectionColor.G, SelectionColor.B));
+
+    public IBrush GutterBackgroundBrush =>
+        new SolidColorBrush(Color.FromArgb(GutterBackgroundColor.A, GutterBackgroundColor.R, GutterBackgroundColor.G,
+            GutterBackgroundColor.B));
+
+    public IBrush GutterTextBrush =>
+        new SolidColorBrush(Color.FromArgb(GutterTextColor.A, GutterTextColor.R, GutterTextColor.G, GutterTextColor.B));
 }

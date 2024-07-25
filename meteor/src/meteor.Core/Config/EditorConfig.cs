@@ -12,4 +12,7 @@ public class EditorConfig : IEditorConfig
     public Color BackgroundColor { get; set; } = Color.White;
     public Color CurrentLineHighlightColor { get; set; } = Color.FromArgb(237, 237, 237); // #ededed
     public Color SelectionColor { get; set; } = Color.FromArgb(100, 139, 205, 205);
+
+    public Color GutterBackgroundColor { get; set; } = Color.FromArgb(255, 255, 255);
+    public Color GutterTextColor { get; set; } = Color.FromArgb(100, 100, 100); // #666
 }

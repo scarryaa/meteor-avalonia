@@ -14,62 +14,77 @@ struct PieceTable {
     original: String,
     add_buffer: String,
     pieces: Vec<Piece>,
+    total_length: usize,
 }
 
 impl PieceTable {
     fn new(content: String) -> Self {
+        let length = content.len();
         PieceTable {
-            original: content.clone(),
+            original: content,
             add_buffer: String::new(),
             pieces: vec![Piece {
                 start: 0,
-                length: content.len(),
+                length,
                 is_original: true,
             }],
+            total_length: length,
         }
     }
 
     fn insert(&mut self, index: usize, text: &str) {
-        if index > self.get_length() {
-            return; // Prevent inserting at an invalid position
+        if index > self.total_length {
+            return;
         }
 
-        let mut remaining = text.len();
+        let text_len = text.len();
         let mut offset = 0;
         let mut piece_index = 0;
 
-        while remaining > 0 && piece_index < self.pieces.len() {
-            let piece = &self.pieces[piece_index];
+        while piece_index < self.pieces.len() {
+            let piece = &mut self.pieces[piece_index];
             if offset + piece.length > index {
-                // Split the piece
                 let split_point = index - offset;
                 let new_piece = Piece {
                     start: self.add_buffer.len(),
-                    length: text.len(),
+                    length: text_len,
                     is_original: false,
                 };
                 self.add_buffer.push_str(text);
 
-                let after_piece = Piece {
-                    start: piece.start + split_point,
-                    length: piece.length - split_point,
-                    is_original: piece.is_original,
-                };
+                if split_point < piece.length {
+                    let after_piece = Piece {
+                        start: piece.start + split_point,
+                        length: piece.length - split_point,
+                        is_original: piece.is_original,
+                    };
+                    piece.length = split_point;
+                    self.pieces.insert(piece_index + 1, new_piece);
+                    self.pieces.insert(piece_index + 2, after_piece);
+                } else {
+                    self.pieces.insert(piece_index + 1, new_piece);
+                }
 
-                self.pieces[piece_index].length = split_point;
-                self.pieces.insert(piece_index + 1, new_piece);
-                self.pieces.insert(piece_index + 2, after_piece);
-
-                break;
+                self.total_length += text_len;
+                return;
             }
             offset += piece.length;
             piece_index += 1;
         }
+
+        // If we're here, we're inserting at the end
+        self.pieces.push(Piece {
+            start: self.add_buffer.len(),
+            length: text_len,
+            is_original: false,
+        });
+        self.add_buffer.push_str(text);
+        self.total_length += text_len;
     }
 
     fn delete(&mut self, start: usize, length: usize) {
-        if start + length > self.get_length() {
-            return; // Prevent deleting beyond the end of the content
+        if start + length > self.total_length {
+            return;
         }
 
         let mut remaining = length;
@@ -84,10 +99,8 @@ impl PieceTable {
                 let delete_length = delete_end - delete_start;
 
                 if delete_start == 0 && delete_length == piece.length {
-                    // Remove the entire piece
                     self.pieces.remove(piece_index);
                 } else {
-                    // Modify the piece
                     if delete_start > 0 {
                         let new_piece = Piece {
                             start: piece.start + delete_end,
@@ -96,14 +109,15 @@ impl PieceTable {
                         };
                         piece.length = delete_start;
                         self.pieces.insert(piece_index + 1, new_piece);
+                        piece_index += 1;
                     } else {
                         piece.start += delete_length;
                         piece.length -= delete_length;
                     }
-                    piece_index += 1;
                 }
 
                 remaining -= delete_length;
+                self.total_length -= delete_length;
             } else {
                 offset += piece.length;
                 piece_index += 1;
@@ -112,7 +126,7 @@ impl PieceTable {
     }
 
     fn to_string(&self) -> String {
-        let mut result = String::new();
+        let mut result = String::with_capacity(self.total_length);
         for piece in &self.pieces {
             let slice = if piece.is_original {
                 &self.original[piece.start..piece.start + piece.length]
@@ -125,7 +139,7 @@ impl PieceTable {
     }
 
     fn get_length(&self) -> usize {
-        self.pieces.iter().map(|p| p.length).sum()
+        self.total_length
     }
 }
 
@@ -145,9 +159,10 @@ pub extern "C" fn initialize_document() {
 pub extern "C" fn insert_text(index: c_int, text: *const c_char) {
     let text = unsafe { CStr::from_ptr(text) }.to_str().unwrap();
     let mut doc = DOCUMENT.lock().unwrap();
-    if index as usize <= doc.0.len_chars() {
-        doc.0.insert(index as usize, text);
-        doc.1.insert(index as usize, text);
+    let index = index as usize;
+    if index <= doc.0.len_chars() {
+        doc.0.insert(index, text);
+        doc.1.insert(index, text);
     }
 }
 
@@ -155,10 +170,10 @@ pub extern "C" fn insert_text(index: c_int, text: *const c_char) {
 pub extern "C" fn delete_text(index: c_int, length: c_int) {
     let mut doc = DOCUMENT.lock().unwrap();
     let start = index as usize;
-    let end = start + length as usize;
-    if start <= doc.0.len_chars() && end <= doc.0.len_chars() {
-        doc.0.remove(start..end);
-        doc.1.delete(start, length as usize);
+    let length = length as usize;
+    if start + length <= doc.0.len_chars() {
+        doc.0.remove(start..start + length);
+        doc.1.delete(start, length);
     }
 }
 
@@ -169,8 +184,7 @@ pub extern "C" fn get_document_slice(start: c_int, end: c_int) -> *mut c_char {
     let end = end.min(doc.0.len_chars() as c_int) as usize;
     if start < end && end <= doc.0.len_chars() {
         let slice = doc.0.slice(start..end).to_string();
-        let c_slice = CString::new(slice).unwrap();
-        c_slice.into_raw()
+        CString::new(slice).unwrap().into_raw()
     } else {
         std::ptr::null_mut()
     }
@@ -185,6 +199,6 @@ pub extern "C" fn get_document_length() -> c_int {
 #[no_mangle]
 pub extern "C" fn free_string(s: *mut c_char) {
     if !s.is_null() {
-        unsafe { CString::from_raw(s) };
+        unsafe { drop(CString::from_raw(s)) };
     }
 }

@@ -136,7 +136,6 @@ public class EditorContentControl : Control
         }
     }
 
-
     private void RenderSelection(DrawingContext context, int lineIndex, string line, double lineY)
     {
         var selectionStart = _viewModel.SelectionStart;

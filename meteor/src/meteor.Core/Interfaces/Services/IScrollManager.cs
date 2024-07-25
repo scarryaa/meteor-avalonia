@@ -4,6 +4,7 @@ namespace meteor.Core.Interfaces.Services;
 
 public interface IScrollManager
 {
+    double GutterWidth { get; set; }
     Vector ScrollOffset { get; set; }
     Size Viewport { get; set; }
     Size ExtentSize { get; set; }

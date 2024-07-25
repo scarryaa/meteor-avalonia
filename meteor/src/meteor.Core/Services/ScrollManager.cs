@@ -11,6 +11,7 @@ public class ScrollManager : IScrollManager
     private Vector _scrollOffset;
     private Size _viewport;
     private Size _extentSize;
+    private double _gutterWidth;
 
     public event EventHandler<Vector>? ScrollChanged;
 
@@ -28,6 +29,19 @@ public class ScrollManager : IScrollManager
     }
 
     public double LineHeight { get; }
+
+    public double GutterWidth
+    {
+        get => _gutterWidth;
+        set
+        {
+            if (_gutterWidth != value)
+            {
+                _gutterWidth = value;
+                UpdateViewportAndExtentSizes(Viewport, ExtentSize);
+            }
+        }
+    }
 
     public Vector ScrollOffset
     {
@@ -47,10 +61,7 @@ public class ScrollManager : IScrollManager
         get => _viewport;
         set
         {
-            if (_viewport != value)
-            {
-                _viewport = value;
-            }
+            if (_viewport != value) _viewport = value;
         }
     }
 
@@ -59,10 +70,7 @@ public class ScrollManager : IScrollManager
         get => _extentSize;
         set
         {
-            if (_extentSize != value)
-            {
-                _extentSize = value;
-            }
+            if (_extentSize != value) _extentSize = value;
         }
     }
 
@@ -85,7 +93,7 @@ public class ScrollManager : IScrollManager
 
     public void UpdateMaxLineWidth(double maxLineWidth)
     {
-        ExtentSize = new Size(maxLineWidth, ExtentSize.Height);
+        ExtentSize = new Size(maxLineWidth + GutterWidth, ExtentSize.Height);
     }
 
     public void ScrollHorizontally(double delta)
@@ -133,23 +141,23 @@ public class ScrollManager : IScrollManager
         // Vertical scrolling
         var verticalMargin = LineHeight * 3;
         if (lineTop < ScrollOffset.Y + verticalMargin)
-        {
             ScrollToLine(lineNumber - 3);
-        }
         else if (lineBottom > ScrollOffset.Y + _viewport.Height - verticalMargin)
-        {
             ScrollToLine(lineNumber - GetVisibleLineCount() + 4);
-        }
 
         // Horizontal scrolling
         var leftMargin = 50;
         var rightMargin = 50;
-        var adjustedScrollOffsetX = ScrollOffset.X;
-        if (cursorX < ScrollOffset.X + leftMargin)
-            adjustedScrollOffsetX = Math.Max(0, cursorX - leftMargin);
-        else if (cursorX > ScrollOffset.X + _viewport.Width - rightMargin)
-            adjustedScrollOffsetX = cursorX - _viewport.Width + rightMargin;
+        var effectiveViewportWidth = _viewport.Width - GutterWidth;
+        var effectiveCursorX = cursorX - GutterWidth;
 
-        if (adjustedScrollOffsetX != ScrollOffset.X) ScrollOffset = new Vector(adjustedScrollOffsetX, ScrollOffset.Y);
+        var adjustedScrollOffsetX = ScrollOffset.X;
+        if (effectiveCursorX < ScrollOffset.X + leftMargin)
+            adjustedScrollOffsetX = Math.Max(0, effectiveCursorX - leftMargin);
+        else if (effectiveCursorX > ScrollOffset.X + effectiveViewportWidth - rightMargin)
+            adjustedScrollOffsetX = effectiveCursorX - effectiveViewportWidth + rightMargin;
+
+        if (adjustedScrollOffsetX != ScrollOffset.X)
+            ScrollOffset = new Vector(adjustedScrollOffsetX, ScrollOffset.Y);
     }
 }

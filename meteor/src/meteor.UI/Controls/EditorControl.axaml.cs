@@ -6,6 +6,7 @@ using meteor.Core.Interfaces.Services;
 using meteor.Core.Interfaces.ViewModels;
 using meteor.Core.Models;
 using meteor.UI.Adapters;
+using Size = Avalonia.Size;
 
 namespace meteor.UI.Controls;
 
@@ -17,6 +18,7 @@ public partial class EditorControl : UserControl
     private readonly IScrollManager _scrollManager;
     private ScrollViewer _scrollViewer;
     private EditorContentControl _contentControl;
+    private GutterControl _gutterControl;
     private bool _isUpdatingFromScrollManager;
 
     public EditorControl(IEditorViewModel viewModel, ITextMeasurer textMeasurer, IEditorConfig config,
@@ -28,12 +30,14 @@ public partial class EditorControl : UserControl
         _config = config;
         _scrollManager = scrollManager;
 
-        SetupScrollViewer();
+        SetupControls();
     }
 
-    private void SetupScrollViewer()
+    private void SetupControls()
     {
         _contentControl = new EditorContentControl(_viewModel, _textMeasurer, _config);
+        _gutterControl = new GutterControl(_viewModel, _textMeasurer, _config);
+
         _scrollViewer = new ScrollViewer
         {
             HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
@@ -41,13 +45,28 @@ public partial class EditorControl : UserControl
             Content = _contentControl
         };
 
-        Content = _scrollViewer;
+        var mainGrid = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("Auto,*")
+        };
+
+        Grid.SetColumn(_gutterControl, 0);
+        Grid.SetColumn(_scrollViewer, 1);
+
+        mainGrid.Children.Add(_gutterControl);
+        mainGrid.Children.Add(_scrollViewer);
+
+        Content = mainGrid;
 
         _scrollViewer.ScrollChanged += ScrollViewer_ScrollChanged;
         _scrollViewer.SizeChanged += ScrollViewer_SizeChanged;
         _scrollManager.ScrollChanged += ScrollManager_ScrollChanged;
 
-        AttachedToVisualTree += (s, e) => InitializeScrollViewerSizes();
+        AttachedToVisualTree += (s, e) =>
+        {
+            _scrollManager.GutterWidth = _gutterControl.DesiredSize.Width;
+            InitializeScrollViewerSizes();
+        };
     }
 
     private void InitializeScrollViewerSizes()
@@ -55,6 +74,7 @@ public partial class EditorControl : UserControl
         _scrollManager.UpdateViewportAndExtentSizes(SizeAdapter.Convert(_scrollViewer.Viewport),
             SizeAdapter.Convert(_scrollViewer.Extent));
         _contentControl.Viewport = _scrollViewer.Viewport;
+        _gutterControl.Viewport = new Size(_gutterControl.Bounds.Width, _scrollViewer.Viewport.Height);
     }
 
     private void ScrollViewer_ScrollChanged(object? sender, ScrollChangedEventArgs e)
@@ -63,24 +83,28 @@ public partial class EditorControl : UserControl
 
         _scrollManager.ScrollOffset = new Vector(_scrollViewer.Offset.X, _scrollViewer.Offset.Y);
         _contentControl.Offset = _scrollViewer.Offset;
+        _gutterControl.UpdateScroll(new Avalonia.Vector(0, _scrollViewer.Offset.Y));
     }
 
     private void ScrollViewer_SizeChanged(object? sender, SizeChangedEventArgs e)
     {
-        var newViewportSize = new Size(_scrollViewer.Viewport.Width, _scrollViewer.Viewport.Height);
-        var newExtentSize = new Size(_scrollViewer.Extent.Width, _scrollViewer.Extent.Height);
+        var newViewportSize = new Core.Models.Size(_scrollViewer.Viewport.Width, _scrollViewer.Viewport.Height);
+        var newExtentSize = new Core.Models.Size(_scrollViewer.Extent.Width, _scrollViewer.Extent.Height);
 
         _scrollManager.UpdateViewportAndExtentSizes(newViewportSize, newExtentSize);
-        _contentControl.Viewport = new Avalonia.Size(newViewportSize.Width, newViewportSize.Height);
+        _contentControl.Viewport = new Size(newViewportSize.Width, newViewportSize.Height);
+        _gutterControl.Viewport = new Size(_gutterControl.Bounds.Width, newViewportSize.Height);
+        _contentControl.InvalidateVisual();
     }
 
     private void ScrollManager_ScrollChanged(object? sender, Vector e)
     {
         if (_isUpdatingFromScrollManager) return;
-        
+            
         _isUpdatingFromScrollManager = true;
         _scrollViewer.Offset = new Avalonia.Vector(e.X, e.Y);
         _isUpdatingFromScrollManager = false;
+        _contentControl.InvalidateVisual();
     }
 
     protected override void OnKeyDown(KeyEventArgs e)
