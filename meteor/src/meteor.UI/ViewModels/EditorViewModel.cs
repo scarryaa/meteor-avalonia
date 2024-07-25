@@ -9,6 +9,8 @@ public class EditorViewModel : IEditorViewModel
     private readonly ITextBufferService _textBufferService;
     private readonly ICursorManager _cursorManager;
     private readonly IInputManager _inputManager;
+    private const string FontFamily = "Consolas";
+    private const double FontSize = 13;
 
     public EditorViewModel(ITextBufferService textBufferService, ICursorManager cursorManager,
         IInputManager inputManager)
@@ -18,7 +20,20 @@ public class EditorViewModel : IEditorViewModel
         _inputManager = inputManager;
     }
 
-    public string Content => _textBufferService.GetContent();
+    public int GetLineCount()
+    {
+        return _textBufferService.GetLineCount();
+    }
+
+    public double GetMaxLineWidth()
+    {
+        return _textBufferService.GetMaxLineWidth(FontFamily, FontSize);
+    }
+
+    public string GetContentSlice(int start, int end)
+    {
+        return _textBufferService.GetContentSlice(start, end);
+    }
 
     public int CursorPosition => _cursorManager.Position;
 

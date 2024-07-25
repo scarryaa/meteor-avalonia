@@ -34,9 +34,10 @@ public class App : Application
             var mainWindowViewModel = Services.GetRequiredService<MainWindowViewModel>();
             var editorViewModel = Services.GetRequiredService<EditorViewModel>();
             var textMeasurer = Services.GetRequiredService<ITextMeasurer>();
+            var textBufferService = Services.GetRequiredService<ITextBufferService>();
 
             desktop.MainWindow = new MainWindow(mainWindowViewModel, editorViewModel,
-                textMeasurer);
+                textMeasurer, textBufferService);
 
             var clipboardManager = Services.GetRequiredService<IClipboardManager>();
             if (clipboardManager is ClipboardManager cm) cm.TopLevelRef = desktop.MainWindow;

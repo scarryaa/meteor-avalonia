@@ -14,7 +14,6 @@ public class EditorContentControl : Control
     private const double FontSize = 13;
     private readonly Typeface _typeface = new("Consolas");
     private readonly double _lineHeight;
-    private string[] _lines;
     private Size _totalSize;
 
     public Vector Offset { get; set; }
@@ -35,26 +34,31 @@ public class EditorContentControl : Control
 
     private void UpdateContentMeasurements()
     {
-        var content = _viewModel.Content;
-        _lines = content.Split('\n');
-        var width = _lines.Max(line =>
-            _textMeasurer.MeasureText(line, _typeface.FontFamily.ToString(), FontSize).Width);
-        var height = _lines.Length * _lineHeight;
-        _totalSize = new Size(width, height);
+        var lineCount = _viewModel.GetLineCount();
+        var maxLineWidth = _viewModel.GetMaxLineWidth();
+        Console.WriteLine($"Measuring content: lineCount={lineCount}, maxLineWidth={maxLineWidth}");
+        _totalSize = new Size(maxLineWidth, lineCount * _lineHeight);
     }
 
     public override void Render(DrawingContext context)
     {
-        var clip = context.PushClip(new Rect(Bounds.Size));
-
         context.DrawRectangle(Brushes.White, null, new Rect(Bounds.Size));
 
         var startLine = Math.Max(0, (int)(Offset.Y / _lineHeight));
-        var endLine = Math.Min(_lines.Length - 1, (int)Math.Ceiling(Offset.Y + Viewport.Height / _lineHeight));
+        var visibleLines = (int)Math.Ceiling(Viewport.Height / _lineHeight) + 1;
+        var endLine = Math.Min(_viewModel.GetLineCount() - 1, startLine + visibleLines);
 
-        for (var i = startLine; i <= endLine; i++)
+        var bufferLines = 10;
+        var fetchStartLine = Math.Max(0, startLine - bufferLines);
+        var fetchEndLine = Math.Min(_viewModel.GetLineCount() - 1, endLine + bufferLines);
+
+        var visibleContent = _viewModel.GetContentSlice(fetchStartLine, fetchEndLine);
+        Console.WriteLine($"Fetched lines {fetchStartLine}-{fetchEndLine}: {visibleContent}");
+        var lines = visibleContent.Split('\n');
+
+        for (var i = 0; i < lines.Length; i++)
         {
-            var line = _lines[i];
+            var line = lines[i];
             var formattedText = new FormattedText(
                 line,
                 CultureInfo.CurrentCulture,
@@ -63,10 +67,8 @@ public class EditorContentControl : Control
                 FontSize,
                 Brushes.Black);
 
-            var y = i * _lineHeight;
+            var y = (fetchStartLine + i) * _lineHeight;
             context.DrawText(formattedText, new Point(0, y));
         }
-
-        clip.Dispose();
     }
 }

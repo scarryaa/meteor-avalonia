@@ -4,9 +4,11 @@ namespace meteor.Core.Interfaces.ViewModels;
 
 public interface IEditorViewModel
 {
-    string Content { get; }
     int CursorPosition { get; }
 
     void HandleKeyDown(KeyEventArgs e);
     void HandleTextInput(TextInputEventArgs e);
+    int GetLineCount();
+    double GetMaxLineWidth();
+    string GetContentSlice(int startLine, int endLine);
 }

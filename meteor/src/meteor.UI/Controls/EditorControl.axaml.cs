@@ -13,12 +13,14 @@ public partial class EditorControl : UserControl
     private readonly ITextMeasurer _textMeasurer;
     private ScrollViewer _scrollViewer;
     private EditorContentControl _contentControl;
+    private readonly ITextBufferService _textBufferService;
 
-    public EditorControl(IEditorViewModel viewModel, ITextMeasurer textMeasurer)
+    public EditorControl(IEditorViewModel viewModel, ITextMeasurer textMeasurer, ITextBufferService textBufferService)
     {
         Focusable = true;
         _viewModel = viewModel;
         _textMeasurer = textMeasurer;
+        _textBufferService = textBufferService;
 
         SetupScrollViewer();
     }
