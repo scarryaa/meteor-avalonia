@@ -6,6 +6,7 @@ using Avalonia.Markup.Xaml;
 using meteor.Core.Config;
 using meteor.Core.Interfaces.Config;
 using meteor.Core.Interfaces.Services;
+using meteor.Core.Interfaces.ViewModels;
 using meteor.Core.Services;
 using meteor.UI.Services;
 using meteor.UI.ViewModels;
@@ -34,7 +35,7 @@ public class App : Application
             BindingPlugins.DataValidators.RemoveAt(0);
 
             var mainWindowViewModel = Services.GetRequiredService<MainWindowViewModel>();
-            var editorViewModel = Services.GetRequiredService<EditorViewModel>();
+            var editorViewModel = Services.GetRequiredService<IEditorViewModel>();
             var textMeasurer = Services.GetRequiredService<ITextMeasurer>();
             var config = Services.GetRequiredService<IEditorConfig>();
             var scrollManager = Services.GetRequiredService<IScrollManager>();
@@ -63,7 +64,7 @@ public class App : Application
         services.AddSingleton<IScrollManager, ScrollManager>();
 
         // ViewModels
-        services.AddTransient<EditorViewModel>();
+        services.AddTransient<IEditorViewModel, EditorViewModel>();
         services.AddTransient<MainWindowViewModel>();
 
         // Config

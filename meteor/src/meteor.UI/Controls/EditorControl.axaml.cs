@@ -20,6 +20,7 @@ public partial class EditorControl : UserControl
     private EditorContentControl _contentControl;
     private GutterControl _gutterControl;
     private bool _isUpdatingFromScrollManager;
+    private bool _isSelectAll;
 
     public EditorControl(IEditorViewModel viewModel, ITextMeasurer textMeasurer, IEditorConfig config,
         IScrollManager scrollManager)
@@ -75,6 +76,8 @@ public partial class EditorControl : UserControl
 
     private void ContentControl_PointerPressed(object? sender, PointerPressedEventArgs e)
     {
+        ResetSelectAllFlag();
+        
         var point = e.GetPosition(this);
         var documentPosition = GetDocumentPositionFromPoint(new Point(point.X, point.Y));
         UpdateCursorPosition(documentPosition, false);
@@ -84,6 +87,8 @@ public partial class EditorControl : UserControl
 
     private void ContentControl_PointerMoved(object? sender, PointerEventArgs e)
     {
+        ResetSelectAllFlag();
+        
         if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
         {
             var point = e.GetPosition(this);
@@ -96,6 +101,8 @@ public partial class EditorControl : UserControl
 
     private void ContentControl_PointerReleased(object? sender, PointerReleasedEventArgs e)
     {
+        ResetSelectAllFlag();
+        
         _viewModel.EndSelection();
         e.Handled = true;
     }
@@ -103,7 +110,8 @@ public partial class EditorControl : UserControl
     private void UpdateCursorPosition(int documentPosition, bool isSelection)
     {
         _viewModel.SetCursorPosition(documentPosition);
-        _scrollManager.EnsureLineIsVisible(_viewModel.GetCursorLine(), _viewModel.GetCursorX(), isSelection);
+        if (!_isSelectAll)
+            _scrollManager.EnsureLineIsVisible(_viewModel.GetCursorLine(), _viewModel.GetCursorX(), isSelection);
         _contentControl.InvalidateVisual();
     }
 
@@ -190,6 +198,8 @@ public partial class EditorControl : UserControl
     {
         base.OnKeyDown(e);
 
+        _isSelectAll = false;
+
         var isModifierOrPageKey = e.Key == Key.LeftCtrl || e.Key == Key.RightCtrl ||
                                   e.Key == Key.LeftShift || e.Key == Key.RightShift ||
                                   e.Key == Key.LeftAlt || e.Key == Key.RightAlt ||
@@ -199,6 +209,10 @@ public partial class EditorControl : UserControl
                                   e.KeyModifiers.HasFlag(KeyModifiers.Control) ||
                                   e.KeyModifiers.HasFlag(KeyModifiers.Meta) ||
                                   e.KeyModifiers.HasFlag(KeyModifiers.Shift);
+
+        if ((e.Key == Key.A || e.Key == Key.C) && (e.KeyModifiers.HasFlag(KeyModifiers.Control) ||
+                                                   e.KeyModifiers.HasFlag(KeyModifiers.Meta)))
+            _isSelectAll = true;
 
         switch (e.Key)
         {
@@ -218,8 +232,7 @@ public partial class EditorControl : UserControl
         _contentControl.InvalidateVisual();
         _contentControl.InvalidateMeasure();
 
-
-        if (!isModifierOrPageKey)
+        if (!isModifierOrPageKey && !_isSelectAll)
             _scrollManager.EnsureLineIsVisible(_viewModel.GetCursorLine(), _viewModel.GetCursorX(),
                 _viewModel.HasSelection());
     }
@@ -230,6 +243,12 @@ public partial class EditorControl : UserControl
         _viewModel.HandleTextInput(TextInputEventArgsAdapter.Convert(e));
         _contentControl.InvalidateVisual();
         _contentControl.InvalidateMeasure();
-        _scrollManager.EnsureLineIsVisible(_viewModel.GetCursorLine(), _viewModel.GetCursorX());
+
+        if (!_isSelectAll) _scrollManager.EnsureLineIsVisible(_viewModel.GetCursorLine(), _viewModel.GetCursorX());
+    }
+
+    private void ResetSelectAllFlag()
+    {
+        _isSelectAll = false;
     }
 }

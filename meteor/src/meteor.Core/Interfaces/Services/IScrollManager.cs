@@ -10,6 +10,7 @@ public interface IScrollManager
     Size ExtentSize { get; set; }
     double LineHeight { get; }
 
+    void UpdateMaxLineWidth(double maxLineWidth);
     void ScrollToLine(int lineNumber);
     void ScrollToPosition(Vector position);
     void ScrollVertically(double delta);

@@ -1,25 +1,21 @@
 using meteor.Core.Interfaces.Config;
 using meteor.Core.Interfaces.Services;
 using meteor.Core.Models;
+using meteor.Core.Utils;
 
 namespace meteor.Core.Services;
 
 public class ScrollManager : IScrollManager
 {
-    private readonly IEditorConfig _config;
-    private readonly ITextMeasurer _textMeasurer;
     private Vector _scrollOffset;
     private Size _viewport;
-    private Size _extentSize;
     private double _gutterWidth;
 
     public event EventHandler<Vector>? ScrollChanged;
 
     public ScrollManager(IEditorConfig config, ITextMeasurer textMeasurer)
     {
-        _config = config;
-        _textMeasurer = textMeasurer;
-        LineHeight = _textMeasurer.GetLineHeight(_config.FontFamily, _config.FontSize) * _config.LineHeightMultiplier;
+        LineHeight = textMeasurer.GetLineHeight(config.FontFamily, config.FontSize) * config.LineHeightMultiplier;
     }
 
     public void UpdateViewportAndExtentSizes(Size viewport, Size extent)
@@ -35,7 +31,7 @@ public class ScrollManager : IScrollManager
         get => _gutterWidth;
         set
         {
-            if (_gutterWidth != value)
+            if (!FloatingPointComparer.AreEqual(_gutterWidth, value))
             {
                 _gutterWidth = value;
                 UpdateViewportAndExtentSizes(Viewport, ExtentSize);
@@ -48,7 +44,7 @@ public class ScrollManager : IScrollManager
         get => _scrollOffset;
         set
         {
-            if (_scrollOffset != value)
+            if (!FloatingPointComparer.AreEqual(_scrollOffset, value))
             {
                 _scrollOffset = value;
                 ScrollChanged?.Invoke(this, value);
@@ -59,20 +55,10 @@ public class ScrollManager : IScrollManager
     public Size Viewport
     {
         get => _viewport;
-        set
-        {
-            if (_viewport != value) _viewport = value;
-        }
+        set => _viewport = value;
     }
 
-    public Size ExtentSize
-    {
-        get => _extentSize;
-        set
-        {
-            if (_extentSize != value) _extentSize = value;
-        }
-    }
+    public Size ExtentSize { get; set; }
 
     public void ScrollToLine(int lineNumber)
     {
@@ -146,18 +132,27 @@ public class ScrollManager : IScrollManager
             ScrollToLine(lineNumber - GetVisibleLineCount() + (isSelection ? 1 : 4));
 
         // Horizontal scrolling
-        var leftMargin = 50;
-        var rightMargin = 50;
+        var horizontalMargin = 50;
         var effectiveViewportWidth = _viewport.Width - GutterWidth;
         var effectiveCursorX = cursorX - GutterWidth;
 
         var adjustedScrollOffsetX = ScrollOffset.X;
-        if (effectiveCursorX < ScrollOffset.X + leftMargin)
-            adjustedScrollOffsetX = Math.Max(0, effectiveCursorX - leftMargin);
-        else if (effectiveCursorX > ScrollOffset.X + effectiveViewportWidth - rightMargin)
-            adjustedScrollOffsetX = effectiveCursorX - effectiveViewportWidth + rightMargin;
+        if (isSelection)
+        {
+            if (effectiveCursorX < ScrollOffset.X + horizontalMargin)
+                adjustedScrollOffsetX = Math.Max(0, effectiveCursorX - horizontalMargin);
+            else if (effectiveCursorX > ScrollOffset.X + effectiveViewportWidth - horizontalMargin)
+                adjustedScrollOffsetX = effectiveCursorX - effectiveViewportWidth + horizontalMargin;
+        }
+        else
+        {
+            if (effectiveCursorX < ScrollOffset.X + horizontalMargin)
+                adjustedScrollOffsetX = Math.Max(0, effectiveCursorX - horizontalMargin);
+            else if (effectiveCursorX > ScrollOffset.X + effectiveViewportWidth - horizontalMargin)
+                adjustedScrollOffsetX = effectiveCursorX - effectiveViewportWidth + horizontalMargin;
+        }
 
-        if (adjustedScrollOffsetX != ScrollOffset.X)
+        if (!FloatingPointComparer.AreEqual(adjustedScrollOffsetX, ScrollOffset.X))
             ScrollOffset = new Vector(adjustedScrollOffsetX, ScrollOffset.Y);
     }
 }
