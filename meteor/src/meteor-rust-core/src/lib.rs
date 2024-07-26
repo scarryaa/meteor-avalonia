@@ -2,6 +2,7 @@ use lazy_static::lazy_static;
 use ropey::Rope;
 use std::ffi::{CStr, CString};
 use std::os::raw::{c_char, c_int};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
 
 struct Piece {
@@ -143,16 +144,26 @@ impl PieceTable {
     }
 }
 
+struct DocumentState {
+    rope: Rope,
+    piece_table: PieceTable,
+    version: AtomicUsize,
+}
+
 lazy_static! {
-    static ref DOCUMENT: Mutex<(Rope, PieceTable)> =
-        Mutex::new((Rope::new(), PieceTable::new(String::new())));
+    static ref DOCUMENT: Mutex<DocumentState> = Mutex::new(DocumentState {
+        rope: Rope::new(),
+        piece_table: PieceTable::new(String::new()),
+        version: AtomicUsize::new(0),
+    });
 }
 
 #[no_mangle]
 pub extern "C" fn initialize_document() {
     let mut doc = DOCUMENT.lock().unwrap();
-    doc.0 = Rope::new();
-    doc.1 = PieceTable::new(String::new());
+    doc.rope = Rope::new();
+    doc.piece_table = PieceTable::new(String::new());
+    doc.version.store(0, Ordering::SeqCst);
 }
 
 #[no_mangle]
@@ -160,9 +171,10 @@ pub extern "C" fn insert_text(index: c_int, text: *const c_char) {
     let text = unsafe { CStr::from_ptr(text) }.to_str().unwrap();
     let mut doc = DOCUMENT.lock().unwrap();
     let index = index as usize;
-    if index <= doc.0.len_chars() {
-        doc.0.insert(index, text);
-        doc.1.insert(index, text);
+    if index <= doc.rope.len_chars() {
+        doc.rope.insert(index, text);
+        doc.piece_table.insert(index, text);
+        doc.version.fetch_add(1, Ordering::SeqCst);
     }
 }
 
@@ -171,9 +183,10 @@ pub extern "C" fn delete_text(index: c_int, length: c_int) {
     let mut doc = DOCUMENT.lock().unwrap();
     let start = index as usize;
     let length = length as usize;
-    if start + length <= doc.0.len_chars() {
-        doc.0.remove(start..start + length);
-        doc.1.delete(start, length);
+    if start + length <= doc.rope.len_chars() {
+        doc.rope.remove(start..start + length);
+        doc.piece_table.delete(start, length);
+        doc.version.fetch_add(1, Ordering::SeqCst);
     }
 }
 
@@ -181,9 +194,9 @@ pub extern "C" fn delete_text(index: c_int, length: c_int) {
 pub extern "C" fn get_document_slice(start: c_int, end: c_int) -> *mut c_char {
     let doc = DOCUMENT.lock().unwrap();
     let start = start as usize;
-    let end = end.min(doc.0.len_chars() as c_int) as usize;
-    if start < end && end <= doc.0.len_chars() {
-        let slice = doc.0.slice(start..end).to_string();
+    let end = end.min(doc.rope.len_chars() as c_int) as usize;
+    if start < end && end <= doc.rope.len_chars() {
+        let slice = doc.rope.slice(start..end).to_string();
         CString::new(slice).unwrap().into_raw()
     } else {
         std::ptr::null_mut()
@@ -193,7 +206,13 @@ pub extern "C" fn get_document_slice(start: c_int, end: c_int) -> *mut c_char {
 #[no_mangle]
 pub extern "C" fn get_document_length() -> c_int {
     let doc = DOCUMENT.lock().unwrap();
-    doc.0.len_chars() as c_int
+    doc.rope.len_chars() as c_int
+}
+
+#[no_mangle]
+pub extern "C" fn get_document_version() -> c_int {
+    let doc = DOCUMENT.lock().unwrap();
+    doc.version.load(Ordering::SeqCst) as c_int
 }
 
 #[no_mangle]

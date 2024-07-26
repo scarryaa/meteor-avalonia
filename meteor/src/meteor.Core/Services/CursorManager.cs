@@ -31,7 +31,8 @@ public class CursorManager : ICursorManager
     public (double X, double Y) GetCursorPosition(ITextMeasurer textMeasurer, string text)
     {
         var lineText = GetCurrentLineText();
-        var size = textMeasurer.MeasureText(lineText.Substring(0, _column), _config.FontFamily, _config.FontSize);
+        var size = textMeasurer.MeasureText(lineText.Substring(0, Math.Min(_column, lineText.Length)),
+            _config.FontFamily, _config.FontSize);
         return (size.Width, _line * textMeasurer.GetLineHeight(_config.FontFamily, _config.FontSize));
     }
 
@@ -48,7 +49,8 @@ public class CursorManager : ICursorManager
     public void SetPosition(int position)
     {
         var oldPosition = Position;
-        Position = Math.Max(0, Math.Min(position, _textBufferService.GetLength()));
+        var documentLength = _textBufferService.GetLength();
+        Position = Math.Max(0, Math.Min(position, documentLength));
         if (Position != oldPosition)
         {
             UpdateLineAndColumn();
@@ -64,29 +66,39 @@ public class CursorManager : ICursorManager
     private void UpdateLineAndColumn()
     {
         var content = _textBufferService.GetContent();
-        _line = 0;
-        _column = 0;
 
-        for (var i = 0; i < Position; i++)
-            if (content[i] == '\n')
-            {
-                _line++;
-                _column = 0;
-            }
-            else
-            {
-                _column++;
-            }
+        if (string.IsNullOrEmpty(content))
+        {
+            _line = 0;
+            _column = 0;
+            _lastKnownLineStart = 0;
+            return;
+        }
 
-        _lastKnownLineStart = Position - _column;
+        if (Position < _lastKnownLineStart)
+        {
+            // If we moved backwards past the last known line start,
+            // we need to search backwards for the previous line start
+            var newLineStart = content.LastIndexOf('\n', Math.Max(0, Position - 1)) + 1;
+            _line -= content.Substring(newLineStart, _lastKnownLineStart - newLineStart).Count(c => c == '\n');
+            _lastKnownLineStart = newLineStart;
+        }
+        else if (Position > _lastKnownLineStart)
+        {
+            // If we moved forwards, we only need to count newlines from the last known position
+            _line += content.Substring(_lastKnownLineStart, Position - _lastKnownLineStart).Count(c => c == '\n');
+            _lastKnownLineStart = content.LastIndexOf('\n', Position - 1) + 1;
+        }
+
+        _column = Position - _lastKnownLineStart;
     }
 
     private string GetCurrentLineText()
     {
         var content = _textBufferService.GetContent();
-        var lineStart = content.LastIndexOf('\n', Position - 1) + 1;
+        if (string.IsNullOrEmpty(content)) return string.Empty;
         var lineEnd = content.IndexOf('\n', Position);
         if (lineEnd == -1) lineEnd = content.Length;
-        return content.Substring(lineStart, lineEnd - lineStart);
+        return content.Substring(_lastKnownLineStart, lineEnd - _lastKnownLineStart);
     }
 }

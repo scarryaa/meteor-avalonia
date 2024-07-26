@@ -23,6 +23,8 @@ public class EditorContentControl : Control
     private readonly double _lineHeight;
     private Size _totalSize;
     private readonly List<int> _lineStartOffsets = new();
+    private int _documentVersion;
+    private int _cachedDocumentLength;
 
     public Vector Offset { get; set; }
     public Size Viewport { get; set; }
@@ -123,7 +125,24 @@ public class EditorContentControl : Control
     private void RenderCursor(DrawingContext context, int cursorLine, int cursorColumn)
     {
         var cursorY = cursorLine * _lineHeight;
-        var cursorX = MeasureTextWidth(_viewModel.GetContentSlice(cursorLine, cursorLine).Substring(0, cursorColumn));
+
+        var lineContent = _viewModel.GetContentSlice(cursorLine, cursorLine);
+
+        // Ensure cursorColumn is within the bounds of the line content
+        cursorColumn = Math.Min(cursorColumn, lineContent.Length);
+
+        var cursorX = 0.0;
+        if (cursorColumn > 0)
+            try
+            {
+                cursorX = MeasureTextWidth(lineContent.Substring(0, cursorColumn));
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+                Console.WriteLine(
+                    $"Error measuring text width. Line: {cursorLine}, Column: {cursorColumn}, Content length: {lineContent.Length}");
+                cursorX = MeasureTextWidth(lineContent);
+            }
 
         context.DrawLine(
             new Pen(_avaloniaConfig.TextBrush),
@@ -132,27 +151,86 @@ public class EditorContentControl : Control
         );
     }
 
-    private void UpdateLineStartOffsets()
+    private void UpdateLineStartOffsets(TextChange? change = null)
+    {
+        var currentDocumentLength = TextBuffer.GetDocumentLength();
+        var currentDocumentVersion = TextBuffer.GetVersion();
+
+        // If the document hasn't changed, use the cached offsets
+        if (currentDocumentVersion == _documentVersion && currentDocumentLength == _cachedDocumentLength) return;
+
+        // If it's a new document or the change is too large, recalculate everything
+        if (_lineStartOffsets.Count == 0 || change == null || IsLargeChange(change))
+            RecalculateAllOffsets();
+        else
+            // Perform an incremental update
+            UpdateOffsetsIncrementally(change);
+
+        _documentVersion = currentDocumentVersion;
+        _cachedDocumentLength = currentDocumentLength;
+    }
+
+    private void RecalculateAllOffsets()
     {
         _lineStartOffsets.Clear();
         _lineStartOffsets.Add(0);
 
         var documentLength = TextBuffer.GetDocumentLength();
-        var chunkSize = 4096;
-        var totalLength = 0;
+        const int chunkSize = 16384;
 
         for (var chunkStart = 0; chunkStart < documentLength; chunkStart += chunkSize)
         {
             var chunkEnd = Math.Min(chunkStart + chunkSize, documentLength);
             var chunk = TextBuffer.GetDocumentSlice(chunkStart, chunkEnd);
 
-            for (var i = 0; i < chunk.Length; i++)
-                if (chunk[i] == '\n')
-                {
-                    totalLength = chunkStart + i + 1;
-                    _lineStartOffsets.Add(totalLength);
-                }
+            foreach (var index in FindNewLineIndexes(chunk))
+            {
+                var totalLength = chunkStart + index + 1;
+                _lineStartOffsets.Add(totalLength);
+            }
         }
+    }
+
+    private void UpdateOffsetsIncrementally(TextChange change)
+    {
+        var changeStart = change.Offset;
+        var changeEnd = change.Offset + change.OldLength;
+        var changeDelta = change.NewLength - change.OldLength;
+
+        // Find the affected line range
+        var startLineIndex = _lineStartOffsets.BinarySearch(changeStart);
+        if (startLineIndex < 0) startLineIndex = ~startLineIndex - 1;
+
+        var endLineIndex = _lineStartOffsets.BinarySearch(changeEnd);
+        if (endLineIndex < 0) endLineIndex = ~endLineIndex;
+
+        // Update offsets after the change
+        for (var i = endLineIndex; i < _lineStartOffsets.Count; i++) _lineStartOffsets[i] += changeDelta;
+
+        // Recalculate offsets for the affected lines
+        var newOffsets = new List<int>();
+        var chunkStart = startLineIndex > 0 ? _lineStartOffsets[startLineIndex - 1] : 0;
+        var chunkEnd = endLineIndex < _lineStartOffsets.Count
+            ? _lineStartOffsets[endLineIndex] + changeDelta
+            : TextBuffer.GetDocumentLength();
+
+        var chunk = TextBuffer.GetDocumentSlice(chunkStart, chunkEnd);
+        foreach (var index in FindNewLineIndexes(chunk)) newOffsets.Add(chunkStart + index + 1);
+
+        // Replace the old offsets with the new ones
+        _lineStartOffsets.RemoveRange(startLineIndex, endLineIndex - startLineIndex);
+        _lineStartOffsets.InsertRange(startLineIndex, newOffsets);
+    }
+
+    private bool IsLargeChange(TextChange change)
+    {
+        return change.OldLength > TextBuffer.GetDocumentLength() * 0.1;
+    }
+
+    private IEnumerable<int> FindNewLineIndexes(string text)
+    {
+        var index = -1;
+        while ((index = text.IndexOf('\n', index + 1)) != -1) yield return index;
     }
 
     private void RenderSelection(DrawingContext context, int lineIndex, string line, double lineY)

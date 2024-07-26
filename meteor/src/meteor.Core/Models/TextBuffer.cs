@@ -24,6 +24,14 @@ public abstract class TextBuffer
     [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
     private static extern void free_string(IntPtr s);
 
+    [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int get_document_version();
+
+    public static int GetVersion()
+    {
+        return get_document_version();
+    }
+
     public static void InsertText(int index, string text)
     {
         insert_text(index, text);
