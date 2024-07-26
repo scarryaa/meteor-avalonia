@@ -22,6 +22,7 @@ public class PointerEventHandler : IPointerEventHandler
     private bool _isDragging;
     private int _clickStartPosition;
     private ClickType _clickType;
+    private const double ClickDistanceThreshold = 5.0;
 
     private enum ClickType
     {
@@ -45,6 +46,11 @@ public class PointerEventHandler : IPointerEventHandler
 
     public void HandlePointerPressed(Point point)
     {
+        var distance =
+            Math.Sqrt(Math.Pow(point.X - _lastClickPosition.X, 2) + Math.Pow(point.Y - _lastClickPosition.Y, 2));
+
+        if (distance > ClickDistanceThreshold) _clickCount = 0;
+
         _clickTimer.Stop();
         _clickCount++;
         _clickTimer.Start();
@@ -113,9 +119,6 @@ public class PointerEventHandler : IPointerEventHandler
         var lineIndex = Math.Max(0, (int)Math.Floor(adjustedY / lineHeight));
         var lineStart = _viewModel.GetLineStartOffset(lineIndex);
         var clickX = point.X + _scrollManager.ScrollOffset.X;
-
-        Console.WriteLine(
-            $"Point.Y: {point.Y}, ScrollOffset.Y: {_scrollManager.ScrollOffset.Y}, AdjustedY: {adjustedY}, LineHeight: {lineHeight}, LineIndex: {lineIndex}, ClickX: {clickX}");
 
         var line = _viewModel.GetContentSlice(lineIndex, lineIndex);
         var trimmedLine = line.TrimEnd('\r', '\n');
