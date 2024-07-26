@@ -128,7 +128,8 @@ public class InputManager : IInputManager
 
             e.Handled = true;
 
-            if (!_isControlOrMetaPressed && !_isAltPressed &&
+            if (!_isControlOrMetaPressed && !_isAltPressed && !_isShiftPressed &&
+                e.Key != Key.Left && e.Key != Key.Right && e.Key != Key.Up && e.Key != Key.Down &&
                 e.Key != Key.LeftShift && e.Key != Key.RightShift &&
                 e.Key != Key.LeftCtrl && e.Key != Key.RightCtrl &&
                 e.Key != Key.LeftAlt && e.Key != Key.RightAlt &&

@@ -1,8 +1,6 @@
 using System.Diagnostics;
-using meteor.Core.Interfaces.Services;
 using meteor.Core.Interfaces.ViewModels;
 using meteor.Core.Models.EventArgs;
-using meteor.UI.Services;
 using Moq;
 
 namespace meteor.Tests.Core.Services;
@@ -14,8 +12,6 @@ public class EditorInputHandlerTests
     public EditorInputHandlerTests()
     {
         _mockEditorViewModel = new Mock<IEditorViewModel>();
-        Mock<IScrollManager> mockScrollManager = new();
-        new EditorInputHandler(_mockEditorViewModel.Object, mockScrollManager.Object);
     }
 
     [Fact]

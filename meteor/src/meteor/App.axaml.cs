@@ -4,10 +4,12 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core.Plugins;
 using Avalonia.Markup.Xaml;
 using meteor.Core.Config;
+using meteor.Core.Interfaces.Commands;
 using meteor.Core.Interfaces.Config;
 using meteor.Core.Interfaces.Services;
 using meteor.Core.Interfaces.Services.Editor;
 using meteor.Core.Interfaces.ViewModels;
+using meteor.Core.Models.Commands;
 using meteor.Core.Services;
 using meteor.UI.Interfaces.Services.Editor;
 using meteor.UI.Services;
@@ -72,6 +74,10 @@ public class App : Application
         services.AddSingleton<IEditorLayoutManager, EditorLayoutManager>();
         services.AddSingleton<IEditorInputHandler, EditorInputHandler>();
         services.AddSingleton<IPointerEventHandler, PointerEventHandler>();
+
+        // Editor Commands
+        services.AddSingleton<ISelectAllCommandHandler, SelectAllCommandHandler>();
+        services.AddSingleton<IModifierKeyHandler, ModifierKeyHandler>();
 
         // ViewModels
         services.AddTransient<IEditorViewModel, EditorViewModel>();

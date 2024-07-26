@@ -1,4 +1,5 @@
 using meteor.Core.Enums;
+using meteor.Core.Interfaces.Commands;
 using meteor.Core.Interfaces.Services;
 using meteor.Core.Interfaces.Services.Editor;
 using meteor.Core.Interfaces.ViewModels;
@@ -10,21 +11,29 @@ public class EditorInputHandler : IEditorInputHandler
 {
     private readonly IEditorViewModel _viewModel;
     private readonly IScrollManager _scrollManager;
+    private readonly IModifierKeyHandler _modifierKeyHandler;
+    private readonly ISelectAllCommandHandler _selectAllCommandHandler;
     private bool _isSelectAll;
 
-    public EditorInputHandler(IEditorViewModel viewModel, IScrollManager scrollManager)
+    public EditorInputHandler(
+        IEditorViewModel viewModel,
+        IScrollManager scrollManager,
+        IModifierKeyHandler modifierKeyHandler,
+        ISelectAllCommandHandler selectAllCommandHandler)
     {
         _viewModel = viewModel;
         _scrollManager = scrollManager;
+        _modifierKeyHandler = modifierKeyHandler;
+        _selectAllCommandHandler = selectAllCommandHandler;
     }
 
     public void HandleKeyDown(KeyEventArgs e)
     {
         _isSelectAll = false;
 
-        var isModifierOrPageKey = IsModifierOrPageKey(e);
+        var isModifierOrPageKey = _modifierKeyHandler.IsModifierOrPageKey(e);
 
-        if (IsSelectAllCommand(e))
+        if (_selectAllCommandHandler.IsSelectAllCommand(e))
             _isSelectAll = true;
 
         switch (e.Key)
@@ -53,23 +62,5 @@ public class EditorInputHandler : IEditorInputHandler
 
         if (!_isSelectAll)
             _scrollManager.EnsureLineIsVisible(_viewModel.GetCursorLine(), _viewModel.GetCursorX());
-    }
-
-    private bool IsModifierOrPageKey(KeyEventArgs e)
-    {
-        return e.Key == Key.LeftCtrl || e.Key == Key.RightCtrl ||
-               e.Key == Key.LeftShift || e.Key == Key.RightShift ||
-               e.Key == Key.LeftAlt || e.Key == Key.RightAlt ||
-               e.Key == Key.PageUp || e.Key == Key.PageDown ||
-               e.Modifiers.HasFlag(KeyModifiers.Alt) ||
-               e.Modifiers.HasFlag(KeyModifiers.Control) ||
-               e.Modifiers.HasFlag(KeyModifiers.Meta) ||
-               e.Modifiers.HasFlag(KeyModifiers.Shift);
-    }
-
-    private bool IsSelectAllCommand(KeyEventArgs e)
-    {
-        return (e.Key == Key.A || e.Key == Key.C) &&
-               (e.Modifiers.HasFlag(KeyModifiers.Control) || e.Modifiers.HasFlag(KeyModifiers.Meta));
     }
 }
