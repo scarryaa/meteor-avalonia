@@ -14,16 +14,16 @@ namespace meteor.UI.Controls;
 public partial class EditorControl : UserControl
 {
     private readonly IEditorViewModel _viewModel;
-    private readonly IScrollManager _scrollManager;
+    private readonly IScrollManager? _scrollManager;
     private readonly IEditorLayoutManager _layoutManager;
     private readonly IEditorInputHandler _inputHandler;
     private readonly IPointerEventHandler _pointerEventHandler;
     private readonly ITextMeasurer _textMeasurer;
     private readonly IEditorConfig _config;
 
-    private ScrollViewer _scrollViewer;
-    private EditorContentControl _contentControl;
-    private GutterControl _gutterControl;
+    private ScrollViewer? _scrollViewer;
+    private EditorContentControl? _contentControl;
+    private GutterControl? _gutterControl;
 
     public EditorControl(IEditorViewModel viewModel, IScrollManager scrollManager,
         IEditorLayoutManager layoutManager, IEditorInputHandler inputHandler,
@@ -69,11 +69,17 @@ public partial class EditorControl : UserControl
 
     private void SetupEventHandlers()
     {
+        if (_scrollViewer is null || _scrollManager is null || _contentControl is null)
+        {
+            Console.WriteLine("ScrolViewer, ScrollManager, or ContentControl is null. Cannot setup event handlers.");
+            return;
+        }
+        
         _scrollViewer.ScrollChanged += ScrollViewer_ScrollChanged;
         _scrollViewer.SizeChanged += ScrollViewer_SizeChanged;
         _scrollManager.ScrollChanged += ScrollManager_ScrollChanged;
 
-        AttachedToVisualTree += (s, e) =>
+        AttachedToVisualTree += (_, _) =>
         {
             _layoutManager.InitializeLayout(_scrollViewer, _contentControl, _gutterControl);
         };
@@ -125,15 +131,15 @@ public partial class EditorControl : UserControl
     {
         base.OnKeyDown(e);
         _inputHandler.HandleKeyDown(new KeyDownEventArgsAdapter(e));
-        _contentControl.InvalidateVisual();
-        _contentControl.InvalidateMeasure();
+        _contentControl?.InvalidateVisual();
+        _contentControl?.InvalidateMeasure();
     }
 
     protected override void OnTextInput(TextInputEventArgs e)
     {
         base.OnTextInput(e);
         _inputHandler.HandleTextInput(new TextInputEventArgsAdapter(e));
-        _contentControl.InvalidateVisual();
-        _contentControl.InvalidateMeasure();
+        _contentControl?.InvalidateVisual();
+        _contentControl?.InvalidateMeasure();
     }
 }

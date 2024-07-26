@@ -21,15 +21,15 @@ public class EditorLayoutManager : IEditorLayoutManager
         _scrollManager = scrollManager;
     }
 
-    public void InitializeLayout(ScrollViewer scrollViewer, EditorContentControl contentControl,
-        GutterControl gutterControl)
+    public void InitializeLayout(ScrollViewer? scrollViewer, EditorContentControl? contentControl,
+        GutterControl? gutterControl)
     {
         _scrollManager.GutterWidth = gutterControl.DesiredSize.Width;
         UpdateViewportAndExtentSizes(scrollViewer, contentControl, gutterControl);
     }
 
-    public void HandleScrollChanged(ScrollViewer scrollViewer, EditorContentControl contentControl,
-        GutterControl gutterControl)
+    public void HandleScrollChanged(ScrollViewer? scrollViewer, EditorContentControl? contentControl,
+        GutterControl? gutterControl)
     {
         if (_isUpdatingFromScrollManager) return;
 
@@ -38,14 +38,14 @@ public class EditorLayoutManager : IEditorLayoutManager
         gutterControl.UpdateScroll(new Avalonia.Vector(0, scrollViewer.Offset.Y));
     }
 
-    public void HandleSizeChanged(ScrollViewer scrollViewer, EditorContentControl contentControl,
-        GutterControl gutterControl)
+    public void HandleSizeChanged(ScrollViewer? scrollViewer, EditorContentControl? contentControl,
+        GutterControl? gutterControl)
     {
         UpdateViewportAndExtentSizes(scrollViewer, contentControl, gutterControl);
         contentControl.InvalidateVisual();
     }
 
-    public void HandleScrollManagerChanged(ScrollViewer scrollViewer, EditorContentControl contentControl,
+    public void HandleScrollManagerChanged(ScrollViewer? scrollViewer, EditorContentControl? contentControl,
         Vector offset)
     {
         _isUpdatingFromScrollManager = true;
@@ -54,8 +54,8 @@ public class EditorLayoutManager : IEditorLayoutManager
         contentControl.InvalidateVisual();
     }
 
-    private void UpdateViewportAndExtentSizes(ScrollViewer scrollViewer, EditorContentControl contentControl,
-        GutterControl gutterControl)
+    private void UpdateViewportAndExtentSizes(ScrollViewer? scrollViewer, EditorContentControl? contentControl,
+        GutterControl? gutterControl)
     {
         var newViewportSize = new Size(scrollViewer.Viewport.Width, scrollViewer.Viewport.Height);
         var newExtentSize = new Size(scrollViewer.Extent.Width, scrollViewer.Extent.Height);
