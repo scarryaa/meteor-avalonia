@@ -165,7 +165,6 @@ public class InputManager : IInputManager
         _lastSelection = (0, 0);
     }
 
-
     private void HandleSelectAll()
     {
         var documentLength = _textBufferService.GetLength();
@@ -436,10 +435,19 @@ public class InputManager : IInputManager
     private void DeleteSelectedText()
     {
         if (!_selectionManager.HasSelection) return;
-        
+    
         var selection = _selectionManager.CurrentSelection;
-        _textBufferService.DeleteText(selection.Start, selection.End - selection.Start);
-        _cursorManager.SetPosition(selection.Start);
+        var content = _textBufferService.GetContent();
+
+        // Ensure selection bounds are within the content range
+        var start = Math.Max(0, Math.Min(selection.Start, content.Length));
+        var end = Math.Max(start, Math.Min(selection.End, content.Length));
+
+        if (start != end)
+        {
+            _textBufferService.DeleteText(start, end - start);
+            _cursorManager.SetPosition(start);
+        }
         _selectionManager.ClearSelection();
     }
 }

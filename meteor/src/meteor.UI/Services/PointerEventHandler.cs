@@ -1,8 +1,10 @@
+using System.Timers;
 using meteor.Core.Interfaces.Config;
 using meteor.Core.Interfaces.Services;
 using meteor.Core.Interfaces.Services.Editor;
 using meteor.Core.Interfaces.ViewModels;
 using meteor.Core.Models;
+using Timer = System.Timers.Timer;
 
 namespace meteor.UI.Services;
 
@@ -12,32 +14,89 @@ public class PointerEventHandler : IPointerEventHandler
     private readonly IScrollManager _scrollManager;
     private readonly ITextMeasurer _textMeasurer;
     private readonly IEditorConfig _config;
+    private readonly ITextAnalysisService _textAnalysisService;
+
+    private int _clickCount;
+    private readonly Timer _clickTimer;
+    private Point _lastClickPosition;
+    private bool _isDragging;
+    private int _clickStartPosition;
+    private ClickType _clickType;
+
+    private enum ClickType
+    {
+        Single,
+        Double,
+        Triple
+    }
 
     public PointerEventHandler(IEditorViewModel viewModel, IScrollManager scrollManager,
-        ITextMeasurer textMeasurer, IEditorConfig config)
+        ITextMeasurer textMeasurer, IEditorConfig config, ITextAnalysisService textAnalysisService)
     {
         _viewModel = viewModel;
         _scrollManager = scrollManager;
         _textMeasurer = textMeasurer;
         _config = config;
+        _textAnalysisService = textAnalysisService;
+        _clickCount = 0;
+        _clickTimer = new Timer(400);
+        _clickTimer.Elapsed += ResetClickCount;
     }
 
     public void HandlePointerPressed(Point point)
     {
+        _clickTimer.Stop();
+        _clickCount++;
+        _clickTimer.Start();
+
+        _lastClickPosition = point;
         var documentPosition = GetDocumentPositionFromPoint(point);
-        UpdateCursorPosition(documentPosition, false);
-        _viewModel.StartSelection(documentPosition);
+        _clickStartPosition = documentPosition;
+
+        if (_clickCount == 1)
+        {
+            _clickType = ClickType.Single;
+            UpdateCursorPosition(documentPosition, false);
+            _viewModel.StartSelection(documentPosition);
+            _isDragging = true;
+        }
+        else if (_clickCount == 2)
+        {
+            _clickType = ClickType.Double;
+            SelectWord(documentPosition);
+        }
+        else if (_clickCount == 3)
+        {
+            _clickType = ClickType.Triple;
+            SelectLine(documentPosition);
+        }
     }
 
     public void HandlePointerMoved(Point point)
     {
-        var documentPosition = GetDocumentPositionFromPoint(point);
-        UpdateCursorPosition(documentPosition, true);
-        _viewModel.UpdateSelection(documentPosition);
+        if (_isDragging)
+        {
+            var documentPosition = GetDocumentPositionFromPoint(point);
+            UpdateCursorPosition(documentPosition, true);
+
+            switch (_clickType)
+            {
+                case ClickType.Single:
+                    _viewModel.UpdateSelection(documentPosition);
+                    break;
+                case ClickType.Double:
+                    ExtendSelectionByWord(documentPosition);
+                    break;
+                case ClickType.Triple:
+                    ExtendSelectionByLine(documentPosition);
+                    break;
+            }
+        }
     }
 
     public void HandlePointerReleased()
     {
+        _isDragging = false;
         _viewModel.EndSelection();
     }
 
@@ -102,5 +161,79 @@ public class PointerEventHandler : IPointerEventHandler
         }
 
         return left;
+    }
+
+    private void ResetClickCount(object? sender, ElapsedEventArgs e)
+    {
+        _clickCount = 0;
+        _clickTimer.Stop();
+    }
+
+    private void SelectWord(int position)
+    {
+        var text = _viewModel.GetContentSlice(0, _viewModel.GetLineCount());
+        var start = _textAnalysisService.FindPreviousWordBoundary(text, position);
+        var end = _textAnalysisService.FindNextWordBoundary(text, position);
+
+        // Handle empty lines
+        if (start == end)
+        {
+            start = _textAnalysisService.FindStartOfCurrentLine(text, position);
+            end = _textAnalysisService.FindEndOfCurrentLine(text, position);
+        }
+
+        _viewModel.StartSelection(start);
+        _viewModel.UpdateSelection(end);
+        _isDragging = true;
+    }
+
+    private void ExtendSelectionByWord(int position)
+    {
+        var text = _viewModel.GetContentSlice(0, _viewModel.GetLineCount());
+        var start = _clickStartPosition < position ? _clickStartPosition : position;
+        var end = _clickStartPosition > position ? _clickStartPosition : position;
+
+        var newStart = _textAnalysisService.FindPreviousWordBoundary(text, start);
+        var newEnd = _textAnalysisService.FindNextWordBoundary(text, end);
+
+        // Handle empty lines
+        if (newStart == newEnd)
+        {
+            newStart = _textAnalysisService.FindStartOfCurrentLine(text, start);
+            newEnd = _textAnalysisService.FindEndOfCurrentLine(text, end);
+        }
+
+        _viewModel.StartSelection(newStart);
+        _viewModel.UpdateSelection(newEnd);
+    }
+
+    private void SelectLine(int position)
+    {
+        var text = _viewModel.GetContentSlice(0, _viewModel.GetLineCount());
+        var start = _textAnalysisService.FindStartOfCurrentLine(text, position);
+        var end = _textAnalysisService.FindEndOfCurrentLine(text, position);
+
+        // Ensure we select the newline character at the end of the line
+        if (end < text.Length && text[end] == '\n') end++;
+
+        _viewModel.StartSelection(start);
+        _viewModel.UpdateSelection(end);
+        _isDragging = true;
+    }
+
+    private void ExtendSelectionByLine(int position)
+    {
+        var text = _viewModel.GetContentSlice(0, _viewModel.GetLineCount());
+        var start = _clickStartPosition < position ? _clickStartPosition : position;
+        var end = _clickStartPosition > position ? _clickStartPosition : position;
+
+        var newStart = _textAnalysisService.FindStartOfCurrentLine(text, start);
+        var newEnd = _textAnalysisService.FindEndOfCurrentLine(text, end);
+
+        // Ensure we select the newline character at the end of the line
+        if (newEnd < text.Length && text[newEnd] == '\n') newEnd++;
+
+        _viewModel.StartSelection(newStart);
+        _viewModel.UpdateSelection(newEnd);
     }
 }

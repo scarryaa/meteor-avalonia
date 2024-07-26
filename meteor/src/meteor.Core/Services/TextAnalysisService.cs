@@ -10,7 +10,11 @@ public class TextAnalysisService : ITextAnalysisService
     {
         if (string.IsNullOrEmpty(text) || currentPosition <= 0) return 0;
 
-        var position = currentPosition - 1;
+        var position = Math.Min(currentPosition, text.Length) - 1;
+
+        // Handle empty lines
+        while (position > 0 && text[position] == '\n' && text[position - 1] == '\n') position--;
+
         position = SkipWhitespace(text, position, -1);
         while (position > 0 && !char.IsWhiteSpace(text[position - 1])) position--;
 
@@ -21,7 +25,12 @@ public class TextAnalysisService : ITextAnalysisService
     {
         if (string.IsNullOrEmpty(text) || currentPosition >= text.Length) return text.Length;
 
-        var position = SkipWhitespace(text, currentPosition, 1);
+        var position = currentPosition;
+
+        // Handle empty lines
+        while (position < text.Length - 1 && text[position] == '\n' && text[position + 1] == '\n') position++;
+
+        position = SkipWhitespace(text, position, 1);
         while (position < text.Length && !char.IsWhiteSpace(text[position])) position++;
 
         return position;
@@ -30,29 +39,16 @@ public class TextAnalysisService : ITextAnalysisService
     private static int SkipWhitespace(string text, int start, int direction)
     {
         var position = start;
-        while (position >= 0 && position < text.Length && char.IsWhiteSpace(text[position])) position += direction;
-        return position;
-    }
-
-    public int GetLineFromPosition(string text, int position)
-    {
-        return string.IsNullOrEmpty(text) || position < 0 ? 0 : text.Take(position).Count(c => c == '\n');
-    }
-
-    public void SetDesiredColumn(int column)
-    {
-        _desiredColumn = column;
-    }
-
-    public int GetDesiredColumn()
-    {
-        return _desiredColumn;
+        while (position >= 0 && position < text.Length && char.IsWhiteSpace(text[position]) && text[position] != '\n')
+            position += direction;
+        return Math.Max(0, Math.Min(position, text.Length - 1));
     }
 
     public int FindStartOfCurrentLine(string text, int currentPosition)
     {
         if (string.IsNullOrEmpty(text) || currentPosition <= 0) return 0;
-        return text.LastIndexOf('\n', Math.Min(currentPosition - 1, text.Length - 1)) + 1;
+        var lastNewLine = text.LastIndexOf('\n', Math.Min(currentPosition - 1, text.Length - 1));
+        return lastNewLine + 1;
     }
 
     public int FindEndOfCurrentLine(string text, int currentPosition)
@@ -73,12 +69,31 @@ public class TextAnalysisService : ITextAnalysisService
     {
         var currentLineStart = FindStartOfCurrentLine(text, currentPosition);
         var currentOffset = currentPosition - currentLineStart;
+
+        // Handle empty lines
+        if (lineStart == lineEnd) return lineStart;
+
         return Math.Min(lineStart + currentOffset, lineEnd);
     }
 
     public int GetLineNumber(string text, int position)
     {
         return GetLineFromPosition(text, position);
+    }
+
+    public int GetLineFromPosition(string text, int position)
+    {
+        return string.IsNullOrEmpty(text) || position < 0 ? 0 : text.Take(position).Count(c => c == '\n');
+    }
+
+    public void SetDesiredColumn(int column)
+    {
+        _desiredColumn = column;
+    }
+
+    public int GetDesiredColumn()
+    {
+        return _desiredColumn;
     }
 
     public int GetLineCount(string text)
