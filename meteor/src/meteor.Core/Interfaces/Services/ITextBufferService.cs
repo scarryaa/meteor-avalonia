@@ -10,7 +10,6 @@ public interface ITextBufferService
     int GetLength();
     int GetLineCount();
     double GetMaxLineWidth(string fontFamily, double fontSize);
-    string GetEntireContent();
 
     int GetLineIndexFromCharacterIndex(int charIndex);
     int GetCharacterIndexFromLineIndex(int lineIndex);

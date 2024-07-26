@@ -13,7 +13,6 @@ public interface IEditorViewModel
     int GetLineCount();
     double GetMaxLineWidth();
     string GetContentSlice(int startLine, int endLine);
-    string GetEntireContent();
     int GetCursorLine();
     int GetCursorColumn();
     double GetCursorX();

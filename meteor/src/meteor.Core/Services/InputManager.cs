@@ -183,7 +183,7 @@ public class InputManager : IInputManager
     {
         if (_isControlOrMetaPressed)
         {
-            var text = _textBufferService.GetEntireContent();
+            var text = _textBufferService.GetContent();
             var newPosition = _textAnalysisService.FindPreviousWordBoundary(text, _cursorManager.Position);
             UpdateCursorAndSelection(newPosition);
         }
@@ -205,7 +205,7 @@ public class InputManager : IInputManager
     {
         if (_isControlOrMetaPressed)
         {
-            var text = _textBufferService.GetEntireContent();
+            var text = _textBufferService.GetContent();
             var newPosition = _textAnalysisService.FindNextWordBoundary(text, _cursorManager.Position);
             UpdateCursorAndSelection(newPosition);
         }
@@ -233,7 +233,7 @@ public class InputManager : IInputManager
         }
         else
         {
-            var text = _textBufferService.GetEntireContent();
+            var text = _textBufferService.GetContent();
             var newPosition = _textAnalysisService.FindPositionInLineAbove(text, _cursorManager.Position);
             UpdateCursorAndSelection(newPosition);
         }
@@ -249,7 +249,7 @@ public class InputManager : IInputManager
         }
         else
         {
-            var text = _textBufferService.GetEntireContent();
+            var text = _textBufferService.GetContent();
             var newPosition = _textAnalysisService.FindPositionInLineBelow(text, _cursorManager.Position);
             UpdateCursorAndSelection(newPosition);
         }
@@ -266,7 +266,7 @@ public class InputManager : IInputManager
 
     private void HandleHomeKey()
     {
-        var text = _textBufferService.GetEntireContent();
+        var text = _textBufferService.GetContent();
         var newPosition = _textAnalysisService.FindStartOfCurrentLine(text, _cursorManager.Position);
         UpdateCursorAndSelection(newPosition);
         UpdateDesiredColumn();
@@ -274,7 +274,7 @@ public class InputManager : IInputManager
 
     private void HandleEndKey()
     {
-        var text = _textBufferService.GetEntireContent();
+        var text = _textBufferService.GetContent();
         var newPosition = _textAnalysisService.FindEndOfCurrentLine(text, _cursorManager.Position);
         UpdateCursorAndSelection(newPosition);
         UpdateDesiredColumn();
@@ -305,7 +305,7 @@ public class InputManager : IInputManager
 
     private void MoveCursorToVisiblePosition(int direction)
     {
-        var text = _textBufferService.GetEntireContent();
+        var text = _textBufferService.GetContent();
         var currentPosition = _cursorManager.Position;
         var currentLine = _textAnalysisService.GetLineNumber(text, currentPosition);
         var lineCount = _textAnalysisService.GetLineCount(text);
@@ -344,10 +344,9 @@ public class InputManager : IInputManager
         _scrollManager.ScrollDown();
     }
 
-
     private void UpdateDesiredColumn()
     {
-        var text = _textBufferService.GetEntireContent();
+        var text = _textBufferService.GetContent();
         var lineStart = _textAnalysisService.FindStartOfCurrentLine(text, _cursorManager.Position);
         var desiredColumn = _cursorManager.Position - lineStart;
         _textAnalysisService.SetDesiredColumn(desiredColumn);

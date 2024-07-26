@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 using Avalonia.Media;
 using meteor.Core.Interfaces.Config;
 using meteor.Core.Interfaces.Services;
@@ -34,6 +35,21 @@ public class AvaloniaTextMeasurer : ITextMeasurer
         return (formattedText.WidthIncludingTrailingWhitespace, formattedText.Height);
     }
 
+    public (double Width, double Height) MeasureText(StringBuilder stringBuilder, string fontFamily, double fontSize)
+    {
+        var typeface = GetOrCreateTypeface(fontFamily, fontSize);
+
+        var formattedText = new FormattedText(
+            stringBuilder.ToString(),
+            CultureInfo.CurrentCulture,
+            FlowDirection.LeftToRight,
+            typeface,
+            fontSize,
+            Brushes.Black);
+
+        return (formattedText.WidthIncludingTrailingWhitespace, formattedText.Height);
+    }
+    
     public double GetLineHeight(string fontFamily, double fontSize)
     {
         var key = (fontFamily, fontSize);

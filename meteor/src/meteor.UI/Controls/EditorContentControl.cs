@@ -5,7 +5,11 @@ using Avalonia.Media;
 using meteor.Core.Interfaces.Config;
 using meteor.Core.Interfaces.Services;
 using meteor.Core.Interfaces.ViewModels;
+using meteor.Core.Models;
 using meteor.UI.Config;
+using Point = Avalonia.Point;
+using Size = Avalonia.Size;
+using Vector = Avalonia.Vector;
 
 namespace meteor.UI.Controls;
 
@@ -18,27 +22,25 @@ public class EditorContentControl : Control
     
     private readonly double _lineHeight;
     private Size _totalSize;
-    private readonly List<int> _lineStartOffsets;
+    private readonly List<int> _lineStartOffsets = new();
 
     public Vector Offset { get; set; }
     public Size Viewport { get; set; }
 
     public EditorContentControl(IEditorViewModel viewModel, ITextMeasurer textMeasurer, IEditorConfig config)
     {
+        _viewModel = viewModel;
+        _textMeasurer = textMeasurer;
         _config = config;
         _avaloniaConfig = new AvaloniaEditorConfig();
         
-        _viewModel = viewModel;
-        _textMeasurer = textMeasurer;
         _lineHeight = _textMeasurer.GetLineHeight(_config.FontFamily, _config.FontSize) * _config.LineHeightMultiplier;
-        _lineStartOffsets = new List<int>();
 
-        _viewModel.ContentChanged += (sender, e) =>
+        _viewModel.ContentChanged += (_, _) =>
         {
             UpdateLineStartOffsets();
-            InvalidateVisual();
         };
-        _viewModel.SelectionChanged += (sender, e) => InvalidateVisual();
+        _viewModel.SelectionChanged += (_, _) => InvalidateVisual();
         UpdateLineStartOffsets();
     }
 
@@ -59,15 +61,8 @@ public class EditorContentControl : Control
     {
         context.DrawRectangle(_avaloniaConfig.BackgroundBrush, null, new Rect(Bounds.Size));
 
-        var startLine = Math.Max(0, (int)(Offset.Y / _lineHeight));
-        var visibleLines = (int)Math.Ceiling(Viewport.Height / _lineHeight) + 1;
-        var endLine = Math.Min(_viewModel.GetLineCount() - 1, startLine + visibleLines);
-
-        var bufferLines = 10;
-        var fetchStartLine = Math.Clamp(startLine - bufferLines, 0, _viewModel.GetLineCount() - 1);
-        var fetchEndLine = Math.Clamp(endLine + bufferLines, 0, _viewModel.GetLineCount() - 1);
-
-        var visibleContent = _viewModel.GetContentSlice(fetchStartLine, fetchEndLine);
+        var (startLine, endLine) = CalculateVisibleLineRange();
+        var visibleContent = _viewModel.GetContentSlice(startLine, endLine);
         var lines = visibleContent.Split('\n');
 
         var textHeight = _textMeasurer.MeasureText("Xypg", _config.FontFamily, _config.FontSize).Height;
@@ -76,23 +71,42 @@ public class EditorContentControl : Control
         var currentLine = _viewModel.GetCursorLine();
 
         context.PushClip(new Rect(Offset.X, Offset.Y, Viewport.Width, Viewport.Height));
-        
+
+        RenderLines(context, lines, startLine, currentLine, verticalOffset);
+
+        RenderCursor(context, currentLine, _viewModel.GetCursorColumn());
+    }
+
+    private (int startLine, int endLine) CalculateVisibleLineRange()
+    {
+        var startLine = Math.Max(0, (int)(Offset.Y / _lineHeight));
+        var visibleLines = (int)Math.Ceiling(Viewport.Height / _lineHeight) + 1;
+        var endLine = Math.Min(_viewModel.GetLineCount() - 1, startLine + visibleLines);
+
+        var bufferLines = 10;
+        return (
+            Math.Clamp(startLine - bufferLines, 0, _viewModel.GetLineCount() - 1),
+            Math.Clamp(endLine + bufferLines, 0, _viewModel.GetLineCount() - 1)
+        );
+    }
+
+    private void RenderLines(DrawingContext context, string[] lines, int startLine, int currentLine,
+        double verticalOffset)
+    {
         for (var i = 0; i < lines.Length; i++)
         {
             var line = lines[i];
             if (line == null) continue;
 
-            var lineY = (fetchStartLine + i) * _lineHeight;
+            var lineY = (startLine + i) * _lineHeight;
 
-            // Highlight the current line
-            if (fetchStartLine + i == currentLine)
+            if (startLine + i == currentLine)
             {
                 context.DrawRectangle(_avaloniaConfig.CurrentLineHighlightBrush, null,
                     new Rect(0, lineY, Bounds.Width, _lineHeight));
             }
 
-            // Render selection
-            RenderSelection(context, fetchStartLine + i, line, lineY);
+            RenderSelection(context, startLine + i, line, lineY);
 
             var formattedText = new FormattedText(
                 line,
@@ -102,12 +116,8 @@ public class EditorContentControl : Control
                 _config.FontSize,
                 _avaloniaConfig.TextBrush);
 
-            var textY = lineY + verticalOffset;
-            context.DrawText(formattedText, new Point(0, textY));
+            context.DrawText(formattedText, new Point(0, lineY + verticalOffset));
         }
-
-        // Render cursor 
-        RenderCursor(context, currentLine, _viewModel.GetCursorColumn());
     }
 
     private void RenderCursor(DrawingContext context, int cursorLine, int cursorColumn)
@@ -125,27 +135,33 @@ public class EditorContentControl : Control
     private void UpdateLineStartOffsets()
     {
         _lineStartOffsets.Clear();
-        var content = _viewModel.GetEntireContent();
-        var lines = content.Split('\n');
+        _lineStartOffsets.Add(0);
+
+        var documentLength = TextBuffer.GetDocumentLength();
+        var chunkSize = 4096;
         var totalLength = 0;
 
-        foreach (var line in lines)
+        for (var chunkStart = 0; chunkStart < documentLength; chunkStart += chunkSize)
         {
-            _lineStartOffsets.Add(totalLength);
-            totalLength += line.Length + 1; // +1 for newline character
+            var chunkEnd = Math.Min(chunkStart + chunkSize, documentLength);
+            var chunk = TextBuffer.GetDocumentSlice(chunkStart, chunkEnd);
+
+            for (var i = 0; i < chunk.Length; i++)
+                if (chunk[i] == '\n')
+                {
+                    totalLength = chunkStart + i + 1;
+                    _lineStartOffsets.Add(totalLength);
+                }
         }
     }
 
     private void RenderSelection(DrawingContext context, int lineIndex, string line, double lineY)
     {
-        var selectionStart = _viewModel.SelectionStart;
-        var selectionEnd = _viewModel.SelectionEnd;
+        var (selectionStart, selectionEnd) = (_viewModel.SelectionStart, _viewModel.SelectionEnd);
 
-        // No selection or selection doesn't intersect this line
         if (selectionStart == selectionEnd || selectionEnd <= selectionStart)
             return;
 
-        // Calculate the start offset for the current line
         var lineStartOffset = _lineStartOffsets[lineIndex];
 
         if (selectionEnd <= lineStartOffset || selectionStart >= lineStartOffset + line.Length)
@@ -167,8 +183,8 @@ public class EditorContentControl : Control
 
             if (startX < endX)
             {
-                var selectionBrush = _avaloniaConfig.SelectionBrush;
-                context.DrawRectangle(selectionBrush, null, new Rect(startX, lineY, endX - startX, _lineHeight));
+                context.DrawRectangle(_avaloniaConfig.SelectionBrush, null,
+                    new Rect(startX, lineY, endX - startX, _lineHeight));
             }
         }
     }
