@@ -39,7 +39,7 @@ public class PointerEventHandler : IPointerEventHandler
         _config = config;
         _textAnalysisService = textAnalysisService;
         _clickCount = 0;
-        _clickTimer = new Timer(400);
+        _clickTimer = new Timer(300);
         _clickTimer.Elapsed += ResetClickCount;
     }
 
@@ -114,21 +114,19 @@ public class PointerEventHandler : IPointerEventHandler
         var lineStart = _viewModel.GetLineStartOffset(lineIndex);
         var clickX = point.X + _scrollManager.ScrollOffset.X;
 
+        Console.WriteLine(
+            $"Point.Y: {point.Y}, ScrollOffset.Y: {_scrollManager.ScrollOffset.Y}, AdjustedY: {adjustedY}, LineHeight: {lineHeight}, LineIndex: {lineIndex}, ClickX: {clickX}");
+
         var line = _viewModel.GetContentSlice(lineIndex, lineIndex);
         var trimmedLine = line.TrimEnd('\r', '\n');
 
-        // Measure the entire line, or assume a minimal width for an empty line
         var lineWidth = string.IsNullOrEmpty(trimmedLine)
             ? 0
             : _textMeasurer.MeasureText(trimmedLine, _config.FontFamily, _config.FontSize).Width;
 
-        // If clickX is beyond the line width, return the end of the line
         if (clickX >= lineWidth) return lineStart + trimmedLine.Length;
-
-        // If clickX is negative, return the start of the line
         if (clickX < 0) return lineStart;
 
-        // Binary search for the closest character
         int left = 0, right = trimmedLine.Length;
         while (left < right)
         {

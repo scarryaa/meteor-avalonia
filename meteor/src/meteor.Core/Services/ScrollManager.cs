@@ -127,9 +127,9 @@ public class ScrollManager : IScrollManager
         // Vertical scrolling
         var verticalMargin = isSelection ? 0 : LineHeight * 3;
         if (lineTop < ScrollOffset.Y + verticalMargin)
-            ScrollToLine(lineNumber - (isSelection ? 0 : 3));
+            ScrollToLine(Math.Max(0, lineNumber - (isSelection ? 0 : 3)));
         else if (lineBottom > ScrollOffset.Y + _viewport.Height - verticalMargin)
-            ScrollToLine(lineNumber - GetVisibleLineCount() + (isSelection ? 1 : 4));
+            ScrollToLine(Math.Max(0, lineNumber - GetVisibleLineCount() + (isSelection ? 1 : 4)));
 
         // Horizontal scrolling
         var horizontalMargin = 50;
@@ -152,7 +152,8 @@ public class ScrollManager : IScrollManager
                 adjustedScrollOffsetX = effectiveCursorX - effectiveViewportWidth + horizontalMargin;
         }
 
-        if (!FloatingPointComparer.AreEqual(adjustedScrollOffsetX, ScrollOffset.X))
-            ScrollOffset = new Vector(adjustedScrollOffsetX, ScrollOffset.Y);
+        adjustedScrollOffsetX = Math.Max(0, adjustedScrollOffsetX);
+
+        if (!FloatingPointComparer.AreEqual(adjustedScrollOffsetX, ScrollOffset.X)) ScrollOffset = new Vector(adjustedScrollOffsetX, ScrollOffset.Y);
     }
 }

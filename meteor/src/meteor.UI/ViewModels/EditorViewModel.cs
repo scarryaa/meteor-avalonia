@@ -49,7 +49,7 @@ public class EditorViewModel : IEditorViewModel
     {
         return _textBufferService.GetContentSlice(start, end);
     }
-    
+
     public int GetCursorLine()
     {
         return _cursorManager.GetCursorLine();
