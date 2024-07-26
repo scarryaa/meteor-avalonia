@@ -6,30 +6,23 @@ namespace meteor.Core.Services;
 
 public class TextBufferService : ITextBufferService
 {
-    private const int ChunkSize = 4096;
     private readonly ITextMeasurer _textMeasurer;
-    private readonly IEditorConfig _config;
     private double _cachedMaxLineWidth;
     private string _cachedFontFamily;
     private double _cachedFontSize;
     private readonly List<int> _lineStartIndices;
-    private readonly List<int> _chunkStartIndices;
     private int _documentLength;
     private readonly Dictionary<int, double> _lineWidths;
-    private int _longestLineIndex;
 
     public TextBufferService(ITextMeasurer textMeasurer, IEditorConfig config)
     {
-        _config = config;
         _textMeasurer = textMeasurer;
         _cachedMaxLineWidth = -1;
-        _cachedFontFamily = _config.FontFamily;
+        _cachedFontFamily = config.FontFamily;
         _cachedFontSize = -1;
         _lineStartIndices = new List<int> { 0 };
-        _chunkStartIndices = new List<int> { 0 };
         _documentLength = 0;
         _lineWidths = new Dictionary<int, double>();
-        _longestLineIndex = 0;
     }
 
     public string GetContent()
@@ -124,19 +117,15 @@ public class TextBufferService : ITextBufferService
         if (newLineCount > 0)
         {
             var newLineIndices = new List<int>();
-            var lastNewLineIndex = -1;
             for (var i = 0; i < text.Length; i++)
                 if (text[i] == '\n')
                 {
                     newLineIndices.Add(position + i + 1);
-                    lastNewLineIndex = i;
                 }
 
             _lineStartIndices.InsertRange(lineIndex + 1, newLineIndices);
 
             for (var i = lineIndex + newLineCount + 1; i < _lineStartIndices.Count; i++) _lineStartIndices[i] += text.Length;
-
-            UpdateChunkIndices();
         }
         else
         {
@@ -152,16 +141,6 @@ public class TextBufferService : ITextBufferService
         _lineStartIndices.RemoveRange(startLineIndex + 1, endLineIndex - startLineIndex);
 
         for (var i = startLineIndex + 1; i < _lineStartIndices.Count; i++) _lineStartIndices[i] -= length;
-
-        UpdateChunkIndices();
-    }
-
-    private void UpdateChunkIndices()
-    {
-        _chunkStartIndices.Clear();
-        _chunkStartIndices.Add(0);
-
-        for (var i = ChunkSize; i < _documentLength; i += ChunkSize) _chunkStartIndices.Add(i);
     }
 
     private void UpdateLineWidthsAfterInsert(int position, string text)
@@ -193,7 +172,6 @@ public class TextBufferService : ITextBufferService
         if (lineWidth > _cachedMaxLineWidth)
         {
             _cachedMaxLineWidth = lineWidth;
-            _longestLineIndex = lineIndex;
         }
     }
 
@@ -202,13 +180,11 @@ public class TextBufferService : ITextBufferService
         if (_lineWidths.Count == 0)
         {
             _cachedMaxLineWidth = 0;
-            _longestLineIndex = -1;
             return;
         }
 
         var maxWidth = _lineWidths.Values.Max();
         _cachedMaxLineWidth = maxWidth;
-        _longestLineIndex = _lineWidths.FirstOrDefault(x => x.Value == maxWidth).Key;
     }
 
     private void RecalculateAllLineWidths(string fontFamily, double fontSize)
