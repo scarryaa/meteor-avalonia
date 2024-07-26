@@ -6,8 +6,10 @@ using Avalonia.Markup.Xaml;
 using meteor.Core.Config;
 using meteor.Core.Interfaces.Config;
 using meteor.Core.Interfaces.Services;
+using meteor.Core.Interfaces.Services.Editor;
 using meteor.Core.Interfaces.ViewModels;
 using meteor.Core.Services;
+using meteor.UI.Interfaces.Services.Editor;
 using meteor.UI.Services;
 using meteor.UI.ViewModels;
 using meteor.UI.Views;
@@ -39,9 +41,12 @@ public class App : Application
             var textMeasurer = Services.GetRequiredService<ITextMeasurer>();
             var config = Services.GetRequiredService<IEditorConfig>();
             var scrollManager = Services.GetRequiredService<IScrollManager>();
+            var layoutManager = Services.GetRequiredService<IEditorLayoutManager>();
+            var inputHandler = Services.GetRequiredService<IEditorInputHandler>();
+            var pointerEventHandler = Services.GetRequiredService<IPointerEventHandler>();
 
-            desktop.MainWindow = new MainWindow(mainWindowViewModel, editorViewModel,
-                textMeasurer, config, scrollManager);
+            desktop.MainWindow = new MainWindow(mainWindowViewModel, editorViewModel, layoutManager, inputHandler,
+                textMeasurer, config, scrollManager, pointerEventHandler);
 
             var clipboardManager = Services.GetRequiredService<IClipboardManager>();
             if (clipboardManager is ClipboardManager cm) cm.TopLevelRef = desktop.MainWindow;
@@ -62,6 +67,11 @@ public class App : Application
         services.AddSingleton<ISelectionManager, SelectionManager>();
         services.AddSingleton<ITextAnalysisService, TextAnalysisService>();
         services.AddSingleton<IScrollManager, ScrollManager>();
+
+        // Editor Services
+        services.AddSingleton<IEditorLayoutManager, EditorLayoutManager>();
+        services.AddSingleton<IEditorInputHandler, EditorInputHandler>();
+        services.AddSingleton<IPointerEventHandler, PointerEventHandler>();
 
         // ViewModels
         services.AddTransient<IEditorViewModel, EditorViewModel>();
