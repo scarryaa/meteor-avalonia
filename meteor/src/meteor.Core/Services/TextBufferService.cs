@@ -200,6 +200,10 @@ public class TextBufferService : ITextBufferService
 
     private string GetLineContent(int lineIndex)
     {
+        if (lineIndex < 0 || lineIndex >= _lineStartIndices.Count)
+            throw new ArgumentOutOfRangeException(nameof(lineIndex),
+                "Specified lineIndex was out of the range of valid values.");
+
         var start = _lineStartIndices[lineIndex];
         var end = lineIndex < _lineStartIndices.Count - 1
             ? _lineStartIndices[lineIndex + 1]
@@ -207,4 +211,5 @@ public class TextBufferService : ITextBufferService
 
         return TextBuffer.GetDocumentSlice(start, end);
     }
+
 }

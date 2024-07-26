@@ -22,7 +22,7 @@ public class EditorInputHandlerTests
     public void InsertText_LargeDocumentPerformance_ShouldCompleteWithinTimeLimit()
     {
         // Arrange
-        var largeText = new string('a', 10000000); // 10,000,000 characters
+        var largeText = new string('a', 10_000_000);
         var stopwatch = new Stopwatch();
 
         // Act

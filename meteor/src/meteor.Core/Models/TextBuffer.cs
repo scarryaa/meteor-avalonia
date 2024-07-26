@@ -44,7 +44,13 @@ public abstract class TextBuffer
 
     public static string GetDocumentSlice(int start, int end)
     {
-        if (start < 0 || end < start) throw new ArgumentOutOfRangeException(nameof(start));
+        // Ensure start and end are within the valid range
+        start = Math.Clamp(start, 0, GetDocumentLength());
+        end = Math.Clamp(end, start, GetDocumentLength());
+
+        if (start < 0 || end < start)
+            throw new ArgumentOutOfRangeException(nameof(start),
+                "Specified argument was out of the range of valid values.");
 
         var documentSlicePtr = get_document_slice(start, end);
         if (documentSlicePtr == IntPtr.Zero) return string.Empty;
@@ -62,6 +68,7 @@ public abstract class TextBuffer
             return string.Empty;
         }
     }
+
 
     public static int GetDocumentLength()
     {

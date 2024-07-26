@@ -106,10 +106,16 @@ public class InputManager : IInputManager
                         await HandleClipboardOperation(e.Key);
                         _isClipboardOperationHandled = true;
                     }
+                    else
+                    {
+                        DeleteSelectedText();
+                    }
                     break;
                 case Key.A:
                     if (_isControlOrMetaPressed)
                         HandleSelectAll();
+                    else
+                        DeleteSelectedText();
                     break;
                 case Key.LeftAlt:
                 case Key.RightAlt:
@@ -149,11 +155,7 @@ public class InputManager : IInputManager
         if (!string.IsNullOrEmpty(e.Text) && e.Text != "\b" && !e.Handled)
         {
             // Delete the selected text if there was a selection
-            if (_lastSelection.Start != _lastSelection.End)
-            {
-                _textBufferService.DeleteText(_lastSelection.Start, _lastSelection.End - _lastSelection.Start);
-                _cursorManager.SetPosition(_lastSelection.Start);
-            }
+            if (_selectionManager.HasSelection) DeleteSelectedText();
 
             InsertTextAndMoveCursor(e.Text, e.Text.Length);
             _textAnalysisService.ResetDesiredColumn();
@@ -162,6 +164,7 @@ public class InputManager : IInputManager
 
         _lastSelection = (0, 0);
     }
+
 
     private void HandleSelectAll()
     {
@@ -432,6 +435,8 @@ public class InputManager : IInputManager
 
     private void DeleteSelectedText()
     {
+        if (!_selectionManager.HasSelection) return;
+        
         var selection = _selectionManager.CurrentSelection;
         _textBufferService.DeleteText(selection.Start, selection.End - selection.Start);
         _cursorManager.SetPosition(selection.Start);
