@@ -4,18 +4,27 @@ namespace meteor.Core.Interfaces.ViewModels;
 
 public interface IEditorViewModel
 {
-    int CursorPosition { get; }
+    event EventHandler? ContentChanged;
+    event EventHandler? SelectionChanged;
+
     int SelectionStart { get; }
     int SelectionEnd { get; }
+    bool HasSelection();
+    int CursorPosition { get; }
 
-    void HandleKeyDown(KeyEventArgs e);
-    void HandleTextInput(TextInputEventArgs e);
     int GetLineCount();
     double GetMaxLineWidth();
-    string GetContentSlice(int startLine, int endLine);
+    string GetContentSlice(int start, int end);
     int GetCursorLine();
     int GetCursorColumn();
     double GetCursorX();
-    event EventHandler ContentChanged;
-    event EventHandler SelectionChanged;
+
+    void HandleKeyDown(KeyEventArgs e);
+    void HandleTextInput(TextInputEventArgs e);
+
+    void StartSelection(int position);
+    void UpdateSelection(int position);
+    void EndSelection();
+    void SetCursorPosition(int position);
+    int GetLineStartOffset(int lineIndex);
 }

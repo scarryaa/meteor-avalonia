@@ -107,6 +107,13 @@ public class TextBufferService : ITextBufferService
         return _cachedMaxLineWidth;
     }
 
+    public int GetLineStartOffset(int lineIndex)
+    {
+        if (lineIndex < 0) return 0;
+        if (lineIndex >= _lineStartIndices.Count) return TextBuffer.GetDocumentLength();
+        return _lineStartIndices[lineIndex];
+    }
+
     private double CalculateMaxLineWidth(string fontFamily, double fontSize)
     {
         double maxWidth = 0;

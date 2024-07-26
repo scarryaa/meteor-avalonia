@@ -20,7 +20,7 @@ public interface IScrollManager
     void PageDown();
     int GetVisibleLineCount();
     bool IsLineVisible(int lineNumber);
-    void EnsureLineIsVisible(int lineNumber, double cursorX);
+    void EnsureLineIsVisible(int lineNumber, double cursorX, bool isSelection = false);
     void UpdateViewportAndExtentSizes(Size viewport, Size extent);
 
     event EventHandler<Vector> ScrollChanged;

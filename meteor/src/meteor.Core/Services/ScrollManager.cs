@@ -133,17 +133,17 @@ public class ScrollManager : IScrollManager
         return lineTop >= ScrollOffset.Y && lineTop < ScrollOffset.Y + _viewport.Height;
     }
 
-    public void EnsureLineIsVisible(int lineNumber, double cursorX)
+    public void EnsureLineIsVisible(int lineNumber, double cursorX, bool isSelection = false)
     {
         var lineTop = lineNumber * LineHeight;
         var lineBottom = (lineNumber + 1) * LineHeight;
 
         // Vertical scrolling
-        var verticalMargin = LineHeight * 3;
+        var verticalMargin = isSelection ? 0 : LineHeight * 3;
         if (lineTop < ScrollOffset.Y + verticalMargin)
-            ScrollToLine(lineNumber - 3);
+            ScrollToLine(lineNumber - (isSelection ? 0 : 3));
         else if (lineBottom > ScrollOffset.Y + _viewport.Height - verticalMargin)
-            ScrollToLine(lineNumber - GetVisibleLineCount() + 4);
+            ScrollToLine(lineNumber - GetVisibleLineCount() + (isSelection ? 1 : 4));
 
         // Horizontal scrolling
         var leftMargin = 50;

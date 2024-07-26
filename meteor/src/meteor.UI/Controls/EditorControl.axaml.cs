@@ -67,8 +67,87 @@ public partial class EditorControl : UserControl
             _scrollManager.GutterWidth = _gutterControl.DesiredSize.Width;
             InitializeScrollViewerSizes();
         };
+
+        _contentControl.PointerPressed += ContentControl_PointerPressed;
+        _contentControl.PointerMoved += ContentControl_PointerMoved;
+        _contentControl.PointerReleased += ContentControl_PointerReleased;
     }
 
+    private void ContentControl_PointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        var point = e.GetPosition(this);
+        var documentPosition = GetDocumentPositionFromPoint(new Point(point.X, point.Y));
+        UpdateCursorPosition(documentPosition, false);
+        _viewModel.StartSelection(documentPosition);
+        e.Handled = true;
+    }
+
+    private void ContentControl_PointerMoved(object? sender, PointerEventArgs e)
+    {
+        if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+        {
+            var point = e.GetPosition(this);
+            var documentPosition = GetDocumentPositionFromPoint(new Point(point.X, point.Y));
+            UpdateCursorPosition(documentPosition, true);
+            _viewModel.UpdateSelection(documentPosition);
+            e.Handled = true;
+        }
+    }
+
+    private void ContentControl_PointerReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        _viewModel.EndSelection();
+        e.Handled = true;
+    }
+
+    private void UpdateCursorPosition(int documentPosition, bool isSelection)
+    {
+        _viewModel.SetCursorPosition(documentPosition);
+        _scrollManager.EnsureLineIsVisible(_viewModel.GetCursorLine(), _viewModel.GetCursorX(), isSelection);
+        _contentControl.InvalidateVisual();
+    }
+
+    private int GetDocumentPositionFromPoint(Point point)
+    {
+        var lineHeight = _textMeasurer.GetLineHeight(_config.FontFamily, _config.FontSize) * 1.5;
+        var adjustedY = point.Y + _scrollViewer.Offset.Y;
+        var lineIndex = Math.Max(0, (int)Math.Floor(adjustedY / lineHeight));
+        var lineStart = _viewModel.GetLineStartOffset(lineIndex);
+        var clickX = point.X - _gutterControl.Viewport.Width + _scrollViewer.Offset.X;
+
+        var line = _viewModel.GetContentSlice(lineIndex, lineIndex);
+        var trimmedLine = line.TrimEnd('\r', '\n');
+
+        // Measure the entire line, or assume a minimal width for an empty line
+        var lineWidth = string.IsNullOrEmpty(trimmedLine)
+            ? 0
+            : _textMeasurer.MeasureText(trimmedLine, _config.FontFamily, _config.FontSize).Width;
+
+        // If clickX is beyond the line width, return the end of the line
+        if (clickX >= lineWidth) return lineStart + trimmedLine.Length;
+
+        // If clickX is negative, return the start of the line
+        if (clickX < 0) return lineStart;
+
+        // Binary search for the closest character
+        int left = 0, right = trimmedLine.Length;
+        while (left < right)
+        {
+            var mid = (left + right) / 2;
+            var width = _textMeasurer
+                .MeasureText(trimmedLine.Substring(0, mid), _config.FontFamily, _config.FontSize).Width;
+            if (width < clickX)
+                left = mid + 1;
+            else
+                right = mid;
+        }
+
+        var charIndex = left;
+        var documentPosition = lineStart + charIndex;
+
+        return documentPosition;
+    }
+    
     private void InitializeScrollViewerSizes()
     {
         _scrollManager.UpdateViewportAndExtentSizes(SizeAdapter.Convert(_scrollViewer.Viewport),
@@ -139,8 +218,10 @@ public partial class EditorControl : UserControl
         _contentControl.InvalidateVisual();
         _contentControl.InvalidateMeasure();
 
+
         if (!isModifierOrPageKey)
-            _scrollManager.EnsureLineIsVisible(_viewModel.GetCursorLine(), _viewModel.GetCursorX());
+            _scrollManager.EnsureLineIsVisible(_viewModel.GetCursorLine(), _viewModel.GetCursorX(),
+                _viewModel.HasSelection());
     }
 
     protected override void OnTextInput(TextInputEventArgs e)

@@ -28,7 +28,6 @@ public class EditorViewModel : IEditorViewModel
         _selectionManager = selectionManager;
         _textMeasurer = textMeasurer;
 
-        // TODO optimize this
         _cursorManager.CursorPositionChanged += (_, _) => ContentChanged?.Invoke(this, EventArgs.Empty);
         _selectionManager.SelectionChanged += (_, _) => SelectionChanged?.Invoke(this, EventArgs.Empty);
     }
@@ -81,5 +80,36 @@ public class EditorViewModel : IEditorViewModel
     public void HandleTextInput(TextInputEventArgs e)
     {
         _inputManager.HandleTextInput(e);
+    }
+
+    public void StartSelection(int position)
+    {
+        _selectionManager.StartSelection(position);
+        _cursorManager.SetPosition(position);
+    }
+
+    public void UpdateSelection(int position)
+    {
+        _selectionManager.ExtendSelection(position);
+        _cursorManager.SetPosition(position);
+    }
+
+    public void EndSelection()
+    {
+    }
+
+    public bool HasSelection()
+    {
+        return _selectionManager.HasSelection;
+    }
+
+    public void SetCursorPosition(int position)
+    {
+        _cursorManager.SetPosition(position);
+    }
+
+    public int GetLineStartOffset(int lineIndex)
+    {
+        return _textBufferService.GetLineStartOffset(lineIndex);
     }
 }
