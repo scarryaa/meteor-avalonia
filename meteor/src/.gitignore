@@ -5,3 +5,4 @@ obj/
 # Rust output directories
 target/
 **/*.rs.bk
+.DS_Store
