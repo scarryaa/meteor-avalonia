@@ -110,6 +110,7 @@ public class InputManager : IInputManager
                     {
                         DeleteSelectedText();
                     }
+
                     break;
                 case Key.A:
                     if (_isControlOrMetaPressed)
@@ -127,7 +128,7 @@ public class InputManager : IInputManager
 
             e.Handled = true;
 
-            if (!_isShiftPressed && !_isControlOrMetaPressed && !_isAltPressed &&
+            if (!_isControlOrMetaPressed && !_isAltPressed &&
                 e.Key != Key.LeftShift && e.Key != Key.RightShift &&
                 e.Key != Key.LeftCtrl && e.Key != Key.RightCtrl &&
                 e.Key != Key.LeftAlt && e.Key != Key.RightAlt &&
