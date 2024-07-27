@@ -119,17 +119,31 @@ public class ScrollManager : IScrollManager
         return lineTop >= ScrollOffset.Y && lineTop < ScrollOffset.Y + _viewport.Height;
     }
 
-    public void EnsureLineIsVisible(int lineNumber, double cursorX, bool isSelection = false)
+    public void EnsureLineIsVisible(int lineNumber, double cursorX, int numberOfLines, bool isSelection = false)
     {
         var lineTop = lineNumber * LineHeight;
         var lineBottom = (lineNumber + 1) * LineHeight;
 
         // Vertical scrolling
         var verticalMargin = isSelection ? 0 : LineHeight * 3;
+        var totalLineCount = numberOfLines;
+
         if (lineTop < ScrollOffset.Y + verticalMargin)
+        {
             ScrollToLine(Math.Max(0, lineNumber - (isSelection ? 0 : 3)));
+        }
         else if (lineBottom > ScrollOffset.Y + _viewport.Height - verticalMargin)
-            ScrollToLine(Math.Max(0, lineNumber - GetVisibleLineCount() + (isSelection ? 1 : 4)));
+        {
+            if (lineNumber == totalLineCount - 1) // Check if it is the last line
+            {
+                ScrollToLine(Math.Max(0, lineNumber - GetVisibleLineCount() + (isSelection ? 1 : 4)));
+                ScrollOffset = new Vector(ScrollOffset.X, ScrollOffset.Y + LineHeight * 3); // Scroll to LineHeight * 3
+            }
+            else
+            {
+                ScrollToLine(Math.Max(0, lineNumber - GetVisibleLineCount() + (isSelection ? 1 : 4)));
+            }
+        }
 
         // Horizontal scrolling
         var horizontalMargin = 50;

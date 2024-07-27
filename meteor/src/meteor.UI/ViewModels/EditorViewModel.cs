@@ -133,7 +133,6 @@ public class EditorViewModel : IEditorViewModel
 
     public void EndSelection()
     {
-        // Implement if needed
     }
 
     public bool HasSelection()

@@ -50,7 +50,7 @@ public class EditorInputHandler : IEditorInputHandler
 
         if (!isModifierOrPageKey && !_isSelectAll)
             _scrollManager.EnsureLineIsVisible(viewModel.GetCursorLine(), viewModel.GetCursorX(),
-                viewModel.HasSelection());
+                viewModel.GetLineCount(), viewModel.HasSelection());
     }
 
     public void HandleTextInput(IEditorViewModel viewModel, TextInputEventArgs e)
@@ -58,6 +58,7 @@ public class EditorInputHandler : IEditorInputHandler
         viewModel.HandleTextInput(e);
 
         if (!_isSelectAll)
-            _scrollManager.EnsureLineIsVisible(viewModel.GetCursorLine(), viewModel.GetCursorX());
+            _scrollManager.EnsureLineIsVisible(viewModel.GetCursorLine(),
+                viewModel.GetCursorX(), viewModel.GetLineCount());
     }
 }

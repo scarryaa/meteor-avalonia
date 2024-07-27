@@ -110,7 +110,8 @@ public class PointerEventHandler : IPointerEventHandler
     private void UpdateCursorPosition(IEditorViewModel viewModel, int documentPosition, bool isSelection)
     {
         viewModel.SetCursorPosition(documentPosition);
-        _scrollManager.EnsureLineIsVisible(viewModel.GetCursorLine(), viewModel.GetCursorX(), isSelection);
+        _scrollManager.EnsureLineIsVisible(viewModel.GetCursorLine(), viewModel.GetCursorX(), viewModel.GetLineCount(),
+            isSelection);
     }
 
     private int GetDocumentPositionFromPoint(IEditorViewModel viewModel, Point point)
