@@ -1,19 +1,17 @@
+using Avalonia;
 using Avalonia.Controls;
 using meteor.Core.Interfaces.Config;
 using meteor.Core.Interfaces.Services;
 using meteor.Core.Interfaces.Services.Editor;
-using meteor.Core.Interfaces.ViewModels;
-using meteor.UI.Controls;
 using meteor.UI.Interfaces.Services.Editor;
 using meteor.UI.ViewModels;
-
+using TabControl = meteor.UI.Controls.TabControl;
 namespace meteor.UI.Views;
-
 public partial class MainWindow : Window
 {
     public MainWindow(
         MainWindowViewModel mainWindowViewModel,
-        IEditorViewModel editorViewModel,
+        ITabService tabService,
         IEditorLayoutManager layoutManager,
         IEditorInputHandler inputHandler,
         ITextMeasurer textMeasurer,
@@ -23,16 +21,9 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         DataContext = mainWindowViewModel;
-
-        var editorControl = new EditorControl(
-            editorViewModel,
-            scrollManager,
-            layoutManager,
-            inputHandler,
-            pointerEventHandler,
-            textMeasurer,
-            config
-        );
-        Content = editorControl;
+        this.AttachDevTools();
+        var tabControl = new TabControl(tabService, scrollManager, layoutManager, inputHandler,
+            pointerEventHandler, textMeasurer, config);
+        Content = tabControl;
     }
 }

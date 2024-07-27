@@ -10,4 +10,8 @@
         <Folder Include="Services\Editor\"/>
     </ItemGroup>
 
+    <ItemGroup>
+      <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.1" />
+    </ItemGroup>
+
 </Project>

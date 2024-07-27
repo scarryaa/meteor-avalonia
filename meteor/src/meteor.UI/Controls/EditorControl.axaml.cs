@@ -107,7 +107,7 @@ public partial class EditorControl : UserControl
     private void ContentControl_PointerPressed(object? sender, PointerPressedEventArgs e)
     {
         var point = e.GetPosition(_scrollViewer);
-        _pointerEventHandler.HandlePointerPressed(new Point(point.X, point.Y));
+        _pointerEventHandler.HandlePointerPressed(_viewModel, new Point(point.X, point.Y));
         e.Handled = true;
     }
 
@@ -116,21 +116,21 @@ public partial class EditorControl : UserControl
         if (e.GetCurrentPoint(_scrollViewer).Properties.IsLeftButtonPressed)
         {
             var point = e.GetPosition(_scrollViewer);
-            _pointerEventHandler.HandlePointerMoved(new Point(point.X, point.Y));
+            _pointerEventHandler.HandlePointerMoved(_viewModel, new Point(point.X, point.Y));
             e.Handled = true;
         }
     }
 
     private void ContentControl_PointerReleased(object? sender, PointerReleasedEventArgs e)
     {
-        _pointerEventHandler.HandlePointerReleased();
+        _pointerEventHandler.HandlePointerReleased(_viewModel);
         e.Handled = true;
     }
 
     protected override void OnKeyDown(KeyEventArgs e)
     {
         base.OnKeyDown(e);
-        _inputHandler.HandleKeyDown(new KeyDownEventArgsAdapter(e));
+        _inputHandler.HandleKeyDown(_viewModel, new KeyDownEventArgsAdapter(e));
         _contentControl?.InvalidateVisual();
         _contentControl?.InvalidateMeasure();
     }
@@ -138,7 +138,7 @@ public partial class EditorControl : UserControl
     protected override void OnTextInput(TextInputEventArgs e)
     {
         base.OnTextInput(e);
-        _inputHandler.HandleTextInput(new TextInputEventArgsAdapter(e));
+        _inputHandler.HandleTextInput(_viewModel, new TextInputEventArgsAdapter(e));
         _contentControl?.InvalidateVisual();
         _contentControl?.InvalidateMeasure();
     }

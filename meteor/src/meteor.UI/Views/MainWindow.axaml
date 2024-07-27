@@ -11,4 +11,8 @@
         Height="500"
         Title="meteor">
 
+    <Window.KeyBindings>
+        <KeyBinding x:DataType="viewModels:MainWindowViewModel" Command="{Binding OpenNewTabCommand}"
+                    Gesture="Ctrl+N" />
+    </Window.KeyBindings>
 </Window>

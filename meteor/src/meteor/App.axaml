@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="meteor.App"
              xmlns:ui="clr-namespace:meteor.UI;assembly=meteor.UI"
+             xmlns:converters="clr-namespace:meteor.UI.Converters;assembly=meteor.UI"
              RequestedThemeVariant="Default">
 
     <Application.DataTemplates>
@@ -19,10 +20,16 @@
                 <ResourceInclude Source="avares://meteor.UI/Resources/Controls/ScrollViewer.axaml" />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
+
+        <converters:BoolToBrushConverter x:Key="BoolToBrushConverter" />
+        <converters:IsTemporaryTabToFontFamilyConverter x:Key="IsTemporaryTabToFontFamilyConverter" />
+        <converters:IsTemporaryTabToFontStyleConverter x:Key="IsTemporaryTabToFontStyleConverter" />
     </Application.Resources>
 
     <Application.Styles>
         <FluentTheme />
         <StyleInclude Source="avares://meteor.UI/Styles/ScrollBarStyles.axaml" />
+        <StyleInclude Source="avares://meteor.UI/Styles/TabViewStyles.axaml" />
+        <StyleInclude Source="avares://meteor.UI/Styles/HorizontalScrollableTabControlStyles.axaml" />
     </Application.Styles>
 </Application>

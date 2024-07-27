@@ -6,11 +6,13 @@ using Avalonia.Markup.Xaml;
 using meteor.Core.Config;
 using meteor.Core.Interfaces.Commands;
 using meteor.Core.Interfaces.Config;
+using meteor.Core.Interfaces.Factories;
 using meteor.Core.Interfaces.Services;
 using meteor.Core.Interfaces.Services.Editor;
 using meteor.Core.Interfaces.ViewModels;
 using meteor.Core.Models.Commands;
 using meteor.Core.Services;
+using meteor.UI.Factories;
 using meteor.UI.Interfaces.Services.Editor;
 using meteor.UI.Services;
 using meteor.UI.ViewModels;
@@ -39,15 +41,15 @@ public class App : Application
             BindingPlugins.DataValidators.RemoveAt(0);
 
             var mainWindowViewModel = Services.GetRequiredService<MainWindowViewModel>();
-            var editorViewModel = Services.GetRequiredService<IEditorViewModel>();
             var textMeasurer = Services.GetRequiredService<ITextMeasurer>();
             var config = Services.GetRequiredService<IEditorConfig>();
             var scrollManager = Services.GetRequiredService<IScrollManager>();
             var layoutManager = Services.GetRequiredService<IEditorLayoutManager>();
             var inputHandler = Services.GetRequiredService<IEditorInputHandler>();
             var pointerEventHandler = Services.GetRequiredService<IPointerEventHandler>();
+            var tabService = Services.GetRequiredService<ITabService>();
 
-            desktop.MainWindow = new MainWindow(mainWindowViewModel, editorViewModel, layoutManager, inputHandler,
+            desktop.MainWindow = new MainWindow(mainWindowViewModel, tabService, layoutManager, inputHandler,
                 textMeasurer, config, scrollManager, pointerEventHandler);
 
             var clipboardManager = Services.GetRequiredService<IClipboardManager>();
@@ -63,13 +65,13 @@ public class App : Application
         services.AddSingleton<ICursorManager, CursorManager>();
         services.AddSingleton<IInputManager, InputManager>();
         services.AddSingleton<ITextMeasurer, AvaloniaTextMeasurer>();
-        services.AddSingleton<ITextBufferService, TextBufferService>();
         services.AddSingleton<IClipboardManager, ClipboardManager>();
         services.AddSingleton<ITextMeasurer, AvaloniaTextMeasurer>();
         services.AddSingleton<ISelectionManager, SelectionManager>();
         services.AddSingleton<ITextAnalysisService, TextAnalysisService>();
         services.AddSingleton<IScrollManager, ScrollManager>();
-
+        services.AddSingleton<ITabService, TabService>();
+        
         // Editor Services
         services.AddSingleton<IEditorLayoutManager, EditorLayoutManager>();
         services.AddSingleton<IEditorInputHandler, EditorInputHandler>();
@@ -80,8 +82,12 @@ public class App : Application
         services.AddSingleton<IModifierKeyHandler, ModifierKeyHandler>();
 
         // ViewModels
-        services.AddTransient<IEditorViewModel, EditorViewModel>();
         services.AddTransient<MainWindowViewModel>();
+        services.AddTransient<ITabViewModel, TabViewModel>();
+
+        // Factories
+        services.AddSingleton<ITabViewModelFactory, TabViewModelFactory>();
+        services.AddSingleton<IEditorInstanceFactory, EditorInstanceFactory>();
 
         // Config
         services.AddSingleton<IEditorConfig, EditorConfig>();

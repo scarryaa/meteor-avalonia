@@ -1,0 +1,98 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:viewModels="clr-namespace:meteor.UI.ViewModels"
+        xmlns:behaviors="clr-namespace:meteor.UI.Behaviors"
+        xmlns:converters="clr-namespace:meteor.UI.Converters">
+
+
+    <Styles.Resources>
+        <converters:IsActiveToBrushConverter x:Key="IsActiveToBrushConverter"
+                                             ActiveBrush="White"
+                                             InactiveBrush="LightGray" />
+
+        <DataTemplate x:Key="TabItemTemplate" x:DataType="viewModels:TabViewModel">
+            <Border x:Name="MainBorder"
+                    BorderBrush="{Binding BorderBrush}"
+                    Background="{Binding IsActive, Converter={StaticResource IsActiveToBrushConverter}}"
+                    BorderThickness="0 0 1 0"
+                    Padding="14 4 2 4" behaviors:MiddleTabClickBehavior.CloseCommand="{Binding CloseTabCommand}"
+                    behaviors:MiddleTabClickBehavior.CloseCommandParameter="{Binding}">
+                <ToolTip.Placement>
+                    Pointer
+                </ToolTip.Placement>
+                <ToolTip.Tip>
+                    <TextBlock FontFamily="{StaticResource SanFrancisco}"
+                               FontSize="13"
+                               Text="{Binding FilePath}" />
+                </ToolTip.Tip>
+                <Grid x:Name="TabGrid" ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center"
+                      HorizontalAlignment="Center">
+                    <Ellipse Grid.Column="0" Width="8" Height="8"
+                             Fill="{Binding DirtyIndicatorBrush}"
+                             IsVisible="{Binding IsDirty}"
+                             Margin="-4,0,6,0" />
+                    <TextBlock Grid.Column="1" Text="{Binding Title}" VerticalAlignment="Center"
+                               HorizontalAlignment="Center" FontSize="13"
+                               FontWeight="Normal" Margin="0 1 0 0"
+                               Foreground="{Binding Foreground}"
+                               FontFamily="{Binding IsTemporary, Converter={StaticResource IsTemporaryTabToFontFamilyConverter}}"
+                               FontStyle="{Binding IsTemporary, Converter={StaticResource IsTemporaryTabToFontStyleConverter}}" />
+                    <Button x:Name="CloseButton" Grid.Column="2"
+                            Width="18"
+                            Height="16"
+                            Padding="0"
+                            Foreground="{Binding CloseButtonForeground}"
+                            VerticalAlignment="Center" HorizontalAlignment="Center"
+                            VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
+                            Margin="2 1 0 0"
+                            Command="{Binding CloseTabCommand}"
+                            CommandParameter="{Binding}">
+                        <Viewbox Stretch="Uniform" StretchDirection="Both" HorizontalAlignment="Center"
+                                 VerticalAlignment="Center">
+                            <TextBlock Text="×" FontFamily="{StaticResource SanFrancisco}"
+                                       FontSize="13" />
+                        </Viewbox>
+                    </Button>
+                </Grid>
+            </Border>
+
+        </DataTemplate>
+    </Styles.Resources>
+
+    <Style Selector="TabItem">
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Margin" Value="0" />
+        <Setter Property="MinHeight" Value="20" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="Black" />
+        <Setter Property="Template">
+            <ControlTemplate>
+                <ContentPresenter Name="PART_ContentPresenter"
+                                  Background="{TemplateBinding Background}"
+                                  BorderBrush="{TemplateBinding BorderBrush}"
+                                  BorderThickness="{TemplateBinding BorderThickness}"
+                                  ContentTemplate="{TemplateBinding HeaderTemplate}"
+                                  Content="{TemplateBinding Header}"
+                                  HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                  VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
+                                  Padding="{TemplateBinding Padding}" />
+            </ControlTemplate>
+        </Setter>
+    </Style>
+
+    <Style Selector="Button#CloseButton">
+        <Setter Property="Opacity" Value="0" />
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+
+    <Style Selector="Border#MainBorder:pointerover Button#CloseButton">
+        <Setter Property="Opacity" Value="1" />
+    </Style>
+
+    <Style Selector="Button#CloseButton:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" x:DataType="viewModels:TabViewModel" Value="{Binding CloseButtonBackground}" />
+        <Setter Property="Foreground" x:DataType="viewModels:TabViewModel" Value="{Binding CloseButtonForeground}" />
+    </Style>
+</Styles>

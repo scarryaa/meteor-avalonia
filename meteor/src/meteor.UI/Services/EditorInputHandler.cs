@@ -9,25 +9,22 @@ namespace meteor.UI.Services;
 
 public class EditorInputHandler : IEditorInputHandler
 {
-    private readonly IEditorViewModel _viewModel;
     private readonly IScrollManager _scrollManager;
     private readonly IModifierKeyHandler _modifierKeyHandler;
     private readonly ISelectAllCommandHandler _selectAllCommandHandler;
     private bool _isSelectAll;
 
     public EditorInputHandler(
-        IEditorViewModel viewModel,
         IScrollManager scrollManager,
         IModifierKeyHandler modifierKeyHandler,
         ISelectAllCommandHandler selectAllCommandHandler)
     {
-        _viewModel = viewModel;
         _scrollManager = scrollManager;
         _modifierKeyHandler = modifierKeyHandler;
         _selectAllCommandHandler = selectAllCommandHandler;
     }
 
-    public void HandleKeyDown(KeyEventArgs e)
+    public void HandleKeyDown(IEditorViewModel viewModel, KeyEventArgs e)
     {
         _isSelectAll = false;
 
@@ -47,20 +44,20 @@ public class EditorInputHandler : IEditorInputHandler
                 e.Handled = true;
                 break;
             default:
-                _viewModel.HandleKeyDown(e);
+                viewModel.HandleKeyDown(e);
                 break;
         }
 
         if (!isModifierOrPageKey && !_isSelectAll)
-            _scrollManager.EnsureLineIsVisible(_viewModel.GetCursorLine(), _viewModel.GetCursorX(),
-                _viewModel.HasSelection());
+            _scrollManager.EnsureLineIsVisible(viewModel.GetCursorLine(), viewModel.GetCursorX(),
+                viewModel.HasSelection());
     }
 
-    public void HandleTextInput(TextInputEventArgs e)
+    public void HandleTextInput(IEditorViewModel viewModel, TextInputEventArgs e)
     {
-        _viewModel.HandleTextInput(e);
+        viewModel.HandleTextInput(e);
 
         if (!_isSelectAll)
-            _scrollManager.EnsureLineIsVisible(_viewModel.GetCursorLine(), _viewModel.GetCursorX());
+            _scrollManager.EnsureLineIsVisible(viewModel.GetCursorLine(), viewModel.GetCursorX());
     }
 }

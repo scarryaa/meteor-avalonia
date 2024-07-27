@@ -7,7 +7,6 @@ namespace meteor.UI.ViewModels;
 
 public class EditorViewModel : IEditorViewModel
 {
-    private readonly ITextBufferService _textBufferService;
     private readonly ICursorManager _cursorManager;
     private readonly IInputManager _inputManager;
     private readonly ISelectionManager _selectionManager;
@@ -16,38 +15,44 @@ public class EditorViewModel : IEditorViewModel
 
     public event EventHandler? ContentChanged;
     public event EventHandler? SelectionChanged;
-    
-    public EditorViewModel(ITextBufferService textBufferService, ICursorManager cursorManager,
-        IInputManager inputManager, ISelectionManager selectionManager, IEditorConfig config,
+
+    public EditorViewModel(
+        ITextBufferService textBufferService,
+        ICursorManager cursorManager,
+        IInputManager inputManager,
+        ISelectionManager selectionManager,
+        IEditorConfig config,
         ITextMeasurer textMeasurer)
     {
-        _config = config;
-        _textBufferService = textBufferService;
+        TextBufferService = textBufferService;
         _cursorManager = cursorManager;
         _inputManager = inputManager;
         _selectionManager = selectionManager;
+        _config = config;
         _textMeasurer = textMeasurer;
 
         _cursorManager.CursorPositionChanged += (_, _) => ContentChanged?.Invoke(this, EventArgs.Empty);
         _selectionManager.SelectionChanged += (_, _) => SelectionChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    public ITextBufferService TextBufferService { get; }
+
     public int SelectionStart => _selectionManager.CurrentSelection.Start;
     public int SelectionEnd => _selectionManager.CurrentSelection.End;
 
     public int GetLineCount()
     {
-        return _textBufferService.GetLineCount();
+        return TextBufferService.GetLineCount();
     }
 
     public double GetMaxLineWidth()
     {
-        return _textBufferService.GetMaxLineWidth(_config.FontFamily, _config.FontSize);
+        return TextBufferService.GetMaxLineWidth(_config.FontFamily, _config.FontSize);
     }
 
     public string GetContentSlice(int start, int end)
     {
-        return _textBufferService.GetContentSlice(start, end);
+        return TextBufferService.GetContentSlice(start, end);
     }
 
     public int GetCursorLine()
@@ -64,7 +69,7 @@ public class EditorViewModel : IEditorViewModel
     {
         var cursorLine = _cursorManager.GetCursorLine();
         var cursorColumn = _cursorManager.GetCursorColumn();
-        var lineContent = _textBufferService.GetContentSlice(cursorLine, cursorLine);
+        var lineContent = TextBufferService.GetContentSlice(cursorLine, cursorLine);
         var textUpToCursor = lineContent.Substring(0, cursorColumn);
 
         return _textMeasurer.MeasureText(textUpToCursor, _config.FontFamily, _config.FontSize).Width;
@@ -96,6 +101,7 @@ public class EditorViewModel : IEditorViewModel
 
     public void EndSelection()
     {
+        // This method is left empty as per the original implementation
     }
 
     public bool HasSelection()
@@ -110,6 +116,6 @@ public class EditorViewModel : IEditorViewModel
 
     public int GetLineStartOffset(int lineIndex)
     {
-        return _textBufferService.GetLineStartOffset(lineIndex);
+        return TextBufferService.GetLineStartOffset(lineIndex);
     }
 }

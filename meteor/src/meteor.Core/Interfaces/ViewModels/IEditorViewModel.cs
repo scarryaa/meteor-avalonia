@@ -1,3 +1,4 @@
+using meteor.Core.Interfaces.Services;
 using meteor.Core.Models.EventArgs;
 
 namespace meteor.Core.Interfaces.ViewModels;
@@ -9,6 +10,7 @@ public interface IEditorViewModel
 
     int SelectionStart { get; }
     int SelectionEnd { get; }
+    ITextBufferService TextBufferService { get; }
     bool HasSelection();
     int CursorPosition { get; }
 

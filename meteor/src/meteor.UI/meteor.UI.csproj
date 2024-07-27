@@ -27,6 +27,8 @@
     <ItemGroup>
       <PackageReference Include="Avalonia" Version="11.1.0" />
       <PackageReference Include="Avalonia.Desktop" Version="11.1.0" />
+        <PackageReference Include="Avalonia.Diagnostics" Version="11.1.0"/>
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.0-preview.6.24327.7"/>
     </ItemGroup>
 
     <ItemGroup>
