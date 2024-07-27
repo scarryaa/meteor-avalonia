@@ -233,38 +233,53 @@ public class EditorContentControl : Control
         while ((index = text.IndexOf('\n', index + 1)) != -1) yield return index;
     }
 
-    private void RenderSelection(DrawingContext context, int lineIndex, string line, double lineY)
+    private void RenderSelection(DrawingContext context, int startLine, string line, double lineY)
     {
-        var (selectionStart, selectionEnd) = (_viewModel.SelectionStart, _viewModel.SelectionEnd);
+        if (!_viewModel.HasSelection()) return;
 
-        if (selectionStart == selectionEnd || selectionEnd <= selectionStart)
-            return;
+        var selectionStart = _viewModel.SelectionStart;
+        var selectionEnd = _viewModel.SelectionEnd;
 
-        var lineStartOffset = _lineStartOffsets[lineIndex];
+        var selectionStartLine = _viewModel.TextBufferService.GetLineIndexFromCharacterIndex(selectionStart);
+        var selectionEndLine = _viewModel.TextBufferService.GetLineIndexFromCharacterIndex(selectionEnd);
 
-        if (selectionEnd <= lineStartOffset || selectionStart >= lineStartOffset + line.Length)
-            return;
+        if (startLine < selectionStartLine || startLine > selectionEndLine) return;
 
-        var relativeSelectionStart = Math.Max(0, selectionStart - lineStartOffset);
-        var relativeSelectionEnd = Math.Min(line.Length, selectionEnd - lineStartOffset);
+        var lineStartOffset = _viewModel.GetLineStartOffset(startLine);
 
-        if (relativeSelectionStart < relativeSelectionEnd || string.IsNullOrEmpty(line))
+        var selectionStartInLine = Math.Max(0, selectionStart - lineStartOffset);
+        var selectionEndInLine = Math.Min(line.Length, selectionEnd - lineStartOffset);
+
+        if (line.Length == 0)
         {
-            var startX = MeasureTextWidth(line.Substring(0, relativeSelectionStart));
-            var endX = MeasureTextWidth(line.Substring(0, relativeSelectionEnd));
-
-            if (string.IsNullOrEmpty(line))
-            {
-                startX = 0;
-                endX = 10;
-            }
-
-            if (startX < endX)
-            {
-                context.DrawRectangle(_avaloniaConfig.SelectionBrush, null,
-                    new Rect(startX, lineY, endX - startX, _lineHeight));
-            }
+            context.DrawRectangle(
+                _avaloniaConfig.SelectionBrush,
+                null,
+                new Rect(0, lineY, 10, _lineHeight)
+            );
+            return;
         }
+
+        if (startLine == selectionStartLine && startLine == selectionEndLine)
+            DrawSelectionRectangle(context, line, selectionStartInLine, selectionEndInLine, lineY);
+        else if (startLine == selectionStartLine)
+            DrawSelectionRectangle(context, line, selectionStartInLine, line.Length, lineY);
+        else if (startLine == selectionEndLine)
+            DrawSelectionRectangle(context, line, 0, selectionEndInLine, lineY);
+        else
+            DrawSelectionRectangle(context, line, 0, line.Length, lineY);
+    }
+
+    private void DrawSelectionRectangle(DrawingContext context, string line, int start, int end, double lineY)
+    {
+        var startX = MeasureTextWidth(line.Substring(0, start));
+        var endX = MeasureTextWidth(line.Substring(0, end));
+
+        context.DrawRectangle(
+            _avaloniaConfig.SelectionBrush,
+            null,
+            new Rect(startX, lineY, endX - startX, _lineHeight)
+        );
     }
 
     private double MeasureTextWidth(string text)
