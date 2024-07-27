@@ -7,7 +7,7 @@ namespace meteor.UI.Factories;
 
 public class TabViewModelFactory : ITabViewModelFactory
 {
-    public ITabViewModel Create(IEditorViewModel editorViewModel, ITabViewModelConfig tabConfig, string fileName)
+    public ITabViewModel? Create(IEditorViewModel editorViewModel, ITabViewModelConfig tabConfig, string fileName)
     {
         return new TabViewModel(editorViewModel, fileName, tabConfig);
     }

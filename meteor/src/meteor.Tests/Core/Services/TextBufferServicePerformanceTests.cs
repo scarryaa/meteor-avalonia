@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using meteor.Core.Interfaces.Config;
 using meteor.Core.Interfaces.Services;
+using meteor.Core.Models;
 using meteor.Core.Services;
 using Moq;
 
@@ -10,13 +11,16 @@ public class TextBufferServicePerformanceTests
 {
     private readonly Mock<ITextMeasurer> _mockTextMeasurer;
     private readonly TextBufferService _service;
+    private readonly Mock<TextBuffer> _mockTextBuffer;
 
     public TextBufferServicePerformanceTests()
     {
         _mockTextMeasurer = new Mock<ITextMeasurer>();
+        _mockTextBuffer = new Mock<TextBuffer>();
         Mock<IEditorConfig> mockConfig = new();
+        
         mockConfig.Setup(c => c.FontFamily).Returns("Arial");
-        _service = new TextBufferService(_mockTextMeasurer.Object, mockConfig.Object);
+        _service = new TextBufferService(_mockTextBuffer.Object, _mockTextMeasurer.Object, mockConfig.Object);
     }
 
     [Fact]

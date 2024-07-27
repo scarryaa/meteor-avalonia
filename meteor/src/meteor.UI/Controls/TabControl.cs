@@ -4,6 +4,7 @@ using meteor.Core.Interfaces.Services;
 using meteor.Core.Interfaces.Services.Editor;
 using meteor.Core.Interfaces.ViewModels;
 using meteor.UI.Interfaces.Services.Editor;
+using meteor.UI.ViewModels;
 
 namespace meteor.UI.Controls;
 
@@ -23,13 +24,13 @@ public class TabControl : UserControl
         IEditorInputHandler inputHandler, IPointerEventHandler pointerEventHandler, ITextMeasurer textMeasurer,
         IEditorConfig config)
     {
-        _tabService = tabService;
-        _scrollManager = scrollManager;
-        _layoutManager = layoutManager;
-        _inputHandler = inputHandler;
-        _pointerEventHandler = pointerEventHandler;
-        _textMeasurer = textMeasurer;
-        _config = config;
+        _tabService = tabService ?? throw new ArgumentNullException(nameof(tabService));
+        _scrollManager = scrollManager ?? throw new ArgumentNullException(nameof(scrollManager));
+        _layoutManager = layoutManager ?? throw new ArgumentNullException(nameof(layoutManager));
+        _inputHandler = inputHandler ?? throw new ArgumentNullException(nameof(inputHandler));
+        _pointerEventHandler = pointerEventHandler ?? throw new ArgumentNullException(nameof(pointerEventHandler));
+        _textMeasurer = textMeasurer ?? throw new ArgumentNullException(nameof(textMeasurer));
+        _config = config ?? throw new ArgumentNullException(nameof(config));
 
         _tabStrip = new HorizontalScrollableTabControl
         {
@@ -56,31 +57,79 @@ public class TabControl : UserControl
 
     private void SetupEventHandlers()
     {
-        _tabService.TabAdded += (sender, tab) => UpdateTabs();
-        _tabService.TabRemoved += (sender, tab) => UpdateTabs();
-        _tabService.ActiveTabChanged += (sender, tab) => UpdateActiveTab();
-        _tabStrip.SelectionChanged += (sender, e) =>
+        _tabService.TabAdded += (_, _) => UpdateTabs();
+        _tabService.TabRemoved += (_, _) =>
         {
-            if (_tabStrip.SelectedItem is ITabViewModel selectedTab) _tabService.SetActiveTab(selectedTab);
+            UpdateTabs();
+            if (_tabService.Tabs.Count == 0) _tabService.SetActiveTab(null);
+        };
+        _tabService.ActiveTabChanged += (_, _) => UpdateActiveTab();
+        _tabStrip.SelectionChanged += (sender, _) =>
+        {
+            if (sender is HorizontalScrollableTabControl tabControl &&
+                tabControl.SelectedItem is ITabViewModel selectedTab)
+                _tabService.SetActiveTab(selectedTab);
         };
     }
 
     private void UpdateTabs()
     {
+        var previousSelectedItem = _tabStrip.SelectedItem;
         _tabStrip.ItemsSource = null;
         _tabStrip.ItemsSource = _tabService.Tabs;
-        UpdateActiveTab();
+
+        if (_tabService.Tabs.Contains(previousSelectedItem))
+        {
+            _tabStrip.SelectedItem = previousSelectedItem;
+        }
+        else
+        {
+            if (_tabService.Tabs.Count == 0)
+            {
+                _contentArea.Content = null;
+            }
+            else
+            {
+                if (_tabService.ActiveTab == null) _contentArea.Content = null;
+                UpdateActiveTab();
+            }
+        }
+    }
+
+    private void StoreCurrentTabContent()
+    {
+        var currentTab = _tabService.ActiveTab;
+        if (currentTab != null && _contentArea.Content is EditorControl editorControl)
+            if (editorControl.DataContext is EditorViewModel viewModel)
+                currentTab.Content = viewModel.Content;
     }
 
     private void UpdateActiveTab()
     {
+        StoreCurrentTabContent();
+
         var activeTab = _tabService.ActiveTab;
-        _tabStrip.SelectedItem = activeTab;
-        _contentArea.Content = activeTab != null ? CreateEditorControl(activeTab.EditorViewModel) : null;
+        if (_tabStrip.SelectedItem != activeTab) _tabStrip.SelectedItem = activeTab;
+
+        if (activeTab != null)
+        {
+            var editorControl = CreateEditorControl(activeTab.EditorViewModel);
+            if (editorControl != null)
+            {
+                activeTab.EditorViewModel.Content = activeTab.Content;
+                _contentArea.Content = editorControl;
+            }
+        }
+        else
+        {
+            _contentArea.Content = null;
+        }
     }
 
     private EditorControl CreateEditorControl(IEditorViewModel viewModel)
     {
+        if (viewModel == null) return null;
+
         return new EditorControl(
             viewModel,
             _scrollManager,

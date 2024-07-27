@@ -22,6 +22,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         DataContext = mainWindowViewModel;
         this.AttachDevTools();
+        
         var tabControl = new TabControl(tabService, scrollManager, layoutManager, inputHandler,
             pointerEventHandler, textMeasurer, config);
         Content = tabControl;

@@ -2,49 +2,59 @@ using System.Runtime.InteropServices;
 
 namespace meteor.Core.Models;
 
-public abstract class TextBuffer
+public class TextBuffer : IDisposable
 {
     private const string DllName = "../../../../meteor-rust-core/target/release/libmeteor_rust_core.dylib";
 
     [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-    private static extern void initialize_document();
+    private static extern UIntPtr create_document();
 
     [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-    private static extern void insert_text(int index, string text);
+    private static extern void delete_document(UIntPtr docId);
 
     [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-    private static extern void delete_text(int index, int length);
+    private static extern void insert_text(UIntPtr docId, int index, string text);
 
     [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-    private static extern IntPtr get_document_slice(int start, int end);
+    private static extern void delete_text(UIntPtr docId, int index, int length);
 
     [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-    private static extern int get_document_length();
+    private static extern IntPtr get_document_slice(UIntPtr docId, int start, int end);
+
+    [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int get_document_length(UIntPtr docId);
 
     [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
     private static extern void free_string(IntPtr s);
 
     [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-    private static extern int get_document_version();
+    private static extern int get_document_version(UIntPtr docId);
 
-    public static int GetVersion()
+    private readonly UIntPtr _docId;
+
+    public TextBuffer()
     {
-        return get_document_version();
+        _docId = create_document();
     }
 
-    public static void InsertText(int index, string text)
+    public int GetVersion()
     {
-        insert_text(index, text);
+        return get_document_version(_docId);
     }
 
-    public static void DeleteText(int index, int length)
+    public void InsertText(int index, string text)
     {
-        delete_text(index, length);
+        if (string.IsNullOrEmpty(text)) return;
+        insert_text(_docId, index, text);
     }
 
-    public static string GetDocumentSlice(int start, int end)
+    public void DeleteText(int index, int length)
     {
-        // Ensure start and end are within the valid range
+        delete_text(_docId, index, length);
+    }
+
+    public string GetDocumentSlice(int start, int end)
+    {
         start = Math.Clamp(start, 0, GetDocumentLength());
         end = Math.Clamp(end, start, GetDocumentLength());
 
@@ -52,7 +62,7 @@ public abstract class TextBuffer
             throw new ArgumentOutOfRangeException(nameof(start),
                 "Specified argument was out of the range of valid values.");
 
-        var documentSlicePtr = get_document_slice(start, end);
+        var documentSlicePtr = get_document_slice(_docId, start, end);
         if (documentSlicePtr == IntPtr.Zero) return string.Empty;
 
         using var safePtr = new SafeStringHandle(documentSlicePtr, free_string);
@@ -69,9 +79,25 @@ public abstract class TextBuffer
         }
     }
 
-
-    public static int GetDocumentLength()
+    public int GetDocumentLength()
     {
-        return get_document_length();
+        return get_document_length(_docId);
+    }
+
+    public void LoadContent(string content)
+    {
+        DeleteText(0, GetDocumentLength());
+        InsertText(0, content);
+    }
+
+    public void Dispose()
+    {
+        delete_document(_docId);
+        GC.SuppressFinalize(this);
+    }
+
+    ~TextBuffer()
+    {
+        Dispose();
     }
 }

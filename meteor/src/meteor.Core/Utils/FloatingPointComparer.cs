@@ -2,7 +2,7 @@ using meteor.Core.Models;
 
 namespace meteor.Core.Utils;
 
-public class FloatingPointComparer
+public abstract class FloatingPointComparer
 {
     public static bool AreEqual(double a, double b, double epsilon = 1e-9)
     {

@@ -153,8 +153,8 @@ public class EditorContentControl : Control
 
     private void UpdateLineStartOffsets(TextChange? change = null)
     {
-        var currentDocumentLength = TextBuffer.GetDocumentLength();
-        var currentDocumentVersion = TextBuffer.GetVersion();
+        var currentDocumentLength = _viewModel.GetDocumentLength();
+        var currentDocumentVersion = _viewModel.GetDocumentVersion();
 
         // If the document hasn't changed, use the cached offsets
         if (currentDocumentVersion == _documentVersion && currentDocumentLength == _cachedDocumentLength) return;
@@ -175,13 +175,13 @@ public class EditorContentControl : Control
         _lineStartOffsets.Clear();
         _lineStartOffsets.Add(0);
 
-        var documentLength = TextBuffer.GetDocumentLength();
+        var documentLength = _viewModel.GetDocumentLength();
         const int chunkSize = 16384;
 
         for (var chunkStart = 0; chunkStart < documentLength; chunkStart += chunkSize)
         {
             var chunkEnd = Math.Min(chunkStart + chunkSize, documentLength);
-            var chunk = TextBuffer.GetDocumentSlice(chunkStart, chunkEnd);
+            var chunk = _viewModel.GetContentSlice(chunkStart, chunkEnd);
 
             foreach (var index in FindNewLineIndexes(chunk))
             {
@@ -212,9 +212,9 @@ public class EditorContentControl : Control
         var chunkStart = startLineIndex > 0 ? _lineStartOffsets[startLineIndex - 1] : 0;
         var chunkEnd = endLineIndex < _lineStartOffsets.Count
             ? _lineStartOffsets[endLineIndex] + changeDelta
-            : TextBuffer.GetDocumentLength();
+            : _viewModel.GetDocumentLength();
 
-        var chunk = TextBuffer.GetDocumentSlice(chunkStart, chunkEnd);
+        var chunk = _viewModel.GetContentSlice(chunkStart, chunkEnd);
         foreach (var index in FindNewLineIndexes(chunk)) newOffsets.Add(chunkStart + index + 1);
 
         // Replace the old offsets with the new ones
@@ -224,7 +224,7 @@ public class EditorContentControl : Control
 
     private bool IsLargeChange(TextChange change)
     {
-        return change.OldLength > TextBuffer.GetDocumentLength() * 0.1;
+        return change.OldLength > _viewModel.GetDocumentLength() * 0.1;
     }
 
     private IEnumerable<int> FindNewLineIndexes(string text)

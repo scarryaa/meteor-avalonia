@@ -40,9 +40,20 @@ public class EditorViewModel : IEditorViewModel
     public int SelectionStart => _selectionManager.CurrentSelection.Start;
     public int SelectionEnd => _selectionManager.CurrentSelection.End;
 
+    public string Content { get; set; }
     public int GetLineCount()
     {
         return TextBufferService.GetLineCount();
+    }
+
+    public int GetDocumentLength()
+    {
+        return TextBufferService.GetLength();
+    }
+
+    public int GetDocumentVersion()
+    {
+        return TextBufferService.GetDocumentVersion();
     }
 
     public double GetMaxLineWidth()
@@ -70,6 +81,8 @@ public class EditorViewModel : IEditorViewModel
         var cursorLine = _cursorManager.GetCursorLine();
         var cursorColumn = _cursorManager.GetCursorColumn();
         var lineContent = TextBufferService.GetContentSlice(cursorLine, cursorLine);
+
+        cursorColumn = Math.Min(cursorColumn, lineContent.Length);
         var textUpToCursor = lineContent.Substring(0, cursorColumn);
 
         return _textMeasurer.MeasureText(textUpToCursor, _config.FontFamily, _config.FontSize).Width;

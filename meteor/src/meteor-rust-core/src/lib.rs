@@ -1,5 +1,6 @@
 use lazy_static::lazy_static;
 use ropey::Rope;
+use std::collections::HashMap;
 use std::ffi::{CStr, CString};
 use std::os::raw::{c_char, c_int};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -150,69 +151,94 @@ struct DocumentState {
     version: AtomicUsize,
 }
 
+impl DocumentState {
+    fn new() -> Self {
+        DocumentState {
+            rope: Rope::new(),
+            piece_table: PieceTable::new(String::new()),
+            version: AtomicUsize::new(0),
+        }
+    }
+}
+
 lazy_static! {
-    static ref DOCUMENT: Mutex<DocumentState> = Mutex::new(DocumentState {
-        rope: Rope::new(),
-        piece_table: PieceTable::new(String::new()),
-        version: AtomicUsize::new(0),
-    });
+    static ref DOCUMENTS: Mutex<HashMap<usize, DocumentState>> = Mutex::new(HashMap::new());
 }
 
 #[no_mangle]
-pub extern "C" fn initialize_document() {
-    let mut doc = DOCUMENT.lock().unwrap();
-    doc.rope = Rope::new();
-    doc.piece_table = PieceTable::new(String::new());
-    doc.version.store(0, Ordering::SeqCst);
+pub extern "C" fn create_document() -> usize {
+    let mut documents = DOCUMENTS.lock().unwrap();
+    let id = documents.len();
+    documents.insert(id, DocumentState::new());
+    id
 }
 
 #[no_mangle]
-pub extern "C" fn insert_text(index: c_int, text: *const c_char) {
+pub extern "C" fn delete_document(doc_id: usize) {
+    let mut documents = DOCUMENTS.lock().unwrap();
+    documents.remove(&doc_id);
+}
+
+#[no_mangle]
+pub extern "C" fn insert_text(doc_id: usize, index: c_int, text: *const c_char) {
     let text = unsafe { CStr::from_ptr(text) }.to_str().unwrap();
-    let mut doc = DOCUMENT.lock().unwrap();
-    let index = index as usize;
-    if index <= doc.rope.len_chars() {
-        doc.rope.insert(index, text);
-        doc.piece_table.insert(index, text);
-        doc.version.fetch_add(1, Ordering::SeqCst);
+    let mut documents = DOCUMENTS.lock().unwrap();
+    if let Some(doc) = documents.get_mut(&doc_id) {
+        let index = index as usize;
+        if index <= doc.rope.len_chars() {
+            doc.rope.insert(index, text);
+            doc.piece_table.insert(index, text);
+            doc.version.fetch_add(1, Ordering::SeqCst);
+        }
     }
 }
 
 #[no_mangle]
-pub extern "C" fn delete_text(index: c_int, length: c_int) {
-    let mut doc = DOCUMENT.lock().unwrap();
-    let start = index as usize;
-    let length = length as usize;
-    if start + length <= doc.rope.len_chars() {
-        doc.rope.remove(start..start + length);
-        doc.piece_table.delete(start, length);
-        doc.version.fetch_add(1, Ordering::SeqCst);
+pub extern "C" fn delete_text(doc_id: usize, index: c_int, length: c_int) {
+    let mut documents = DOCUMENTS.lock().unwrap();
+    if let Some(doc) = documents.get_mut(&doc_id) {
+        let start = index as usize;
+        let length = length as usize;
+        if start + length <= doc.rope.len_chars() {
+            doc.rope.remove(start..start + length);
+            doc.piece_table.delete(start, length);
+            doc.version.fetch_add(1, Ordering::SeqCst);
+        }
     }
 }
 
 #[no_mangle]
-pub extern "C" fn get_document_slice(start: c_int, end: c_int) -> *mut c_char {
-    let doc = DOCUMENT.lock().unwrap();
-    let start = start as usize;
-    let end = end.min(doc.rope.len_chars() as c_int) as usize;
-    if start < end && end <= doc.rope.len_chars() {
-        let slice = doc.rope.slice(start..end).to_string();
-        CString::new(slice).unwrap().into_raw()
+pub extern "C" fn get_document_slice(doc_id: usize, start: c_int, end: c_int) -> *mut c_char {
+    let documents = DOCUMENTS.lock().unwrap();
+    if let Some(doc) = documents.get(&doc_id) {
+        let start = start as usize;
+        let end = end.min(doc.rope.len_chars() as c_int) as usize;
+        if start < end && end <= doc.rope.len_chars() {
+            let slice = doc.rope.slice(start..end).to_string();
+            return CString::new(slice).unwrap().into_raw();
+        }
+    }
+    std::ptr::null_mut()
+}
+
+#[no_mangle]
+pub extern "C" fn get_document_length(doc_id: usize) -> c_int {
+    let documents = DOCUMENTS.lock().unwrap();
+    if let Some(doc) = documents.get(&doc_id) {
+        doc.rope.len_chars() as c_int
     } else {
-        std::ptr::null_mut()
+        0
     }
 }
 
 #[no_mangle]
-pub extern "C" fn get_document_length() -> c_int {
-    let doc = DOCUMENT.lock().unwrap();
-    doc.rope.len_chars() as c_int
-}
-
-#[no_mangle]
-pub extern "C" fn get_document_version() -> c_int {
-    let doc = DOCUMENT.lock().unwrap();
-    doc.version.load(Ordering::SeqCst) as c_int
+pub extern "C" fn get_document_version(doc_id: usize) -> c_int {
+    let documents = DOCUMENTS.lock().unwrap();
+    if let Some(doc) = documents.get(&doc_id) {
+        doc.version.load(Ordering::SeqCst) as c_int
+    } else {
+        0
+    }
 }
 
 #[no_mangle]

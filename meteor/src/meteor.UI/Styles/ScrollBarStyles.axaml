@@ -4,7 +4,7 @@
     <Style Selector="ScrollBar:vertical">
         <Setter Property="Template">
             <ControlTemplate>
-                <Grid x:Name="Root"> 
+                <Grid x:Name="Root">
                     <Border x:Name="VerticalRoot"
                             Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}">

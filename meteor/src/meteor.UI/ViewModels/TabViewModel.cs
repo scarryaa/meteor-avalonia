@@ -23,8 +23,19 @@ public class TabViewModel : ITabViewModel
     public string FilePath { get; set; }
     public bool IsDirty { get; set; }
     public bool IsTemporary { get; set; }
+    public string Content { get; set; }
 
     public IEditorViewModel EditorViewModel { get; }
+
+    public string FileName
+    {
+        get
+        {
+            if (IsTemporary)
+                return $"* {Title}";
+            return Title;
+        }
+    }
 
     public string Title
     {

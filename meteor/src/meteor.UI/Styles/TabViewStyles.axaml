@@ -3,8 +3,7 @@
         xmlns:viewModels="clr-namespace:meteor.UI.ViewModels"
         xmlns:behaviors="clr-namespace:meteor.UI.Behaviors"
         xmlns:converters="clr-namespace:meteor.UI.Converters">
-
-
+    
     <Styles.Resources>
         <converters:IsActiveToBrushConverter x:Key="IsActiveToBrushConverter"
                                              ActiveBrush="White"

@@ -13,6 +13,10 @@
 
     <Window.KeyBindings>
         <KeyBinding x:DataType="viewModels:MainWindowViewModel" Command="{Binding OpenNewTabCommand}"
-                    Gesture="Ctrl+N" />
+                    Gesture="Cmd+N" />
+        <KeyBinding x:DataType="viewModels:MainWindowViewModel"
+                    Command="{Binding CloseTabCommand}"
+                    CommandParameter="{Binding ActiveTab}"
+                    Gesture="Cmd+W" />
     </Window.KeyBindings>
 </Window>

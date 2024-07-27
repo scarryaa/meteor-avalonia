@@ -13,7 +13,10 @@ public interface IEditorViewModel
     ITextBufferService TextBufferService { get; }
     bool HasSelection();
     int CursorPosition { get; }
+    string Content { get; set; }
 
+    int GetDocumentLength();
+    int GetDocumentVersion();
     int GetLineCount();
     double GetMaxLineWidth();
     string GetContentSlice(int start, int end);

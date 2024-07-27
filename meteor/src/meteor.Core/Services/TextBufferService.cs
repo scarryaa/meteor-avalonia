@@ -14,7 +14,7 @@ public class TextBufferService : ITextBufferService
     private int _documentLength;
     private readonly Dictionary<int, double> _lineWidths;
 
-    public TextBufferService(ITextMeasurer textMeasurer, IEditorConfig config)
+    public TextBufferService(TextBuffer textBuffer, ITextMeasurer textMeasurer, IEditorConfig config)
     {
         _textMeasurer = textMeasurer;
         _cachedMaxLineWidth = -1;
@@ -23,11 +23,19 @@ public class TextBufferService : ITextBufferService
         _lineStartIndices = new List<int> { 0 };
         _documentLength = 0;
         _lineWidths = new Dictionary<int, double>();
+        TextBuffer = textBuffer;
     }
+
+    public TextBuffer TextBuffer { get; }
 
     public string GetContent()
     {
         return TextBuffer.GetDocumentSlice(0, _documentLength);
+    }
+
+    public int GetDocumentVersion()
+    {
+        return TextBuffer.GetVersion();
     }
 
     public string GetContentSliceByIndex(int startIndex, int length)
@@ -92,6 +100,13 @@ public class TextBufferService : ITextBufferService
         return _lineStartIndices.Count;
     }
 
+    public void LoadContent(string content)
+    {
+        TextBuffer.LoadContent(content);
+        _documentLength = TextBuffer.GetDocumentLength();
+        RecalculateAllLineWidths(_cachedFontFamily, _cachedFontSize);
+    }
+    
     public double GetMaxLineWidth(string fontFamily, double fontSize)
     {
         fontFamily = string.Intern(fontFamily);

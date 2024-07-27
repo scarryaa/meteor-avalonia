@@ -1,6 +1,6 @@
 namespace meteor.Core.Models;
 
-public class TextChange
+public abstract class TextChange
 {
     /// <summary>
     ///     The position in the document where the change starts.
