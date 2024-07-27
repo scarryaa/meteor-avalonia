@@ -99,7 +99,19 @@ public class TextBufferService : ITextBufferService
         TextBuffer.DeleteText(position, length);
         UpdateLineIndicesAfterDelete(position, length);
         _documentLength -= length;
-        UpdateLineWidthsAfterDelete(position, length);
+
+        if (_documentLength == 0)
+        {
+            // Reset everything when all text is deleted
+            _lineStartIndices.Clear();
+            _lineStartIndices.Add(0);
+            _lineWidths.Clear();
+            _cachedMaxLineWidth = 0;
+        }
+        else
+        {
+            UpdateLineWidthsAfterDelete(position, length);
+        }
     }
 
     public int GetLength()
@@ -183,9 +195,9 @@ public class TextBufferService : ITextBufferService
     private void UpdateLineWidthsAfterDelete(int position, int length)
     {
         var startLineIndex = GetLineIndexFromCharacterIndex(position);
-        var endLineIndex = GetLineIndexFromCharacterIndex(position + length);
+        var endLineIndex = Math.Min(GetLineIndexFromCharacterIndex(position + length), _lineStartIndices.Count - 1);
 
-        for (var i = startLineIndex; i <= endLineIndex && i < _lineStartIndices.Count; i++) UpdateLineWidth(i);
+        for (var i = startLineIndex; i <= endLineIndex; i++) UpdateLineWidth(i);
 
         UpdateMaxLineWidth();
     }
@@ -210,8 +222,7 @@ public class TextBufferService : ITextBufferService
             return;
         }
 
-        var maxWidth = _lineWidths.Values.Max();
-        _cachedMaxLineWidth = maxWidth;
+        _cachedMaxLineWidth = _lineWidths.Values.Max();
     }
 
     private void RecalculateAllLineWidths(string fontFamily, double fontSize)

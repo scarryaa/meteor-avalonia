@@ -15,7 +15,7 @@ public class MainWindowViewModel : ObservableObject
 {
     private readonly ITabService _tabService;
     private readonly IEditorInstanceFactory _editorInstanceFactory;
-    private ITabViewModel _activeTab;
+    private ITabViewModel? _activeTab;
 
     public ICommand OpenNewTabCommand { get; }
     public ICommand CloseTabCommand { get; }
@@ -27,8 +27,7 @@ public class MainWindowViewModel : ObservableObject
 
         OpenNewTabCommand = new RelayCommand(OpenNewTab);
         CloseTabCommand = new RelayCommand<ITabViewModel>(CloseTab);
-
-        // Subscribe to TabService events
+        
         _tabService.TabAdded += (sender, tab) =>
         {
             OnPropertyChanged(nameof(Tabs));
@@ -54,7 +53,7 @@ public class MainWindowViewModel : ObservableObject
 
     public ObservableCollection<ITabViewModel> Tabs => _tabService.Tabs;
 
-    public ITabViewModel ActiveTab
+    public ITabViewModel? ActiveTab
     {
         get => _activeTab;
         set
