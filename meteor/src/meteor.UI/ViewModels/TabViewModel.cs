@@ -12,6 +12,8 @@ public class TabViewModel : ITabViewModel
     private string _title;
     private bool _isModified;
     private bool _isActive;
+    private string _content;
+    private string _originalContent;
 
     public ISolidColorBrush BorderBrush { get; set; }
     public ISolidColorBrush Background { get; set; }
@@ -21,9 +23,16 @@ public class TabViewModel : ITabViewModel
     public ISolidColorBrush CloseButtonBackground { get; set; }
     public ICommand CloseTabCommand { get; set; }
     public string FilePath { get; set; }
-    public bool IsDirty { get; set; }
     public bool IsTemporary { get; set; }
-    public string Content { get; set; }
+
+    public string Content
+    {
+        get => _content;
+        set
+        {
+            if (SetProperty(ref _content, value)) IsModified = _content != _originalContent;
+        }
+    }
 
     public IEditorViewModel EditorViewModel { get; }
 
@@ -61,6 +70,9 @@ public class TabViewModel : ITabViewModel
         Title = fileName;
         FilePath = fileName;
 
+        _content = string.Empty;
+        _originalContent = string.Empty;
+
         // Ideally we would make this Avalonia independent
         BorderBrush = new SolidColorBrush(ConvertToColor(configuration.GetBorderBrush()));
         Background = new SolidColorBrush(ConvertToColor(configuration.GetBackground()));
@@ -71,9 +83,24 @@ public class TabViewModel : ITabViewModel
 
         IsModified = false;
         IsActive = false;
-        IsDirty = false;
+        IsModified = false;
         IsTemporary = false;
         CloseTabCommand = configuration.GetCloseTabCommand();
+
+        EditorViewModel.ContentChanged += OnEditorContentChanged;
+    }
+
+    private void OnEditorContentChanged(object? sender, EventArgs e)
+    {
+        Content = EditorViewModel.Content;
+    }
+
+    public void SetOriginalContent(string content)
+    {
+        _originalContent = content;
+        Content = content;
+        IsModified = false;
+        IsModified = false;
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

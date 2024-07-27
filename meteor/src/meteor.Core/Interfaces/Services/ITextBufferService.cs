@@ -15,4 +15,5 @@ public interface ITextBufferService
 
     int GetLineIndexFromCharacterIndex(int charIndex);
     int GetCharacterIndexFromLineIndex(int lineIndex);
+    void Replace(int start, int length, string newText);
 }

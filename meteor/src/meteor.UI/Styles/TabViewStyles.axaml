@@ -8,6 +8,7 @@
         <converters:IsActiveToBrushConverter x:Key="IsActiveToBrushConverter"
                                              ActiveBrush="White"
                                              InactiveBrush="LightGray" />
+        <converters:BoolToBrushConverter x:Key="BoolToBrushConverter" />
 
         <DataTemplate x:Key="TabItemTemplate" x:DataType="viewModels:TabViewModel">
             <Border x:Name="MainBorder"
@@ -27,11 +28,10 @@
                 <Grid x:Name="TabGrid" ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center"
                       HorizontalAlignment="Center">
                     <Ellipse Grid.Column="0" Width="8" Height="8"
-                             Fill="{Binding DirtyIndicatorBrush}"
-                             IsVisible="{Binding IsDirty}"
+                             Fill="{Binding IsModified, Converter={StaticResource BoolToBrushConverter}, ConverterParameter='Transparent;#8BCDCD'}"
                              Margin="-4,0,6,0" />
                     <TextBlock Grid.Column="1" Text="{Binding Title}" VerticalAlignment="Center"
-                               HorizontalAlignment="Center" FontSize="13"
+                               HorizontalAlignment="Center" FontSize="14"
                                FontWeight="Normal" Margin="0 1 0 0"
                                Foreground="{Binding Foreground}"
                                FontFamily="{Binding IsTemporary, Converter={StaticResource IsTemporaryTabToFontFamilyConverter}}"

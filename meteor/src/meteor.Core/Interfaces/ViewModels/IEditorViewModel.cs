@@ -5,7 +5,7 @@ namespace meteor.Core.Interfaces.ViewModels;
 
 public interface IEditorViewModel
 {
-    event EventHandler? ContentChanged;
+    event EventHandler<ContentChangeEventArgs>? ContentChanged;
     event EventHandler? SelectionChanged;
 
     int SelectionStart { get; }

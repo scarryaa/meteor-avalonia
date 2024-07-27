@@ -9,5 +9,7 @@ public interface ITabViewModel : INotifyPropertyChanged
     string Content { get; set; }
     bool IsModified { get; set; }
     bool IsActive { get; set; }
+    bool IsTemporary { get; set; }
+    public void SetOriginalContent(string content);
     string FileName { get; }
 }

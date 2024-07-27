@@ -54,6 +54,18 @@ public class TextBufferService : ITextBufferService
         };
     }
 
+    public void Replace(int start, int length, string newText)
+    {
+        if (start < 0 || length < 0)
+            throw new ArgumentOutOfRangeException("Start and length must be non-negative.");
+
+        if (start + length > TextBuffer.GetDocumentLength())
+            throw new ArgumentOutOfRangeException("The range to replace extends beyond the end of the document.");
+
+        DeleteText(start, length);
+        InsertText(start, newText);
+    }
+
     public int GetCharacterIndexFromLineIndex(int lineIndex)
     {
         return lineIndex < 0 ? 0 :

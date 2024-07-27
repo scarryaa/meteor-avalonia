@@ -1,6 +1,7 @@
 using meteor.Core.Interfaces.Config;
 using meteor.Core.Interfaces.Services;
 using meteor.Core.Interfaces.ViewModels;
+using meteor.Core.Models;
 using meteor.Core.Models.EventArgs;
 
 namespace meteor.UI.ViewModels;
@@ -12,8 +13,10 @@ public class EditorViewModel : IEditorViewModel
     private readonly ISelectionManager _selectionManager;
     private readonly IEditorConfig _config;
     private readonly ITextMeasurer _textMeasurer;
+    private string _content;
+    private int _lastSyncedVersion;
 
-    public event EventHandler? ContentChanged;
+    public event EventHandler<ContentChangeEventArgs>? ContentChanged;
     public event EventHandler? SelectionChanged;
 
     public EditorViewModel(
@@ -31,8 +34,11 @@ public class EditorViewModel : IEditorViewModel
         _config = config;
         _textMeasurer = textMeasurer;
 
-        _cursorManager.CursorPositionChanged += (_, _) => ContentChanged?.Invoke(this, EventArgs.Empty);
+        _cursorManager.CursorPositionChanged += (_, _) => NotifyContentChanged();
         _selectionManager.SelectionChanged += (_, _) => SelectionChanged?.Invoke(this, EventArgs.Empty);
+
+        _lastSyncedVersion = TextBufferService.GetDocumentVersion();
+        _content = TextBufferService.GetContentSlice(0, TextBufferService.GetLength());
     }
 
     public ITextBufferService TextBufferService { get; }
@@ -40,7 +46,20 @@ public class EditorViewModel : IEditorViewModel
     public int SelectionStart => _selectionManager.CurrentSelection.Start;
     public int SelectionEnd => _selectionManager.CurrentSelection.End;
 
-    public string Content { get; set; }
+    public string Content
+    {
+        get => _content;
+        set
+        {
+            if (_content != value)
+            {
+                TextBufferService.Replace(0, TextBufferService.GetLength(), value);
+                _content = value;
+                NotifyContentChanged();
+            }
+        }
+    }
+    
     public int GetLineCount()
     {
         return TextBufferService.GetLineCount();
@@ -114,7 +133,7 @@ public class EditorViewModel : IEditorViewModel
 
     public void EndSelection()
     {
-        // This method is left empty as per the original implementation
+        // Implement if needed
     }
 
     public bool HasSelection()
@@ -130,5 +149,23 @@ public class EditorViewModel : IEditorViewModel
     public int GetLineStartOffset(int lineIndex)
     {
         return TextBufferService.GetLineStartOffset(lineIndex);
+    }
+
+    private void NotifyContentChanged()
+    {
+        var currentVersion = TextBufferService.GetDocumentVersion();
+        if (currentVersion != _lastSyncedVersion)
+        {
+            var newContent = TextBufferService.GetContentSlice(0, TextBufferService.GetLength());
+            var changes = ComputeChanges(_content, newContent);
+            _content = newContent;
+            _lastSyncedVersion = currentVersion;
+            ContentChanged?.Invoke(this, new ContentChangeEventArgs(changes));
+        }
+    }
+
+    private IEnumerable<TextChange> ComputeChanges(string oldContent, string newContent)
+    {
+        yield return new TextChange(0, oldContent.Length, newContent.Length, newContent);
     }
 }

@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using System.Diagnostics;
 using meteor.Core.Interfaces.Config;
 using meteor.Core.Interfaces.Factories;
 using meteor.Core.Interfaces.Services;
@@ -17,20 +16,21 @@ public class TabService : ITabService
         _tabViewModelFactory = tabViewModelFactory;
     }
 
-    public ObservableCollection<ITabViewModel> Tabs { get; } = new();
+    public ObservableCollection<ITabViewModel?> Tabs { get; } = new();
     public ITabViewModel ActiveTab { get; private set; }
 
     public event EventHandler<ITabViewModel?> TabAdded;
     public event EventHandler<ITabViewModel?> TabRemoved;
     public event EventHandler<ITabViewModel?> ActiveTabChanged;
 
-    public void AddTab(IEditorViewModel editorViewModel, ITabViewModelConfig tabConfig, string fileName)
+    public void AddTab(IEditorViewModel editorViewModel, ITabViewModelConfig tabConfig, string fileName,
+        string initialContent = "")
     {
         var tabViewModel = _tabViewModelFactory.Create(editorViewModel, tabConfig, fileName);
+        tabViewModel?.SetOriginalContent(initialContent);
         Tabs.Add(tabViewModel);
         TabAdded?.Invoke(this, tabViewModel);
         SetActiveTab(tabViewModel);
-        Debug.WriteLine($"Tab added: {fileName}");
     }
 
     public void RemoveTab(ITabViewModel? tab)
@@ -50,8 +50,8 @@ public class TabService : ITabService
             if (Tabs.Count == 0) SetActiveTab(null);
         }
     }
-    
-    public void SetActiveTab(ITabViewModel tab)
+
+    public void SetActiveTab(ITabViewModel? tab)
     {
         if (tab != null && tab != ActiveTab && Tabs.Contains(tab))
         {
