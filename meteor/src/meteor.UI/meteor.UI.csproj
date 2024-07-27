@@ -26,9 +26,11 @@
 
     <ItemGroup>
       <PackageReference Include="Avalonia" Version="11.1.0" />
+        <PackageReference Include="Avalonia.Controls.TreeDataGrid" Version="11.0.10"/>
       <PackageReference Include="Avalonia.Desktop" Version="11.1.0" />
         <PackageReference Include="Avalonia.Diagnostics" Version="11.1.0"/>
         <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.0-preview.6.24327.7"/>
+        <PackageReference Include="Projektanker.Icons.Avalonia.FontAwesome" Version="9.4.0"/>
     </ItemGroup>
 
     <ItemGroup>
@@ -36,7 +38,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <Folder Include="Assets\Fonts\"/>
+        <Folder Include="Assets\Fonts\FontAwesome\"/>
     </ItemGroup>
 
     <ItemGroup>
