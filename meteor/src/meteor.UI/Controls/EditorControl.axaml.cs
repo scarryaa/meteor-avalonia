@@ -1,3 +1,4 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
@@ -5,9 +6,9 @@ using meteor.Core.Interfaces.Config;
 using meteor.Core.Interfaces.Services;
 using meteor.Core.Interfaces.Services.Editor;
 using meteor.Core.Interfaces.ViewModels;
-using meteor.Core.Models;
 using meteor.UI.Adapters;
 using meteor.UI.Interfaces.Services.Editor;
+using Point = meteor.Core.Models.Point;
 
 namespace meteor.UI.Controls;
 
@@ -69,9 +70,10 @@ public partial class EditorControl : UserControl
 
     private void SetupEventHandlers()
     {
-        if (_scrollViewer is null || _scrollManager is null || _contentControl is null)
+        if (_scrollViewer is null || _scrollManager is null || _contentControl is null || _gutterControl is null)
         {
-            Console.WriteLine("ScrolViewer, ScrollManager, or ContentControl is null. Cannot setup event handlers.");
+            Console.WriteLine(
+                "ScrollViewer, ScrollManager, ContentControl, or GutterControl is null. Cannot setup event handlers.");
             return;
         }
         
@@ -87,19 +89,31 @@ public partial class EditorControl : UserControl
         _contentControl.PointerPressed += ContentControl_PointerPressed;
         _contentControl.PointerMoved += ContentControl_PointerMoved;
         _contentControl.PointerReleased += ContentControl_PointerReleased;
+
+        _gutterControl.LineSelected += GutterControl_LineSelected;
+        _gutterControl.ScrollRequested += GutterControl_ScrollRequested;
+    }
+
+    private void GutterControl_ScrollRequested(object? sender, Vector e)
+    {
+        if (_scrollViewer != null)
+            _scrollViewer.Offset = new Vector(_scrollViewer.Offset.X, _scrollViewer.Offset.Y + e.Y);
     }
 
     private void ScrollViewer_ScrollChanged(object? sender, ScrollChangedEventArgs e)
     {
         _layoutManager.HandleScrollChanged(_scrollViewer, _contentControl, _gutterControl);
+        if (_gutterControl != null)
+            _gutterControl.UpdateScroll(new Vector(_scrollViewer.Offset.X, _scrollViewer.Offset.Y));
     }
 
     private void ScrollViewer_SizeChanged(object? sender, SizeChangedEventArgs e)
     {
         _layoutManager.HandleSizeChanged(_scrollViewer, _contentControl, _gutterControl);
+        if (_gutterControl != null) _gutterControl.Viewport = e.NewSize;
     }
 
-    private void ScrollManager_ScrollChanged(object? sender, Vector e)
+    private void ScrollManager_ScrollChanged(object? sender, Core.Models.Vector e)
     {
         _layoutManager.HandleScrollManagerChanged(_scrollViewer, _contentControl, e);
     }
@@ -127,12 +141,36 @@ public partial class EditorControl : UserControl
         e.Handled = true;
     }
 
+    private void GutterControl_LineSelected(object? sender, int lineIndex)
+    {
+        var lineStartOffset = _viewModel.GetLineStartOffset(lineIndex);
+        var nextLineStartOffset = _viewModel.GetLineStartOffset(lineIndex + 1);
+
+        _viewModel.SetCursorPosition(lineStartOffset);
+        _viewModel.StartSelection(lineStartOffset);
+        _viewModel.UpdateSelection(nextLineStartOffset - 1);
+
+        // Ensure the selected line is visible
+        if (_scrollViewer != null)
+        {
+            var lineY = lineIndex * _scrollManager.LineHeight;
+            var currentScrollY = _scrollViewer.Offset.Y;
+            var viewportHeight = _scrollViewer.Viewport.Height;
+
+            if (lineY < currentScrollY || lineY > currentScrollY + viewportHeight)
+                _scrollViewer.Offset = new Vector(_scrollViewer.Offset.X, lineY);
+        }
+
+        _contentControl?.InvalidateVisual();
+    }
+
     protected override void OnKeyDown(KeyEventArgs e)
     {
         base.OnKeyDown(e);
         _inputHandler.HandleKeyDown(_viewModel, new KeyDownEventArgsAdapter(e));
         _contentControl?.InvalidateVisual();
         _contentControl?.InvalidateMeasure();
+        _gutterControl?.InvalidateVisual();
     }
 
     protected override void OnTextInput(TextInputEventArgs e)
@@ -141,5 +179,6 @@ public partial class EditorControl : UserControl
         _inputHandler.HandleTextInput(_viewModel, new TextInputEventArgsAdapter(e));
         _contentControl?.InvalidateVisual();
         _contentControl?.InvalidateMeasure();
+        _gutterControl?.InvalidateVisual();
     }
 }

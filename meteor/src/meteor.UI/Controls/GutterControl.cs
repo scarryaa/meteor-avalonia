@@ -1,6 +1,7 @@
 using System.Globalization;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Media;
 using meteor.Core.Interfaces.Config;
 using meteor.Core.Interfaces.Services;
@@ -25,6 +26,12 @@ public class GutterControl : Control
     public double VerticalOffset { get; private set; }
     public Size Viewport { get; set; }
 
+    public event EventHandler<int>? LineSelected;
+    public event EventHandler<Vector>? ScrollRequested;
+
+    private bool _isSelecting;
+    private int _selectionStartLine;
+
     public GutterControl(IEditorViewModel viewModel, ITextMeasurer textMeasurer, IEditorConfig config)
     {
         _viewModel = viewModel;
@@ -36,6 +43,11 @@ public class GutterControl : Control
 
         _viewModel.ContentChanged += OnContentChanged;
         _viewModel.SelectionChanged += OnSelectionChanged;
+
+        PointerPressed += OnPointerPressed;
+        PointerMoved += OnPointerMoved;
+        PointerReleased += OnPointerReleased;
+        PointerWheelChanged += OnPointerWheelChanged;
     }
 
     private void OnContentChanged(object sender, EventArgs e)
@@ -111,5 +123,71 @@ public class GutterControl : Control
     {
         VerticalOffset = offset.Y;
         InvalidateVisual();
+    }
+
+    private void OnPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        var position = e.GetPosition(this);
+        var lineIndex = (int)((position.Y + VerticalOffset) / _lineHeight);
+
+        if (lineIndex >= 0 && lineIndex < _viewModel.GetLineCount())
+        {
+            LineSelected?.Invoke(this, lineIndex);
+            _selectionStartLine = lineIndex;
+            var startOffset = _viewModel.GetLineStartOffset(lineIndex);
+            var endOffset = _viewModel.GetLineEndOffset(lineIndex);
+
+            _viewModel.SetCursorPosition(startOffset);
+            _viewModel.StartSelection(startOffset);
+            _viewModel.UpdateSelection(endOffset);
+
+            _isSelecting = true;
+        }
+    }
+
+    private void OnPointerMoved(object? sender, PointerEventArgs e)
+    {
+        if (_isSelecting)
+        {
+            var position = e.GetPosition(this);
+            var lineIndex = (int)((position.Y + VerticalOffset) / _lineHeight);
+            lineIndex = Math.Clamp(lineIndex, 0, _viewModel.GetLineCount() - 1);
+
+            int anchorOffset, activeOffset;
+
+            if (lineIndex >= _selectionStartLine)
+            {
+                // Moving forward
+                anchorOffset = _viewModel.GetLineStartOffset(_selectionStartLine);
+                activeOffset = _viewModel.GetLineEndOffset(lineIndex);
+            }
+            else
+            {
+                // Moving backward
+                anchorOffset = _viewModel.GetLineEndOffset(_selectionStartLine);
+                activeOffset = _viewModel.GetLineStartOffset(lineIndex);
+            }
+
+            _viewModel.StartSelection(anchorOffset);
+            _viewModel.UpdateSelection(activeOffset);
+
+            const double scrollThreshold = 20;
+            if (position.Y < scrollThreshold)
+                ScrollRequested?.Invoke(this, new Vector(0, -_lineHeight));
+            else if (position.Y > Bounds.Height - scrollThreshold)
+                ScrollRequested?.Invoke(this, new Vector(0, _lineHeight));
+        }
+    }
+
+    private void OnPointerReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        _isSelecting = false;
+    }
+
+    private void OnPointerWheelChanged(object? sender, PointerWheelEventArgs e)
+    {
+        var delta = e.Delta.Y * _lineHeight * 3;
+        ScrollRequested?.Invoke(this,
+            new Vector(0, -delta));
     }
 }

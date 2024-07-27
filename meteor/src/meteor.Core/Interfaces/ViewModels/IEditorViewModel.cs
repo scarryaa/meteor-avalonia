@@ -32,4 +32,5 @@ public interface IEditorViewModel
     void EndSelection();
     void SetCursorPosition(int position);
     int GetLineStartOffset(int lineIndex);
+    int GetLineEndOffset(int lineIndex);
 }

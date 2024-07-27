@@ -11,6 +11,7 @@ public interface ITextBufferService
     int GetLineCount();
     double GetMaxLineWidth(string fontFamily, double fontSize);
     int GetLineStartOffset(int lineIndex);
+    int GetLineEndOffset(int lineIndex);
     int GetDocumentVersion();
 
     int GetLineIndexFromCharacterIndex(int charIndex);

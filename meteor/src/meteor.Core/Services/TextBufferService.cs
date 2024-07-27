@@ -148,6 +148,13 @@ public class TextBufferService : ITextBufferService
         return _lineStartIndices[lineIndex];
     }
 
+    public int GetLineEndOffset(int lineIndex)
+    {
+        if (lineIndex < 0) return 0;
+        if (lineIndex >= _lineStartIndices.Count - 1) return _documentLength;
+        return _lineStartIndices[lineIndex + 1] - 1;
+    }
+
     private void UpdateLineIndicesAfterInsert(int position, string text)
     {
         var lineIndex = GetLineIndexFromCharacterIndex(position);

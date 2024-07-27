@@ -151,6 +151,11 @@ public class EditorViewModel : IEditorViewModel
         return TextBufferService.GetLineStartOffset(lineIndex);
     }
 
+    public int GetLineEndOffset(int lineIndex)
+    {
+        return TextBufferService.GetLineEndOffset(lineIndex);
+    }
+
     private void NotifyContentChanged()
     {
         var currentVersion = TextBufferService.GetDocumentVersion();
