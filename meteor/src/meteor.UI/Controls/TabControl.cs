@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Threading;
 using meteor.Core.Interfaces.Config;
 using meteor.Core.Interfaces.Services;
 using meteor.Core.Interfaces.Services.Editor;
@@ -19,6 +20,8 @@ public class TabControl : UserControl
     private readonly IEditorConfig _config;
     private readonly HorizontalScrollableTabControl _tabStrip;
     private readonly ContentControl _contentArea;
+    private bool _isActiveTabChanging;
+    private ITabViewModel? _lastSelectedTab;
 
     public TabControl(ITabService tabService, IScrollManager scrollManager, IEditorLayoutManager layoutManager,
         IEditorInputHandler inputHandler, IPointerEventHandler pointerEventHandler, ITextMeasurer textMeasurer,
@@ -63,12 +66,30 @@ public class TabControl : UserControl
             UpdateTabs();
             if (_tabService.Tabs.Count == 0) _tabService.SetActiveTab(null);
         };
-        _tabService.ActiveTabChanged += (_, _) => UpdateActiveTab();
-        _tabStrip.SelectionChanged += (sender, _) =>
+        _tabService.ActiveTabChanged += (_, _) =>
         {
-            if (sender is HorizontalScrollableTabControl tabControl &&
-                tabControl.SelectedItem is ITabViewModel selectedTab)
+            _isActiveTabChanging = true;
+            UpdateActiveTab();
+        };
+
+        var debounceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(50) };
+        debounceTimer.Tick += (_, _) =>
+        {
+            debounceTimer.Stop();
+            if (!_isActiveTabChanging && _tabStrip.SelectedItem is ITabViewModel selectedTab &&
+                selectedTab != _lastSelectedTab)
+            {
+                _lastSelectedTab = selectedTab;
                 _tabService.SetActiveTab(selectedTab);
+            }
+
+            _isActiveTabChanging = false;
+        };
+
+        _tabStrip.SelectionChanged += (_, _) =>
+        {
+            debounceTimer.Stop();
+            debounceTimer.Start();
         };
     }
 
