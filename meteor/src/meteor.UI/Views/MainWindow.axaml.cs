@@ -43,7 +43,7 @@ public partial class MainWindow : Window
 
         var horizontalSplit = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("200,Auto,*")
+            ColumnDefinitions = new ColumnDefinitions("150,Auto,*")
         };
 
         Grid.SetColumn(fileExplorerSidebar, 0);

@@ -2,9 +2,14 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Presenters;
 using Avalonia.Controls.Primitives;
+using Avalonia.Controls.Templates;
 using Avalonia.Input;
+using Avalonia.Interactivity;
+using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Styling;
 using meteor.Core.Models;
 using Color = Avalonia.Media.Color;
 using Point = Avalonia.Point;
@@ -24,17 +29,42 @@ public class FileExplorerControl : UserControl
     private ScrollViewer _scrollViewer;
     private Canvas _canvas;
     private FileItem _selectedItem;
+    private Button _selectPathButton;
+    private Grid _mainGrid;
 
     public FileExplorerControl()
     {
         _items = new ObservableCollection<FileItem>();
         InitializeComponent();
-        PopulateItems();
+        UpdateCanvasSize();
         Focus();
     }
 
     private void InitializeComponent()
     {
+        _mainGrid = new Grid
+        {
+            RowDefinitions = new RowDefinitions("Auto,*")
+        };
+
+        _selectPathButton = new Button
+        {
+            Content = "Select Folder",
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 10, 0, 10),
+            Cursor = new Cursor(StandardCursorType.Hand),
+            Classes = { "noBg" }
+        };
+
+        // Create and apply button styles
+        _selectPathButton.Styles.Add(CreateButtonStyles());
+
+        _selectPathButton.Click += OnSelectPathButtonClick;
+
+        Grid.SetRow(_selectPathButton, 0);
+        _mainGrid.Children.Add(_selectPathButton);
+
         _scrollViewer = new ScrollViewer
         {
             HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
@@ -43,21 +73,118 @@ public class FileExplorerControl : UserControl
 
         _canvas = new Canvas();
         _scrollViewer.Content = _canvas;
-        Content = _scrollViewer;
+        Grid.SetRow(_scrollViewer, 1);
+        _mainGrid.Children.Add(_scrollViewer);
+
+        Content = _mainGrid;
 
         _scrollViewer.ScrollChanged += OnScrollChanged;
         PointerPressed += OnPointerPressed;
         KeyDown += OnKeyDown;
         Focusable = true;
+
+        VerticalAlignment = VerticalAlignment.Stretch;
+        HorizontalAlignment = HorizontalAlignment.Stretch;
+
+        UpdateSelectPathButtonVisibility();
     }
 
-    private void PopulateItems()
+    private Styles CreateButtonStyles()
     {
-        var rootDirectories = DriveInfo.GetDrives()
-            .Where(d => d.IsReady)
-            .Select(d => new FileItem(d.RootDirectory.FullName, true));
+        var styles = new Styles
+        {
+            // Normal state
+            new Style(x => x.OfType<Button>().Class("noBg"))
+            {
+                Setters =
+                {
+                    new Setter(TemplateProperty, CreateButtonTemplate())
+                }
+            },
+            // PointerOver state
+            new Style(x => x.OfType<Button>().Class("noBg").Class(":pointerover"))
+            {
+                Setters =
+                {
+                    new Setter(TemplateProperty, CreateButtonTemplate(true))
+                }
+            },
+            // Pressed state
+            new Style(x => x.OfType<Button>().Class("noBg").Class(":pressed"))
+            {
+                Setters =
+                {
+                    new Setter(TemplateProperty, CreateButtonTemplate(isPressed: true))
+                }
+            },
+            // Disabled state
+            new Style(x => x.OfType<Button>().Class("noBg").Class(":disabled"))
+            {
+                Setters =
+                {
+                    new Setter(TemplateProperty, CreateButtonTemplate(isDisabled: true))
+                }
+            }
+        };
 
-        foreach (var rootItem in rootDirectories) _items.Add(rootItem);
+        return styles;
+    }
+
+    private IControlTemplate CreateButtonTemplate(bool isPointerOver = false, bool isPressed = false,
+        bool isDisabled = false)
+    {
+        return new FuncControlTemplate((parent, scope) =>
+        {
+            var contentPresenter = new ContentPresenter
+            {
+                Name = "PART_ContentPresenter",
+                Background = isPointerOver
+                    ? new SolidColorBrush(Color.Parse("#F0F0F0"))
+                    : isPressed
+                        ? new SolidColorBrush(Color.Parse("#E8E8E8"))
+                        : new SolidColorBrush(Color.Parse("#E0E0E0")),
+                BorderThickness = new Thickness(0),
+                Padding = new Thickness(8),
+                CornerRadius = new CornerRadius(4),
+                [!ContentPresenter.ContentProperty] = parent[!ContentProperty],
+                [!ContentPresenter.ContentTemplateProperty] = parent[!ContentTemplateProperty]
+            };
+
+            if (isDisabled)
+                contentPresenter.Foreground = new SolidColorBrush(Color.Parse("#B0B0B0"));
+            else
+                contentPresenter.Foreground = new SolidColorBrush(Color.Parse("#202020"));
+
+            return contentPresenter;
+        });
+    }
+
+    private void UpdateSelectPathButtonVisibility()
+    {
+        _selectPathButton.IsVisible = _items.Count == 0;
+    }
+
+    private async void OnSelectPathButtonClick(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFolderDialog();
+        var window = GetMainWindow();
+        var result = await dialog.ShowAsync(window);
+
+        if (!string.IsNullOrEmpty(result))
+        {
+            _items.Clear();
+            _items.Add(new FileItem(result, true));
+            PopulateChildren(_items[0]);
+            _items[0].IsExpanded = true;
+            UpdateCanvasSize();
+            InvalidateVisual();
+            UpdateSelectPathButtonVisibility();
+        }
+    }
+
+    private Window GetMainWindow()
+    {
+        return (Window)VisualRoot;
     }
 
     private void PopulateChildren(FileItem item)
@@ -100,10 +227,10 @@ public class FileExplorerControl : UserControl
 
     private void UpdateCanvasSize()
     {
-        var totalHeight = CalculateTotalHeight(_items) + _itemHeight;
-        var maxWidth = CalculateMaxWidth(_items);
-        _canvas.Width = Math.Max(maxWidth + _leftPadding + _rightPadding, _scrollViewer.Viewport.Width);
-        _canvas.Height = Math.Max(totalHeight, _scrollViewer.Viewport.Height);
+        var totalHeight = Math.Max(CalculateTotalHeight(_items) + _itemHeight, _scrollViewer.Bounds.Height);
+        var maxWidth = Math.Max(CalculateMaxWidth(_items), _scrollViewer.Bounds.Width);
+        _canvas.Width = maxWidth;
+        _canvas.Height = totalHeight;
     }
 
     private double CalculateMaxWidth(IEnumerable<FileItem> items, int depth = 0)
@@ -146,10 +273,11 @@ public class FileExplorerControl : UserControl
         base.Render(context);
 
         var viewportRect = new Rect(new Point(0, 0),
-            new Size(_scrollViewer.Viewport.Width, _scrollViewer.Viewport.Height));
+            new Size(_scrollViewer.Viewport.Width, _scrollViewer.Viewport.Height + 50));
         context.FillRectangle(Brushes.White, viewportRect);
 
-        RenderItems(context, _items, 0, -_scrollViewer.Offset.Y, viewportRect);
+        var buttonHeight = _selectPathButton.IsVisible ? _selectPathButton.Bounds.Height : 0;
+        RenderItems(context, _items, 0, -_scrollViewer.Offset.Y + buttonHeight, viewportRect);
     }
 
     private double RenderItems(DrawingContext context, IEnumerable<FileItem> items, int indentLevel, double y,
