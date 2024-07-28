@@ -254,7 +254,7 @@ public class FileExplorerControl : UserControl
     private void UpdateCanvasSize()
     {
         var totalHeight = Math.Max(CalculateTotalHeight(_items) + _itemHeight, _scrollViewer.Bounds.Height);
-        var maxWidth = Math.Max(CalculateMaxWidth(_items), _scrollViewer.Bounds.Width);
+        var maxWidth = Math.Max(CalculateMaxWidth(_items), _scrollViewer.Bounds.Width) + 20;
         _canvas.Width = maxWidth;
         _canvas.Height = totalHeight;
     }
@@ -383,7 +383,7 @@ public class FileExplorerControl : UserControl
     private void OnPointerPressed(object sender, PointerPressedEventArgs e)
     {
         var point = e.GetPosition(this);
-        var itemClicked = FindClickedItem(_items, point, 0, -_scrollViewer.Offset.Y);
+        var itemClicked = FindClickedItem(_items, point.Y, -_scrollViewer.Offset.Y);
 
         if (itemClicked != null)
         {
@@ -402,26 +402,24 @@ public class FileExplorerControl : UserControl
             InvalidateVisual();
         }
     }
-    
-    private FileItem FindClickedItem(IEnumerable<FileItem> items, Point point, int indentLevel, double y)
+
+    private FileItem FindClickedItem(IEnumerable<FileItem> items, double clickY, double startY)
     {
         foreach (var item in items)
         {
-            if (point.Y >= y && point.Y < y + _itemHeight &&
-                point.X >= _leftPadding + indentLevel * _indentWidth - _scrollViewer.Offset.X &&
-                point.X <= _canvas.Width - _rightPadding)
+            if (clickY >= startY && clickY < startY + _itemHeight)
                 return item;
 
-            y += _itemHeight;
+            startY += _itemHeight;
 
             if (item.IsExpanded)
             {
-                var childResult = FindClickedItem(item.Children, point, indentLevel + 1, y);
+                var childResult = FindClickedItem(item.Children, clickY, startY);
                 if (childResult != null) return childResult;
-                y += CalculateTotalHeight(item.Children);
+                startY += CalculateTotalHeight(item.Children);
             }
 
-            if (y > point.Y) break;
+            if (startY > clickY) break;
         }
 
         return null;
