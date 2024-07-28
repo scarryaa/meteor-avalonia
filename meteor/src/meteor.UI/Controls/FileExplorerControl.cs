@@ -32,6 +32,8 @@ public class FileExplorerControl : UserControl
     private Button _selectPathButton;
     private Grid _mainGrid;
 
+    public event EventHandler<string> FileSelected;
+
     public FileExplorerControl()
     {
         _items = new ObservableCollection<FileItem>();
@@ -195,9 +197,12 @@ public class FileExplorerControl : UserControl
         {
             var children = new List<FileItem>();
             var directories = Directory.GetDirectories(item.FullPath)
+                .Where(dir => !Path.GetFileName(dir).StartsWith(".")) // Exclude hidden directories
                 .Select(dir => new FileItem(dir, true))
                 .OrderBy(d => d.Name, StringComparer.OrdinalIgnoreCase);
+
             var files = Directory.GetFiles(item.FullPath)
+                .Where(file => !ShouldHideFile(file)) // Filter out files to hide
                 .Select(file => new FileItem(file, false))
                 .OrderBy(f => f.Name, StringComparer.OrdinalIgnoreCase);
 
@@ -217,6 +222,27 @@ public class FileExplorerControl : UserControl
         {
             item.Children.Add(new FileItem($"Error: {ex.Message}", item.FullPath, false));
         }
+    }
+
+    private bool ShouldHideFile(string filePath)
+    {
+        var fileName = Path.GetFileName(filePath);
+
+        var hiddenFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ".DS_Store",
+            "Thumbs.db",
+            "desktop.ini"
+        };
+
+        // Hide files that start with a dot (hidden files on Unix-like systems)
+        if (fileName.StartsWith("."))
+            return true;
+
+        if (hiddenFiles.Contains(fileName))
+            return true;
+
+        return false;
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
@@ -367,12 +393,16 @@ public class FileExplorerControl : UserControl
                 itemClicked.IsExpanded = !itemClicked.IsExpanded;
                 if (itemClicked.IsExpanded && !itemClicked.ChildrenPopulated) PopulateChildren(itemClicked);
             }
+            else
+            {
+                FileSelected?.Invoke(this, itemClicked.FullPath);
+            }
 
             UpdateCanvasSize();
             InvalidateVisual();
         }
     }
-
+    
     private FileItem FindClickedItem(IEnumerable<FileItem> items, Point point, int indentLevel, double y)
     {
         foreach (var item in items)

@@ -14,6 +14,7 @@ public class TabViewModel : ITabViewModel
     private bool _isActive;
     private string _content;
     private string _originalContent;
+    private string _filePath;
 
     public ISolidColorBrush BorderBrush { get; set; }
     public ISolidColorBrush Background { get; set; }
@@ -22,8 +23,14 @@ public class TabViewModel : ITabViewModel
     public ISolidColorBrush CloseButtonForeground { get; set; }
     public ISolidColorBrush CloseButtonBackground { get; set; }
     public ICommand CloseTabCommand { get; set; }
-    public string FilePath { get; set; }
-    public bool IsTemporary { get; set; }
+
+    public string FilePath
+    {
+        get => _filePath;
+        private set => SetProperty(ref _filePath, value);
+    }
+
+    public bool IsTemporary { get; private set; }
 
     public string Content
     {
@@ -68,7 +75,7 @@ public class TabViewModel : ITabViewModel
     {
         EditorViewModel = editorViewModel;
         Title = fileName;
-        FilePath = fileName;
+        FilePath = string.Empty;
 
         _content = string.Empty;
         _originalContent = string.Empty;
@@ -83,11 +90,15 @@ public class TabViewModel : ITabViewModel
 
         IsModified = false;
         IsActive = false;
-        IsModified = false;
-        IsTemporary = false;
         CloseTabCommand = configuration.GetCloseTabCommand();
 
         EditorViewModel.ContentChanged += OnEditorContentChanged;
+    }
+
+    public void LoadContent(string content)
+    {
+        EditorViewModel.LoadContent(content);
+        SetOriginalContent(content);
     }
 
     private void OnEditorContentChanged(object? sender, EventArgs e)
@@ -100,7 +111,13 @@ public class TabViewModel : ITabViewModel
         _originalContent = content;
         Content = content;
         IsModified = false;
-        IsModified = false;
+    }
+
+    public void SetFilePath(string filePath)
+    {
+        FilePath = filePath;
+        Title = Path.GetFileName(filePath);
+        IsTemporary = false;
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

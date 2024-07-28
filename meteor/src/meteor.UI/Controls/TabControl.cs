@@ -21,7 +21,7 @@ public class TabControl : UserControl
     private readonly HorizontalScrollableTabControl _tabStrip;
     private readonly ContentControl _contentArea;
     private bool _isActiveTabChanging;
-    private ITabViewModel? _lastSelectedTab;
+    private ITabViewModel _lastSelectedTab;
 
     public TabControl(ITabService tabService, IScrollManager scrollManager, IEditorLayoutManager layoutManager,
         IEditorInputHandler inputHandler, IPointerEventHandler pointerEventHandler, ITextMeasurer textMeasurer,
@@ -60,18 +60,18 @@ public class TabControl : UserControl
 
     private void SetupEventHandlers()
     {
-        _tabService.TabAdded += (_, _) => UpdateTabs();
+        _tabService.TabAdded += (_, newTab) =>
+        {
+            UpdateTabs();
+            _tabService.SetActiveTab(newTab);
+        };
         _tabService.TabRemoved += (_, _) =>
         {
             UpdateTabs();
             if (_tabService.Tabs.Count == 0) _tabService.SetActiveTab(null);
         };
-        _tabService.ActiveTabChanged += (_, _) =>
-        {
-            _isActiveTabChanging = true;
-            UpdateActiveTab();
-        };
-
+        _tabService.ActiveTabChanged += (_, _) => UpdateActiveTab();
+        
         var debounceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(50) };
         debounceTimer.Tick += (_, _) =>
         {
@@ -95,55 +95,55 @@ public class TabControl : UserControl
 
     private void UpdateTabs()
     {
-        var previousSelectedItem = _tabStrip.SelectedItem;
-        _tabStrip.ItemsSource = null;
-        _tabStrip.ItemsSource = _tabService.Tabs;
+        Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            _tabStrip.ItemsSource = null;
+            _tabStrip.ItemsSource = _tabService.Tabs;
 
-        if (_tabService.Tabs.Contains(previousSelectedItem))
-        {
-            _tabStrip.SelectedItem = previousSelectedItem;
-        }
-        else
-        {
-            if (_tabService.Tabs.Count == 0)
+            if (_tabService.Tabs.Count > 0)
             {
-                _contentArea.Content = null;
+                _tabStrip.SelectedItem = _tabService.ActiveTab;
+                UpdateActiveTab();
             }
             else
             {
-                if (_tabService.ActiveTab == null) _contentArea.Content = null;
-                UpdateActiveTab();
+                _contentArea.Content = null;
             }
-        }
-    }
-
-    private void StoreCurrentTabContent()
-    {
-        var currentTab = _tabService.ActiveTab;
-        if (currentTab != null && _contentArea.Content is EditorControl editorControl)
-            if (editorControl.DataContext is EditorViewModel viewModel)
-                currentTab.Content = viewModel.Content;
+        });
     }
 
     private void UpdateActiveTab()
     {
-        StoreCurrentTabContent();
-
-        var activeTab = _tabService.ActiveTab;
-        if (_tabStrip.SelectedItem != activeTab) _tabStrip.SelectedItem = activeTab;
-
-        if (activeTab != null)
+        Dispatcher.UIThread.InvokeAsync(() =>
         {
-            var editorControl = CreateEditorControl(activeTab.EditorViewModel);
-            if (editorControl != null)
+            StoreCurrentTabContent();
+
+            var activeTab = _tabService.ActiveTab;
+            if (_tabStrip.SelectedItem != activeTab) _tabStrip.SelectedItem = activeTab;
+
+            if (activeTab != null)
             {
-                activeTab.EditorViewModel.Content = activeTab.Content;
-                _contentArea.Content = editorControl;
+                var editorControl = CreateEditorControl(activeTab.EditorViewModel);
+                if (editorControl != null)
+                {
+                    activeTab.EditorViewModel.LoadContent(activeTab.Content);
+                    _contentArea.Content = editorControl;
+                }
             }
-        }
-        else
+            else
+            {
+                _contentArea.Content = null;
+            }
+        });
+    }
+
+    private void StoreCurrentTabContent()
+    {
+        if (_contentArea.Content is EditorControl editorControl &&
+            editorControl.DataContext is EditorViewModel viewModel)
         {
-            _contentArea.Content = null;
+            var currentTab = _tabService.Tabs.FirstOrDefault(t => t.EditorViewModel == viewModel);
+            if (currentTab != null) currentTab.Content = viewModel.Content;
         }
     }
 

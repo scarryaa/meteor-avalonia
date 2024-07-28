@@ -23,16 +23,18 @@ public class TabService : ITabService
     public event EventHandler<ITabViewModel?> TabRemoved;
     public event EventHandler<ITabViewModel?> ActiveTabChanged;
 
-    public void AddTab(IEditorViewModel editorViewModel, ITabViewModelConfig tabConfig, string fileName,
+    public ITabViewModel AddTab(IEditorViewModel editorViewModel, ITabViewModelConfig tabConfig, string fileName,
         string initialContent = "")
     {
         var tabViewModel = _tabViewModelFactory.Create(editorViewModel, tabConfig, fileName);
-        tabViewModel?.SetOriginalContent(initialContent);
+        tabViewModel?.LoadContent(initialContent);
         Tabs.Add(tabViewModel);
         TabAdded?.Invoke(this, tabViewModel);
         SetActiveTab(tabViewModel);
-    }
 
+        return tabViewModel;
+    }
+    
     public void RemoveTab(ITabViewModel? tab)
     {
         if (Tabs.Remove(tab))

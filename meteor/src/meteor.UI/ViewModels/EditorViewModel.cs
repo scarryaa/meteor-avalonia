@@ -53,13 +53,14 @@ public class EditorViewModel : IEditorViewModel
         {
             if (_content != value)
             {
-                TextBufferService.Replace(0, TextBufferService.GetLength(), value);
+                var documentLength = TextBufferService.GetLength();
+                TextBufferService.Replace(0, documentLength, value);
                 _content = value;
                 NotifyContentChanged();
             }
         }
     }
-    
+
     public int GetLineCount()
     {
         return TextBufferService.GetLineCount();
@@ -85,6 +86,12 @@ public class EditorViewModel : IEditorViewModel
         return TextBufferService.GetContentSlice(start, end);
     }
 
+    public void LoadContent(string content)
+    {
+        TextBufferService.LoadContent(content);
+        Content = content;
+    }
+
     public int GetCursorLine()
     {
         return _cursorManager.GetCursorLine();
@@ -106,7 +113,7 @@ public class EditorViewModel : IEditorViewModel
 
         return _textMeasurer.MeasureText(textUpToCursor, _config.FontFamily, _config.FontSize).Width;
     }
-    
+
     public int CursorPosition => _cursorManager.Position;
 
     public void HandleKeyDown(KeyEventArgs e)

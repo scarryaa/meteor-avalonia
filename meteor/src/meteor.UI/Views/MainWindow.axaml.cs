@@ -1,18 +1,28 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
+using meteor.Core.Config;
 using meteor.Core.Interfaces.Config;
 using meteor.Core.Interfaces.Services;
 using meteor.Core.Interfaces.Services.Editor;
+using meteor.Core.Models;
+using meteor.Core.Services;
 using meteor.UI.Controls;
 using meteor.UI.Interfaces.Services.Editor;
+using meteor.UI.Services;
 using meteor.UI.ViewModels;
+using Color = Avalonia.Media.Color;
+using SolidColorBrush = Avalonia.Media.SolidColorBrush;
 using TabControl = meteor.UI.Controls.TabControl;
 
 namespace meteor.UI.Views;
 
 public partial class MainWindow : Window
 {
+    private readonly ITabService _tabService;
+    private readonly IEditorConfig _config;
+    private readonly ITextMeasurer _textMeasurer;
+
     public MainWindow(
         MainWindowViewModel mainWindowViewModel,
         ITabService tabService,
@@ -24,13 +34,20 @@ public partial class MainWindow : Window
         IPointerEventHandler pointerEventHandler)
     {
         InitializeComponent();
+
+        Background = new SolidColorBrush(Color.Parse("#F0F0F0"));
         DataContext = mainWindowViewModel;
         this.AttachDevTools();
-        
+
+        _tabService = tabService;
+        _config = config;
+        _textMeasurer = textMeasurer;
+
         var tabControl = new TabControl(tabService, scrollManager, layoutManager, inputHandler,
             pointerEventHandler, textMeasurer, config);
 
         var fileExplorerSidebar = new FileExplorerControl();
+        fileExplorerSidebar.FileSelected += OnFileSelected;
 
         var gridSplitter = new GridSplitter
         {
@@ -55,5 +72,84 @@ public partial class MainWindow : Window
         horizontalSplit.Children.Add(tabControl);
 
         Content = horizontalSplit;
+    }
+
+    private void OnFileSelected(object? sender, string? filePath)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(filePath))
+            {
+                CreateNewTab();
+                return;
+            }
+
+            // Check if the file is already open
+            var existingTab = _tabService.Tabs.FirstOrDefault(t => t?.FilePath == filePath);
+            if (existingTab != null)
+            {
+                _tabService.SetActiveTab(existingTab);
+                return;
+            }
+
+            // Open the file in a new tab
+            OpenFileInNewTab(filePath);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error opening file: {ex.Message}");
+        }
+    }
+
+    private void CreateNewTab()
+    {
+        var textBufferService = new TextBufferService(new TextBuffer(), _textMeasurer, _config);
+        var editorConfig = new EditorConfig();
+        var cursorManager = new CursorManager(textBufferService, editorConfig);
+        var clipboardManager = new ClipboardManager();
+        var selectionManager = new SelectionManager(textBufferService);
+        var textAnalysisService = new TextAnalysisService();
+        var scrollManager = new ScrollManager(editorConfig, _textMeasurer);
+        var inputManager = new InputManager(textBufferService, cursorManager, clipboardManager, selectionManager,
+            textAnalysisService, scrollManager);
+        var editorViewModel = new EditorViewModel(
+            textBufferService,
+            cursorManager,
+            inputManager,
+            selectionManager,
+            new EditorConfig(),
+            _textMeasurer
+        );
+        var tabConfig = new TabConfig(_tabService);
+        _tabService.AddTab(editorViewModel, tabConfig, "Untitled", string.Empty);
+    }
+
+    private void OpenFileInNewTab(string filePath)
+    {
+        var fileContent = File.ReadAllText(filePath);
+        var fileName = Path.GetFileName(filePath);
+
+        var textBufferService = new TextBufferService(new TextBuffer(), _textMeasurer, _config);
+        var editorConfig = new EditorConfig();
+        var cursorManager = new CursorManager(textBufferService, editorConfig);
+        var clipboardManager = new ClipboardManager();
+        var selectionManager = new SelectionManager(textBufferService);
+        var textAnalysisService = new TextAnalysisService();
+        var scrollManager = new ScrollManager(editorConfig, _textMeasurer);
+        var inputManager = new InputManager(textBufferService, cursorManager, clipboardManager, selectionManager,
+            textAnalysisService, scrollManager);
+        var editorViewModel = new EditorViewModel(
+            textBufferService,
+            cursorManager,
+            inputManager,
+            selectionManager,
+            new EditorConfig(),
+            _textMeasurer
+        );
+        var tabConfig = new TabConfig(_tabService);
+        var newTab = _tabService.AddTab(editorViewModel, tabConfig, fileName, fileContent);
+
+        // Set the file path for the new tab
+        if (newTab is TabViewModel tabViewModel) tabViewModel.SetFilePath(filePath);
     }
 }

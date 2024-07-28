@@ -53,7 +53,7 @@ public partial class EditorControl : UserControl
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
             Content = _contentControl
         };
-
+        
         var mainGrid = new Grid
         {
             ColumnDefinitions = new ColumnDefinitions("Auto,*")

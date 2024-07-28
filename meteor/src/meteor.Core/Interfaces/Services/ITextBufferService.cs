@@ -14,6 +14,7 @@ public interface ITextBufferService
     int GetLineEndOffset(int lineIndex);
     int GetDocumentVersion();
 
+    void LoadContent(string content);
     int GetLineIndexFromCharacterIndex(int charIndex);
     int GetCharacterIndexFromLineIndex(int lineIndex);
     void Replace(int start, int length, string newText);

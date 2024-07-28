@@ -15,6 +15,7 @@ public interface IEditorViewModel
     int CursorPosition { get; }
     string Content { get; set; }
 
+    void LoadContent(string content);
     int GetDocumentLength();
     int GetDocumentVersion();
     int GetLineCount();

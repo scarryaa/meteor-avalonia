@@ -128,6 +128,11 @@ public class TextBufferService : ITextBufferService
     {
         TextBuffer.LoadContent(content);
         _documentLength = TextBuffer.GetDocumentLength();
+
+        _lineStartIndices.Clear();
+        _lineStartIndices.Add(0);
+
+        UpdateLineIndicesAfterInsert(0, content);
         RecalculateAllLineWidths(_cachedFontFamily, _cachedFontSize);
     }
     

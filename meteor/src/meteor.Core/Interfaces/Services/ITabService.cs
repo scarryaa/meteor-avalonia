@@ -9,7 +9,7 @@ public interface ITabService
     ObservableCollection<ITabViewModel?> Tabs { get; }
     ITabViewModel? ActiveTab { get; }
 
-    void AddTab(IEditorViewModel editorViewModel, ITabViewModelConfig tabConfig, string fileName,
+    ITabViewModel AddTab(IEditorViewModel editorViewModel, ITabViewModelConfig tabConfig, string fileName,
         string initialContent = "");
     void RemoveTab(ITabViewModel? tab);
     void SetActiveTab(ITabViewModel? tab);
