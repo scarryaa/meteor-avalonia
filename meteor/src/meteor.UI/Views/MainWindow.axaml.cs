@@ -1,3 +1,4 @@
+using System.Text;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
@@ -107,6 +108,7 @@ public partial class MainWindow : Window
         var editorConfig = new EditorConfig();
         var cursorManager = new CursorManager(textBufferService, editorConfig);
         var clipboardManager = new ClipboardManager();
+        clipboardManager.TopLevelRef = this;
         var selectionManager = new SelectionManager(textBufferService);
         var textAnalysisService = new TextAnalysisService();
         var scrollManager = new ScrollManager(editorConfig, _textMeasurer);
@@ -126,13 +128,14 @@ public partial class MainWindow : Window
 
     private void OpenFileInNewTab(string filePath)
     {
-        var fileContent = File.ReadAllText(filePath);
+        var fileContent = File.ReadAllText(filePath, Encoding.UTF8);
         var fileName = Path.GetFileName(filePath);
 
         var textBufferService = new TextBufferService(new TextBuffer(), _textMeasurer, _config);
         var editorConfig = new EditorConfig();
         var cursorManager = new CursorManager(textBufferService, editorConfig);
         var clipboardManager = new ClipboardManager();
+        clipboardManager.TopLevelRef = this;
         var selectionManager = new SelectionManager(textBufferService);
         var textAnalysisService = new TextAnalysisService();
         var scrollManager = new ScrollManager(editorConfig, _textMeasurer);
@@ -149,7 +152,6 @@ public partial class MainWindow : Window
         var tabConfig = new TabConfig(_tabService);
         var newTab = _tabService.AddTab(editorViewModel, tabConfig, fileName, fileContent);
 
-        // Set the file path for the new tab
         if (newTab is TabViewModel tabViewModel) tabViewModel.SetFilePath(filePath);
     }
 }
