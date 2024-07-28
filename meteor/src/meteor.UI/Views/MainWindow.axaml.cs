@@ -152,7 +152,7 @@ public partial class MainWindow : Window
             _textMeasurer
         );
         var tabConfig = new TabConfig(_tabService);
-        var newTab = _tabService.AddTab(editorViewModel, tabConfig, fileName, fileContent);
+        var newTab = _tabService.AddTab(editorViewModel, tabConfig, fileName, filePath, fileContent);
 
         if (newTab is TabViewModel tabViewModel) tabViewModel.SetFilePath(filePath);
     }

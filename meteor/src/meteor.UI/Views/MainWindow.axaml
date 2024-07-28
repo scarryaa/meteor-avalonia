@@ -18,5 +18,7 @@
                     Command="{Binding CloseTabCommand}"
                     CommandParameter="{Binding ActiveTab}"
                     Gesture="Cmd+W" />
+        <KeyBinding Command="{Binding SaveFileCommand}" Gesture="Cmd+S" />
+        <KeyBinding Command="{Binding OpenFileCommand}" Gesture="Cmd+O" />
     </Window.KeyBindings>
 </Window>

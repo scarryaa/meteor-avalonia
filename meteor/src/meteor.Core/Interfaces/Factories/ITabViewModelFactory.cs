@@ -5,5 +5,6 @@ namespace meteor.Core.Interfaces.Factories;
 
 public interface ITabViewModelFactory
 {
-    ITabViewModel? Create(IEditorViewModel editorViewModel, ITabViewModelConfig tabConfig, string fileName);
+    ITabViewModel? Create(IEditorViewModel editorViewModel, ITabViewModelConfig tabConfig, string filePath,
+        string fileName);
 }

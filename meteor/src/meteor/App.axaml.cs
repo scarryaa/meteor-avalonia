@@ -54,6 +54,9 @@ public class App : Application
 
             var clipboardManager = Services.GetRequiredService<IClipboardManager>();
             if (clipboardManager is ClipboardManager cm) cm.TopLevelRef = desktop.MainWindow;
+
+            var fileService = Services.GetRequiredService<IFileDialogService>();
+            if (fileService is IFileDialogService fs) fs.TopLevelRef = desktop.MainWindow;
         }
 
         base.OnFrameworkInitializationCompleted();
@@ -71,6 +74,8 @@ public class App : Application
         services.AddSingleton<ITextAnalysisService, TextAnalysisService>();
         services.AddSingleton<IScrollManager, ScrollManager>();
         services.AddSingleton<ITabService, TabService>();
+        services.AddSingleton<IFileDialogService, FileDialogService>();
+        services.AddSingleton<IFileService, FileService>();
         
         // Editor Services
         services.AddSingleton<IEditorLayoutManager, EditorLayoutManager>();

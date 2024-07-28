@@ -15,6 +15,7 @@ public class TabViewModel : ITabViewModel
     private string _content;
     private string _originalContent;
     private string _filePath;
+    private string _fileName;
 
     public ISolidColorBrush BorderBrush { get; set; }
     public ISolidColorBrush Background { get; set; }
@@ -30,7 +31,7 @@ public class TabViewModel : ITabViewModel
     public string FilePath
     {
         get => _filePath;
-        private set => SetProperty(ref _filePath, value);
+        set => SetProperty(ref _filePath, value);
     }
 
     public bool IsTemporary { get; private set; }
@@ -48,12 +49,8 @@ public class TabViewModel : ITabViewModel
 
     public string FileName
     {
-        get
-        {
-            if (IsTemporary)
-                return $"* {Title}";
-            return Title;
-        }
+        get => _fileName;
+        set => SetProperty(ref _fileName, value);
     }
 
     public string Title
@@ -74,14 +71,15 @@ public class TabViewModel : ITabViewModel
         set => SetProperty(ref _isActive, value);
     }
 
-    public TabViewModel(IEditorViewModel editorViewModel, string fileName, ITabViewModelConfig configuration)
+    public TabViewModel(IEditorViewModel editorViewModel, string filePath, string fileName,
+        ITabViewModelConfig configuration)
     {
         EditorViewModel = editorViewModel;
         Title = fileName;
-        FilePath = string.Empty;
-
         _content = string.Empty;
         _originalContent = string.Empty;
+        _fileName = fileName;
+        _filePath = filePath;
 
         // Ideally we would make this Avalonia independent
         BorderBrush = new SolidColorBrush(ConvertToColor(configuration.GetBorderBrush()));
