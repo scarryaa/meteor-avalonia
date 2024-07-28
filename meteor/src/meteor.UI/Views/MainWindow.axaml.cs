@@ -37,7 +37,7 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
 
-        Background = new SolidColorBrush(Color.Parse("#F0F0F0"));
+        Background = new SolidColorBrush(Color.Parse("#FAFAFA"));
         DataContext = mainWindowViewModel;
         this.AttachDevTools();
 
