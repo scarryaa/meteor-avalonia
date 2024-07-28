@@ -43,6 +43,21 @@ public partial class EditorControl : UserControl
         SetupEventHandlers();
     }
 
+    public double GetScrollPositionX()
+    {
+        return _scrollViewer.Offset.X;
+    }
+
+    public double GetScrollPositionY()
+    {
+        return _scrollViewer.Offset.Y;
+    }
+
+    public void SetScrollPosition(double x, double y)
+    {
+        _scrollViewer.Offset = new Vector(x, y);
+    }
+
     private void InitializeComponent()
     {
         _contentControl = new EditorContentControl(_viewModel, _textMeasurer, _config);

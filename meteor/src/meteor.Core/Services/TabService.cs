@@ -10,6 +10,7 @@ public class TabService : ITabService
 {
     private readonly ITabViewModelFactory _tabViewModelFactory;
     private readonly List<ITabViewModel> _tabHistory = new();
+    private ITabViewModel _previousActiveTab;
 
     public TabService(ITabViewModelFactory tabViewModelFactory)
     {
@@ -34,7 +35,12 @@ public class TabService : ITabService
 
         return tabViewModel;
     }
-    
+
+    public ITabViewModel GetPreviousActiveTab()
+    {
+        return _previousActiveTab;
+    }
+
     public void RemoveTab(ITabViewModel? tab)
     {
         if (Tabs.Remove(tab))
@@ -57,7 +63,11 @@ public class TabService : ITabService
     {
         if (tab != null && tab != ActiveTab && Tabs.Contains(tab))
         {
-            if (ActiveTab != null) ActiveTab.IsActive = false;
+            if (ActiveTab != null)
+            {
+                ActiveTab.IsActive = false;
+                _previousActiveTab = ActiveTab;
+            }
             ActiveTab = tab;
             ActiveTab.IsActive = true;
 
@@ -68,6 +78,7 @@ public class TabService : ITabService
         }
         else if (tab == null)
         {
+            _previousActiveTab = ActiveTab;
             ActiveTab = null;
         }
     }

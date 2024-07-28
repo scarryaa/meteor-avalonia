@@ -10,6 +10,10 @@ public interface ITabViewModel : INotifyPropertyChanged
     string Content { get; set; }
     bool IsModified { get; set; }
     bool IsActive { get; set; }
+    double ScrollPositionX { get; set; }
+    double ScrollPositionY { get; set; }
+
+    void SaveScrollPosition(double positionX, double positionY);
     bool IsTemporary { get; }
     public void SetOriginalContent(string content);
     string FileName { get; }

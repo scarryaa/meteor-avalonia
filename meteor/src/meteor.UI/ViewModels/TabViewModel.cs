@@ -24,6 +24,9 @@ public class TabViewModel : ITabViewModel
     public ISolidColorBrush CloseButtonBackground { get; set; }
     public ICommand CloseTabCommand { get; set; }
 
+    public double ScrollPositionX { get; set; }
+    public double ScrollPositionY { get; set; }
+    
     public string FilePath
     {
         get => _filePath;
@@ -93,6 +96,12 @@ public class TabViewModel : ITabViewModel
         CloseTabCommand = configuration.GetCloseTabCommand();
 
         EditorViewModel.ContentChanged += OnEditorContentChanged;
+    }
+
+    public void SaveScrollPosition(double x, double y)
+    {
+        ScrollPositionX = x;
+        ScrollPositionY = y;
     }
 
     public void LoadContent(string content)

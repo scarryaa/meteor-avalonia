@@ -13,6 +13,7 @@ public interface ITabService
         string initialContent = "");
     void RemoveTab(ITabViewModel? tab);
     void SetActiveTab(ITabViewModel? tab);
+    ITabViewModel GetPreviousActiveTab();
 
     event EventHandler<ITabViewModel?> TabAdded;
     event EventHandler<ITabViewModel?> TabRemoved;

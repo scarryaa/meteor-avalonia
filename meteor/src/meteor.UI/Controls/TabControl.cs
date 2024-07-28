@@ -22,6 +22,7 @@ public class TabControl : UserControl
     private readonly ContentControl _contentArea;
     private bool _isActiveTabChanging;
     private ITabViewModel _lastSelectedTab;
+    private bool _isUpdatingActiveTab;
 
     public TabControl(ITabService tabService, IScrollManager scrollManager, IEditorLayoutManager layoutManager,
         IEditorInputHandler inputHandler, IPointerEventHandler pointerEventHandler, ITextMeasurer textMeasurer,
@@ -62,12 +63,10 @@ public class TabControl : UserControl
     {
         _tabService.TabAdded += (_, newTab) =>
         {
-            UpdateTabs();
             _tabService.SetActiveTab(newTab);
         };
         _tabService.TabRemoved += (_, _) =>
         {
-            UpdateTabs();
             if (_tabService.Tabs.Count == 0) _tabService.SetActiveTab(null);
         };
         _tabService.ActiveTabChanged += (_, _) => UpdateActiveTab();
@@ -93,30 +92,16 @@ public class TabControl : UserControl
         };
     }
 
-    private void UpdateTabs()
-    {
-        Dispatcher.UIThread.InvokeAsync(() =>
-        {
-            _tabStrip.ItemsSource = null;
-            _tabStrip.ItemsSource = _tabService.Tabs;
-
-            if (_tabService.Tabs.Count > 0)
-            {
-                _tabStrip.SelectedItem = _tabService.ActiveTab;
-                UpdateActiveTab();
-            }
-            else
-            {
-                _contentArea.Content = null;
-            }
-        });
-    }
-
     private void UpdateActiveTab()
     {
-        Dispatcher.UIThread.InvokeAsync(() =>
+        if (_isUpdatingActiveTab) return;
+        _isUpdatingActiveTab = true;
+
+        try
         {
+            var previousTab = _tabService.GetPreviousActiveTab();
             StoreCurrentTabContent();
+            SaveCurrentTabScrollPosition(previousTab);
 
             var activeTab = _tabService.ActiveTab;
             if (_tabStrip.SelectedItem != activeTab) _tabStrip.SelectedItem = activeTab;
@@ -128,13 +113,31 @@ public class TabControl : UserControl
                 {
                     activeTab.EditorViewModel.LoadContent(activeTab.Content);
                     _contentArea.Content = editorControl;
+                    RestoreTabScrollPosition(activeTab);
                 }
             }
             else
             {
                 _contentArea.Content = null;
             }
-        });
+        }
+        finally
+        {
+            _isUpdatingActiveTab = false;
+        }
+    }
+
+    private void SaveCurrentTabScrollPosition(ITabViewModel previousTab)
+    {
+        if (_contentArea.Content is EditorControl editorControl)
+            if (previousTab != null)
+                previousTab.SaveScrollPosition(editorControl.GetScrollPositionX(), editorControl.GetScrollPositionY());
+    }
+
+    private void RestoreTabScrollPosition(ITabViewModel tab)
+    {
+        if (_contentArea.Content is EditorControl editorControl)
+            editorControl.SetScrollPosition(tab.ScrollPositionX, tab.ScrollPositionY);
     }
 
     private void StoreCurrentTabContent()
