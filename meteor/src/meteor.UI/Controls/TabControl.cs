@@ -67,7 +67,11 @@ public class TabControl : UserControl
         };
         _tabService.TabRemoved += (_, _) =>
         {
-            if (_tabService.Tabs.Count == 0) _tabService.SetActiveTab(null);
+            if (_tabService.Tabs.Count == 0)
+            {
+                _contentArea.Content = null;
+                _tabService.SetActiveTab(null);
+            }
         };
         _tabService.ActiveTabChanged += (_, _) => UpdateActiveTab();
         
