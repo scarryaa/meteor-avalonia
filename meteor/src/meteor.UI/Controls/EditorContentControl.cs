@@ -233,7 +233,7 @@ public class EditorContentControl : Control
         while ((index = text.IndexOf('\n', index + 1)) != -1) yield return index;
     }
 
-    private void RenderSelection(DrawingContext context, int startLine, string line, double lineY)
+    private void RenderSelection(DrawingContext context, int lineIndex, string line, double lineY)
     {
         if (!_viewModel.HasSelection()) return;
 
@@ -243,13 +243,16 @@ public class EditorContentControl : Control
         var selectionStartLine = _viewModel.TextBufferService.GetLineIndexFromCharacterIndex(selectionStart);
         var selectionEndLine = _viewModel.TextBufferService.GetLineIndexFromCharacterIndex(selectionEnd);
 
-        if (startLine < selectionStartLine || startLine > selectionEndLine) return;
+        if (lineIndex < selectionStartLine || lineIndex > selectionEndLine) return;
 
-        var lineStartOffset = _viewModel.GetLineStartOffset(startLine);
+        var lineStartOffset = _viewModel.GetLineStartOffset(lineIndex);
 
         var selectionStartInLine = Math.Max(0, selectionStart - lineStartOffset);
         var selectionEndInLine = Math.Min(line.Length, selectionEnd - lineStartOffset);
 
+        if (selectionStartInLine < 0) selectionStartInLine = 0;
+        if (selectionEndInLine > line.Length) selectionEndInLine = line.Length;
+        
         if (line.Length == 0)
         {
             context.DrawRectangle(
@@ -260,11 +263,11 @@ public class EditorContentControl : Control
             return;
         }
 
-        if (startLine == selectionStartLine && startLine == selectionEndLine)
+        if (lineIndex == selectionStartLine && lineIndex == selectionEndLine)
             DrawSelectionRectangle(context, line, selectionStartInLine, selectionEndInLine, lineY);
-        else if (startLine == selectionStartLine)
+        else if (lineIndex == selectionStartLine)
             DrawSelectionRectangle(context, line, selectionStartInLine, line.Length, lineY);
-        else if (startLine == selectionEndLine)
+        else if (lineIndex == selectionEndLine)
             DrawSelectionRectangle(context, line, 0, selectionEndInLine, lineY);
         else
             DrawSelectionRectangle(context, line, 0, line.Length, lineY);
@@ -272,13 +275,21 @@ public class EditorContentControl : Control
 
     private void DrawSelectionRectangle(DrawingContext context, string line, int start, int end, double lineY)
     {
+        start = Math.Max(0, Math.Min(start, line.Length));
+        end = Math.Max(0, Math.Min(end, line.Length));
+
+        if (start > end)
+        {
+            (start, end) = (end, start);
+        }
+
         var startX = MeasureTextWidth(line.Substring(0, start));
         var endX = MeasureTextWidth(line.Substring(0, end));
 
         context.DrawRectangle(
             _avaloniaConfig.SelectionBrush,
             null,
-            new Rect(startX, lineY, endX - startX, _lineHeight)
+            new Rect(startX, lineY, Math.Max(endX - startX, 1), _lineHeight)
         );
     }
 

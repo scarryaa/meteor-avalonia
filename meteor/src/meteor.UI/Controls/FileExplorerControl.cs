@@ -327,7 +327,8 @@ public class FileExplorerControl : UserControl
         iconGeometry.Transform = new MatrixTransform(Matrix.CreateTranslation(iconX + 1, iconY));
         context.DrawGeometry(iconBrush, null, iconGeometry);
 
-        var chevronBrush = new SolidColorBrush(Color.FromRgb(85, 85, 85));
+        var chevronBrush = new SolidColorBrush(Color.FromRgb(65, 65, 65));
+        var chevronSize = 10;
         if (item.IsDirectory)
         {
             var chevronChar = item.IsExpanded ? "\uf078" : "\uf054"; // chevron-down : chevron-right
@@ -336,12 +337,12 @@ public class FileExplorerControl : UserControl
                 CultureInfo.CurrentCulture,
                 FlowDirection.LeftToRight,
                 typeface,
-                12,
+                chevronSize,
                 chevronBrush
             ).BuildGeometry(new Point(0, 0));
 
             var chevronX = iconX - iconSize;
-            var chevronY = y + (_itemHeight - 12) / 2;
+            var chevronY = y + (_itemHeight - chevronSize) / 2;
 
             chevronGeometry.Transform = new MatrixTransform(Matrix.CreateTranslation(chevronX, chevronY));
             context.DrawGeometry(chevronBrush, null, chevronGeometry);
