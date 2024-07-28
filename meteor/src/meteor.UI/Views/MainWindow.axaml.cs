@@ -9,6 +9,7 @@ using meteor.Core.Interfaces.Services.Editor;
 using meteor.Core.Models;
 using meteor.Core.Services;
 using meteor.UI.Controls;
+using meteor.UI.Factories;
 using meteor.UI.Interfaces.Services.Editor;
 using meteor.UI.Services;
 using meteor.UI.ViewModels;
@@ -44,8 +45,9 @@ public partial class MainWindow : Window
         _config = config;
         _textMeasurer = textMeasurer;
 
-        var tabControl = new TabControl(tabService, scrollManager, layoutManager, inputHandler,
-            pointerEventHandler, textMeasurer, config);
+        var editorControlFactory = new EditorControlFactory(scrollManager, layoutManager, inputHandler,
+            pointerEventHandler, _textMeasurer, _config);
+        var tabControl = new TabControl(tabService, editorControlFactory);
 
         var fileExplorerSidebar = new FileExplorerControl();
         fileExplorerSidebar.FileSelected += OnFileSelected;
