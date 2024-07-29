@@ -183,7 +183,10 @@ public partial class EditorControl : UserControl
     protected override void OnKeyDown(KeyEventArgs e)
     {
         base.OnKeyDown(e);
-        _inputHandler.HandleKeyDown(_viewModel, new KeyDownEventArgsAdapter(e));
+        var args = new KeyDownEventArgsAdapter(e);
+        _inputHandler.HandleKeyDown(_viewModel, args);
+
+        if (e.Key == Key.Tab) e.Handled = args.Handled;
         _contentControl?.InvalidateVisual();
         _contentControl?.InvalidateMeasure();
         _gutterControl?.InvalidateVisual();
