@@ -22,8 +22,7 @@ public class EditorContentControl : Control
     private readonly IEditorConfig _config;
     private readonly AvaloniaEditorConfig _avaloniaConfig;
     private readonly ISyntaxHighlighter _syntaxHighlighter;
-    
-    private readonly double _lineHeight;
+
     private Size _totalSize;
     private readonly List<int> _lineStartOffsets = new();
     private int _documentVersion;
@@ -31,6 +30,9 @@ public class EditorContentControl : Control
 
     public Vector Offset { get; set; }
     public Size Viewport { get; set; }
+    public event EventHandler<Point> CursorPositionChanged;
+
+    public double LineHeight { get; }
 
     public EditorContentControl(IEditorViewModel viewModel, ITextMeasurer textMeasurer, IEditorConfig config,
         ISyntaxHighlighter syntaxHighlighter)
@@ -40,9 +42,10 @@ public class EditorContentControl : Control
         _config = config;
         _avaloniaConfig = new AvaloniaEditorConfig();
         _syntaxHighlighter = syntaxHighlighter;
-        
-        _lineHeight = _textMeasurer.GetLineHeight(_config.FontFamily, _config.FontSize) * _config.LineHeightMultiplier;
 
+        LineHeight = _textMeasurer.GetLineHeight(_config.FontFamily, _config.FontSize) * _config.LineHeightMultiplier;
+        ClipToBounds = false;
+        
         _viewModel.ContentChanged += (_, _) =>
         {
             UpdateLineStartOffsets();
@@ -61,7 +64,7 @@ public class EditorContentControl : Control
     {
         var lineCount = _viewModel.GetLineCount();
         var maxLineWidth = _viewModel.GetMaxLineWidth();
-        _totalSize = new Size(maxLineWidth + 50, lineCount * _lineHeight + _lineHeight * 2);
+        _totalSize = new Size(maxLineWidth + 50, lineCount * LineHeight + LineHeight * 2);
     }
 
     public override void Render(DrawingContext context)
@@ -73,7 +76,7 @@ public class EditorContentControl : Control
         var lines = visibleContent.Split('\n');
 
         var textHeight = _textMeasurer.MeasureText("Xypg", _config.FontFamily, _config.FontSize).Height;
-        var verticalOffset = (_lineHeight - textHeight) / 2;
+        var verticalOffset = (LineHeight - textHeight) / 2;
 
         var currentLine = _viewModel.GetCursorLine();
 
@@ -82,12 +85,59 @@ public class EditorContentControl : Control
         RenderLines(context, lines, startLine, currentLine, verticalOffset);
 
         RenderCursor(context, currentLine, _viewModel.GetCursorColumn());
+
+        if (_viewModel.IsCompletionActive) RenderCompletionOverlay(context);
+    }
+
+    private void RenderCompletionOverlay(DrawingContext context)
+    {
+        var cursorPosition = _viewModel.GetCursorPosition();
+        var completionItems = _viewModel.CompletionItems;
+        var selectedIndex = _viewModel.SelectedCompletionIndex;
+
+        // Calculate the position for the completion overlay
+        var overlayX = cursorPosition.X;
+        var overlayY = cursorPosition.Y + LineHeight;
+
+        // Create a background for the completion overlay
+        var backgroundBrush = new SolidColorBrush(Color.FromRgb(240, 240, 240));
+        var borderBrush = new SolidColorBrush(Color.FromRgb(200, 200, 200));
+        var itemHeight = 20;
+        var overlayWidth = 200;
+        var overlayHeight = completionItems.Count * itemHeight;
+
+        context.DrawRectangle(backgroundBrush, new Pen(borderBrush),
+            new Rect(overlayX, overlayY, overlayWidth, overlayHeight));
+
+        // Render completion items
+        for (var i = 0; i < completionItems.Count; i++)
+        {
+            var item = completionItems[i];
+            var itemY = overlayY + i * itemHeight;
+
+            if (i == selectedIndex)
+            {
+                var selectionBrush = new SolidColorBrush(Color.FromRgb(173, 214, 255));
+                context.DrawRectangle(selectionBrush, null, new Rect(overlayX, itemY, overlayWidth, itemHeight));
+            }
+
+            var textBrush = new SolidColorBrush(Color.FromRgb(0, 0, 0));
+            var formattedText = new FormattedText(
+                item.Text,
+                CultureInfo.CurrentCulture,
+                FlowDirection.LeftToRight,
+                new Typeface(_config.FontFamily),
+                _config.FontSize,
+                textBrush);
+
+            context.DrawText(formattedText, new Point(overlayX + 5, itemY + (itemHeight - formattedText.Height) / 2));
+        }
     }
 
     private (int startLine, int endLine) CalculateVisibleLineRange()
     {
-        var startLine = Math.Max(0, (int)(Offset.Y / _lineHeight));
-        var visibleLines = (int)Math.Ceiling(Viewport.Height / _lineHeight) + 1;
+        var startLine = Math.Max(0, (int)(Offset.Y / LineHeight));
+        var visibleLines = (int)Math.Ceiling(Viewport.Height / LineHeight) + 1;
         var endLine = Math.Min(_viewModel.GetLineCount() - 1, startLine + visibleLines);
 
         var bufferLines = 10;
@@ -105,12 +155,12 @@ public class EditorContentControl : Control
             var line = lines[i];
             if (line == null) continue;
 
-            var lineY = (startLine + i) * _lineHeight;
+            var lineY = (startLine + i) * LineHeight;
 
             if (startLine + i == currentLine)
             {
                 context.DrawRectangle(_avaloniaConfig.CurrentLineHighlightBrush, null,
-                    new Rect(0, lineY, Bounds.Width, _lineHeight));
+                    new Rect(0, lineY, Bounds.Width, LineHeight));
             }
 
             RenderSelection(context, startLine + i, line, lineY);
@@ -160,7 +210,7 @@ public class EditorContentControl : Control
     
     private void RenderCursor(DrawingContext context, int cursorLine, int cursorColumn)
     {
-        var cursorY = cursorLine * _lineHeight;
+        var cursorY = cursorLine * LineHeight;
 
         var lineContent = _viewModel.GetContentSlice(cursorLine, cursorLine);
 
@@ -183,7 +233,7 @@ public class EditorContentControl : Control
         context.DrawLine(
             new Pen(_avaloniaConfig.TextBrush),
             new Point(cursorX, cursorY),
-            new Point(cursorX, cursorY + _lineHeight)
+            new Point(cursorX, cursorY + LineHeight)
         );
     }
 
@@ -294,7 +344,7 @@ public class EditorContentControl : Control
             context.DrawRectangle(
                 _avaloniaConfig.SelectionBrush,
                 null,
-                new Rect(0, lineY, 10, _lineHeight)
+                new Rect(0, lineY, 10, LineHeight)
             );
             return;
         }
@@ -325,7 +375,7 @@ public class EditorContentControl : Control
         context.DrawRectangle(
             _avaloniaConfig.SelectionBrush,
             null,
-            new Rect(startX, lineY, Math.Max(endX - startX, 1), _lineHeight)
+            new Rect(startX, lineY, Math.Max(endX - startX, 1), LineHeight)
         );
     }
 

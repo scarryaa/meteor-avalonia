@@ -3,6 +3,7 @@ using meteor.Core.Interfaces.Services;
 using meteor.Core.Interfaces.ViewModels;
 using meteor.Core.Models;
 using meteor.Core.Models.EventArgs;
+using meteor.Core.Services;
 
 namespace meteor.UI.ViewModels;
 
@@ -15,6 +16,7 @@ public class EditorViewModel : IEditorViewModel
     private readonly ITextMeasurer _textMeasurer;
     private string _content;
     private int _lastSyncedVersion;
+    private readonly ICompletionProvider _completionProvider;
 
     public event EventHandler<ContentChangeEventArgs>? ContentChanged;
     public event EventHandler? SelectionChanged;
@@ -25,7 +27,8 @@ public class EditorViewModel : IEditorViewModel
         IInputManager inputManager,
         ISelectionManager selectionManager,
         IEditorConfig config,
-        ITextMeasurer textMeasurer)
+        ITextMeasurer textMeasurer,
+        ICompletionProvider completionProvider)
     {
         TextBufferService = textBufferService;
         _cursorManager = cursorManager;
@@ -33,6 +36,7 @@ public class EditorViewModel : IEditorViewModel
         _selectionManager = selectionManager;
         _config = config;
         _textMeasurer = textMeasurer;
+        _completionProvider = completionProvider;
 
         _cursorManager.CursorPositionChanged += (_, _) => NotifyContentChanged();
         _selectionManager.SelectionChanged += (_, _) => SelectionChanged?.Invoke(this, EventArgs.Empty);
@@ -41,6 +45,55 @@ public class EditorViewModel : IEditorViewModel
         _content = TextBufferService.GetContentSlice(0, TextBufferService.GetLength());
     }
 
+    public List<CompletionItem> CompletionItems { get; private set; }
+
+    public bool IsCompletionActive => CompletionItems != null && CompletionItems.Count > 0;
+
+    public int SelectedCompletionIndex { get; set; }
+
+    public void TriggerCompletion()
+    {
+        CompletionItems = _completionProvider.GetCompletions(CursorPosition);
+        SelectedCompletionIndex = 0;
+    }
+
+    public void ApplySelectedCompletion()
+    {
+        if (IsCompletionActive && SelectedCompletionIndex >= 0 && SelectedCompletionIndex < CompletionItems.Count)
+        {
+            var selectedItem = CompletionItems[SelectedCompletionIndex];
+            ApplyCompletion(selectedItem);
+        }
+    }
+
+    private void ApplyCompletion(CompletionItem item)
+    {
+        var wordStart = FindWordStart(Content, CursorPosition);
+        var wordLength = CursorPosition - wordStart;
+
+        TextBufferService.Replace(wordStart, wordLength, item.Text);
+        SetCursorPosition(wordStart + item.Text.Length);
+
+        CompletionItems = null;
+    }
+
+    private int FindWordStart(string text, int position)
+    {
+        while (position > 0 && char.IsLetterOrDigit(text[position - 1])) position--;
+        return position;
+    }
+
+    public void MoveCompletionSelection(int delta)
+    {
+        if (IsCompletionActive)
+            SelectedCompletionIndex = (SelectedCompletionIndex + delta + CompletionItems.Count) % CompletionItems.Count;
+    }
+
+    public void CloseCompletion()
+    {
+        CompletionItems = null;
+    }
+    
     public ITextBufferService TextBufferService { get; }
 
     public int SelectionStart => _selectionManager.CurrentSelection.Start;
@@ -92,6 +145,21 @@ public class EditorViewModel : IEditorViewModel
         Content = content;
     }
 
+    public Point GetCursorPosition()
+    {
+        var cursorLine = _cursorManager.GetCursorLine();
+        var cursorColumn = _cursorManager.GetCursorColumn();
+        var lineContent = TextBufferService.GetContentSlice(cursorLine, cursorLine);
+
+        cursorColumn = Math.Min(cursorColumn, lineContent.Length);
+        var textUpToCursor = lineContent.Substring(0, cursorColumn);
+
+        var cursorX = _textMeasurer.MeasureText(textUpToCursor, _config.FontFamily, _config.FontSize).Width;
+        var cursorY = cursorLine * 20;
+
+        return new Point(cursorX, cursorY);
+    }
+    
     public int GetCursorLine()
     {
         return _cursorManager.GetCursorLine();

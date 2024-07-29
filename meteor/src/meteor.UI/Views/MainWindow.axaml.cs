@@ -39,6 +39,7 @@ public partial class MainWindow : Window
 
         Background = new SolidColorBrush(Color.Parse("#FAFAFA"));
         DataContext = mainWindowViewModel;
+        ClipToBounds = false;
         this.AttachDevTools();
 
         _tabService = tabService;
@@ -75,6 +76,7 @@ public partial class MainWindow : Window
         horizontalSplit.Children.Add(tabControl);
 
         Content = horizontalSplit;
+        horizontalSplit.ClipToBounds = false;
     }
 
     private void OnFileSelected(object? sender, string? filePath)
@@ -122,8 +124,11 @@ public partial class MainWindow : Window
             inputManager,
             selectionManager,
             new EditorConfig(),
-            _textMeasurer
+            _textMeasurer,
+            new CompletionProvider(textBufferService)
         );
+        inputManager.SetViewModel(editorViewModel);
+        
         var tabConfig = new TabConfig(_tabService);
         _tabService.AddTab(editorViewModel, tabConfig, "Untitled", string.Empty);
     }
@@ -143,14 +148,18 @@ public partial class MainWindow : Window
         var scrollManager = new ScrollManager(editorConfig, _textMeasurer);
         var inputManager = new InputManager(textBufferService, cursorManager, clipboardManager, selectionManager,
             textAnalysisService, scrollManager);
+
         var editorViewModel = new EditorViewModel(
             textBufferService,
             cursorManager,
             inputManager,
             selectionManager,
             new EditorConfig(),
-            _textMeasurer
+            _textMeasurer,
+            new CompletionProvider(textBufferService)
         );
+        inputManager.SetViewModel(editorViewModel);
+        
         var tabConfig = new TabConfig(_tabService);
         var newTab = _tabService.AddTab(editorViewModel, tabConfig, fileName, filePath, fileContent);
 

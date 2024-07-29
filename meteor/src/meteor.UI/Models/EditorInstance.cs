@@ -32,6 +32,9 @@ public class EditorInstance : IEditorInstance
             inputManager,
             selectionManager,
             config,
-            textMeasurer);
+            textMeasurer,
+            new CompletionProvider(textBufferService));
+
+        inputManager.SetViewModel(EditorViewModel);
     }
 }

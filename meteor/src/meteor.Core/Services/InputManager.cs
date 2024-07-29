@@ -1,5 +1,6 @@
 using meteor.Core.Enums;
 using meteor.Core.Interfaces.Services;
+using meteor.Core.Interfaces.ViewModels;
 using meteor.Core.Models.EventArgs;
 
 namespace meteor.Core.Services;
@@ -18,6 +19,7 @@ public class InputManager : IInputManager
     private bool _isAltPressed;
     private bool _isSelectionInProgress;
     private (int Start, int End) _lastSelection;
+    private IEditorViewModel _viewModel;
 
     public InputManager(
         ITextBufferService textBufferService,
@@ -35,8 +37,26 @@ public class InputManager : IInputManager
         _scrollManager = scrollManager ?? throw new ArgumentNullException(nameof(scrollManager));
     }
 
+    public void SetViewModel(IEditorViewModel viewModel)
+    {
+        _viewModel = viewModel;
+    }
+
     public async Task HandleKeyDown(KeyEventArgs e)
     {
+        if (_viewModel.IsCompletionActive)
+        {
+            HandleCompletionKeyDown(e);
+            if (e.Handled) return;
+        }
+
+        if (e.Key == Key.Space && e.Modifiers == KeyModifiers.Control)
+        {
+            Console.WriteLine("Ctrl+Space triggered completion");
+            _viewModel.TriggerCompletion();
+            e.Handled = true;
+        }
+        
         try
         {
             _isClipboardOperationHandled = false;
@@ -146,6 +166,29 @@ public class InputManager : IInputManager
         }
     }
 
+    private void HandleCompletionKeyDown(KeyEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case Key.Up:
+                _viewModel.MoveCompletionSelection(-1);
+                e.Handled = true;
+                break;
+            case Key.Down:
+                _viewModel.MoveCompletionSelection(1);
+                e.Handled = true;
+                break;
+            case Key.Enter:
+                _viewModel.ApplySelectedCompletion();
+                e.Handled = true;
+                break;
+            case Key.Escape:
+                _viewModel.CloseCompletion();
+                e.Handled = true;
+                break;
+        }
+    }
+
     public void HandleTextInput(TextInputEventArgs e)
     {
         if (_isClipboardOperationHandled || _isControlOrMetaPressed)
@@ -163,6 +206,8 @@ public class InputManager : IInputManager
             _textAnalysisService.ResetDesiredColumn();
             e.Handled = true;
         }
+
+        if (char.IsLetterOrDigit(e.Text[0]) && _viewModel.IsCompletionActive) _viewModel.TriggerCompletion();
 
         _lastSelection = (0, 0);
     }
