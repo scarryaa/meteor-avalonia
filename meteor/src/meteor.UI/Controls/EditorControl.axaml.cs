@@ -6,6 +6,7 @@ using meteor.Core.Interfaces.Config;
 using meteor.Core.Interfaces.Services;
 using meteor.Core.Interfaces.Services.Editor;
 using meteor.Core.Interfaces.ViewModels;
+using meteor.Core.Services;
 using meteor.UI.Adapters;
 using meteor.UI.Interfaces.Services.Editor;
 using Point = meteor.Core.Models.Point;
@@ -60,7 +61,7 @@ public partial class EditorControl : UserControl
 
     private void InitializeComponent()
     {
-        _contentControl = new EditorContentControl(_viewModel, _textMeasurer, _config);
+        _contentControl = new EditorContentControl(_viewModel, _textMeasurer, _config, new SyntaxHighlighter());
         _gutterControl = new GutterControl(_viewModel, _textMeasurer, _config);
         _scrollViewer = new ScrollViewer
         {

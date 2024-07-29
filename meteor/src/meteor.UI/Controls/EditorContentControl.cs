@@ -7,8 +7,10 @@ using meteor.Core.Interfaces.Services;
 using meteor.Core.Interfaces.ViewModels;
 using meteor.Core.Models;
 using meteor.UI.Config;
+using Color = Avalonia.Media.Color;
 using Point = Avalonia.Point;
 using Size = Avalonia.Size;
+using SolidColorBrush = Avalonia.Media.SolidColorBrush;
 using Vector = Avalonia.Vector;
 
 namespace meteor.UI.Controls;
@@ -19,6 +21,7 @@ public class EditorContentControl : Control
     private readonly ITextMeasurer _textMeasurer;
     private readonly IEditorConfig _config;
     private readonly AvaloniaEditorConfig _avaloniaConfig;
+    private readonly ISyntaxHighlighter _syntaxHighlighter;
     
     private readonly double _lineHeight;
     private Size _totalSize;
@@ -29,12 +32,14 @@ public class EditorContentControl : Control
     public Vector Offset { get; set; }
     public Size Viewport { get; set; }
 
-    public EditorContentControl(IEditorViewModel viewModel, ITextMeasurer textMeasurer, IEditorConfig config)
+    public EditorContentControl(IEditorViewModel viewModel, ITextMeasurer textMeasurer, IEditorConfig config,
+        ISyntaxHighlighter syntaxHighlighter)
     {
         _viewModel = viewModel;
         _textMeasurer = textMeasurer;
         _config = config;
         _avaloniaConfig = new AvaloniaEditorConfig();
+        _syntaxHighlighter = syntaxHighlighter;
         
         _lineHeight = _textMeasurer.GetLineHeight(_config.FontFamily, _config.FontSize) * _config.LineHeightMultiplier;
 
@@ -110,18 +115,49 @@ public class EditorContentControl : Control
 
             RenderSelection(context, startLine + i, line, lineY);
 
-            var formattedText = new FormattedText(
-                line,
-                CultureInfo.CurrentCulture,
-                FlowDirection.LeftToRight,
-                _avaloniaConfig.Typeface,
-                _config.FontSize,
-                _avaloniaConfig.TextBrush);
+            // Apply syntax highlighting
+            var highlightedSegments = _syntaxHighlighter.HighlightSyntax(line, "csharp");
+            var currentX = 0.0;
 
-            context.DrawText(formattedText, new Point(0, lineY + verticalOffset));
+            foreach (var segment in highlightedSegments)
+            {
+                var formattedText = new FormattedText(
+                    segment.Text,
+                    CultureInfo.CurrentCulture,
+                    FlowDirection.LeftToRight,
+                    _avaloniaConfig.Typeface,
+                    _config.FontSize,
+                    GetBrushForStyle(segment.Style));
+
+                context.DrawText(formattedText, new Point(currentX, lineY + verticalOffset));
+                currentX += formattedText.WidthIncludingTrailingWhitespace;
+            }
         }
     }
 
+    private IBrush GetBrushForStyle(string style)
+    {
+        return style switch
+        {
+            "keyword" => new SolidColorBrush(Color.FromRgb(0, 0, 205)), // Medium Blue
+            "preprocessor" => new SolidColorBrush(Color.FromRgb(138, 43, 226)), // Blue Violet
+            "comment" => new SolidColorBrush(Color.FromRgb(34, 139, 34)), // Forest Green
+            "xmldoc" => new SolidColorBrush(Color.FromRgb(0, 128, 128)), // Teal
+            "attribute" => new SolidColorBrush(Color.FromRgb(255, 69, 0)), // Orange Red
+            "method" => new SolidColorBrush(Color.FromRgb(70, 130, 180)), // Steel Blue
+            "string" => new SolidColorBrush(Color.FromRgb(220, 20, 60)), // Crimson
+            "number" => new SolidColorBrush(Color.FromRgb(0, 128, 128)), // Teal
+            "type" => new SolidColorBrush(Color.FromRgb(72, 61, 139)), // Dark Slate Blue
+            "namespace" => new SolidColorBrush(Color.FromRgb(0, 0, 139)), // Dark Blue
+            "linq" => new SolidColorBrush(Color.FromRgb(0, 0, 205)), // Medium Blue
+            "operator" => new SolidColorBrush(Color.FromRgb(0, 0, 0)), // Black
+            "lambda" => new SolidColorBrush(Color.FromRgb(0, 0, 205)), // Medium Blue
+            "whitespace" => new SolidColorBrush(Color.FromRgb(255, 255, 255)), // White
+            _ => _avaloniaConfig.TextBrush
+        };
+    }
+
+    
     private void RenderCursor(DrawingContext context, int cursorLine, int cursorColumn)
     {
         var cursorY = cursorLine * _lineHeight;
