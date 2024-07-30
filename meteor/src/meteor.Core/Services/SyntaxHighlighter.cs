@@ -19,15 +19,17 @@ public class SyntaxHighlighter : ISyntaxHighlighter
 
     private void InitializeCSharpRules()
     {
-        _languageRules["csharp"] = new Lazy<List<SyntaxRule>>(() => new List<SyntaxRule>
-        {
+        _languageRules["csharp"] = new Lazy<List<SyntaxRule>>(() =>
+        [
             new(
                 new Regex(
                     @"\b(abstract|as|base|bool|break|byte|case|catch|char|checked|class|const|continue|decimal|default|delegate|do|double|else|enum|event|explicit|extern|false|finally|fixed|float|for|foreach|goto|if|implicit|in|int|interface|internal|is|lock|long|namespace|new|null|object|operator|out|override|params|private|protected|public|readonly|ref|return|sbyte|sealed|short|sizeof|stackalloc|static|string|struct|switch|this|throw|true|try|typeof|uint|ulong|unchecked|unsafe|ushort|using|virtual|void|volatile|while|var|dynamic|async|await|yield)\b",
                     RegexOptions.Compiled | RegexOptions.IgnoreCase), "keyword"),
+
             new(
                 new Regex(@"^\s*#(if|else|elif|endif|define|undef|warning|error|line|region|endregion|pragma).*?$",
                     RegexOptions.Multiline | RegexOptions.Compiled), "preprocessor"),
+
             new(new Regex(@"//.*?$", RegexOptions.Multiline | RegexOptions.Compiled), "comment"),
             new(new Regex(@"/\*[\s\S]*?\*/", RegexOptions.Compiled), "comment"),
             new(new Regex(@"///.*?$", RegexOptions.Multiline | RegexOptions.Compiled), "xmldoc"),
@@ -38,20 +40,22 @@ public class SyntaxHighlighter : ISyntaxHighlighter
             new(new Regex(@"'\\.'|'[^\\]'", RegexOptions.Compiled), "string"),
             new(new Regex(@"\b(0x[a-fA-F0-9]+|0b[01]+|\d+(\.\d+)?([eE][+-]?\d+)?[fFdDmM]?)\b", RegexOptions.Compiled),
                 "number"),
+
             new(new Regex(@"\b([a-zA-Z]\w*\.)+", RegexOptions.Compiled), "namespace"),
             new(new Regex(@"\b[A-Z]\w*\b", RegexOptions.Compiled), "type"),
             new(
                 new Regex(@"\b(from|where|select|group|into|orderby|join|let|in|on|equals|by|ascending|descending)\b",
                     RegexOptions.Compiled), "linq"),
+
             new(new Regex(@"\?\.", RegexOptions.Compiled), "operator"),
             new(new Regex(@"=>\s*{|\S+\s*=>\s*\S+", RegexOptions.Compiled), "lambda")
-        });
+        ]);
     }
 
     public List<HighlightedSegment> HighlightSyntax(string text, string language)
     {
         if (!_languageRules.TryGetValue(language, out var lazyRules))
-            return new List<HighlightedSegment> { new(text, "default") };
+            return [new HighlightedSegment(text, "default")];
 
         var rules = lazyRules.Value;
         var segments = new List<(int Start, int End, string Style)>();

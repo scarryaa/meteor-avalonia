@@ -4,5 +4,6 @@ namespace meteor.Core.Interfaces.Services;
 
 public interface ICompletionProvider
 {
-    List<CompletionItem> GetCompletions(int cursorPosition);
+    Task<IEnumerable<CompletionItem>> GetCompletionsAsync(int cursorPosition,
+        CancellationToken cancellationToken = default);
 }

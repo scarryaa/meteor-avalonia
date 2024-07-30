@@ -20,7 +20,7 @@ public class TextBufferService : ITextBufferService
         _cachedMaxLineWidth = -1;
         _cachedFontFamily = config.FontFamily;
         _cachedFontSize = config.FontSize > 0 ? config.FontSize : 13;
-        _lineStartIndices = new List<int> { 0 };
+        _lineStartIndices = [0];
         _documentLength = 0;
         _lineWidths = new Dictionary<int, double>();
         TextBuffer = textBuffer;

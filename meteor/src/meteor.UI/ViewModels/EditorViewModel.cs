@@ -20,6 +20,7 @@ public class EditorViewModel : IEditorViewModel
 
     public event EventHandler<ContentChangeEventArgs>? ContentChanged;
     public event EventHandler? SelectionChanged;
+    public event EventHandler<int>? CompletionIndexChanged;
 
     public EditorViewModel(
         ITextBufferService textBufferService,
@@ -47,19 +48,20 @@ public class EditorViewModel : IEditorViewModel
 
     public List<CompletionItem> CompletionItems { get; private set; }
 
-    public bool IsCompletionActive => CompletionItems != null && CompletionItems.Count > 0;
+    public bool IsCompletionActive => CompletionItems != null && CompletionItems.Any();
 
     public int SelectedCompletionIndex { get; set; }
 
-    public void TriggerCompletion()
+    public async Task TriggerCompletionAsync()
     {
-        CompletionItems = _completionProvider.GetCompletions(CursorPosition);
+        CompletionItems = (await _completionProvider.GetCompletionsAsync(CursorPosition)).ToList();
         SelectedCompletionIndex = 0;
+        CompletionIndexChanged?.Invoke(this, SelectedCompletionIndex);
     }
 
     public void ApplySelectedCompletion()
     {
-        if (IsCompletionActive && SelectedCompletionIndex >= 0 && SelectedCompletionIndex < CompletionItems.Count)
+        if (IsCompletionActive && SelectedCompletionIndex >= 0 && SelectedCompletionIndex < CompletionItems.Count())
         {
             var selectedItem = CompletionItems[SelectedCompletionIndex];
             ApplyCompletion(selectedItem);
@@ -87,6 +89,7 @@ public class EditorViewModel : IEditorViewModel
     {
         if (IsCompletionActive)
             SelectedCompletionIndex = (SelectedCompletionIndex + delta + CompletionItems.Count) % CompletionItems.Count;
+        CompletionIndexChanged?.Invoke(this, SelectedCompletionIndex);
     }
 
     public void CloseCompletion()
@@ -154,8 +157,11 @@ public class EditorViewModel : IEditorViewModel
         cursorColumn = Math.Min(cursorColumn, lineContent.Length);
         var textUpToCursor = lineContent.Substring(0, cursorColumn);
 
-        var cursorX = _textMeasurer.MeasureText(textUpToCursor, _config.FontFamily, _config.FontSize).Width;
-        var cursorY = cursorLine * 20;
+        var textMeasurements = string.IsNullOrEmpty(textUpToCursor)
+            ? (Width: 0d, Height: _textMeasurer.GetLineHeight(_config.FontFamily, _config.FontSize))
+            : _textMeasurer.MeasureText(textUpToCursor, _config.FontFamily, _config.FontSize);
+        var cursorX = textMeasurements.Width;
+        var cursorY = cursorLine * (textMeasurements.Height * _config.LineHeightMultiplier);
 
         return new Point(cursorX, cursorY);
     }

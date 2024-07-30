@@ -9,6 +9,7 @@ public interface IEditorViewModel
 {
     event EventHandler<ContentChangeEventArgs>? ContentChanged;
     event EventHandler? SelectionChanged;
+    event EventHandler<int>? CompletionIndexChanged;
 
     ITextBufferService TextBufferService { get; }
     int SelectionStart { get; }
@@ -20,7 +21,7 @@ public interface IEditorViewModel
     int CursorPosition { get; }
 
     Point GetCursorPosition();
-    void TriggerCompletion();
+    Task TriggerCompletionAsync();
     void ApplySelectedCompletion();
     void MoveCompletionSelection(int delta);
     void CloseCompletion();

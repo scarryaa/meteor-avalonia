@@ -9,7 +9,7 @@ namespace meteor.Core.Services;
 public class TabService : ITabService
 {
     private readonly ITabViewModelFactory _tabViewModelFactory;
-    private readonly List<ITabViewModel> _tabHistory = new();
+    private readonly List<ITabViewModel> _tabHistory = [];
     private ITabViewModel _previousActiveTab;
 
     public TabService(ITabViewModelFactory tabViewModelFactory)
@@ -17,7 +17,7 @@ public class TabService : ITabService
         _tabViewModelFactory = tabViewModelFactory;
     }
 
-    public ObservableCollection<ITabViewModel?> Tabs { get; } = new();
+    public ObservableCollection<ITabViewModel?> Tabs { get; } = [];
     public ITabViewModel ActiveTab { get; private set; }
 
     public event EventHandler<ITabViewModel?> TabAdded;

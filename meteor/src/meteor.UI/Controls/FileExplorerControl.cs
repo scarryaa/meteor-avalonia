@@ -36,7 +36,7 @@ public class FileExplorerControl : UserControl
 
     public FileExplorerControl()
     {
-        _items = new ObservableCollection<FileItem>();
+        _items = [];
         InitializeComponent();
         UpdateCanvasSize();
         Focus();

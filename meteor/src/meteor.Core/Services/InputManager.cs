@@ -52,8 +52,7 @@ public class InputManager : IInputManager
 
         if (e.Key == Key.Space && e.Modifiers == KeyModifiers.Control)
         {
-            Console.WriteLine("Ctrl+Space triggered completion");
-            _viewModel.TriggerCompletion();
+            await _viewModel.TriggerCompletionAsync();
             e.Handled = true;
         }
         
@@ -179,6 +178,7 @@ public class InputManager : IInputManager
                 e.Handled = true;
                 break;
             case Key.Enter:
+            case Key.Tab:
                 _viewModel.ApplySelectedCompletion();
                 e.Handled = true;
                 break;
@@ -189,7 +189,7 @@ public class InputManager : IInputManager
         }
     }
 
-    public void HandleTextInput(TextInputEventArgs e)
+    public async Task HandleTextInput(TextInputEventArgs e)
     {
         if (_isClipboardOperationHandled || _isControlOrMetaPressed)
         {
@@ -207,7 +207,7 @@ public class InputManager : IInputManager
             e.Handled = true;
         }
 
-        if (char.IsLetterOrDigit(e.Text[0]) && _viewModel.IsCompletionActive) _viewModel.TriggerCompletion();
+        if (char.IsLetterOrDigit(e.Text[0]) && _viewModel.IsCompletionActive) await _viewModel.TriggerCompletionAsync();
 
         _lastSelection = (0, 0);
     }

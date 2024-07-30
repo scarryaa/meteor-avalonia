@@ -7,46 +7,197 @@ public class CompletionProvider : ICompletionProvider
 {
     private readonly ITextBufferService _textBufferService;
     private readonly HashSet<string> _keywords;
+    private HashSet<string> _cachedWords;
+    private string _cachedText;
+    private readonly Dictionary<string, int> _wordFrequency;
 
     public CompletionProvider(ITextBufferService textBufferService)
     {
-        _textBufferService = textBufferService;
-        _keywords = new HashSet<string>
+        _textBufferService = textBufferService ?? throw new ArgumentNullException(nameof(textBufferService));
+        _keywords = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "keyword1", "keyword2", "keyword3"
+            "abstract", "as", "base", "bool", "break", "byte", "case", "catch", "char", "checked",
+            "class", "const", "continue", "decimal", "default", "delegate", "do", "double", "else",
+            "enum", "event", "explicit", "extern", "false", "finally", "fixed", "float", "for",
+            "foreach", "goto", "if", "implicit", "in", "int", "interface", "internal", "is", "lock",
+            "long", "namespace", "new", "null", "object", "operator", "out", "override", "params",
+            "private", "protected", "public", "readonly", "ref", "return", "sbyte", "sealed",
+            "short", "sizeof", "stackalloc", "static", "string", "struct", "switch", "this", "throw",
+            "true", "try", "typeof", "uint", "ulong", "unchecked", "unsafe", "ushort", "using",
+            "virtual", "void", "volatile", "while"
         };
+        _wordFrequency = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
     }
 
-    public List<CompletionItem> GetCompletions(int cursorPosition)
+    public async Task<IEnumerable<CompletionItem>> GetCompletionsAsync(int cursorPosition,
+        CancellationToken cancellationToken = default)
     {
-        var text = _textBufferService.GetContent();
-        var wordStart = FindWordStart(text, cursorPosition);
-        var prefix = text.Substring(wordStart, cursorPosition - wordStart);
+        try
+        {
+            var text = _textBufferService.GetContent();
+            var wordStart = FindWordStart(text, cursorPosition);
+            var prefix = text.Substring(wordStart, cursorPosition - wordStart);
+            var context = GetContext(text, cursorPosition);
 
-        var completions = new List<CompletionItem>();
+            var completions = new HashSet<CompletionItem>(new CompletionItemComparer());
 
-        // Add keyword completions
-        completions.AddRange(_keywords
-            .Where(k => k.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-            .Select(k => new CompletionItem { Text = k, Kind = CompletionItemKind.Keyword }));
+            await Task.WhenAll(
+                AddKeywordCompletionsAsync(completions, prefix, context, cancellationToken),
+                AddWordCompletionsAsync(completions, text, prefix, cancellationToken),
+                AddFuzzyMatchCompletionsAsync(completions, prefix, cancellationToken)
+            );
 
-        // Add word completions from the document
-        var wordPattern = new Regex(@"\b\w+\b");
-        var matches = wordPattern.Matches(text);
-        var words = new HashSet<string>(matches.Select(m => m.Value));
+            return OrderCompletions(completions, prefix);
+        }
+        catch (Exception ex)
+        {
+            return [];
+        }
+    }
 
-        completions.AddRange(words
-            .Where(w => w.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) && !_keywords.Contains(w))
-            .Select(w => new CompletionItem { Text = w, Kind = CompletionItemKind.Text }));
+    private Task AddKeywordCompletionsAsync(HashSet<CompletionItem> completions, string prefix, string context,
+        CancellationToken cancellationToken)
+    {
+        return Task.Run(() =>
+        {
+            var relevantKeywords = GetContextRelevantKeywords(context);
+            foreach (var keyword in relevantKeywords.Where(
+                         k => k.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)))
+                completions.Add(new CompletionItem { Text = keyword, Kind = CompletionItemKind.Keyword });
+        }, cancellationToken);
+    }
 
-        Console.WriteLine($"Found {completions.Count} completions for '{prefix}'");
-        return completions.OrderBy(c => c.Text).ToList();
+    private async Task AddWordCompletionsAsync(HashSet<CompletionItem> completions, string text, string prefix,
+        CancellationToken cancellationToken)
+    {
+        await UpdateCachedWordsAsync(text, cancellationToken);
+        await Task.Run(() =>
+        {
+            foreach (var word in _cachedWords.Where(w =>
+                         w.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) && !_keywords.Contains(w)))
+                completions.Add(new CompletionItem { Text = word, Kind = CompletionItemKind.Text });
+        }, cancellationToken);
+    }
+
+    private Task AddFuzzyMatchCompletionsAsync(HashSet<CompletionItem> completions, string prefix,
+        CancellationToken cancellationToken)
+    {
+        return Task.Run(() =>
+        {
+            foreach (var match in GetFuzzyMatches(prefix, _cachedWords.Except(_keywords)))
+                completions.Add(new CompletionItem { Text = match, Kind = CompletionItemKind.Text });
+        }, cancellationToken);
+    }
+
+    private async Task UpdateCachedWordsAsync(string text, CancellationToken cancellationToken)
+    {
+        if (_cachedText != text)
+            await Task.Run(() =>
+            {
+                var wordPattern = new Regex(@"\b[\w_]+\b");
+                var matches = wordPattern.Matches(text);
+                _cachedWords = new HashSet<string>(matches.Select(m => m.Value), StringComparer.OrdinalIgnoreCase);
+                _cachedText = text;
+
+                foreach (var word in _cachedWords)
+                {
+                    _wordFrequency.TryAdd(word, 0);
+                    _wordFrequency[word]++;
+                }
+            }, cancellationToken);
     }
 
     private int FindWordStart(string text, int position)
     {
-        while (position > 0 && char.IsLetterOrDigit(text[position - 1])) position--;
+        while (position > 0 && (char.IsLetterOrDigit(text[position - 1]) || text[position - 1] == '_')) position--;
         return position;
+    }
+
+    private IEnumerable<string> GetFuzzyMatches(string prefix, IEnumerable<string> candidates)
+    {
+        return candidates.Where(c => FuzzyMatch(prefix, c))
+            .OrderBy(c => LevenshteinDistance(prefix, c));
+    }
+
+    private bool FuzzyMatch(string pattern, string input)
+    {
+        int patternIdx = 0, inputIdx = 0;
+        while (patternIdx < pattern.Length && inputIdx < input.Length)
+        {
+            if (char.ToLowerInvariant(pattern[patternIdx]) == char.ToLowerInvariant(input[inputIdx]))
+                patternIdx++;
+            inputIdx++;
+        }
+
+        return patternIdx == pattern.Length;
+    }
+
+    private int LevenshteinDistance(string s, string t)
+    {
+        var n = s.Length;
+        var m = t.Length;
+        var d = new int[n + 1, m + 1];
+
+        if (n == 0) return m;
+        if (m == 0) return n;
+
+        for (var i = 0; i <= n; d[i, 0] = i++)
+        {
+        }
+
+        for (var j = 0; j <= m; d[0, j] = j++)
+        {
+        }
+
+        for (var i = 1; i <= n; i++)
+        for (var j = 1; j <= m; j++)
+        {
+            var cost = t[j - 1] == s[i - 1] ? 0 : 1;
+            d[i, j] = Math.Min(
+                Math.Min(d[i - 1, j] + 1, d[i, j - 1] + 1),
+                d[i - 1, j - 1] + cost);
+        }
+
+        return d[n, m];
+    }
+
+    private IEnumerable<CompletionItem> OrderCompletions(IEnumerable<CompletionItem> completions, string prefix)
+    {
+        return completions
+            .OrderByDescending(c => c.Text.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            .ThenByDescending(c => _wordFrequency.GetValueOrDefault(c.Text, 0))
+            .ThenBy(c => c.Text.Length)
+            .ThenBy(c => c.Text);
+    }
+
+    private string GetContext(string text, int cursorPosition)
+    {
+        var contextStart = Math.Max(0, cursorPosition - 100);
+        return text.Substring(contextStart, cursorPosition - contextStart);
+    }
+
+    private IEnumerable<string> GetContextRelevantKeywords(string context)
+    {
+        if (context.Contains("class") || context.Contains("interface"))
+            return _keywords.Where(k => new[]
+                    { "public", "private", "protected", "internal", "virtual", "override", "abstract", "sealed" }
+                .Contains(k));
+        if (context.Contains("if") || context.Contains("while") || context.Contains("for"))
+            return _keywords.Where(k => new[] { "break", "continue", "return", "throw" }.Contains(k));
+        return _keywords;
+    }
+}
+
+public class CompletionItemComparer : IEqualityComparer<CompletionItem>
+{
+    public bool Equals(CompletionItem x, CompletionItem y)
+    {
+        return x.Text == y.Text && x.Kind == y.Kind;
+    }
+
+    public int GetHashCode(CompletionItem obj)
+    {
+        return obj.Text.GetHashCode() ^ obj.Kind.GetHashCode();
     }
 }
 
