@@ -51,7 +51,7 @@ public class CompletionProvider : ICompletionProvider
         }
         catch (Exception ex)
         {
-            return [];
+            return Array.Empty<CompletionItem>();
         }
     }
 
@@ -96,7 +96,12 @@ public class CompletionProvider : ICompletionProvider
             {
                 var wordPattern = new Regex(@"\b[\w_]+\b");
                 var matches = wordPattern.Matches(text);
-                _cachedWords = new HashSet<string>(matches.Select(m => m.Value), StringComparer.OrdinalIgnoreCase);
+                var newWords = new HashSet<string>(matches.Select(m => m.Value), StringComparer.OrdinalIgnoreCase);
+
+                var partialWord = GetPartialWord(text);
+                newWords.Remove(partialWord);
+
+                _cachedWords = newWords;
                 _cachedText = text;
 
                 foreach (var word in _cachedWords)
@@ -105,6 +110,12 @@ public class CompletionProvider : ICompletionProvider
                     _wordFrequency[word]++;
                 }
             }, cancellationToken);
+    }
+
+    private string GetPartialWord(string text)
+    {
+        var match = Regex.Match(text, @"\w+$");
+        return match.Success ? match.Value : string.Empty;
     }
 
     private int FindWordStart(string text, int position)
@@ -164,6 +175,7 @@ public class CompletionProvider : ICompletionProvider
     private IEnumerable<CompletionItem> OrderCompletions(IEnumerable<CompletionItem> completions, string prefix)
     {
         return completions
+            .Where(c => !c.Text.Equals(prefix, StringComparison.OrdinalIgnoreCase))
             .OrderByDescending(c => c.Text.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
             .ThenByDescending(c => _wordFrequency.GetValueOrDefault(c.Text, 0))
             .ThenBy(c => c.Text.Length)
@@ -178,13 +190,21 @@ public class CompletionProvider : ICompletionProvider
 
     private IEnumerable<string> GetContextRelevantKeywords(string context)
     {
+        var keywords = new HashSet<string>(_keywords, StringComparer.OrdinalIgnoreCase);
+
         if (context.Contains("class") || context.Contains("interface"))
-            return _keywords.Where(k => new[]
-                    { "public", "private", "protected", "internal", "virtual", "override", "abstract", "sealed" }
-                .Contains(k));
+            keywords.UnionWith(new[]
+            {
+                "public", "private", "protected", "internal", "virtual", "override", "abstract", "sealed"
+            });
+
         if (context.Contains("if") || context.Contains("while") || context.Contains("for"))
-            return _keywords.Where(k => new[] { "break", "continue", "return", "throw" }.Contains(k));
-        return _keywords;
+            keywords.UnionWith(new[]
+            {
+                "break", "continue", "return", "throw"
+            });
+
+        return keywords;
     }
 }
 
@@ -219,7 +239,7 @@ public enum CompletionItemKind
     Variable,
     Class,
     Interface,
-    Module,
+    Module, 
     Property,
     Unit,
     Value,

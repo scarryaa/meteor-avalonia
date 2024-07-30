@@ -48,6 +48,19 @@ public class InputManager : IInputManager
         {
             HandleCompletionKeyDown(e);
             if (e.Handled) return;
+
+            switch (e.Key)
+            {
+                case Key.Escape:
+                case Key.Enter:
+                case Key.Tab:
+                case Key.Left:
+                case Key.Right:
+                case Key.Home:
+                case Key.End:
+                    _viewModel.CloseCompletion();
+                    break;
+            }
         }
 
         if (e.Key == Key.Space && e.Modifiers == KeyModifiers.Control)
@@ -94,10 +107,10 @@ public class InputManager : IInputManager
                         HandleDownKey();
                     break;
                 case Key.Back:
-                    HandleBackspaceKey();
+                    await HandleBackspaceKey();
                     break;
                 case Key.Delete:
-                    HandleDeleteKey();
+                    await HandleDeleteKey();
                     break;
                 case Key.Home:
                     if (_isControlOrMetaPressed)
@@ -199,6 +212,9 @@ public class InputManager : IInputManager
 
         if (!string.IsNullOrEmpty(e.Text) && e.Text != "\b" && !e.Handled)
         {
+            // Close completion popup on space
+            if (e.Text == " " && _viewModel.IsCompletionActive) _viewModel.CloseCompletion();
+
             // Delete the selected text if there was a selection
             if (_selectionManager.HasSelection) DeleteSelectedText();
 
@@ -207,7 +223,8 @@ public class InputManager : IInputManager
             e.Handled = true;
         }
 
-        if (char.IsLetterOrDigit(e.Text[0]) && _viewModel.IsCompletionActive) await _viewModel.TriggerCompletionAsync();
+        // Show completion popup for '?' or letter/digit
+        if (e.Text == "?" || char.IsLetterOrDigit(e.Text[0])) await _viewModel.TriggerCompletionAsync();
 
         _lastSelection = (0, 0);
     }
@@ -304,13 +321,18 @@ public class InputManager : IInputManager
         }
     }
 
-    private void HandleDeleteKey()
+    private async Task HandleDeleteKey()
     {
         if (_selectionManager.HasSelection)
             DeleteSelectedText();
         else if (_cursorManager.Position < _textBufferService.GetLength())
             _textBufferService.DeleteText(_cursorManager.Position, 1);
         UpdateDesiredColumn();
+
+        if (IsWordBehindCursor())
+            await _viewModel.TriggerCompletionAsync();
+        else
+            _viewModel.CloseCompletion();
     }
 
     private void HandleHomeKey()
@@ -410,7 +432,7 @@ public class InputManager : IInputManager
         _cursorManager.SetPosition(newPosition);
     }
 
-    private void HandleBackspaceKey()
+    private async Task HandleBackspaceKey()
     {
         if (_selectionManager.HasSelection)
         {
@@ -421,8 +443,30 @@ public class InputManager : IInputManager
             _textBufferService.DeleteText(_cursorManager.Position - 1, 1);
             _cursorManager.MoveCursor(-1);
         }
-
         _textAnalysisService.ResetDesiredColumn();
+
+        if (IsWordBehindCursor())
+            await _viewModel.TriggerCompletionAsync();
+        else
+            _viewModel.CloseCompletion();
+    }
+
+    private bool IsWordBehindCursor()
+    {
+        var text = _textBufferService.GetContent();
+        var cursorPosition = _cursorManager.Position;
+
+        // Check if there's at least one character behind the cursor
+        if (cursorPosition > 0)
+        {
+            // Get the character immediately before the cursor
+            var prevChar = text[cursorPosition - 1];
+
+            // Check if the previous character is a letter, digit, or underscore
+            return char.IsLetterOrDigit(prevChar) || prevChar == '_';
+        }
+
+        return false;
     }
 
     private async Task HandleClipboardOperation(Key key)

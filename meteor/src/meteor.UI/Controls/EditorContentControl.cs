@@ -74,14 +74,15 @@ public class EditorContentControl : Control
     protected override Size MeasureOverride(Size availableSize)
     {
         UpdateContentMeasurements();
-        return _totalSize;
+        return new Size(Math.Min(availableSize.Width, _totalSize.Width),
+            Math.Min(availableSize.Height, _totalSize.Height));
     }
 
     private void UpdateContentMeasurements()
     {
         var lineCount = _viewModel.GetLineCount();
         var maxLineWidth = _viewModel.GetMaxLineWidth();
-        _totalSize = new Size(maxLineWidth + 50, lineCount * LineHeight + LineHeight * 2);
+        _totalSize = new Size(maxLineWidth, lineCount * LineHeight);
     }
 
     private void OnPointerReleased(object sender, PointerReleasedEventArgs e)
@@ -120,15 +121,24 @@ public class EditorContentControl : Control
         var overlayY = cursorPosition.Y + LineHeight;
         var backgroundBrush = new SolidColorBrush(Color.FromRgb(240, 240, 240));
         var borderBrush = new SolidColorBrush(Color.FromRgb(200, 200, 200));
-        var overlayWidth = Math.Min(MaxCompletionOverlayWidth,
-            completionItems.Max(item => MeasureTextWidth(item.Text)) + 10);
+
+        // Calculate the actual width based on the content
+        var contentWidth = completionItems.Max(item => MeasureTextWidth(item.Text));
+        var padding = 20; // Add some padding (10 pixels on each side)
+        var overlayWidth = Math.Min(MaxCompletionOverlayWidth, contentWidth + padding);
 
         var maxAvailableHeight = Math.Min(MaxCompletionOverlayHeight, Bounds.Height - overlayY);
         var maxVisibleItems = (int)(maxAvailableHeight / CompletionItemHeight);
-        var desiredItems = Math.Min(completionItems.Count, maxVisibleItems);
-        var overlayHeight = desiredItems * CompletionItemHeight;
+        var visibleItemCount = Math.Min(completionItems.Count, maxVisibleItems);
+        double overlayHeight = visibleItemCount * CompletionItemHeight;
 
-        if (overlayY + overlayHeight > Bounds.Height) overlayY = Math.Max(0, Bounds.Height - overlayHeight);
+        // Adjust overlay position and height if it would be cut off
+        if (overlayY + overlayHeight > Bounds.Height)
+        {
+            var availableHeight = Bounds.Height - overlayY;
+            visibleItemCount = (int)(availableHeight / CompletionItemHeight);
+            overlayHeight = visibleItemCount * CompletionItemHeight;
+        }
 
         context.DrawRectangle(backgroundBrush, new Pen(borderBrush),
             new Rect(overlayX, overlayY, overlayWidth, overlayHeight));
@@ -136,21 +146,24 @@ public class EditorContentControl : Control
         var clipRect = new Rect(overlayX, overlayY, overlayWidth, overlayHeight);
         using (context.PushClip(clipRect))
         {
-            var visibleItemCount = overlayHeight / CompletionItemHeight;
             var totalItems = completionItems.Count;
             var maxScrollOffset = Math.Max(0, totalItems - visibleItemCount);
             _completionOverlayScrollOffset = Math.Clamp(_completionOverlayScrollOffset, 0, maxScrollOffset);
 
-            for (var i = 0; i < visibleItemCount && _completionOverlayScrollOffset + i < totalItems; i++)
+            for (var i = 0; i < visibleItemCount; i++)
             {
-                var item = completionItems[_completionOverlayScrollOffset + i];
+                var itemIndex = _completionOverlayScrollOffset + i;
+                if (itemIndex >= totalItems) break;
+
+                var item = completionItems[itemIndex];
                 var itemY = overlayY + i * CompletionItemHeight;
-                RenderCompletionItem(context, item, _completionOverlayScrollOffset + i, overlayX, itemY,
-                    CompletionItemHeight, selectedIndex);
+                RenderCompletionItem(context, item, itemIndex, overlayX, itemY, overlayWidth, CompletionItemHeight,
+                    selectedIndex);
             }
 
-            RenderScrollbarIfNeeded(context, totalItems, CompletionItemHeight, overlayX, overlayY,
-                overlayWidth, overlayHeight, _completionOverlayScrollOffset);
+            if (totalItems > visibleItemCount)
+                RenderScrollbarIfNeeded(context, totalItems, CompletionItemHeight, overlayX, overlayY,
+                    overlayWidth, overlayHeight, _completionOverlayScrollOffset);
         }
     }
 
@@ -182,26 +195,33 @@ public class EditorContentControl : Control
         return index < _viewModel.CompletionItems.Count ? index : -1;
     }
 
-
-    public void UpdateCompletionOverlayScroll(int newSelectedIndex)
+    private void UpdateCompletionOverlayScroll(int newSelectedIndex)
     {
-        var visibleItemCount = MaxCompletionOverlayHeight / CompletionItemHeight;
+        var cursorPosition = _viewModel.GetCursorPosition();
+        var overlayY = cursorPosition.Y + LineHeight;
+        var maxAvailableHeight = Math.Min(MaxCompletionOverlayHeight, Bounds.Height - overlayY);
+        var visibleItemCount = (int)(maxAvailableHeight / CompletionItemHeight);
         var totalItems = _viewModel.CompletionItems.Count;
+
+        // Adjust visibleItemCount if the overlay is cut off
+        if (overlayY + visibleItemCount * CompletionItemHeight > Bounds.Height)
+            visibleItemCount = (int)((Bounds.Height - overlayY) / CompletionItemHeight);
 
         // Ensure the selected item is visible
         if (newSelectedIndex < _completionOverlayScrollOffset)
             _completionOverlayScrollOffset = newSelectedIndex;
         else if (newSelectedIndex >= _completionOverlayScrollOffset + visibleItemCount)
-            _completionOverlayScrollOffset = Math.Min(
-                totalItems - visibleItemCount,
-                newSelectedIndex - visibleItemCount + 1
-            );
+            _completionOverlayScrollOffset = Math.Max(0, newSelectedIndex - visibleItemCount + 1);
+
+        // Ensure _completionOverlayScrollOffset is within valid range
+        _completionOverlayScrollOffset =
+            Math.Clamp(_completionOverlayScrollOffset, 0, Math.Max(0, totalItems - visibleItemCount));
 
         InvalidateVisual();
     }
 
     private void RenderCompletionItem(DrawingContext context, CompletionItem item, int index, double overlayX,
-        double itemY, double itemHeight, int selectedIndex)
+        double itemY, double overlayWidth, double itemHeight, int selectedIndex)
     {
         var itemRect = new Rect(overlayX, itemY, MaxCompletionOverlayWidth, itemHeight);
         if (index == selectedIndex)
@@ -211,7 +231,7 @@ public class EditorContentControl : Control
         }
         else
         {
-            RenderHoverEffect(context, item, index, overlayX, itemY, itemHeight);
+            RenderHoverEffect(context, item, index, overlayX, overlayWidth, itemY, itemHeight);
         }
 
         var textBrush = new SolidColorBrush(Color.FromRgb(0, 0, 0));
@@ -227,10 +247,22 @@ public class EditorContentControl : Control
     }
 
     private void RenderHoverEffect(DrawingContext context, CompletionItem item, int index, double overlayX,
+        double overlayWidth,
         double itemY, double itemHeight)
     {
-        var itemRect = new Rect(overlayX, itemY, MaxCompletionOverlayWidth, itemHeight);
-        if (itemRect.Contains(_lastMousePosition))
+        var itemRect = new Rect(overlayX, itemY, overlayWidth, itemHeight);
+        var cursorPosition = _viewModel.GetCursorPosition();
+        var overlayY = cursorPosition.Y + LineHeight;
+        var maxAvailableHeight = Math.Min(MaxCompletionOverlayHeight, Bounds.Height - overlayY);
+        var overlayHeight = Math.Min(maxAvailableHeight, _viewModel.CompletionItems.Count * CompletionItemHeight);
+
+        // Check if the mouse is within the completion box bounds
+        var isMouseInCompletionBox = _lastMousePosition.X >= overlayX &&
+                                     _lastMousePosition.X <= overlayX + overlayWidth &&
+                                     _lastMousePosition.Y >= overlayY &&
+                                     _lastMousePosition.Y <= overlayY + overlayHeight;
+
+        if (isMouseInCompletionBox && itemRect.Contains(_lastMousePosition))
         {
             var hoverBrush = new SolidColorBrush(Color.FromRgb(220, 220, 220));
             context.DrawRectangle(hoverBrush, null, itemRect);
@@ -240,15 +272,15 @@ public class EditorContentControl : Control
     private void RenderScrollbarIfNeeded(DrawingContext context, int itemCount, double itemHeight, double overlayX,
         double overlayY, double overlayWidth, double overlayHeight, int selectedIndex)
     {
-        if (itemCount * itemHeight > overlayHeight)
+        var visibleItemCount = Math.Max(1, overlayHeight / itemHeight);
+        if (itemCount > visibleItemCount)
         {
             var scrollBarWidth = 10;
-            var scrollBarHeight = overlayHeight / (itemCount * itemHeight) * overlayHeight;
-            var visibleItemCount = overlayHeight / itemHeight;
+            var scrollBarHeight = Math.Max(30, overlayHeight * (visibleItemCount / itemCount));
             var maxScrollBarY = overlayY + overlayHeight - scrollBarHeight;
             var scrollBarY = Math.Min(maxScrollBarY,
                 overlayY + _completionOverlayScrollOffset * (overlayHeight - scrollBarHeight) /
-                (itemCount - visibleItemCount));
+                Math.Max(1, itemCount - visibleItemCount));
 
             _scrollBarBounds = new Rect(
                 overlayX + overlayWidth - scrollBarWidth,
@@ -257,8 +289,16 @@ public class EditorContentControl : Control
                 scrollBarHeight
             );
 
+            // Draw scrollbar background
             context.DrawRectangle(
-                new SolidColorBrush(Color.FromRgb(200, 200, 200)),
+                new SolidColorBrush(Color.FromRgb(230, 230, 230)),
+                null,
+                new Rect(overlayX + overlayWidth - scrollBarWidth, overlayY, scrollBarWidth, overlayHeight)
+            );
+
+            // Draw scrollbar thumb
+            context.DrawRectangle(
+                new SolidColorBrush(Color.FromRgb(150, 150, 150)),
                 null,
                 _scrollBarBounds
             );
@@ -290,6 +330,11 @@ public class EditorContentControl : Control
                     if (e.ClickCount == 2) _viewModel.ApplySelectedCompletion();
                     InvalidateVisual();
                     e.Handled = true;
+                }
+                else
+                {
+                    _viewModel.CompletionItems.Clear();
+                    InvalidateVisual();
                 }
             }
         }
@@ -326,23 +371,34 @@ public class EditorContentControl : Control
     protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
     {
         base.OnPointerWheelChanged(e);
-
         if (_viewModel.IsCompletionActive)
         {
-            var delta = (int)e.Delta.Y * 3;
-            var itemCount = _viewModel.CompletionItems.Count;
-            var visibleItemCount = MaxCompletionOverlayHeight / CompletionItemHeight;
+            var position = e.GetPosition(this);
+            var cursorPosition = _viewModel.GetCursorPosition();
+            var overlayX = cursorPosition.X;
+            var overlayY = cursorPosition.Y + LineHeight;
+            var overlayWidth = Math.Min(MaxCompletionOverlayWidth,
+                _viewModel.CompletionItems.Max(item => MeasureTextWidth(item.Text)) + 10);
+            var maxAvailableHeight = Math.Min(MaxCompletionOverlayHeight, Bounds.Height - overlayY);
+            var overlayHeight = Math.Min(maxAvailableHeight, _viewModel.CompletionItems.Count * CompletionItemHeight);
 
-            if (itemCount > visibleItemCount)
+            // Check if the pointer is over the completion overlay
+            if (position.X >= overlayX && position.X <= overlayX + overlayWidth &&
+                position.Y >= overlayY && position.Y <= overlayY + overlayHeight)
             {
-                _completionOverlayScrollOffset = Math.Clamp(
-                    _completionOverlayScrollOffset - delta,
-                    0,
-                    Math.Max(0, itemCount - visibleItemCount)
-                );
-
-                InvalidateVisual();
-                e.Handled = true;
+                var delta = (int)e.Delta.Y * 3;
+                var itemCount = _viewModel.CompletionItems.Count;
+                var visibleItemCount = (int)(overlayHeight / CompletionItemHeight);
+                if (itemCount > visibleItemCount)
+                {
+                    _completionOverlayScrollOffset = Math.Clamp(
+                        _completionOverlayScrollOffset - delta,
+                        0,
+                        Math.Max(0, itemCount - visibleItemCount)
+                    );
+                    InvalidateVisual();
+                    e.Handled = true;
+                }
             }
         }
     }
