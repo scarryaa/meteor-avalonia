@@ -17,7 +17,7 @@
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <ResourceInclude Source="avares://meteor.UI/Resources/Fonts.axaml" />
-                <ResourceInclude Source="avares://meteor.UI/Resources/Controls/ScrollViewer.axaml" />
+                <ResourceInclude Source="avares://meteor.UI/Resources/Styles/ScrollViewer.axaml" />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
 
@@ -28,8 +28,8 @@
 
     <Application.Styles>
         <FluentTheme />
-        <StyleInclude Source="avares://meteor.UI/Styles/ScrollBarStyles.axaml" />
-        <StyleInclude Source="avares://meteor.UI/Styles/TabViewStyles.axaml" />
-        <StyleInclude Source="avares://meteor.UI/Styles/HorizontalScrollableTabControlStyles.axaml" />
+        <StyleInclude Source="avares://meteor.UI/Resources/Styles/ScrollBarStyles.axaml" />
+        <StyleInclude Source="avares://meteor.UI/Resources/Styles/TabViewStyles.axaml" />
+        <StyleInclude Source="avares://meteor.UI/Resources/Styles/HorizontalScrollableTabControlStyles.axaml" />
     </Application.Styles>
 </Application>
