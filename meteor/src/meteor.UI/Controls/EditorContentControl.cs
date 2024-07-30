@@ -26,6 +26,10 @@ public class EditorContentControl : Control
     private readonly ISyntaxHighlighter _syntaxHighlighter;
     private int _completionOverlayScrollOffset;
 
+    private Rect _scrollBarBounds;
+    private bool _isDraggingScrollbar;
+    private double _dragStartY;
+    private int _dragStartOffset;
     private Size _totalSize;
     private readonly List<int> _lineStartOffsets = new();
     private int _documentVersion;
@@ -64,6 +68,7 @@ public class EditorContentControl : Control
 
         PointerPressed += OnPointerPressed;
         PointerMoved += OnPointerMoved;
+        PointerReleased += OnPointerReleased;
     }
 
     protected override Size MeasureOverride(Size availableSize)
@@ -77,6 +82,11 @@ public class EditorContentControl : Control
         var lineCount = _viewModel.GetLineCount();
         var maxLineWidth = _viewModel.GetMaxLineWidth();
         _totalSize = new Size(maxLineWidth + 50, lineCount * LineHeight + LineHeight * 2);
+    }
+
+    private void OnPointerReleased(object sender, PointerReleasedEventArgs e)
+    {
+        _isDraggingScrollbar = false;
     }
 
     public override void Render(DrawingContext context)
@@ -240,11 +250,22 @@ public class EditorContentControl : Control
                 overlayY + _completionOverlayScrollOffset * (overlayHeight - scrollBarHeight) /
                 (itemCount - visibleItemCount));
 
+            _scrollBarBounds = new Rect(
+                overlayX + overlayWidth - scrollBarWidth,
+                scrollBarY,
+                scrollBarWidth,
+                scrollBarHeight
+            );
+
             context.DrawRectangle(
                 new SolidColorBrush(Color.FromRgb(200, 200, 200)),
                 null,
-                new Rect(overlayX + overlayWidth - scrollBarWidth, scrollBarY, scrollBarWidth, scrollBarHeight)
+                _scrollBarBounds
             );
+        }
+        else
+        {
+            _scrollBarBounds = new Rect();
         }
     }
 
@@ -253,13 +274,23 @@ public class EditorContentControl : Control
         var position = e.GetPosition(this);
         if (_viewModel.IsCompletionActive)
         {
-            var itemIndex = GetCompletionItemIndexAtPosition(position);
-            if (itemIndex != -1)
+            if (_scrollBarBounds.Contains(position))
             {
-                _viewModel.SelectedCompletionIndex = itemIndex;
-                if (e.ClickCount == 2) _viewModel.ApplySelectedCompletion();
-                InvalidateVisual();
+                _isDraggingScrollbar = true;
+                _dragStartY = position.Y;
+                _dragStartOffset = _completionOverlayScrollOffset;
                 e.Handled = true;
+            }
+            else
+            {
+                var itemIndex = GetCompletionItemIndexAtPosition(position);
+                if (itemIndex != -1)
+                {
+                    _viewModel.SelectedCompletionIndex = itemIndex;
+                    if (e.ClickCount == 2) _viewModel.ApplySelectedCompletion();
+                    InvalidateVisual();
+                    e.Handled = true;
+                }
             }
         }
     }
@@ -267,7 +298,29 @@ public class EditorContentControl : Control
     private void OnPointerMoved(object sender, PointerEventArgs e)
     {
         _lastMousePosition = e.GetPosition(this);
-        if (_viewModel.IsCompletionActive) InvalidateVisual();
+        if (_viewModel.IsCompletionActive)
+        {
+            if (_isDraggingScrollbar)
+            {
+                var delta = e.GetPosition(this).Y - _dragStartY;
+                var itemCount = _viewModel.CompletionItems.Count;
+                var visibleItemCount = MaxCompletionOverlayHeight / CompletionItemHeight;
+                var scrollableItems = Math.Max(0, itemCount - visibleItemCount);
+
+                if (scrollableItems > 0 && _scrollBarBounds.Height > 0)
+                {
+                    var scrollBarMovableHeight = MaxCompletionOverlayHeight - _scrollBarBounds.Height;
+                    var scrollRatio = delta / scrollBarMovableHeight;
+                    var newOffset = (int)(_dragStartOffset + scrollRatio * scrollableItems);
+                    _completionOverlayScrollOffset = Math.Clamp(newOffset, 0, scrollableItems);
+                    InvalidateVisual();
+                }
+            }
+            else
+            {
+                InvalidateVisual();
+            }
+        }
     }
 
     protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
