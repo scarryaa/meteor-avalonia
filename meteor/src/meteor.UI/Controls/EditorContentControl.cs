@@ -74,8 +74,8 @@ public class EditorContentControl : Control
     protected override Size MeasureOverride(Size availableSize)
     {
         UpdateContentMeasurements();
-        return new Size(Math.Min(availableSize.Width, _totalSize.Width),
-            Math.Min(availableSize.Height, _totalSize.Height));
+        return new Size(Math.Min(availableSize.Width, _totalSize.Width + 50),
+            Math.Min(availableSize.Height, _totalSize.Height + LineHeight * 3));
     }
 
     private void UpdateContentMeasurements()

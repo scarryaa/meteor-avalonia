@@ -134,17 +134,7 @@ public class ScrollManager : IScrollManager
         }
         else if (lineBottom > ScrollOffset.Y + _viewport.Height - verticalMargin)
         {
-            if (lineNumber == totalLineCount - 1) // Check if it is the last line
-            {
-                var desiredScrollY = Math.Max(0, lineNumber - GetVisibleLineCount() + (isSelection ? 1 : 4)) *
-                                     LineHeight;
-                desiredScrollY = Math.Min(desiredScrollY + LineHeight * 3, ExtentSize.Height - _viewport.Height);
-                ScrollOffset = new Vector(ScrollOffset.X, desiredScrollY);
-            }
-            else
-            {
-                ScrollToLine(Math.Max(0, lineNumber - GetVisibleLineCount() + (isSelection ? 1 : 4)));
-            }
+            ScrollToLine(Math.Max(0, lineNumber - GetVisibleLineCount() + (isSelection ? 1 : 5)));
         }
 
         // Horizontal scrolling
