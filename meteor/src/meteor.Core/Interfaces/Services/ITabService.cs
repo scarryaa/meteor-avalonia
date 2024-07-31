@@ -12,6 +12,7 @@ public interface ITabService
     ITabViewModel AddTab(IEditorViewModel editorViewModel, ITabViewModelConfig tabConfig, string fileName,
         string filePath,
         string initialContent = "");
+
     void RemoveTab(ITabViewModel? tab);
     void SetActiveTab(ITabViewModel? tab);
     ITabViewModel GetPreviousActiveTab();

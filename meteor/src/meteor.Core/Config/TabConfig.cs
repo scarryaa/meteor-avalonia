@@ -12,6 +12,13 @@ public class TabConfig : ITabViewModelConfig
 {
     private readonly ITabService _tabService;
     private bool _isDarkMode;
+
+    public TabConfig(ITabService tabService)
+    {
+        _tabService = tabService;
+        CloseTabCommand = new RelayCommand<ITabViewModel>(CloseTab);
+    }
+
     public ISolidColorBrush BorderBrush => GetColor(0xFFA0A0A0, 0xFF3C3C3C);
     public ISolidColorBrush Background => GetColor(0xFFF5F5F5, 0xFF2D2D2D);
     public ISolidColorBrush DirtyIndicatorBrush => GetColor(0xFFFFA500, 0xFFFFD700);
@@ -20,17 +27,6 @@ public class TabConfig : ITabViewModelConfig
     public ISolidColorBrush CloseButtonBackground => GetColor(0xFFC0C0C0, 0xFF3C3C3C);
 
     public ICommand CloseTabCommand { get; }
-
-    public TabConfig(ITabService tabService)
-    {
-        _tabService = tabService;
-        CloseTabCommand = new RelayCommand<ITabViewModel>(CloseTab);
-    }
-
-    private void CloseTab(ITabViewModel? tab)
-    {
-        if (tab != null) _tabService.RemoveTab(tab);
-    }
 
     public ISolidColorBrush GetBorderBrush()
     {
@@ -65,6 +61,11 @@ public class TabConfig : ITabViewModelConfig
     public ICommand GetCloseTabCommand()
     {
         return CloseTabCommand;
+    }
+
+    private void CloseTab(ITabViewModel? tab)
+    {
+        if (tab != null) _tabService.RemoveTab(tab);
     }
 
     private ISolidColorBrush GetColor(uint lightColor, uint darkColor)

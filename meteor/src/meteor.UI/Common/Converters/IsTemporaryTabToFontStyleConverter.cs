@@ -2,7 +2,7 @@ using System.Globalization;
 using Avalonia.Data.Converters;
 using Avalonia.Media;
 
-namespace meteor.UI.Converters;
+namespace meteor.UI.Common.Converters;
 
 public class IsTemporaryTabToFontStyleConverter : IValueConverter
 {

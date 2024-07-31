@@ -4,10 +4,9 @@ namespace meteor.Core.Interfaces.Services;
 
 public interface ISelectionManager
 {
-    event EventHandler SelectionChanged;
-    
     Selection CurrentSelection { get; }
     bool HasSelection { get; }
+    event EventHandler SelectionChanged;
     void SetSelection(int start, int end);
     void ClearSelection();
     string GetSelectedText(ITextBufferService textBufferService);

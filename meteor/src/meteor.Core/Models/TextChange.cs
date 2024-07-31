@@ -2,6 +2,25 @@ namespace meteor.Core.Models;
 
 public class TextChange
 {
+    public TextChange(int offset, int oldLength, int newLength, string newText)
+    {
+        if (offset < 0)
+            throw new ArgumentOutOfRangeException(nameof(offset), "Offset must be non-negative.");
+        if (oldLength < 0)
+            throw new ArgumentOutOfRangeException(nameof(oldLength), "Old length must be non-negative.");
+        if (newLength < 0)
+            throw new ArgumentOutOfRangeException(nameof(newLength), "New length must be non-negative.");
+        if (newText == null)
+            throw new ArgumentNullException(nameof(newText));
+        if (newText.Length != newLength)
+            throw new ArgumentException("New text length must match the specified new length.", nameof(newText));
+
+        Offset = offset;
+        OldLength = oldLength;
+        NewLength = newLength;
+        NewText = newText;
+    }
+
     /// <summary>
     ///     The position in the document where the change starts.
     /// </summary>
@@ -21,25 +40,6 @@ public class TextChange
     ///     The new text that was inserted.
     /// </summary>
     public string NewText { get; }
-
-    public TextChange(int offset, int oldLength, int newLength, string newText)
-    {
-        if (offset < 0)
-            throw new ArgumentOutOfRangeException(nameof(offset), "Offset must be non-negative.");
-        if (oldLength < 0)
-            throw new ArgumentOutOfRangeException(nameof(oldLength), "Old length must be non-negative.");
-        if (newLength < 0)
-            throw new ArgumentOutOfRangeException(nameof(newLength), "New length must be non-negative.");
-        if (newText == null)
-            throw new ArgumentNullException(nameof(newText));
-        if (newText.Length != newLength)
-            throw new ArgumentException("New text length must match the specified new length.", nameof(newText));
-
-        Offset = offset;
-        OldLength = oldLength;
-        NewLength = newLength;
-        NewText = newText;
-    }
 
     /// <summary>
     ///     Calculates the end position of the change in the document.

@@ -2,20 +2,19 @@ using meteor.Core.Interfaces.Config;
 using meteor.Core.Interfaces.Services;
 using meteor.Core.Interfaces.Services.Editor;
 using meteor.Core.Interfaces.ViewModels;
-using meteor.UI.Controls;
-using meteor.UI.Interfaces.Factories;
-using meteor.UI.Interfaces.Services.Editor;
+using meteor.UI.Features.Editor.Controls;
+using meteor.UI.Features.Editor.Interfaces;
 
-namespace meteor.UI.Factories;
+namespace meteor.UI.Features.Editor.Factories;
 
 public class EditorControlFactory : IEditorControlFactory
 {
-    private readonly IScrollManager _scrollManager;
-    private readonly IEditorLayoutManager _layoutManager;
-    private readonly IEditorInputHandler _inputHandler;
-    private readonly IPointerEventHandler _pointerEventHandler;
-    private readonly ITextMeasurer _textMeasurer;
     private readonly IEditorConfig _config;
+    private readonly IEditorInputHandler _inputHandler;
+    private readonly IEditorLayoutManager _layoutManager;
+    private readonly IPointerEventHandler _pointerEventHandler;
+    private readonly IScrollManager _scrollManager;
+    private readonly ITextMeasurer _textMeasurer;
 
     public EditorControlFactory(
         IScrollManager scrollManager,

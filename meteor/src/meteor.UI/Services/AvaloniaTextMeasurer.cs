@@ -9,17 +9,17 @@ namespace meteor.UI.Services;
 
 public class AvaloniaTextMeasurer : ITextMeasurer
 {
-    private readonly Dictionary<(string FontFamily, double FontSize), Typeface> _typefaceCache = new();
-    private readonly Dictionary<(string FontFamily, double FontSize), double> _lineHeightCache = new();
-    private readonly IEditorConfig _config;
     private readonly AvaloniaEditorConfig _avaloniaConfig;
+    private readonly IEditorConfig _config;
+    private readonly Dictionary<(string FontFamily, double FontSize), double> _lineHeightCache = new();
+    private readonly Dictionary<(string FontFamily, double FontSize), Typeface> _typefaceCache = new();
 
     public AvaloniaTextMeasurer(IEditorConfig config)
     {
         _config = config;
         _avaloniaConfig = new AvaloniaEditorConfig();
     }
-    
+
     public (double Width, double Height) MeasureText(string text, string fontFamily, double fontSize)
     {
         var typeface = GetOrCreateTypeface(fontFamily, fontSize);
@@ -49,14 +49,14 @@ public class AvaloniaTextMeasurer : ITextMeasurer
 
         return (formattedText.WidthIncludingTrailingWhitespace, formattedText.Height);
     }
-    
+
     public double GetLineHeight(string fontFamily, double fontSize)
     {
         var key = (fontFamily, fontSize);
         if (_lineHeightCache.TryGetValue(key, out var cachedHeight)) return cachedHeight;
 
         var typeface = GetOrCreateTypeface(fontFamily, fontSize);
-        
+
         var formattedText = new FormattedText(
             "Tg",
             CultureInfo.CurrentCulture,

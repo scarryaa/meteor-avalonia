@@ -2,7 +2,7 @@ using meteor.Core.Models;
 using meteor.Core.Models.EventArgs;
 using KeyEventArgs = meteor.Core.Models.EventArgs.KeyEventArgs;
 
-namespace meteor.UI.Adapters;
+namespace meteor.UI.Common.Adapters;
 
 public class TextInputEventArgsAdapter : TextInputEventArgs
 {

@@ -1,9 +1,9 @@
 using meteor.Core.Interfaces.Config;
 using meteor.Core.Interfaces.Factories;
 using meteor.Core.Interfaces.ViewModels;
-using meteor.UI.ViewModels;
+using meteor.UI.Features.Tabs.ViewModels;
 
-namespace meteor.UI.Factories;
+namespace meteor.UI.Features.Tabs.Factories;
 
 public class TabViewModelFactory : ITabViewModelFactory
 {

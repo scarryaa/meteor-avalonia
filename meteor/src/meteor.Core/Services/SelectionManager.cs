@@ -5,20 +5,20 @@ namespace meteor.Core.Services;
 
 public class SelectionManager : ISelectionManager
 {
-    private int _selectionAnchor;
     private const int ChunkSize = 4096;
     private readonly ITextBufferService _textBufferService;
-    
-    public Selection CurrentSelection { get; private set; }
-    public bool HasSelection => CurrentSelection.Start != CurrentSelection.End;
-
-    public event EventHandler SelectionChanged;
+    private int _selectionAnchor;
 
     public SelectionManager(ITextBufferService textBufferService)
     {
         _textBufferService = textBufferService ?? throw new ArgumentNullException(nameof(textBufferService));
         CurrentSelection = new Selection(0, 0);
     }
+
+    public Selection CurrentSelection { get; private set; }
+    public bool HasSelection => CurrentSelection.Start != CurrentSelection.End;
+
+    public event EventHandler SelectionChanged;
 
     public void StartSelection(int position)
     {

@@ -6,29 +6,22 @@ using meteor.Core.Interfaces.ViewModels;
 using meteor.Core.Models;
 using Timer = System.Timers.Timer;
 
-namespace meteor.UI.Services;
+namespace meteor.UI.Features.Editor.Services;
 
 public class PointerEventHandler : IPointerEventHandler
 {
-    private readonly IScrollManager _scrollManager;
-    private readonly ITextMeasurer _textMeasurer;
+    private const double ClickDistanceThreshold = 5.0;
+    private readonly Timer _clickTimer;
     private readonly IEditorConfig _config;
+    private readonly IScrollManager _scrollManager;
     private readonly ITextAnalysisService _textAnalysisService;
+    private readonly ITextMeasurer _textMeasurer;
 
     private int _clickCount;
-    private readonly Timer _clickTimer;
-    private Point _lastClickPosition;
-    private bool _isDragging;
     private int _clickStartPosition;
     private ClickType _clickType;
-    private const double ClickDistanceThreshold = 5.0;
-
-    private enum ClickType
-    {
-        Single,
-        Double,
-        Triple
-    }
+    private bool _isDragging;
+    private Point _lastClickPosition;
 
     public PointerEventHandler(
         IScrollManager scrollManager,
@@ -222,5 +215,12 @@ public class PointerEventHandler : IPointerEventHandler
 
         viewModel.StartSelection(newStart);
         viewModel.UpdateSelection(newEnd);
+    }
+
+    private enum ClickType
+    {
+        Single,
+        Double,
+        Triple
     }
 }

@@ -1,7 +1,7 @@
 using Key = meteor.Core.Enums.Key;
 using KeyModifiers = meteor.Core.Enums.KeyModifiers;
 
-namespace meteor.UI.Adapters;
+namespace meteor.UI.Common.Adapters;
 
 public static class KeyConverter
 {

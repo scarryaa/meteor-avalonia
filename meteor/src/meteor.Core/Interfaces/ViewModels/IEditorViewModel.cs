@@ -7,10 +7,6 @@ namespace meteor.Core.Interfaces.ViewModels;
 
 public interface IEditorViewModel
 {
-    event EventHandler<ContentChangeEventArgs>? ContentChanged;
-    event EventHandler? SelectionChanged;
-    event EventHandler<int>? CompletionIndexChanged;
-
     ITextBufferService TextBufferService { get; }
     int SelectionStart { get; }
     int SelectionEnd { get; }
@@ -19,6 +15,9 @@ public interface IEditorViewModel
     bool IsCompletionActive { get; }
     int SelectedCompletionIndex { get; set; }
     int CursorPosition { get; }
+    event EventHandler<ContentChangeEventArgs>? ContentChanged;
+    event EventHandler? SelectionChanged;
+    event EventHandler<int>? CompletionIndexChanged;
 
     Point GetCursorPosition();
     Task TriggerCompletionAsync();

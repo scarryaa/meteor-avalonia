@@ -20,16 +20,16 @@
         <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->
         <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="Avalonia.Diagnostics" Version="11.1.0"/>
         <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.1"/>
-        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0-preview.6.24327.7" />
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0-preview.6.24327.7"/>
     </ItemGroup>
 
     <ItemGroup>
-      <UpToDateCheckInput Remove="Views\MainWindow.axaml" />
-      <UpToDateCheckInput Remove="Assets\avalonia-logo.ico" />
+        <UpToDateCheckInput Remove="Views\MainWindow.axaml"/>
+        <UpToDateCheckInput Remove="Assets\avalonia-logo.ico"/>
         <UpToDateCheckInput Remove="Resources\Fonts.axaml"/>
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\meteor.UI\meteor.UI.csproj" />
+        <ProjectReference Include="..\meteor.UI\meteor.UI.csproj"/>
     </ItemGroup>
 </Project>

@@ -8,8 +8,8 @@ namespace meteor.Core.Services;
 
 public class TabService : ITabService
 {
-    private readonly ITabViewModelFactory _tabViewModelFactory;
     private readonly List<ITabViewModel> _tabHistory = [];
+    private readonly ITabViewModelFactory _tabViewModelFactory;
     private ITabViewModel _previousActiveTab;
 
     public TabService(ITabViewModelFactory tabViewModelFactory)
@@ -36,14 +36,6 @@ public class TabService : ITabService
         return tabViewModel;
     }
 
-    private ITabViewModel CreateTabViewModel(IEditorViewModel editorViewModel, ITabViewModelConfig tabConfig,
-        string filePath, string fileName, string initialContent)
-    {
-        var tabViewModel = _tabViewModelFactory.Create(editorViewModel, tabConfig, filePath, fileName);
-        tabViewModel?.LoadContent(initialContent);
-        return tabViewModel;
-    }
-
     public ITabViewModel GetPreviousActiveTab()
     {
         return _previousActiveTab;
@@ -59,6 +51,21 @@ public class TabService : ITabService
         }
     }
 
+    public void SetActiveTab(ITabViewModel? tab)
+    {
+        if (ShouldUpdateActiveTab(tab))
+            UpdateActiveTab(tab);
+        else if (tab == null) ClearActiveTab();
+    }
+
+    private ITabViewModel CreateTabViewModel(IEditorViewModel editorViewModel, ITabViewModelConfig tabConfig,
+        string filePath, string fileName, string initialContent)
+    {
+        var tabViewModel = _tabViewModelFactory.Create(editorViewModel, tabConfig, filePath, fileName);
+        tabViewModel?.LoadContent(initialContent);
+        return tabViewModel;
+    }
+
     private void UpdateActiveTabAfterRemoval(ITabViewModel? removedTab)
     {
         if (ActiveTab == removedTab)
@@ -68,13 +75,6 @@ public class TabService : ITabService
         }
 
         if (Tabs.Count == 0) SetActiveTab(null);
-    }
-
-    public void SetActiveTab(ITabViewModel? tab)
-    {
-        if (ShouldUpdateActiveTab(tab))
-            UpdateActiveTab(tab);
-        else if (tab == null) ClearActiveTab();
     }
 
     private bool ShouldUpdateActiveTab(ITabViewModel? tab)

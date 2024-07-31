@@ -8,13 +8,13 @@ namespace meteor.Tests.Core.Services;
 
 public class InputManagerTests
 {
-    private readonly Mock<ITextBufferService> _mockTextBufferService;
-    private readonly Mock<ICursorManager> _mockCursorManager;
+    private readonly InputManager _inputManager;
     private readonly Mock<IClipboardManager> _mockClipboardManager;
+    private readonly Mock<ICursorManager> _mockCursorManager;
+    private readonly Mock<IScrollManager> _mockScrollManager;
     private readonly Mock<ISelectionManager> _mockSelectionManager;
     private readonly Mock<ITextAnalysisService> _mockTextAnalysisService;
-    private readonly Mock<IScrollManager> _mockScrollManager;
-    private readonly InputManager _inputManager;
+    private readonly Mock<ITextBufferService> _mockTextBufferService;
 
     public InputManagerTests()
     {

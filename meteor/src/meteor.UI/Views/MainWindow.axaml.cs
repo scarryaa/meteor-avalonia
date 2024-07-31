@@ -8,21 +8,23 @@ using meteor.Core.Interfaces.Services;
 using meteor.Core.Interfaces.Services.Editor;
 using meteor.Core.Models;
 using meteor.Core.Services;
-using meteor.UI.Controls;
-using meteor.UI.Factories;
-using meteor.UI.Interfaces.Services.Editor;
+using meteor.UI.Features.Editor.Factories;
+using meteor.UI.Features.Editor.Interfaces;
+using meteor.UI.Features.Editor.ViewModels;
+using meteor.UI.Features.FileExplorer.Controls;
+using meteor.UI.Features.Tabs.ViewModels;
 using meteor.UI.Services;
 using meteor.UI.ViewModels;
 using Color = Avalonia.Media.Color;
 using SolidColorBrush = Avalonia.Media.SolidColorBrush;
-using TabControl = meteor.UI.Controls.TabControl;
+using TabControl = meteor.UI.Features.Tabs.Controls.TabControl;
 
 namespace meteor.UI.Views;
 
 public partial class MainWindow : Window
 {
-    private readonly ITabService _tabService;
     private readonly IEditorConfig _config;
+    private readonly ITabService _tabService;
     private readonly ITextMeasurer _textMeasurer;
 
     public MainWindow(
@@ -128,7 +130,7 @@ public partial class MainWindow : Window
             new CompletionProvider(textBufferService)
         );
         inputManager.SetViewModel(editorViewModel);
-        
+
         var tabConfig = new TabConfig(_tabService);
         _tabService.AddTab(editorViewModel, tabConfig, "Untitled", string.Empty);
     }
@@ -159,7 +161,7 @@ public partial class MainWindow : Window
             new CompletionProvider(textBufferService)
         );
         inputManager.SetViewModel(editorViewModel);
-        
+
         var tabConfig = new TabConfig(_tabService);
         var newTab = _tabService.AddTab(editorViewModel, tabConfig, fileName, filePath, fileContent);
 

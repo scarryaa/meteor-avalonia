@@ -2,10 +2,10 @@ using meteor.Core.Interfaces.Config;
 using meteor.Core.Interfaces.Factories;
 using meteor.Core.Interfaces.Models;
 using meteor.Core.Interfaces.Services;
-using meteor.UI.Models;
+using meteor.UI.Features.Editor.Models;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace meteor.UI.Factories;
+namespace meteor.UI.Features.Editor.Factories;
 
 public class EditorInstanceFactory : IEditorInstanceFactory
 {

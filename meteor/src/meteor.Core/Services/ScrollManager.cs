@@ -7,16 +7,16 @@ namespace meteor.Core.Services;
 
 public class ScrollManager : IScrollManager
 {
+    private double _gutterWidth;
     private Vector _scrollOffset;
     private Size _viewport;
-    private double _gutterWidth;
-
-    public event EventHandler<Vector>? ScrollChanged;
 
     public ScrollManager(IEditorConfig config, ITextMeasurer textMeasurer)
     {
         LineHeight = textMeasurer.GetLineHeight(config.FontFamily, config.FontSize) * config.LineHeightMultiplier;
     }
+
+    public event EventHandler<Vector>? ScrollChanged;
 
     public void UpdateViewportAndExtentSizes(Size viewport, Size extent)
     {
@@ -129,13 +129,9 @@ public class ScrollManager : IScrollManager
         var totalLineCount = numberOfLines;
 
         if (lineTop < ScrollOffset.Y + verticalMargin)
-        {
             ScrollToLine(Math.Max(0, lineNumber - (isSelection ? 0 : 3)));
-        }
         else if (lineBottom > ScrollOffset.Y + _viewport.Height - verticalMargin)
-        {
             ScrollToLine(Math.Max(0, lineNumber - GetVisibleLineCount() + (isSelection ? 1 : 5)));
-        }
 
         // Horizontal scrolling
         var horizontalMargin = 50;
@@ -160,6 +156,7 @@ public class ScrollManager : IScrollManager
 
         adjustedScrollOffsetX = Math.Max(0, adjustedScrollOffsetX);
 
-        if (!FloatingPointComparer.AreEqual(adjustedScrollOffsetX, ScrollOffset.X)) ScrollOffset = new Vector(adjustedScrollOffsetX, ScrollOffset.Y);
+        if (!FloatingPointComparer.AreEqual(adjustedScrollOffsetX, ScrollOffset.X))
+            ScrollOffset = new Vector(adjustedScrollOffsetX, ScrollOffset.Y);
     }
 }

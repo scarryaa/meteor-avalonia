@@ -8,29 +8,23 @@ using meteor.Core.Interfaces.Services;
 using meteor.Core.Interfaces.ViewModels;
 using meteor.UI.Config;
 
-namespace meteor.UI.Controls;
+namespace meteor.UI.Features.Gutter.Controls;
 
 public class GutterControl : Control
 {
-    private readonly IEditorViewModel _viewModel;
-    private readonly ITextMeasurer _textMeasurer;
-    private readonly IEditorConfig _config;
+    private const int Padding = 25;
     private readonly AvaloniaEditorConfig _avaloniaConfig;
+    private readonly IEditorConfig _config;
 
     private readonly double _lineHeight;
-    private Size _totalSize;
-    private const int Padding = 25;
-    private int _lastLineCount;
-    private double _maxLineNumberWidth;
-
-    public double VerticalOffset { get; private set; }
-    public Size Viewport { get; set; }
-
-    public event EventHandler<int>? LineSelected;
-    public event EventHandler<Vector>? ScrollRequested;
+    private readonly ITextMeasurer _textMeasurer;
+    private readonly IEditorViewModel _viewModel;
 
     private bool _isSelecting;
+    private int _lastLineCount;
+    private double _maxLineNumberWidth;
     private int _selectionStartLine;
+    private Size _totalSize;
 
     public GutterControl(IEditorViewModel viewModel, ITextMeasurer textMeasurer, IEditorConfig config)
     {
@@ -49,6 +43,12 @@ public class GutterControl : Control
         PointerReleased += OnPointerReleased;
         PointerWheelChanged += OnPointerWheelChanged;
     }
+
+    public double VerticalOffset { get; private set; }
+    public Size Viewport { get; set; }
+
+    public event EventHandler<int>? LineSelected;
+    public event EventHandler<Vector>? ScrollRequested;
 
     private void OnContentChanged(object sender, EventArgs e)
     {

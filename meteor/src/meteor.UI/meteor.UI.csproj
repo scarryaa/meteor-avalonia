@@ -8,7 +8,7 @@
 
     <ItemGroup>
         <AdditionalFiles Include="Resources\Fonts.axaml"/>
-      <AdditionalFiles Include="Views\MainWindow.axaml" />
+        <AdditionalFiles Include="Views\MainWindow.axaml"/>
     </ItemGroup>
 
     <ItemGroup>
@@ -16,25 +16,25 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Reference Include="Avalonia.Controls">
-        <HintPath>..\..\..\..\..\.nuget\packages\avalonia\11.1.0\ref\net8.0\Avalonia.Controls.dll</HintPath>
-      </Reference>
-      <Reference Include="CommunityToolkit.Mvvm">
-        <HintPath>..\..\..\..\..\.nuget\packages\communitytoolkit.mvvm\8.2.1\lib\net6.0\CommunityToolkit.Mvvm.dll</HintPath>
-      </Reference>
+        <Reference Include="Avalonia.Controls">
+            <HintPath>..\..\..\..\..\.nuget\packages\avalonia\11.1.0\ref\net8.0\Avalonia.Controls.dll</HintPath>
+        </Reference>
+        <Reference Include="CommunityToolkit.Mvvm">
+            <HintPath>..\..\..\..\..\.nuget\packages\communitytoolkit.mvvm\8.2.1\lib\net6.0\CommunityToolkit.Mvvm.dll</HintPath>
+        </Reference>
     </ItemGroup>
 
     <ItemGroup>
-      <PackageReference Include="Avalonia" Version="11.1.0" />
+        <PackageReference Include="Avalonia" Version="11.1.0"/>
         <PackageReference Include="Avalonia.Controls.TreeDataGrid" Version="11.0.10"/>
-      <PackageReference Include="Avalonia.Desktop" Version="11.1.0" />
+        <PackageReference Include="Avalonia.Desktop" Version="11.1.0"/>
         <PackageReference Include="Avalonia.Diagnostics" Version="11.1.0"/>
         <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.0-preview.6.24327.7"/>
         <PackageReference Include="Projektanker.Icons.Avalonia.FontAwesome" Version="9.4.0"/>
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\meteor.Core\meteor.Core.csproj" />
+        <ProjectReference Include="..\meteor.Core\meteor.Core.csproj"/>
     </ItemGroup>
 
     <ItemGroup>

@@ -16,23 +16,21 @@ using Point = Avalonia.Point;
 using Size = Avalonia.Size;
 using SolidColorBrush = Avalonia.Media.SolidColorBrush;
 
-namespace meteor.UI.Controls;
+namespace meteor.UI.Features.FileExplorer.Controls;
 
 public class FileExplorerControl : UserControl
 {
     private const int MaxItemsPerDirectory = 10_000;
-    private readonly ObservableCollection<FileItem> _items;
-    private readonly double _itemHeight = 24;
     private readonly double _indentWidth = 20;
+    private readonly double _itemHeight = 24;
+    private readonly ObservableCollection<FileItem> _items;
     private readonly double _leftPadding = 10;
     private readonly double _rightPadding = 10;
-    private ScrollViewer _scrollViewer;
     private Canvas _canvas;
+    private Grid _mainGrid;
+    private ScrollViewer _scrollViewer;
     private FileItem _selectedItem;
     private Button _selectPathButton;
-    private Grid _mainGrid;
-
-    public event EventHandler<string> FileSelected;
 
     public FileExplorerControl()
     {
@@ -41,6 +39,8 @@ public class FileExplorerControl : UserControl
         UpdateCanvasSize();
         Focus();
     }
+
+    public event EventHandler<string> FileSelected;
 
     private void InitializeComponent()
     {

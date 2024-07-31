@@ -1,16 +1,16 @@
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:viewModels="clr-namespace:meteor.UI.ViewModels"
-        xmlns:behaviors="clr-namespace:meteor.UI.Behaviors"
-        xmlns:converters="clr-namespace:meteor.UI.Converters">
-    
+        xmlns:converters="clr-namespace:meteor.UI.Common.Converters"
+        xmlns:viewModels1="clr-namespace:meteor.UI.Features.Tabs.ViewModels"
+        xmlns:behaviors="clr-namespace:meteor.UI.Common.Behaviors">
+
     <Styles.Resources>
         <converters:IsActiveToBrushConverter x:Key="IsActiveToBrushConverter"
                                              ActiveBrush="White"
                                              InactiveBrush="LightGray" />
         <converters:BoolToBrushConverter x:Key="BoolToBrushConverter" />
 
-        <DataTemplate x:Key="TabItemTemplate" x:DataType="viewModels:TabViewModel">
+        <DataTemplate x:Key="TabItemTemplate" x:DataType="viewModels1:TabViewModel">
             <Border x:Name="MainBorder"
                     BorderBrush="{Binding BorderBrush}"
                     Background="{Binding IsActive, Converter={StaticResource IsActiveToBrushConverter}}"
@@ -90,7 +90,7 @@
     </Style>
 
     <Style Selector="Button#CloseButton:pointerover /template/ ContentPresenter">
-        <Setter Property="Background" x:DataType="viewModels:TabViewModel" Value="{Binding CloseButtonBackground}" />
-        <Setter Property="Foreground" x:DataType="viewModels:TabViewModel" Value="{Binding CloseButtonForeground}" />
+        <Setter Property="Background" x:DataType="viewModels1:TabViewModel" Value="{Binding CloseButtonBackground}" />
+        <Setter Property="Foreground" x:DataType="viewModels1:TabViewModel" Value="{Binding CloseButtonForeground}" />
     </Style>
 </Styles>

@@ -7,6 +7,7 @@ public class AvaloniaEditorConfig : EditorConfig
 {
     public Typeface Typeface =>
         new("avares://meteor.UI/Common/Assets/Fonts/SanFrancisco/SF-Mono-Medium.otf#SF Mono");
+
     public IBrush TextBrush => new SolidColorBrush(Color.FromArgb(TextColor.A, TextColor.R, TextColor.G, TextColor.B));
 
     public IBrush BackgroundBrush =>

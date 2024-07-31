@@ -4,6 +4,78 @@ namespace meteor.Core.Models;
 
 public class TextBuffer : IDisposable
 {
+    private readonly UIntPtr _docId;
+
+    public TextBuffer()
+    {
+        _docId = NativeMethods.CreateDocument();
+    }
+
+    public void Dispose()
+    {
+        NativeMethods.DeleteDocument(_docId);
+        GC.SuppressFinalize(this);
+    }
+
+    public int GetVersion()
+    {
+        return NativeMethods.GetDocumentVersion(_docId);
+    }
+
+    public void InsertText(int index, string text)
+    {
+        if (string.IsNullOrEmpty(text)) return;
+        NativeMethods.InsertText(_docId, index, text);
+    }
+
+    public void DeleteText(int index, int length)
+    {
+        NativeMethods.DeleteText(_docId, index, length);
+    }
+
+    public string GetDocumentSlice(int start, int end)
+    {
+        start = Math.Clamp(start, 0, GetDocumentLength());
+        end = Math.Clamp(end, start, GetDocumentLength());
+
+        if (start < 0 || end < start)
+            throw new ArgumentOutOfRangeException(nameof(start),
+                "Specified argument was out of the range of valid values.");
+
+        var documentSlicePtr = NativeMethods.GetDocumentSlice(_docId, start, end);
+        if (documentSlicePtr == IntPtr.Zero) return string.Empty;
+
+        try
+        {
+            return Marshal.PtrToStringAuto(documentSlicePtr) ?? string.Empty;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in GetDocumentSlice: {ex.Message}");
+            return string.Empty;
+        }
+        finally
+        {
+            NativeMethods.FreeString(documentSlicePtr);
+        }
+    }
+
+    public int GetDocumentLength()
+    {
+        return NativeMethods.GetDocumentLength(_docId);
+    }
+
+    public void LoadContent(string content)
+    {
+        DeleteText(0, GetDocumentLength());
+        InsertText(0, content);
+    }
+
+    ~TextBuffer()
+    {
+        Dispose();
+    }
+
     private static class NativeMethods
     {
         private const string WindowsDllName = "../../../../meteor-rust-core/target/release/meteor_rust_core.dll";
@@ -173,77 +245,5 @@ public class TextBuffer : IDisposable
                 return GetDocumentVersionLinux(docId);
             throw new PlatformNotSupportedException("Unsupported operating system.");
         }
-    }
-
-    private readonly UIntPtr _docId;
-
-    public TextBuffer()
-    {
-        _docId = NativeMethods.CreateDocument();
-    }
-
-    public int GetVersion()
-    {
-        return NativeMethods.GetDocumentVersion(_docId);
-    }
-
-    public void InsertText(int index, string text)
-    {
-        if (string.IsNullOrEmpty(text)) return;
-        NativeMethods.InsertText(_docId, index, text);
-    }
-
-    public void DeleteText(int index, int length)
-    {
-        NativeMethods.DeleteText(_docId, index, length);
-    }
-
-    public string GetDocumentSlice(int start, int end)
-    {
-        start = Math.Clamp(start, 0, GetDocumentLength());
-        end = Math.Clamp(end, start, GetDocumentLength());
-
-        if (start < 0 || end < start)
-            throw new ArgumentOutOfRangeException(nameof(start),
-                "Specified argument was out of the range of valid values.");
-
-        var documentSlicePtr = NativeMethods.GetDocumentSlice(_docId, start, end);
-        if (documentSlicePtr == IntPtr.Zero) return string.Empty;
-
-        try
-        {
-            return Marshal.PtrToStringAuto(documentSlicePtr) ?? string.Empty;
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error in GetDocumentSlice: {ex.Message}");
-            return string.Empty;
-        }
-        finally
-        {
-            NativeMethods.FreeString(documentSlicePtr);
-        }
-    }
-
-    public int GetDocumentLength()
-    {
-        return NativeMethods.GetDocumentLength(_docId);
-    }
-
-    public void LoadContent(string content)
-    {
-        DeleteText(0, GetDocumentLength());
-        InsertText(0, content);
-    }
-
-    public void Dispose()
-    {
-        NativeMethods.DeleteDocument(_docId);
-        GC.SuppressFinalize(this);
-    }
-
-    ~TextBuffer()
-    {
-        Dispose();
     }
 }

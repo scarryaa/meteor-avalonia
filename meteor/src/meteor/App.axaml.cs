@@ -12,8 +12,11 @@ using meteor.Core.Interfaces.Services.Editor;
 using meteor.Core.Interfaces.ViewModels;
 using meteor.Core.Models.Commands;
 using meteor.Core.Services;
-using meteor.UI.Factories;
-using meteor.UI.Interfaces.Services.Editor;
+using meteor.UI.Features.Editor.Factories;
+using meteor.UI.Features.Editor.Interfaces;
+using meteor.UI.Features.Editor.Services;
+using meteor.UI.Features.Tabs.Factories;
+using meteor.UI.Features.Tabs.ViewModels;
 using meteor.UI.Services;
 using meteor.UI.ViewModels;
 using meteor.UI.Views;
@@ -76,7 +79,7 @@ public class App : Application
         services.AddSingleton<ITabService, TabService>();
         services.AddSingleton<IFileDialogService, FileDialogService>();
         services.AddSingleton<IFileService, FileService>();
-        
+
         // Editor Services
         services.AddSingleton<IEditorLayoutManager, EditorLayoutManager>();
         services.AddSingleton<IEditorInputHandler, EditorInputHandler>();

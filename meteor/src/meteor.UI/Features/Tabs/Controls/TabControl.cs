@@ -2,19 +2,20 @@ using Avalonia.Controls;
 using Avalonia.Threading;
 using meteor.Core.Interfaces.Services;
 using meteor.Core.Interfaces.ViewModels;
-using meteor.UI.Interfaces.Factories;
-using meteor.UI.ViewModels;
+using meteor.UI.Features.Editor.Controls;
+using meteor.UI.Features.Editor.Interfaces;
+using meteor.UI.Features.Editor.ViewModels;
 
-namespace meteor.UI.Controls;
+namespace meteor.UI.Features.Tabs.Controls;
 
 public class TabControl : UserControl
 {
-    private readonly ITabService _tabService;
     private readonly IEditorControlFactory _editorControlFactory;
-    private HorizontalScrollableTabControl _tabStrip;
+    private readonly ITabService _tabService;
     private ContentControl _contentArea;
-    private ITabViewModel _lastSelectedTab;
     private bool _isUpdatingActiveTab;
+    private ITabViewModel _lastSelectedTab;
+    private HorizontalScrollableTabControl _tabStrip;
 
     public TabControl(ITabService tabService, IEditorControlFactory editorControlFactory)
     {

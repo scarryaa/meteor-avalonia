@@ -1,7 +1,7 @@
 using meteor.Core.Interfaces.ViewModels;
-using meteor.UI.Controls;
+using meteor.UI.Features.Editor.Controls;
 
-namespace meteor.UI.Interfaces.Factories;
+namespace meteor.UI.Features.Editor.Interfaces;
 
 public interface IEditorControlFactory
 {

@@ -5,12 +5,12 @@ using meteor.Core.Interfaces.Services.Editor;
 using meteor.Core.Interfaces.ViewModels;
 using meteor.Core.Models.EventArgs;
 
-namespace meteor.UI.Services;
+namespace meteor.UI.Features.Editor.Services;
 
 public class EditorInputHandler : IEditorInputHandler
 {
-    private readonly IScrollManager _scrollManager;
     private readonly IModifierKeyHandler _modifierKeyHandler;
+    private readonly IScrollManager _scrollManager;
     private readonly ISelectAllCommandHandler _selectAllCommandHandler;
     private bool _isSelectAll;
 

@@ -7,17 +7,17 @@ namespace meteor.Core.Services;
 
 public class InputManager : IInputManager
 {
-    private readonly ITextBufferService _textBufferService;
-    private readonly ICursorManager _cursorManager;
     private readonly IClipboardManager _clipboardManager;
+    private readonly ICursorManager _cursorManager;
+    private readonly IScrollManager _scrollManager;
     private readonly ISelectionManager _selectionManager;
     private readonly ITextAnalysisService _textAnalysisService;
-    private readonly IScrollManager _scrollManager;
-    private bool _isClipboardOperationHandled;
-    private bool _isShiftPressed;
-    private bool _isControlOrMetaPressed;
+    private readonly ITextBufferService _textBufferService;
     private bool _isAltPressed;
+    private bool _isClipboardOperationHandled;
+    private bool _isControlOrMetaPressed;
     private bool _isSelectionInProgress;
+    private bool _isShiftPressed;
     private (int Start, int End) _lastSelection;
     private IEditorViewModel _viewModel;
 
@@ -35,11 +35,6 @@ public class InputManager : IInputManager
         _selectionManager = selectionManager ?? throw new ArgumentNullException(nameof(selectionManager));
         _textAnalysisService = textAnalysisService ?? throw new ArgumentNullException(nameof(textAnalysisService));
         _scrollManager = scrollManager ?? throw new ArgumentNullException(nameof(scrollManager));
-    }
-
-    public void SetViewModel(IEditorViewModel viewModel)
-    {
-        _viewModel = viewModel;
     }
 
     public async Task HandleKeyDown(KeyEventArgs e)
@@ -68,7 +63,7 @@ public class InputManager : IInputManager
             await _viewModel.TriggerCompletionAsync();
             e.Handled = true;
         }
-        
+
         try
         {
             _isClipboardOperationHandled = false;
@@ -178,30 +173,6 @@ public class InputManager : IInputManager
         }
     }
 
-    private void HandleCompletionKeyDown(KeyEventArgs e)
-    {
-        switch (e.Key)
-        {
-            case Key.Up:
-                _viewModel.MoveCompletionSelection(-1);
-                e.Handled = true;
-                break;
-            case Key.Down:
-                _viewModel.MoveCompletionSelection(1);
-                e.Handled = true;
-                break;
-            case Key.Enter:
-            case Key.Tab:
-                _viewModel.ApplySelectedCompletion();
-                e.Handled = true;
-                break;
-            case Key.Escape:
-                _viewModel.CloseCompletion();
-                e.Handled = true;
-                break;
-        }
-    }
-
     public async Task HandleTextInput(TextInputEventArgs e)
     {
         if (_isClipboardOperationHandled || _isControlOrMetaPressed)
@@ -227,6 +198,35 @@ public class InputManager : IInputManager
         if (e.Text == "?" || char.IsLetterOrDigit(e.Text[0])) await _viewModel.TriggerCompletionAsync();
 
         _lastSelection = (0, 0);
+    }
+
+    public void SetViewModel(IEditorViewModel viewModel)
+    {
+        _viewModel = viewModel;
+    }
+
+    private void HandleCompletionKeyDown(KeyEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case Key.Up:
+                _viewModel.MoveCompletionSelection(-1);
+                e.Handled = true;
+                break;
+            case Key.Down:
+                _viewModel.MoveCompletionSelection(1);
+                e.Handled = true;
+                break;
+            case Key.Enter:
+            case Key.Tab:
+                _viewModel.ApplySelectedCompletion();
+                e.Handled = true;
+                break;
+            case Key.Escape:
+                _viewModel.CloseCompletion();
+                e.Handled = true;
+                break;
+        }
     }
 
     private void HandleSelectAll()
@@ -443,6 +443,7 @@ public class InputManager : IInputManager
             _textBufferService.DeleteText(_cursorManager.Position - 1, 1);
             _cursorManager.MoveCursor(-1);
         }
+
         _textAnalysisService.ResetDesiredColumn();
 
         if (IsWordBehindCursor())
@@ -526,7 +527,7 @@ public class InputManager : IInputManager
     private void DeleteSelectedText()
     {
         if (!_selectionManager.HasSelection) return;
-    
+
         var selection = _selectionManager.CurrentSelection;
         var content = _textBufferService.GetContent();
 
@@ -539,6 +540,7 @@ public class InputManager : IInputManager
             _textBufferService.DeleteText(start, end - start);
             _cursorManager.SetPosition(start);
         }
+
         _selectionManager.ClearSelection();
     }
 }

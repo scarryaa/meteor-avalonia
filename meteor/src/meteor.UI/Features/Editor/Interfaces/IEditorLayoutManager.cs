@@ -1,8 +1,9 @@
 using Avalonia.Controls;
 using meteor.Core.Models;
-using meteor.UI.Controls;
+using meteor.UI.Features.Editor.Controls;
+using meteor.UI.Features.Gutter.Controls;
 
-namespace meteor.UI.Interfaces.Services.Editor;
+namespace meteor.UI.Features.Editor.Interfaces;
 
 public interface IEditorLayoutManager
 {

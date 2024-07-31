@@ -7,25 +7,26 @@ using meteor.Core.Interfaces.Services;
 using meteor.Core.Interfaces.Services.Editor;
 using meteor.Core.Interfaces.ViewModels;
 using meteor.Core.Services;
-using meteor.UI.Adapters;
-using meteor.UI.Interfaces.Services.Editor;
+using meteor.UI.Common.Adapters;
+using meteor.UI.Features.Editor.Interfaces;
+using meteor.UI.Features.Gutter.Controls;
 using Point = meteor.Core.Models.Point;
 
-namespace meteor.UI.Controls;
+namespace meteor.UI.Features.Editor.Controls;
 
 public partial class EditorControl : UserControl
 {
-    private readonly IEditorViewModel _viewModel;
-    private readonly IScrollManager? _scrollManager;
-    private readonly IEditorLayoutManager _layoutManager;
-    private readonly IEditorInputHandler _inputHandler;
-    private readonly IPointerEventHandler _pointerEventHandler;
-    private readonly ITextMeasurer _textMeasurer;
     private readonly IEditorConfig _config;
-
-    private ScrollViewer? _scrollViewer;
+    private readonly IEditorInputHandler _inputHandler;
+    private readonly IEditorLayoutManager _layoutManager;
+    private readonly IPointerEventHandler _pointerEventHandler;
+    private readonly IScrollManager? _scrollManager;
+    private readonly ITextMeasurer _textMeasurer;
+    private readonly IEditorViewModel _viewModel;
     private EditorContentControl? _contentControl;
     private GutterControl? _gutterControl;
+
+    private ScrollViewer? _scrollViewer;
 
     public EditorControl(IEditorViewModel viewModel, IScrollManager scrollManager,
         IEditorLayoutManager layoutManager, IEditorInputHandler inputHandler,
@@ -69,7 +70,7 @@ public partial class EditorControl : UserControl
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
             Content = _contentControl
         };
-        
+
         var mainGrid = new Grid
         {
             ColumnDefinitions = new ColumnDefinitions("Auto,*")
@@ -92,7 +93,7 @@ public partial class EditorControl : UserControl
                 "ScrollViewer, ScrollManager, ContentControl, or GutterControl is null. Cannot setup event handlers.");
             return;
         }
-        
+
         _scrollViewer.ScrollChanged += ScrollViewer_ScrollChanged;
         _scrollViewer.SizeChanged += ScrollViewer_SizeChanged;
         _scrollManager.ScrollChanged += ScrollManager_ScrollChanged;

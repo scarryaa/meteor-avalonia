@@ -13,16 +13,11 @@ namespace meteor.UI.ViewModels;
 
 public class MainWindowViewModel : ObservableObject
 {
-    private readonly ITabService _tabService;
     private readonly IEditorInstanceFactory _editorInstanceFactory;
-    private ITabViewModel? _activeTab;
-    private readonly IFileService _fileService;
     private readonly IFileDialogService _fileDialogService;
-    
-    public ICommand OpenNewTabCommand { get; }
-    public ICommand CloseTabCommand { get; }
-    public ICommand SaveFileCommand { get; }
-    public ICommand OpenFileCommand { get; }
+    private readonly IFileService _fileService;
+    private readonly ITabService _tabService;
+    private ITabViewModel? _activeTab;
 
     public MainWindowViewModel(ITabService tabService, IEditorInstanceFactory editorInstanceFactory,
         IFileService fileService, IFileDialogService fileDialogService)
@@ -36,23 +31,19 @@ public class MainWindowViewModel : ObservableObject
         CloseTabCommand = new RelayCommand<ITabViewModel>(CloseTab);
         SaveFileCommand = new RelayCommand(SaveFile, CanSaveFile);
         OpenFileCommand = new RelayCommand(OpenFile);
-        
-        _tabService.TabAdded += (sender, tab) =>
-        {
-            OnPropertyChanged(nameof(Tabs));
-        };
-        _tabService.TabRemoved += (sender, tab) =>
-        {
-            OnPropertyChanged(nameof(Tabs));
-        };
-        _tabService.ActiveTabChanged += (sender, tab) =>
-        {
-            ActiveTab = tab;
-        };
+
+        _tabService.TabAdded += (sender, tab) => { OnPropertyChanged(nameof(Tabs)); };
+        _tabService.TabRemoved += (sender, tab) => { OnPropertyChanged(nameof(Tabs)); };
+        _tabService.ActiveTabChanged += (sender, tab) => { ActiveTab = tab; };
 
         ((INotifyCollectionChanged)_tabService.Tabs).CollectionChanged +=
             (sender, args) => OnPropertyChanged(nameof(Tabs));
     }
+
+    public ICommand OpenNewTabCommand { get; }
+    public ICommand CloseTabCommand { get; }
+    public ICommand SaveFileCommand { get; }
+    public ICommand OpenFileCommand { get; }
 
     public ObservableCollection<ITabViewModel> Tabs => _tabService.Tabs;
 

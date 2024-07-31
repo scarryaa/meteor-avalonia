@@ -15,37 +15,30 @@ using Size = Avalonia.Size;
 using SolidColorBrush = Avalonia.Media.SolidColorBrush;
 using Vector = Avalonia.Vector;
 
-namespace meteor.UI.Controls;
+namespace meteor.UI.Features.Editor.Controls;
 
 public class EditorContentControl : Control
 {
-    private readonly IEditorViewModel _viewModel;
-    private readonly ITextMeasurer _textMeasurer;
-    private readonly IEditorConfig _config;
-    private readonly AvaloniaEditorConfig _avaloniaConfig;
-    private readonly ISyntaxHighlighter _syntaxHighlighter;
-    private int _completionOverlayScrollOffset;
-
-    private Rect _scrollBarBounds;
-    private bool _isDraggingScrollbar;
-    private double _dragStartY;
-    private int _dragStartOffset;
-    private Size _totalSize;
-    private readonly List<int> _lineStartOffsets = new();
-    private int _documentVersion;
-    private int _cachedDocumentLength;
-
     private const int CompletionItemHeight = 20;
     private const int MaxCompletionOverlayWidth = 300;
     private const int MaxCompletionOverlayHeight = 200;
-    
-    public Vector Offset { get; set; }
-    public Size Viewport { get; set; }
-    public event EventHandler<Point> CursorPositionChanged;
-
-    public double LineHeight { get; }
+    private readonly AvaloniaEditorConfig _avaloniaConfig;
+    private readonly IEditorConfig _config;
+    private readonly List<int> _lineStartOffsets = new();
+    private readonly ISyntaxHighlighter _syntaxHighlighter;
+    private readonly ITextMeasurer _textMeasurer;
+    private readonly IEditorViewModel _viewModel;
+    private int _cachedDocumentLength;
+    private int _completionOverlayScrollOffset;
+    private int _documentVersion;
+    private int _dragStartOffset;
+    private double _dragStartY;
+    private bool _isDraggingScrollbar;
 
     private Point _lastMousePosition;
+
+    private Rect _scrollBarBounds;
+    private Size _totalSize;
 
     public EditorContentControl(IEditorViewModel viewModel, ITextMeasurer textMeasurer, IEditorConfig config,
         ISyntaxHighlighter syntaxHighlighter)
@@ -70,6 +63,12 @@ public class EditorContentControl : Control
         PointerMoved += OnPointerMoved;
         PointerReleased += OnPointerReleased;
     }
+
+    public Vector Offset { get; set; }
+    public Size Viewport { get; set; }
+
+    public double LineHeight { get; }
+    public event EventHandler<Point> CursorPositionChanged;
 
     protected override Size MeasureOverride(Size availableSize)
     {

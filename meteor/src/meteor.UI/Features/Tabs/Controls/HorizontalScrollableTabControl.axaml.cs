@@ -10,32 +10,27 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Timer = System.Timers.Timer;
 
-namespace meteor.UI.Controls;
+namespace meteor.UI.Features.Tabs.Controls;
 
 public class HorizontalScrollableTabControl : Avalonia.Controls.TabControl
 {
-    private ScrollViewer? _scrollViewer;
-    private TabItem? _draggedItem;
-    private int _draggedIndex;
-    private TabItem? _previewItem;
-    private int _previewIndex;
-    private readonly Dictionary<TabItem, (IBrush? BorderBrush, Thickness BorderThickness)> _originalBorders = new();
-    private readonly Timer? _autoScrollTimer;
     private const double AutoScrollInterval = 3;
     private const double AutoScrollThreshold = 20;
     private const double AutoScrollStep = 1;
-    private Point _lastKnownMousePosition;
-    private bool _shouldCommitDrag;
 
     public static readonly StyledProperty<IBrush> PreviewBorderBrushProperty =
         AvaloniaProperty.Register<HorizontalScrollableTabControl, IBrush>(
             nameof(PreviewBorderBrush), new SolidColorBrush(Colors.Black));
 
-    public IBrush PreviewBorderBrush
-    {
-        get => GetValue(PreviewBorderBrushProperty);
-        set => SetValue(PreviewBorderBrushProperty, value);
-    }
+    private readonly Timer? _autoScrollTimer;
+    private readonly Dictionary<TabItem, (IBrush? BorderBrush, Thickness BorderThickness)> _originalBorders = new();
+    private int _draggedIndex;
+    private TabItem? _draggedItem;
+    private Point _lastKnownMousePosition;
+    private int _previewIndex;
+    private TabItem? _previewItem;
+    private ScrollViewer? _scrollViewer;
+    private bool _shouldCommitDrag;
 
     public HorizontalScrollableTabControl()
     {
@@ -49,6 +44,12 @@ public class HorizontalScrollableTabControl : Avalonia.Controls.TabControl
         _autoScrollTimer.Elapsed += OnAutoScrollTimerElapsed;
     }
 
+    public IBrush PreviewBorderBrush
+    {
+        get => GetValue(PreviewBorderBrushProperty);
+        set => SetValue(PreviewBorderBrushProperty, value);
+    }
+
     private void OnKeyDown(object? sender, KeyEventArgs e)
     {
         if (e.Key == Key.Escape)
@@ -57,7 +58,7 @@ public class HorizontalScrollableTabControl : Avalonia.Controls.TabControl
             e.Handled = true;
         }
     }
-    
+
     protected override void OnApplyTemplate(TemplateAppliedEventArgs e)
     {
         base.OnApplyTemplate(e);

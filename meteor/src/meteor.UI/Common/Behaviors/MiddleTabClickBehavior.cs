@@ -5,7 +5,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Reactive;
 
-namespace meteor.UI.Behaviors;
+namespace meteor.UI.Common.Behaviors;
 
 public static class MiddleTabClickBehavior
 {

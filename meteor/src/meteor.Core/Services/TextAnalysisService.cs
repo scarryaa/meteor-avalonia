@@ -36,14 +36,6 @@ public class TextAnalysisService : ITextAnalysisService
         return position;
     }
 
-    private static int SkipWhitespace(string text, int start, int direction)
-    {
-        var position = start;
-        while (position >= 0 && position < text.Length && char.IsWhiteSpace(text[position]) && text[position] != '\n')
-            position += direction;
-        return Math.Max(0, Math.Min(position, text.Length - 1));
-    }
-
     public int FindStartOfCurrentLine(string text, int currentPosition)
     {
         if (string.IsNullOrEmpty(text) || currentPosition <= 0) return 0;
@@ -134,6 +126,14 @@ public class TextAnalysisService : ITextAnalysisService
         var nextLineStart = currentLineEnd + 1;
         var nextLineEnd = FindEndOfCurrentLine(text, nextLineStart);
         return CalculatePositionInLine(text, nextLineStart, nextLineEnd, _desiredColumn);
+    }
+
+    private static int SkipWhitespace(string text, int start, int direction)
+    {
+        var position = start;
+        while (position >= 0 && position < text.Length && char.IsWhiteSpace(text[position]) && text[position] != '\n')
+            position += direction;
+        return Math.Max(0, Math.Min(position, text.Length - 1));
     }
 
     private int CalculatePositionInLine(string text, int lineStart, int lineEnd, int targetColumn)

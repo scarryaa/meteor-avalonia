@@ -1,7 +1,7 @@
 using Avalonia.Media;
 using ISolidColorBrush = meteor.Core.Interfaces.Models.ISolidColorBrush;
 
-namespace meteor.UI.Extensions;
+namespace meteor.UI.Common.Extensions;
 
 public static class SolidColorBrushExtensions
 {

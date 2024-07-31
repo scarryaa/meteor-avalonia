@@ -2,16 +2,17 @@ using Avalonia.Controls;
 using meteor.Core.Interfaces.Config;
 using meteor.Core.Interfaces.Services;
 using meteor.Core.Models;
-using meteor.UI.Controls;
-using meteor.UI.Interfaces.Services.Editor;
+using meteor.UI.Features.Editor.Controls;
+using meteor.UI.Features.Editor.Interfaces;
+using meteor.UI.Features.Gutter.Controls;
 
-namespace meteor.UI.Services;
+namespace meteor.UI.Features.Editor.Services;
 
 public class EditorLayoutManager : IEditorLayoutManager
 {
     private readonly IEditorConfig _config;
-    private readonly ITextMeasurer _textMeasurer;
     private readonly IScrollManager _scrollManager;
+    private readonly ITextMeasurer _textMeasurer;
     private bool _isUpdatingFromScrollManager;
 
     public EditorLayoutManager(IEditorConfig config, ITextMeasurer textMeasurer, IScrollManager scrollManager)

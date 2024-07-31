@@ -4,14 +4,12 @@ using meteor.Core.Interfaces.Services;
 using meteor.Core.Interfaces.ViewModels;
 using meteor.Core.Models;
 using meteor.Core.Services;
-using meteor.UI.ViewModels;
+using meteor.UI.Features.Editor.ViewModels;
 
-namespace meteor.UI.Models;
+namespace meteor.UI.Features.Editor.Models;
 
 public class EditorInstance : IEditorInstance
 {
-    public IEditorViewModel EditorViewModel { get; }
-
     public EditorInstance(IEditorConfig config, ITextMeasurer textMeasurer, IClipboardManager clipboardManager,
         ITextAnalysisService textAnalysisService, IScrollManager scrollManager)
     {
@@ -37,4 +35,6 @@ public class EditorInstance : IEditorInstance
 
         inputManager.SetViewModel(EditorViewModel);
     }
+
+    public IEditorViewModel EditorViewModel { get; }
 }

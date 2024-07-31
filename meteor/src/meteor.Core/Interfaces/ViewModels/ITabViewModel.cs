@@ -12,11 +12,11 @@ public interface ITabViewModel : INotifyPropertyChanged
     bool IsActive { get; set; }
     double ScrollPositionX { get; set; }
     double ScrollPositionY { get; set; }
+    bool IsTemporary { get; }
+    string FileName { get; set; }
 
     void SetFilePath(string filePath);
     void SaveScrollPosition(double positionX, double positionY);
-    bool IsTemporary { get; }
     public void SetOriginalContent(string content);
-    string FileName { get; set; }
     void LoadContent(string content);
 }

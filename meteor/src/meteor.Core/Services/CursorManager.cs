@@ -5,14 +5,11 @@ namespace meteor.Core.Services;
 
 public class CursorManager : ICursorManager
 {
-    private readonly ITextBufferService _textBufferService;
     private readonly IEditorConfig _config;
-    public int Position { get; private set; }
-    private int _line;
+    private readonly ITextBufferService _textBufferService;
     private int _column;
     private int _lastKnownLineStart;
-
-    public event EventHandler? CursorPositionChanged;
+    private int _line;
 
     public CursorManager(ITextBufferService textBufferService, IEditorConfig config)
     {
@@ -22,6 +19,10 @@ public class CursorManager : ICursorManager
         _column = 0;
         _lastKnownLineStart = 0;
     }
+
+    public int Position { get; private set; }
+
+    public event EventHandler? CursorPositionChanged;
 
     public void MoveCursor(int offset)
     {

@@ -5,11 +5,11 @@ namespace meteor.Core.Services;
 
 public class CompletionProvider : ICompletionProvider
 {
-    private readonly ITextBufferService _textBufferService;
     private readonly HashSet<string> _keywords;
-    private HashSet<string> _cachedWords;
-    private string _cachedText;
+    private readonly ITextBufferService _textBufferService;
     private readonly Dictionary<string, int> _wordFrequency;
+    private string _cachedText;
+    private HashSet<string> _cachedWords;
 
     public CompletionProvider(ITextBufferService textBufferService)
     {
@@ -239,7 +239,7 @@ public enum CompletionItemKind
     Variable,
     Class,
     Interface,
-    Module, 
+    Module,
     Property,
     Unit,
     Value,

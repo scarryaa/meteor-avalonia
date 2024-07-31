@@ -9,47 +9,10 @@ public class SyntaxHighlighter : ISyntaxHighlighter
 {
     private readonly ConcurrentDictionary<string, Lazy<List<SyntaxRule>>> _languageRules;
 
-    public record SyntaxRule(Regex Regex, string Style);
-
     public SyntaxHighlighter()
     {
         _languageRules = new ConcurrentDictionary<string, Lazy<List<SyntaxRule>>>();
         InitializeCSharpRules();
-    }
-
-    private void InitializeCSharpRules()
-    {
-        _languageRules["csharp"] = new Lazy<List<SyntaxRule>>(() =>
-        [
-            new(
-                new Regex(
-                    @"\b(abstract|as|base|bool|break|byte|case|catch|char|checked|class|const|continue|decimal|default|delegate|do|double|else|enum|event|explicit|extern|false|finally|fixed|float|for|foreach|goto|if|implicit|in|int|interface|internal|is|lock|long|namespace|new|null|object|operator|out|override|params|private|protected|public|readonly|ref|return|sbyte|sealed|short|sizeof|stackalloc|static|string|struct|switch|this|throw|true|try|typeof|uint|ulong|unchecked|unsafe|ushort|using|virtual|void|volatile|while|var|dynamic|async|await|yield)\b",
-                    RegexOptions.Compiled | RegexOptions.IgnoreCase), "keyword"),
-
-            new(
-                new Regex(@"^\s*#(if|else|elif|endif|define|undef|warning|error|line|region|endregion|pragma).*?$",
-                    RegexOptions.Multiline | RegexOptions.Compiled), "preprocessor"),
-
-            new(new Regex(@"//.*?$", RegexOptions.Multiline | RegexOptions.Compiled), "comment"),
-            new(new Regex(@"/\*[\s\S]*?\*/", RegexOptions.Compiled), "comment"),
-            new(new Regex(@"///.*?$", RegexOptions.Multiline | RegexOptions.Compiled), "xmldoc"),
-            new(new Regex(@"(?<=\[)[^\]]+(?=\])", RegexOptions.Compiled), "attribute"),
-            new(new Regex(@"(?<!\w)(\w+)(?=\s*\()", RegexOptions.Compiled), "method"),
-            new(new Regex(@"@""(?:[^""]|"""")*""", RegexOptions.Compiled), "string"),
-            new(new Regex(@"""(?:\\.|[^\\""])*""", RegexOptions.Compiled), "string"),
-            new(new Regex(@"'\\.'|'[^\\]'", RegexOptions.Compiled), "string"),
-            new(new Regex(@"\b(0x[a-fA-F0-9]+|0b[01]+|\d+(\.\d+)?([eE][+-]?\d+)?[fFdDmM]?)\b", RegexOptions.Compiled),
-                "number"),
-
-            new(new Regex(@"\b([a-zA-Z]\w*\.)+", RegexOptions.Compiled), "namespace"),
-            new(new Regex(@"\b[A-Z]\w*\b", RegexOptions.Compiled), "type"),
-            new(
-                new Regex(@"\b(from|where|select|group|into|orderby|join|let|in|on|equals|by|ascending|descending)\b",
-                    RegexOptions.Compiled), "linq"),
-
-            new(new Regex(@"\?\.", RegexOptions.Compiled), "operator"),
-            new(new Regex(@"=>\s*{|\S+\s*=>\s*\S+", RegexOptions.Compiled), "lambda")
-        ]);
     }
 
     public List<HighlightedSegment> HighlightSyntax(string text, string language)
@@ -98,6 +61,42 @@ public class SyntaxHighlighter : ISyntaxHighlighter
         return result;
     }
 
+    private void InitializeCSharpRules()
+    {
+        _languageRules["csharp"] = new Lazy<List<SyntaxRule>>(() =>
+        [
+            new SyntaxRule(
+                new Regex(
+                    @"\b(abstract|as|base|bool|break|byte|case|catch|char|checked|class|const|continue|decimal|default|delegate|do|double|else|enum|event|explicit|extern|false|finally|fixed|float|for|foreach|goto|if|implicit|in|int|interface|internal|is|lock|long|namespace|new|null|object|operator|out|override|params|private|protected|public|readonly|ref|return|sbyte|sealed|short|sizeof|stackalloc|static|string|struct|switch|this|throw|true|try|typeof|uint|ulong|unchecked|unsafe|ushort|using|virtual|void|volatile|while|var|dynamic|async|await|yield)\b",
+                    RegexOptions.Compiled | RegexOptions.IgnoreCase), "keyword"),
+
+            new SyntaxRule(
+                new Regex(@"^\s*#(if|else|elif|endif|define|undef|warning|error|line|region|endregion|pragma).*?$",
+                    RegexOptions.Multiline | RegexOptions.Compiled), "preprocessor"),
+
+            new SyntaxRule(new Regex(@"//.*?$", RegexOptions.Multiline | RegexOptions.Compiled), "comment"),
+            new SyntaxRule(new Regex(@"/\*[\s\S]*?\*/", RegexOptions.Compiled), "comment"),
+            new SyntaxRule(new Regex(@"///.*?$", RegexOptions.Multiline | RegexOptions.Compiled), "xmldoc"),
+            new SyntaxRule(new Regex(@"(?<=\[)[^\]]+(?=\])", RegexOptions.Compiled), "attribute"),
+            new SyntaxRule(new Regex(@"(?<!\w)(\w+)(?=\s*\()", RegexOptions.Compiled), "method"),
+            new SyntaxRule(new Regex(@"@""(?:[^""]|"""")*""", RegexOptions.Compiled), "string"),
+            new SyntaxRule(new Regex(@"""(?:\\.|[^\\""])*""", RegexOptions.Compiled), "string"),
+            new SyntaxRule(new Regex(@"'\\.'|'[^\\]'", RegexOptions.Compiled), "string"),
+            new SyntaxRule(
+                new Regex(@"\b(0x[a-fA-F0-9]+|0b[01]+|\d+(\.\d+)?([eE][+-]?\d+)?[fFdDmM]?)\b", RegexOptions.Compiled),
+                "number"),
+
+            new SyntaxRule(new Regex(@"\b([a-zA-Z]\w*\.)+", RegexOptions.Compiled), "namespace"),
+            new SyntaxRule(new Regex(@"\b[A-Z]\w*\b", RegexOptions.Compiled), "type"),
+            new SyntaxRule(
+                new Regex(@"\b(from|where|select|group|into|orderby|join|let|in|on|equals|by|ascending|descending)\b",
+                    RegexOptions.Compiled), "linq"),
+
+            new SyntaxRule(new Regex(@"\?\.", RegexOptions.Compiled), "operator"),
+            new SyntaxRule(new Regex(@"=>\s*{|\S+\s*=>\s*\S+", RegexOptions.Compiled), "lambda")
+        ]);
+    }
+
     private void ApplyRules(string text, int offset, List<SyntaxRule> rules,
         List<(int Start, int End, string Style)> segments)
     {
@@ -116,4 +115,6 @@ public class SyntaxHighlighter : ISyntaxHighlighter
     {
         _languageRules[language] = new Lazy<List<SyntaxRule>>(() => rules);
     }
+
+    public record SyntaxRule(Regex Regex, string Style);
 }

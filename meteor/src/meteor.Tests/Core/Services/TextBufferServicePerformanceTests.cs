@@ -9,16 +9,16 @@ namespace meteor.Tests.Core.Services;
 
 public class TextBufferServicePerformanceTests
 {
+    private readonly Mock<TextBuffer> _mockTextBuffer;
     private readonly Mock<ITextMeasurer> _mockTextMeasurer;
     private readonly TextBufferService _service;
-    private readonly Mock<TextBuffer> _mockTextBuffer;
 
     public TextBufferServicePerformanceTests()
     {
         _mockTextMeasurer = new Mock<ITextMeasurer>();
         _mockTextBuffer = new Mock<TextBuffer>();
         Mock<IEditorConfig> mockConfig = new();
-        
+
         mockConfig.Setup(c => c.FontFamily).Returns("Arial");
         _service = new TextBufferService(_mockTextBuffer.Object, _mockTextMeasurer.Object, mockConfig.Object);
     }

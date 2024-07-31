@@ -5,17 +5,42 @@ using Avalonia.Media;
 using meteor.Core.Interfaces.Config;
 using meteor.Core.Interfaces.ViewModels;
 
-namespace meteor.UI.ViewModels;
+namespace meteor.UI.Features.Tabs.ViewModels;
 
 public class TabViewModel : ITabViewModel
 {
-    private string _title;
-    private bool _isModified;
-    private bool _isActive;
     private string _content;
-    private string _originalContent;
-    private string _filePath;
     private string _fileName;
+    private string _filePath;
+    private bool _isActive;
+    private bool _isModified;
+    private string _originalContent;
+    private string _title;
+
+    public TabViewModel(IEditorViewModel editorViewModel, string filePath, string fileName,
+        ITabViewModelConfig configuration)
+    {
+        EditorViewModel = editorViewModel;
+        Title = fileName;
+        _content = string.Empty;
+        _originalContent = string.Empty;
+        _fileName = fileName;
+        _filePath = filePath;
+
+        // Ideally we would make this Avalonia independent
+        BorderBrush = new SolidColorBrush(ConvertToColor(configuration.GetBorderBrush()));
+        Background = new SolidColorBrush(ConvertToColor(configuration.GetBackground()));
+        DirtyIndicatorBrush = new SolidColorBrush(ConvertToColor(configuration.GetDirtyIndicatorBrush()));
+        Foreground = new SolidColorBrush(ConvertToColor(configuration.GetForeground()));
+        CloseButtonForeground = new SolidColorBrush(ConvertToColor(configuration.GetCloseButtonForeground()));
+        CloseButtonBackground = new SolidColorBrush(ConvertToColor(configuration.GetCloseButtonBackground()));
+
+        IsModified = false;
+        IsActive = false;
+        CloseTabCommand = configuration.GetCloseTabCommand();
+
+        EditorViewModel.ContentChanged += OnEditorContentChanged;
+    }
 
     public ISolidColorBrush BorderBrush { get; set; }
     public ISolidColorBrush Background { get; set; }
@@ -27,7 +52,7 @@ public class TabViewModel : ITabViewModel
 
     public double ScrollPositionX { get; set; }
     public double ScrollPositionY { get; set; }
-    
+
     public string FilePath
     {
         get => _filePath;
@@ -71,31 +96,6 @@ public class TabViewModel : ITabViewModel
         set => SetProperty(ref _isActive, value);
     }
 
-    public TabViewModel(IEditorViewModel editorViewModel, string filePath, string fileName,
-        ITabViewModelConfig configuration)
-    {
-        EditorViewModel = editorViewModel;
-        Title = fileName;
-        _content = string.Empty;
-        _originalContent = string.Empty;
-        _fileName = fileName;
-        _filePath = filePath;
-
-        // Ideally we would make this Avalonia independent
-        BorderBrush = new SolidColorBrush(ConvertToColor(configuration.GetBorderBrush()));
-        Background = new SolidColorBrush(ConvertToColor(configuration.GetBackground()));
-        DirtyIndicatorBrush = new SolidColorBrush(ConvertToColor(configuration.GetDirtyIndicatorBrush()));
-        Foreground = new SolidColorBrush(ConvertToColor(configuration.GetForeground()));
-        CloseButtonForeground = new SolidColorBrush(ConvertToColor(configuration.GetCloseButtonForeground()));
-        CloseButtonBackground = new SolidColorBrush(ConvertToColor(configuration.GetCloseButtonBackground()));
-
-        IsModified = false;
-        IsActive = false;
-        CloseTabCommand = configuration.GetCloseTabCommand();
-
-        EditorViewModel.ContentChanged += OnEditorContentChanged;
-    }
-
     public void SaveScrollPosition(double x, double y)
     {
         ScrollPositionX = x;
@@ -106,11 +106,6 @@ public class TabViewModel : ITabViewModel
     {
         EditorViewModel.LoadContent(content);
         SetOriginalContent(content);
-    }
-
-    private void OnEditorContentChanged(object? sender, EventArgs e)
-    {
-        Content = EditorViewModel.Content;
     }
 
     public void SetOriginalContent(string content)
@@ -128,6 +123,11 @@ public class TabViewModel : ITabViewModel
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
+
+    private void OnEditorContentChanged(object? sender, EventArgs e)
+    {
+        Content = EditorViewModel.Content;
+    }
 
     protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
     {

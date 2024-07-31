@@ -6,13 +6,13 @@ namespace meteor.Core.Services;
 
 public class TextBufferService : ITextBufferService
 {
+    private readonly List<int> _lineStartIndices;
+    private readonly Dictionary<int, double> _lineWidths;
     private readonly ITextMeasurer _textMeasurer;
-    private double _cachedMaxLineWidth;
     private string _cachedFontFamily;
     private double _cachedFontSize;
-    private readonly List<int> _lineStartIndices;
+    private double _cachedMaxLineWidth;
     private int _documentLength;
-    private readonly Dictionary<int, double> _lineWidths;
 
     public TextBufferService(TextBuffer textBuffer, ITextMeasurer textMeasurer, IEditorConfig config)
     {
@@ -135,14 +135,12 @@ public class TextBufferService : ITextBufferService
         UpdateLineIndicesAfterInsert(0, content);
         RecalculateAllLineWidths(_cachedFontFamily, _cachedFontSize);
     }
-    
+
     public double GetMaxLineWidth(string fontFamily, double fontSize)
     {
         fontFamily = string.Intern(fontFamily);
         if (!ReferenceEquals(fontFamily, _cachedFontFamily) || Math.Abs(fontSize - _cachedFontSize) > 0.001)
-        {
             RecalculateAllLineWidths(fontFamily, fontSize);
-        }
         return _cachedMaxLineWidth;
     }
 
@@ -170,13 +168,12 @@ public class TextBufferService : ITextBufferService
             var newLineIndices = new List<int>();
             for (var i = 0; i < text.Length; i++)
                 if (text[i] == '\n')
-                {
                     newLineIndices.Add(position + i + 1);
-                }
 
             _lineStartIndices.InsertRange(lineIndex + 1, newLineIndices);
 
-            for (var i = lineIndex + newLineCount + 1; i < _lineStartIndices.Count; i++) _lineStartIndices[i] += text.Length;
+            for (var i = lineIndex + newLineCount + 1; i < _lineStartIndices.Count; i++)
+                _lineStartIndices[i] += text.Length;
         }
         else
         {
@@ -220,10 +217,7 @@ public class TextBufferService : ITextBufferService
         var lineWidth = _textMeasurer.MeasureText(lineContent, _cachedFontFamily, _cachedFontSize).Width;
         _lineWidths[lineIndex] = lineWidth;
 
-        if (lineWidth > _cachedMaxLineWidth)
-        {
-            _cachedMaxLineWidth = lineWidth;
-        }
+        if (lineWidth > _cachedMaxLineWidth) _cachedMaxLineWidth = lineWidth;
     }
 
     private void UpdateMaxLineWidth()
@@ -261,5 +255,4 @@ public class TextBufferService : ITextBufferService
 
         return TextBuffer.GetDocumentSlice(start, end);
     }
-
 }

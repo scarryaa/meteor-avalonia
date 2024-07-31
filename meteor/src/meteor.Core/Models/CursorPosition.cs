@@ -11,5 +11,8 @@ public struct CursorPosition
         Column = column;
     }
 
-    public override string ToString() => $"{Line}, {Column}";
+    public override string ToString()
+    {
+        return $"{Line}, {Column}";
+    }
 }

@@ -5,22 +5,18 @@ using meteor.Core.Models;
 using meteor.Core.Models.EventArgs;
 using meteor.Core.Services;
 
-namespace meteor.UI.ViewModels;
+namespace meteor.UI.Features.Editor.ViewModels;
 
 public class EditorViewModel : IEditorViewModel
 {
+    private readonly ICompletionProvider _completionProvider;
+    private readonly IEditorConfig _config;
     private readonly ICursorManager _cursorManager;
     private readonly IInputManager _inputManager;
     private readonly ISelectionManager _selectionManager;
-    private readonly IEditorConfig _config;
     private readonly ITextMeasurer _textMeasurer;
     private string _content;
     private int _lastSyncedVersion;
-    private readonly ICompletionProvider _completionProvider;
-
-    public event EventHandler<ContentChangeEventArgs>? ContentChanged;
-    public event EventHandler? SelectionChanged;
-    public event EventHandler<int>? CompletionIndexChanged;
 
     public EditorViewModel(
         ITextBufferService textBufferService,
@@ -46,6 +42,10 @@ public class EditorViewModel : IEditorViewModel
         _content = TextBufferService.GetContentSlice(0, TextBufferService.GetLength());
     }
 
+    public event EventHandler<ContentChangeEventArgs>? ContentChanged;
+    public event EventHandler? SelectionChanged;
+    public event EventHandler<int>? CompletionIndexChanged;
+
     public List<CompletionItem> CompletionItems { get; private set; }
 
     public bool IsCompletionActive => CompletionItems != null && CompletionItems.Any();
@@ -68,23 +68,6 @@ public class EditorViewModel : IEditorViewModel
         }
     }
 
-    private void ApplyCompletion(CompletionItem item)
-    {
-        var wordStart = FindWordStart(Content, CursorPosition);
-        var wordLength = CursorPosition - wordStart;
-
-        TextBufferService.Replace(wordStart, wordLength, item.Text);
-        SetCursorPosition(wordStart + item.Text.Length);
-
-        CompletionItems = null;
-    }
-
-    private int FindWordStart(string text, int position)
-    {
-        while (position > 0 && char.IsLetterOrDigit(text[position - 1])) position--;
-        return position;
-    }
-
     public void MoveCompletionSelection(int delta)
     {
         if (IsCompletionActive)
@@ -96,7 +79,7 @@ public class EditorViewModel : IEditorViewModel
     {
         CompletionItems = null;
     }
-    
+
     public ITextBufferService TextBufferService { get; }
 
     public int SelectionStart => _selectionManager.CurrentSelection.Start;
@@ -165,7 +148,7 @@ public class EditorViewModel : IEditorViewModel
 
         return new Point(cursorX, cursorY);
     }
-    
+
     public int GetCursorLine()
     {
         return _cursorManager.GetCursorLine();
@@ -234,6 +217,23 @@ public class EditorViewModel : IEditorViewModel
     public int GetLineEndOffset(int lineIndex)
     {
         return TextBufferService.GetLineEndOffset(lineIndex);
+    }
+
+    private void ApplyCompletion(CompletionItem item)
+    {
+        var wordStart = FindWordStart(Content, CursorPosition);
+        var wordLength = CursorPosition - wordStart;
+
+        TextBufferService.Replace(wordStart, wordLength, item.Text);
+        SetCursorPosition(wordStart + item.Text.Length);
+
+        CompletionItems = null;
+    }
+
+    private int FindWordStart(string text, int position)
+    {
+        while (position > 0 && char.IsLetterOrDigit(text[position - 1])) position--;
+        return position;
     }
 
     private void NotifyContentChanged()
