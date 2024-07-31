@@ -54,6 +54,13 @@
         </Content>
     </ItemGroup>
 
+    <Target Name="CopyRustLibrary" AfterTargets="Publish">
+        <ItemGroup>
+            <RustLibFiles Include="$(OutputPath)../../../../meteor-rust-core/target/release/libmeteor_rust_core.*" />
+        </ItemGroup>
+        <Copy SourceFiles="@(RustLibFiles)" DestinationFolder="$(PublishDir)" />
+    </Target>
+
     <Target Name="CopyThemes" AfterTargets="Build">
         <ItemGroup>
             <ThemeFiles Include="..\meteor.UI\Common\Themes\*.json" />

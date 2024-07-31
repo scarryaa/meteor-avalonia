@@ -54,11 +54,28 @@ jobs:
       - name: Publish
         run: dotnet publish meteor/src/meteor/meteor.csproj -c Release -r ${{ matrix.output_name }} --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish/${{ matrix.output_name }}
 
+      - name: Copy Rust library to publish directory
+        run: |
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            cp meteor/src/meteor-rust-core/target/${{ matrix.rust_target }}/release/meteor_rust_core.dll publish/${{ matrix.output_name }}/
+          elif [ "${{ matrix.os }}" = "macos-latest" ]; then
+            cp meteor/src/meteor-rust-core/target/${{ matrix.rust_target }}/release/libmeteor_rust_core.dylib publish/${{ matrix.output_name }}/
+          else
+            cp meteor/src/meteor-rust-core/target/${{ matrix.rust_target }}/release/libmeteor_rust_core.so publish/${{ matrix.output_name }}/
+          fi
+        shell: bash
+
+      - name: Zip artifact
+        run: |
+          cd publish
+          zip -r ../meteor-${{ matrix.output_name }}.zip ${{ matrix.output_name }}
+        shell: bash
+
       - name: Upload artifact
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ matrix.output_name }}
-          path: publish/${{ matrix.output_name }}
+          name: meteor-${{ matrix.output_name }}
+          path: meteor-${{ matrix.output_name }}.zip
 
       - name: List publish directory contents
         run: ls -R publish/${{ matrix.output_name }}
@@ -84,19 +101,13 @@ jobs:
 
       - uses: actions/download-artifact@v3
 
-      - name: Zip Artifacts
-        run: |
-          zip -r meteor-win-x64.zip win-x64
-          zip -r meteor-osx-x64.zip osx-x64
-          zip -r meteor-linux-x64.zip linux-x64
-
       - name: Upload Release Asset Windows
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./meteor-win-x64.zip
+          asset_path: ./meteor-win-x64/meteor-win-x64.zip
           asset_name: meteor-win-x64.zip
           asset_content_type: application/zip
 
@@ -106,7 +117,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./meteor-osx-x64.zip
+          asset_path: ./meteor-osx-x64/meteor-osx-x64.zip
           asset_name: meteor-osx-x64.zip
           asset_content_type: application/zip
 
@@ -116,6 +127,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./meteor-linux-x64.zip
+          asset_path: ./meteor-linux-x64/meteor-linux-x64.zip
           asset_name: meteor-linux-x64.zip
           asset_content_type: application/zip
