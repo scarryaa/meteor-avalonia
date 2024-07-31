@@ -83,7 +83,7 @@ public class App : Application
         services.AddSingleton<ITabService, TabService>();
         services.AddSingleton<IFileDialogService, FileDialogService>();
         services.AddSingleton<IFileService, FileService>();
-        services.AddSingleton<IThemeManager>(sp => new ThemeManager("../../../../meteor.UI/Common/Themes/"));
+        services.AddSingleton<IThemeManager>(sp => ThemeManager.Instance);
 
         // Editor Services
         services.AddSingleton<IEditorLayoutManager, EditorLayoutManager>();

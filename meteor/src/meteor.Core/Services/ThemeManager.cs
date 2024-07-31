@@ -6,20 +6,33 @@ namespace meteor.Core.Services;
 
 public class ThemeManager : IThemeManager
 {
+    private static ThemeManager? _instance;
     private readonly string _themesDirectory;
     private readonly Dictionary<string, Theme> _themes = new();
 
     public Theme CurrentTheme { get; set; }
 
-    public ThemeManager(string themesDirectory)
+    public static ThemeManager Instance => _instance ??= new ThemeManager();
+
+    public ThemeManager()
     {
-        _themesDirectory = themesDirectory;
+        _themesDirectory = GetDefaultThemesDirectory();
         LoadThemes();
         CurrentTheme = GetTheme("Dark");
     }
 
+    private string GetDefaultThemesDirectory()
+    {
+        return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "../../../../meteor.UI/Common/Themes");
+    }
+
     private void LoadThemes()
     {
+        if (!Directory.Exists(_themesDirectory))
+        {
+            Directory.CreateDirectory(_themesDirectory);
+        }
+
         foreach (var file in Directory.GetFiles(_themesDirectory, "*.json"))
         {
             try
