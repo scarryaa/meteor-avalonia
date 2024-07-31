@@ -6,3 +6,4 @@ riderModule.iml
 .log
 **/TestResults
 /CoverageReport
+.DS_Store
