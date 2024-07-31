@@ -1,3 +1,4 @@
+using System.Text;
 using meteor.Core.Interfaces.Config;
 using meteor.Core.Interfaces.Services;
 using meteor.Core.Models;
@@ -126,13 +127,14 @@ public class TextBufferService : ITextBufferService
 
     public void LoadContent(string content)
     {
-        TextBuffer.LoadContent(content);
+        var utf8Content = Encoding.UTF8.GetString(Encoding.UTF8.GetBytes(content));
+        TextBuffer.LoadContent(utf8Content);
         _documentLength = TextBuffer.GetDocumentLength();
 
         _lineStartIndices.Clear();
         _lineStartIndices.Add(0);
 
-        UpdateLineIndicesAfterInsert(0, content);
+        UpdateLineIndicesAfterInsert(0, utf8Content);
         RecalculateAllLineWidths(_cachedFontFamily, _cachedFontSize);
     }
 

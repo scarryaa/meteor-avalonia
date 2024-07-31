@@ -130,6 +130,7 @@ public class Titlebar : UserControl
                 ? WindowState.Normal
                 : WindowState.Maximized;
     }
+    
     private void OpenContextMenu()
     {
         var contextMenu = new ContextMenu();

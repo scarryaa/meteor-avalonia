@@ -24,6 +24,7 @@ using meteor.UI.Views;
 using Microsoft.Extensions.DependencyInjection;
 using System.Runtime.InteropServices;
 using System.IO;
+using System.Diagnostics.CodeAnalysis;
 
 namespace meteor;
 
@@ -36,6 +37,7 @@ public class App : Application
         AvaloniaXamlLoader.Load(this);
     }
 
+    [RequiresUnreferencedCode("Application startup code may require reflection.")]
     public override void OnFrameworkInitializationCompleted()
     {
         LoadNativeLibrary();
@@ -82,7 +84,7 @@ public class App : Application
                 : "libmeteor_rust_core.so";
 
         var libraryPath = Path.Combine(AppContext.BaseDirectory, libraryName);
-        if (!File.Exists(libraryPath))
+        if (!File.Exists(libraryPath) && !File.Exists("./" + libraryName))
         {
             throw new FileNotFoundException($"Native library not found: {libraryPath}");
         }

@@ -181,7 +181,7 @@ pub extern "C" fn delete_document(doc_id: usize) {
 
 #[no_mangle]
 pub extern "C" fn insert_text(doc_id: usize, index: c_int, text: *const c_char) {
-    let text = unsafe { CStr::from_ptr(text) }.to_str().unwrap();
+    let text = unsafe { CStr::from_ptr(text) }.to_str().unwrap_or_default();
     let mut documents = DOCUMENTS.lock().unwrap();
     if let Some(doc) = documents.get_mut(&doc_id) {
         let index = index as usize;

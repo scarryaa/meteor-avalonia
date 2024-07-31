@@ -2,6 +2,7 @@
 using Avalonia;
 using Projektanker.Icons.Avalonia;
 using Projektanker.Icons.Avalonia.FontAwesome;
+using System.Text;
 
 namespace meteor;
 
@@ -13,6 +14,7 @@ internal abstract class Program
     [STAThread]
     public static void Main(string[] args)
     {
+        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
         BuildAvaloniaApp()
             .StartWithClassicDesktopLifetime(args);
     }
