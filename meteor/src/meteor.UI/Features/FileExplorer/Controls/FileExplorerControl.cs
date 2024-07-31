@@ -31,9 +31,15 @@ public class FileExplorerControl : UserControl
     private ScrollViewer _scrollViewer;
     private FileItem _selectedItem;
     private Button _selectPathButton;
+    private readonly IThemeManager _themeManager;
+    private Theme _currentTheme;
 
-    public FileExplorerControl()
+    public FileExplorerControl(IThemeManager themeManager)
     {
+        _themeManager = themeManager;
+        _currentTheme = _themeManager.CurrentTheme;
+        _themeManager.ThemeChanged += OnThemeChanged;
+
         _items = [];
         InitializeComponent();
         UpdateCanvasSize();
@@ -91,6 +97,12 @@ public class FileExplorerControl : UserControl
         UpdateSelectPathButtonVisibility();
     }
 
+    private void OnThemeChanged(object sender, Theme newTheme)
+    {
+        _currentTheme = newTheme;
+        InvalidateVisual();
+    }
+
     private Styles CreateButtonStyles()
     {
         var styles = new Styles
@@ -140,11 +152,7 @@ public class FileExplorerControl : UserControl
             var contentPresenter = new ContentPresenter
             {
                 Name = "PART_ContentPresenter",
-                Background = isPointerOver
-                    ? new SolidColorBrush(Color.Parse("#F0F0F0"))
-                    : isPressed
-                        ? new SolidColorBrush(Color.Parse("#E8E8E8"))
-                        : new SolidColorBrush(Color.Parse("#E0E0E0")),
+                Background = new SolidColorBrush(Color.Parse(_currentTheme.BackgroundColor)),
                 BorderThickness = new Thickness(0),
                 Padding = new Thickness(8),
                 CornerRadius = new CornerRadius(4),
@@ -153,9 +161,9 @@ public class FileExplorerControl : UserControl
             };
 
             if (isDisabled)
-                contentPresenter.Foreground = new SolidColorBrush(Color.Parse("#B0B0B0"));
+                contentPresenter.Foreground = new SolidColorBrush(Color.Parse(_currentTheme.TextColor));
             else
-                contentPresenter.Foreground = new SolidColorBrush(Color.Parse("#202020"));
+                contentPresenter.Foreground = new SolidColorBrush(Color.Parse(_currentTheme.TextColor));
 
             return contentPresenter;
         });
@@ -281,7 +289,7 @@ public class FileExplorerControl : UserControl
             FlowDirection.LeftToRight,
             new Typeface("San Francisco"),
             13,
-            Brushes.Black).Width + _rightPadding + _leftPadding;
+            new SolidColorBrush(Color.Parse(_currentTheme.TextColor))).Width + _rightPadding + _leftPadding;
     }
 
     private double CalculateTotalHeight(IEnumerable<FileItem> items)
@@ -300,7 +308,7 @@ public class FileExplorerControl : UserControl
 
         var viewportRect = new Rect(new Point(0, 0),
             new Size(_scrollViewer.Viewport.Width, _scrollViewer.Viewport.Height + 50));
-        context.FillRectangle(Brushes.White, viewportRect);
+        context.FillRectangle(new SolidColorBrush(Color.Parse(_currentTheme.BackgroundColor)), viewportRect);
 
         var buttonHeight = _selectPathButton.IsVisible ? _selectPathButton.Bounds.Height : 0;
         RenderItems(context, _items, 0, -_scrollViewer.Offset.Y + buttonHeight, viewportRect);
@@ -326,16 +334,17 @@ public class FileExplorerControl : UserControl
     private void RenderItem(DrawingContext context, FileItem item, int indentLevel, double y, Rect viewport)
     {
         if (item == _selectedItem)
-            context.FillRectangle(new SolidColorBrush(Color.FromUInt32(0x648BCDCD)),
+            context.FillRectangle(
+                new SolidColorBrush(Color.Parse(_currentTheme.FileExplorerSelectedItemBackgroundColor)),
                 new Rect(0, y, viewport.Width, _itemHeight));
 
-        var brush = new SolidColorBrush(Color.FromRgb(20, 20, 20));
+        var brush = new SolidColorBrush(Color.Parse(_currentTheme.TextColor));
         var text = new FormattedText(item.Name, CultureInfo.CurrentCulture, FlowDirection.LeftToRight,
             new Typeface("San Francisco"), 13, brush);
 
         var iconSize = 16;
         var iconChar = item.IsDirectory ? "\uf07b" : "\uf15b"; // folder icon : file icon
-        var iconBrush = new SolidColorBrush(Color.FromRgb(155, 155, 155));
+        var iconBrush = new SolidColorBrush(Color.Parse(_currentTheme.FileExplorerFileIconColor));
         var typeface = new Typeface("Font Awesome 6 Free", FontStyle.Normal, FontWeight.Black);
 
         var iconGeometry = new FormattedText(
@@ -353,7 +362,7 @@ public class FileExplorerControl : UserControl
         iconGeometry.Transform = new MatrixTransform(Matrix.CreateTranslation(iconX + 1, iconY));
         context.DrawGeometry(iconBrush, null, iconGeometry);
 
-        var chevronBrush = new SolidColorBrush(Color.FromRgb(65, 65, 65));
+        var chevronBrush = new SolidColorBrush(Color.Parse(_currentTheme.TextColor));
         var chevronSize = 10;
         if (item.IsDirectory)
         {

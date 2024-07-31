@@ -15,7 +15,7 @@ public class ThemeManager : IThemeManager
     {
         _themesDirectory = themesDirectory;
         LoadThemes();
-        CurrentTheme = GetTheme("Dark");
+        CurrentTheme = GetTheme("Light");
     }
 
     private void LoadThemes()
@@ -41,7 +41,7 @@ public class ThemeManager : IThemeManager
 
     public Theme GetTheme(string name)
     {
-        return _themes.TryGetValue(name, out var theme) ? theme : _themes["Dark"];
+        return _themes.TryGetValue(name, out var theme) ? theme : _themes["Light"];
     }
 
     public IEnumerable<string> GetAvailableThemes()

@@ -57,7 +57,7 @@ public partial class MainWindow : Window
             pointerEventHandler, _textMeasurer, _config, themeManager);
         var tabControl = new TabControl(tabService, editorControlFactory, themeManager);
 
-        var fileExplorerSidebar = new FileExplorerControl();
+        var fileExplorerSidebar = new FileExplorerControl(themeManager);
         fileExplorerSidebar.FileSelected += OnFileSelected;
 
         var gridSplitter = new GridSplitter

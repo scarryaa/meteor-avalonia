@@ -11,7 +11,7 @@
     "backgroundColor": "#121212",
     "currentLineHighlightColor": "#1E1E1E",
     "selectionColor": "#3A5F8A",
-    "gutterBackgroundColor": "#0A0A0A",
+    "gutterBackgroundColor": "#121212",
     "gutterTextColor": "#707070",
     "keywordColor": "#FF79C6",
     "stringColor": "#F1FA8C",
@@ -41,5 +41,13 @@
     "textBrush": "#E0E0E0",
     "completionItemHoverBrush": "#1E1E1E",
     "scrollBarBackgroundBrush": "#0A0A0A",
-    "scrollBarThumbBrush": "#3A3A3A"
+    "scrollBarThumbBrush": "#3A3A3A",
+    "fileExplorerBackgroundColor": "#1E1E1E",
+    "fileExplorerForegroundColor": "#D4D4D4",
+    "fileExplorerSelectedItemBackgroundColor": "#3A3A3A",
+    "fileExplorerSelectedItemForegroundColor": "#FFFFFF",
+    "fileExplorerHoverItemBackgroundColor": "#2A2D2E",
+    "fileExplorerHoverItemForegroundColor": "#E9E9E9",
+    "fileExplorerFolderIconColor": "#D0D0D0",
+    "fileExplorerFileIconColor": "#C8C8C8"
 }

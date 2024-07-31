@@ -41,5 +41,13 @@
     "textBrush": "#2C3E50",
     "completionItemHoverBrush": "#ECF0F1",
     "scrollBarBackgroundBrush": "#ECF0F1",
-    "scrollBarThumbBrush": "#BDC3C7"
+    "scrollBarThumbBrush": "#BDC3C7",
+    "fileExplorerBackgroundColor": "#F5F7FA",
+    "fileExplorerForegroundColor": "#2C3E50",
+    "fileExplorerSelectedItemBackgroundColor": "#E0E0E0",
+    "fileExplorerSelectedItemForegroundColor": "#2C3E50",
+    "fileExplorerHoverItemBackgroundColor": "#ECF0F1",
+    "fileExplorerHoverItemForegroundColor": "#2C3E50",
+    "fileExplorerFolderIconColor": "#A0A0A0",
+    "fileExplorerFileIconColor": "#B0B0B0"
 }
