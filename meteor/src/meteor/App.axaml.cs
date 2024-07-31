@@ -22,6 +22,8 @@ using meteor.UI.Services;
 using meteor.UI.ViewModels;
 using meteor.UI.Views;
 using Microsoft.Extensions.DependencyInjection;
+using System.Runtime.InteropServices;
+using System.IO;
 
 namespace meteor;
 
@@ -36,6 +38,7 @@ public class App : Application
 
     public override void OnFrameworkInitializationCompleted()
     {
+        LoadNativeLibrary();
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             var services = new ServiceCollection();
@@ -68,6 +71,23 @@ public class App : Application
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    private void LoadNativeLibrary()
+    {
+        var libraryName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+            ? "meteor_rust_core.dll"
+            : RuntimeInformation.IsOSPlatform(OSPlatform.OSX)
+                ? "libmeteor_rust_core.dylib"
+                : "libmeteor_rust_core.so";
+
+        var libraryPath = Path.Combine(AppContext.BaseDirectory, libraryName);
+        if (!File.Exists(libraryPath))
+        {
+            throw new FileNotFoundException($"Native library not found: {libraryPath}");
+        }
+
+        NativeLibrary.Load(libraryPath);
     }
 
     private void ConfigureServices(IServiceCollection services)

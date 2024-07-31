@@ -77,6 +77,17 @@
         <Copy SourceFiles="@(RustLibFiles)" DestinationFolder="$(PublishDir)" />
     </Target>
 
+    <Target Name="CopyRustLibraryForDevelopment" AfterTargets="Build" Condition="'$(Configuration)' == 'Debug'">
+        <PropertyGroup>
+            <RustLibDir>$(RustOutputDir)</RustLibDir>
+        </PropertyGroup>
+        <ItemGroup>
+            <RustLibFiles Include="$(RustLibDir)/libmeteor_rust_core.*" />
+            <RustLibFiles Include="$(RustLibDir)/meteor_rust_core.dll" Condition="Exists('$(RustLibDir)/meteor_rust_core.dll')" />
+        </ItemGroup>
+        <Copy SourceFiles="@(RustLibFiles)" DestinationFolder="$(OutDir)" />
+    </Target>
+
     <Target Name="CopyThemes" AfterTargets="Build">
         <ItemGroup>
             <ThemeFiles Include="$(MSBuildThisFileDirectory)../meteor.UI/Common/Themes/*.json" />
