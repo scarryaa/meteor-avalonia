@@ -15,10 +15,13 @@ jobs:
         include:
           - os: windows-latest
             output_name: win-x64
+            rust_target: x86_64-pc-windows-msvc
           - os: macos-latest
             output_name: osx-x64
+            rust_target: x86_64-apple-darwin
           - os: ubuntu-latest
             output_name: linux-x64
+            rust_target: x86_64-unknown-linux-gnu
 
     runs-on: ${{ matrix.os }}
 
@@ -29,6 +32,23 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
+
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.rust_target }}
+          override: true
+
+      - name: Build Rust library
+        run: |
+          cd meteor-rust-core
+          cargo build --release --target ${{ matrix.rust_target }}
+
+      - name: Copy Rust library to .NET project
+        run: |
+          mkdir -p meteor/src/meteor/runtimes/${{ matrix.output_name }}
+          cp meteor-rust-core/target/${{ matrix.rust_target }}/release/libmeteor_rust_core.* meteor/src/meteor/runtimes/${{ matrix.output_name }}/
 
       - name: Restore dependencies
         run: dotnet restore meteor/src/meteor.sln
