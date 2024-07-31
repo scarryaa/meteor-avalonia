@@ -48,7 +48,7 @@ public class TextBuffer : IDisposable
 
         try
         {
-            return Marshal.PtrToStringAuto(documentSlicePtr) ?? string.Empty;
+            return Marshal.PtrToStringUTF8(documentSlicePtr) ?? string.Empty;
         }
         catch (Exception ex)
         {
