@@ -11,6 +11,7 @@
         <PublishTrimmed>true</PublishTrimmed>
         <TrimMode>link</TrimMode>
         <JsonSerializerIsReflectionEnabledByDefault>false</JsonSerializerIsReflectionEnabledByDefault>
+        <BuildRustLibrary Condition="'$(BuildRustLibrary)' == ''">true</BuildRustLibrary>
     </PropertyGroup>
 
     <ItemGroup>
@@ -48,20 +49,26 @@
         </None>
     </ItemGroup>
 
-    <Target Name="CopyRustLibrary" BeforeTargets="Build">
+    <Target Name="BuildRustLibrary" BeforeTargets="CoreCompile" Condition="'$(BuildRustLibrary)' == 'true'">
         <PropertyGroup>
-            <RustLibDir>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../meteor-rust-core/target/release'))</RustLibDir>
+            <RustProjectDir>$(MSBuildThisFileDirectory)../meteor-rust-core</RustProjectDir>
+            <RustOutputDir>$(RustProjectDir)/target/release</RustOutputDir>
         </PropertyGroup>
+        <Message Text="Building Rust library..." Importance="high" />
+        <Exec Command="cargo build --release" WorkingDirectory="$(RustProjectDir)" />
+    </Target>
+
+    <Target Name="CopyRustLibrary" AfterTargets="BuildRustLibrary">
         <ItemGroup>
-            <RustLibFiles Include="$(RustLibDir)/libmeteor_rust_core.*" />
-            <RustLibFiles Include="$(RustLibDir)/meteor_rust_core.dll" Condition="Exists('$(RustLibDir)/meteor_rust_core.dll')" />
+            <RustLibFiles Include="$(RustOutputDir)/libmeteor_rust_core.*" />
+            <RustLibFiles Include="$(RustOutputDir)/meteor_rust_core.dll" Condition="Exists('$(RustOutputDir)/meteor_rust_core.dll')" />
         </ItemGroup>
         <Copy SourceFiles="@(RustLibFiles)" DestinationFolder="$(OutDir)" />
     </Target>
 
     <Target Name="CopyRustLibraryForPublish" AfterTargets="Publish">
         <PropertyGroup>
-            <RustLibDir>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../meteor-rust-core/target/release'))</RustLibDir>
+            <RustLibDir>$(RustOutputDir)</RustLibDir>
         </PropertyGroup>
         <ItemGroup>
             <RustLibFiles Include="$(RustLibDir)/libmeteor_rust_core.*" />
