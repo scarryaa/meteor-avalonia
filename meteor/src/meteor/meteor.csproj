@@ -48,23 +48,39 @@
         </None>
     </ItemGroup>
 
-    <ItemGroup>
-        <Content Include="$(OutputPath)../../../../meteor-rust-core/target/release/libmeteor_rust_core.*">
-            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        </Content>
-    </ItemGroup>
-
-    <Target Name="CopyRustLibrary" AfterTargets="Publish">
+    <Target Name="CopyRustLibrary" BeforeTargets="Build">
+        <PropertyGroup>
+            <RustLibDir>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../meteor-rust-core/target/release'))</RustLibDir>
+        </PropertyGroup>
         <ItemGroup>
-            <RustLibFiles Include="$(OutputPath)../../../../meteor-rust-core/target/release/libmeteor_rust_core.*" />
+            <RustLibFiles Include="$(RustLibDir)/libmeteor_rust_core.*" />
+            <RustLibFiles Include="$(RustLibDir)/meteor_rust_core.dll" Condition="Exists('$(RustLibDir)/meteor_rust_core.dll')" />
+        </ItemGroup>
+        <Copy SourceFiles="@(RustLibFiles)" DestinationFolder="$(OutDir)" />
+    </Target>
+
+    <Target Name="CopyRustLibraryForPublish" AfterTargets="Publish">
+        <PropertyGroup>
+            <RustLibDir>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../meteor-rust-core/target/release'))</RustLibDir>
+        </PropertyGroup>
+        <ItemGroup>
+            <RustLibFiles Include="$(RustLibDir)/libmeteor_rust_core.*" />
+            <RustLibFiles Include="$(RustLibDir)/meteor_rust_core.dll" Condition="Exists('$(RustLibDir)/meteor_rust_core.dll')" />
         </ItemGroup>
         <Copy SourceFiles="@(RustLibFiles)" DestinationFolder="$(PublishDir)" />
     </Target>
 
     <Target Name="CopyThemes" AfterTargets="Build">
         <ItemGroup>
-            <ThemeFiles Include="..\meteor.UI\Common\Themes\*.json" />
+            <ThemeFiles Include="$(MSBuildThisFileDirectory)../meteor.UI/Common/Themes/*.json" />
         </ItemGroup>
-        <Copy SourceFiles="@(ThemeFiles)" DestinationFolder="$(OutDir)Common\Themes" />
+        <Copy SourceFiles="@(ThemeFiles)" DestinationFolder="$(OutDir)Common/Themes" />
+    </Target>
+
+    <Target Name="CopyThemesForPublish" AfterTargets="Publish">
+        <ItemGroup>
+            <ThemeFiles Include="$(MSBuildThisFileDirectory)../meteor.UI/Common/Themes/*.json" />
+        </ItemGroup>
+        <Copy SourceFiles="@(ThemeFiles)" DestinationFolder="$(PublishDir)Common/Themes" />
     </Target>
 </Project>
