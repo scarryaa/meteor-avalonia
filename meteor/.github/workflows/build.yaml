@@ -2,9 +2,9 @@ name: Build and Release
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
   workflow_dispatch:
 
 jobs:
@@ -23,79 +23,78 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: 8.0.x
-        
-    
-    - name: Restore dependencies
-      run: cd src/meteor && dotnet restore
-    
-    - name: Build
-      run: dotnet build --configuration Release --no-restore
-    
-    - name: Test
-      run: dotnet test --no-build --verbosity normal
-    
-    - name: Publish
-      run: dotnet publish src/meteor/meteor.csproj -c Release -r ${{ matrix.output_name }} --self-contained -o publish/${{ matrix.output_name }}
-    
-    - name: Upload artifact
-      uses: actions/upload-artifact@v3
-      with:
-        name: ${{ matrix.output_name }}
-        path: publish/${{ matrix.output_name }}
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore dependencies
+        run: dotnet restore meteor.sln
+
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test --no-build --verbosity normal
+
+      - name: Publish
+        run: dotnet publish src/meteor/meteor.csproj -c Release -r ${{ matrix.output_name }} --self-contained -o publish/${{ matrix.output_name }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.output_name }}
+          path: publish/${{ matrix.output_name }}
 
   create-release:
     needs: build
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    
+
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Create Release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: v${{ github.run_number }}
-        release_name: Release ${{ github.run_number }}
-        draft: false
-        prerelease: false
-    
-    - uses: actions/download-artifact@v3
-    
-    - name: Upload Release Asset Windows
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./win-x64/meteor.exe
-        asset_name: meteor-win-x64.exe
-        asset_content_type: application/octet-stream
-    
-    - name: Upload Release Asset macOS
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./osx-x64/meteor
-        asset_name: meteor-osx-x64
-        asset_content_type: application/octet-stream
-    
-    - name: Upload Release Asset Linux
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./linux-x64/meteor
-        asset_name: meteor-linux-x64
-        asset_content_type: application/octet-stream
+      - uses: actions/checkout@v4
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ github.run_number }}
+          release_name: Release ${{ github.run_number }}
+          draft: false
+          prerelease: false
+
+      - uses: actions/download-artifact@v3
+
+      - name: Upload Release Asset Windows
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./win-x64/meteor.exe
+          asset_name: meteor-win-x64.exe
+          asset_content_type: application/octet-stream
+
+      - name: Upload Release Asset macOS
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./osx-x64/meteor
+          asset_name: meteor-osx-x64
+          asset_content_type: application/octet-stream
+
+      - name: Upload Release Asset Linux
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./linux-x64/meteor
+          asset_name: meteor-linux-x64
+          asset_content_type: application/octet-stream
