@@ -42,16 +42,18 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
 
-        Background = new SolidColorBrush(Color.Parse("#FAFAFA"));
-        DataContext = mainWindowViewModel;
-        ClipToBounds = false;
-        this.AttachDevTools();
-
         _tabService = tabService;
         _config = config;
         _textMeasurer = textMeasurer;
         _themeManager = themeManager;
         _scrollManager = scrollManager;
+
+        DataContext = mainWindowViewModel;
+        ClipToBounds = false;
+        this.AttachDevTools();
+
+        UpdateTheme();
+        _themeManager.ThemeChanged += (_, _) => UpdateTheme();
 
         var editorControlFactory = new EditorControlFactory(scrollManager, layoutManager, inputHandler,
             pointerEventHandler, _textMeasurer, _config, themeManager);
@@ -65,8 +67,8 @@ public partial class MainWindow : Window
             Width = 1,
             MinWidth = 1,
             MaxWidth = 1,
-            Background = new SolidColorBrush(Colors.Gray),
-            ResizeDirection = GridResizeDirection.Columns
+            ResizeDirection = GridResizeDirection.Columns,
+            Background = new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.BorderBrush))
         };
 
         var horizontalSplit = new Grid
@@ -84,6 +86,12 @@ public partial class MainWindow : Window
 
         Content = horizontalSplit;
         horizontalSplit.ClipToBounds = false;
+    }
+
+    private void UpdateTheme()
+    {
+        var theme = _themeManager.CurrentTheme;
+        Background = new SolidColorBrush(Color.Parse(theme.AppBackgroundColor));
     }
 
     private void OnFileSelected(object? sender, string? filePath)

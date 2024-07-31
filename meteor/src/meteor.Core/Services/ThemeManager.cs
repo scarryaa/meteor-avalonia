@@ -15,7 +15,7 @@ public class ThemeManager : IThemeManager
     {
         _themesDirectory = themesDirectory;
         LoadThemes();
-        CurrentTheme = GetTheme("Light");
+        CurrentTheme = GetTheme("Dark");
     }
 
     private void LoadThemes()
@@ -33,7 +33,6 @@ public class ThemeManager : IThemeManager
             }
             catch (Exception ex)
             {
-                // Log the error or handle it as appropriate for your application
                 Console.WriteLine($"Error loading theme from {file}: {ex.Message}");
             }
         }
@@ -41,7 +40,7 @@ public class ThemeManager : IThemeManager
 
     public Theme GetTheme(string name)
     {
-        return _themes.TryGetValue(name, out var theme) ? theme : _themes["Light"];
+        return _themes.TryGetValue(name, out var theme) ? theme : _themes["Dark"];
     }
 
     public IEnumerable<string> GetAvailableThemes()
