@@ -76,6 +76,9 @@ public class InputManager : IInputManager
                 case Key.Enter:
                     HandleEnterKey();
                     break;
+                case Key.Tab:
+                    HandleTabKey();
+                    break;
                 case Key.Left:
                     HandleLeftKey();
                     break;
@@ -222,6 +225,13 @@ public class InputManager : IInputManager
     {
         if (_selectionManager.HasSelection) DeleteSelectedText();
         InsertTextAndMoveCursor("\n", 1);
+        _textAnalysisService.ResetDesiredColumn();
+    }
+
+    private void HandleTabKey()
+    {
+        if (_selectionManager.HasSelection) DeleteSelectedText();
+        InsertTextAndMoveCursor("    ", 4);
         _textAnalysisService.ResetDesiredColumn();
     }
 
