@@ -63,59 +63,59 @@ jobs:
       - name: List publish directory contents
         run: ls -R publish/${{ matrix.output_name }}
 
-create-release:
-  needs: build
-  runs-on: ubuntu-latest
-  if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+  create-release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
-  steps:
-    - uses: actions/checkout@v4
+    steps:
+      - uses: actions/checkout@v4
 
-    - name: Create Release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: v${{ github.run_number }}
-        release_name: Release ${{ github.run_number }}
-        draft: false
-        prerelease: false
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ github.run_number }}
+          release_name: Release ${{ github.run_number }}
+          draft: false
+          prerelease: false
 
-    - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v3
 
-    - name: Zip Artifacts
-      run: |
-        zip -r meteor-win-x64.zip win-x64
-        zip -r meteor-osx-x64.zip osx-x64
-        zip -r meteor-linux-x64.zip linux-x64
+      - name: Zip Artifacts
+        run: |
+          zip -r meteor-win-x64.zip win-x64
+          zip -r meteor-osx-x64.zip osx-x64
+          zip -r meteor-linux-x64.zip linux-x64
 
-    - name: Upload Release Asset Windows
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./meteor-win-x64.zip
-        asset_name: meteor-win-x64.zip
-        asset_content_type: application/zip
+      - name: Upload Release Asset Windows
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./meteor-win-x64.zip
+          asset_name: meteor-win-x64.zip
+          asset_content_type: application/zip
 
-    - name: Upload Release Asset macOS
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./meteor-osx-x64.zip
-        asset_name: meteor-osx-x64.zip
-        asset_content_type: application/zip
+      - name: Upload Release Asset macOS
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./meteor-osx-x64.zip
+          asset_name: meteor-osx-x64.zip
+          asset_content_type: application/zip
 
-    - name: Upload Release Asset Linux
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./meteor-linux-x64.zip
-        asset_name: meteor-linux-x64.zip
-        asset_content_type: application/zip
+      - name: Upload Release Asset Linux
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./meteor-linux-x64.zip
+          asset_name: meteor-linux-x64.zip
+          asset_content_type: application/zip
