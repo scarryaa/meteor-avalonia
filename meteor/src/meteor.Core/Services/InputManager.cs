@@ -16,9 +16,7 @@ public class InputManager : IInputManager
     private bool _isAltPressed;
     private bool _isClipboardOperationHandled;
     private bool _isControlOrMetaPressed;
-    private bool _isSelectionInProgress;
     private bool _isShiftPressed;
-    private (int Start, int End) _lastSelection;
     private IEditorViewModel _viewModel;
 
     public InputManager(
@@ -72,12 +70,6 @@ public class InputManager : IInputManager
             _isControlOrMetaPressed =
                 e.Modifiers.HasFlag(KeyModifiers.Control) || e.Modifiers.HasFlag(KeyModifiers.Meta);
             _isAltPressed = e.Modifiers.HasFlag(KeyModifiers.Alt);
-
-            if (_isShiftPressed && !_isSelectionInProgress)
-            {
-                _selectionManager.StartSelection(_cursorManager.Position);
-                _isSelectionInProgress = true;
-            }
 
             switch (e.Key)
             {
@@ -138,7 +130,6 @@ public class InputManager : IInputManager
                     {
                         DeleteSelectedText();
                     }
-
                     break;
                 case Key.A:
                     if (_isControlOrMetaPressed)
@@ -155,18 +146,6 @@ public class InputManager : IInputManager
             }
 
             e.Handled = true;
-
-            if (!_isControlOrMetaPressed && !_isAltPressed && !_isShiftPressed &&
-                e.Key != Key.Left && e.Key != Key.Right && e.Key != Key.Up && e.Key != Key.Down &&
-                e.Key != Key.LeftShift && e.Key != Key.RightShift &&
-                e.Key != Key.LeftCtrl && e.Key != Key.RightCtrl &&
-                e.Key != Key.LeftAlt && e.Key != Key.RightAlt &&
-                e.Key != Key.LeftMeta && e.Key != Key.RightMeta)
-            {
-                _lastSelection = (_selectionManager.CurrentSelection.Start, _selectionManager.CurrentSelection.End);
-                _selectionManager.ClearSelection();
-                _isSelectionInProgress = false;
-            }
         }
         catch (Exception ex)
         {
@@ -198,7 +177,7 @@ public class InputManager : IInputManager
         // Show completion popup for '?' or letter/digit
         if (e.Text == "?" || char.IsLetterOrDigit(e.Text[0])) await _viewModel.TriggerCompletionAsync();
 
-        _lastSelection = (0, 0);
+        _selectionManager.ClearSelection();
     }
 
     public void SetViewModel(IEditorViewModel viewModel)
@@ -233,9 +212,9 @@ public class InputManager : IInputManager
     private void HandleSelectAll()
     {
         var documentLength = _textBufferService.GetLength();
-        _selectionManager.SetSelection(0, documentLength);
+        _selectionManager.StartSelection(0);
+        _selectionManager.ExtendSelection(documentLength);
         _cursorManager.SetPosition(documentLength);
-        _isSelectionInProgress = true;
         _textAnalysisService.ResetDesiredColumn();
     }
 
@@ -426,10 +405,7 @@ public class InputManager : IInputManager
 
     private void UpdateCursorAndSelection(int newPosition)
     {
-        if (_isShiftPressed)
-            _selectionManager.ExtendSelection(newPosition);
-        else
-            _selectionManager.ClearSelection();
+        _selectionManager.HandleKeyboardSelection(newPosition, _isShiftPressed);
         _cursorManager.SetPosition(newPosition);
     }
 

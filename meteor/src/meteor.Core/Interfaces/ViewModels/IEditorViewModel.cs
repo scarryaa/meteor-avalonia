@@ -19,6 +19,7 @@ public interface IEditorViewModel
     event EventHandler? SelectionChanged;
     event EventHandler<int>? CompletionIndexChanged;
 
+    void HandleMouseSelection(int position, bool isShiftPressed);
     Point GetCursorPosition();
     Task TriggerCompletionAsync();
     void ApplySelectedCompletion();

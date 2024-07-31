@@ -22,6 +22,7 @@ public class PointerEventHandler : IPointerEventHandler
     private ClickType _clickType;
     private bool _isDragging;
     private Point _lastClickPosition;
+    private bool _isShiftPressed;
 
     public PointerEventHandler(
         IScrollManager scrollManager,
@@ -38,8 +39,9 @@ public class PointerEventHandler : IPointerEventHandler
         _clickTimer.Elapsed += ResetClickCount;
     }
 
-    public void HandlePointerPressed(IEditorViewModel viewModel, Point point)
+    public void HandlePointerPressed(IEditorViewModel viewModel, Point point, bool isShiftPressed)
     {
+        _isShiftPressed = isShiftPressed;
         var distance =
             Math.Sqrt(Math.Pow(point.X - _lastClickPosition.X, 2) + Math.Pow(point.Y - _lastClickPosition.Y, 2));
 
@@ -57,7 +59,7 @@ public class PointerEventHandler : IPointerEventHandler
         {
             _clickType = ClickType.Single;
             UpdateCursorPosition(viewModel, documentPosition, false);
-            viewModel.StartSelection(documentPosition);
+            viewModel.HandleMouseSelection(documentPosition, _isShiftPressed);
             _isDragging = true;
         }
         else if (_clickCount == 2)
@@ -215,6 +217,11 @@ public class PointerEventHandler : IPointerEventHandler
 
         viewModel.StartSelection(newStart);
         viewModel.UpdateSelection(newEnd);
+    }
+
+    public void HandlePointerPressed(IEditorViewModel viewModel, Point point)
+    {
+        HandlePointerPressed(viewModel, point, false);
     }
 
     private enum ClickType

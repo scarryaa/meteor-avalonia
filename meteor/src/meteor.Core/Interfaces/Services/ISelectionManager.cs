@@ -12,4 +12,7 @@ public interface ISelectionManager
     string GetSelectedText(ITextBufferService textBufferService);
     void ExtendSelection(int newPosition);
     void StartSelection(int position);
+    void UpdateSelection(int position, bool isShiftPressed);
+    void HandleMouseSelection(int position, bool isShiftPressed);
+    void HandleKeyboardSelection(int position, bool isShiftPressed);
 }

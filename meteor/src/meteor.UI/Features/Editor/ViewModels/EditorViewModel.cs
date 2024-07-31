@@ -135,6 +135,11 @@ public class EditorViewModel : IEditorViewModel
         }
     }
 
+    public void HandleMouseSelection(int position, bool isShiftPressed)
+    {
+        _selectionManager.HandleMouseSelection(position, isShiftPressed);
+    }
+
     public int GetLineCount()
     {
         return TextBufferService.GetLineCount();
