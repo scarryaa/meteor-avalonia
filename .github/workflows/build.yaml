@@ -42,7 +42,7 @@ jobs:
 
       - name: Build Rust library
         run: |
-          cd meteor-rust-core
+          cd meteor/src/meteor-rust-core
           cargo build --release --target ${{ matrix.rust_target }}
 
       - name: Copy Rust library to .NET project
