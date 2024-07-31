@@ -19,6 +19,7 @@ public class MainWindowViewModel : ObservableObject
     private readonly ITabService _tabService;
     private readonly IThemeManager _themeManager;
     private ITabViewModel? _activeTab;
+    private bool _isCommandPaletteVisible;
 
     public MainWindowViewModel(ITabService tabService, IEditorInstanceFactory editorInstanceFactory,
         IFileService fileService, IFileDialogService fileDialogService, IThemeManager themeManager)
@@ -34,6 +35,7 @@ public class MainWindowViewModel : ObservableObject
         SaveFileCommand = new RelayCommand(SaveFile, CanSaveFile);
         OpenFileCommand = new RelayCommand(OpenFile);
         OpenSettingsCommand = new RelayCommand(OpenSettings);
+        ToggleCommandPaletteCommand = new RelayCommand(ToggleCommandPalette);
 
         _tabService.TabAdded += (sender, tab) => { OnPropertyChanged(nameof(Tabs)); };
         _tabService.TabRemoved += (sender, tab) => { OnPropertyChanged(nameof(Tabs)); };
@@ -43,13 +45,21 @@ public class MainWindowViewModel : ObservableObject
             (sender, args) => OnPropertyChanged(nameof(Tabs));
     }
 
+    private void ToggleCommandPalette()
+    {
+        _isCommandPaletteVisible = !_isCommandPaletteVisible;
+        OnPropertyChanged(nameof(IsCommandPaletteVisible));
+    }
+
     public ICommand OpenNewTabCommand { get; }
     public ICommand CloseTabCommand { get; }
     public ICommand SaveFileCommand { get; }
     public ICommand OpenFileCommand { get; }
     public ICommand OpenSettingsCommand { get; }
+    public ICommand ToggleCommandPaletteCommand { get; }
 
     public ObservableCollection<ITabViewModel> Tabs => _tabService.Tabs;
+    public bool IsCommandPaletteVisible => _isCommandPaletteVisible;
 
     public ITabViewModel? ActiveTab
     {

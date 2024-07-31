@@ -161,13 +161,13 @@ public class CompletionProvider : ICompletionProvider
         }
 
         for (var i = 1; i <= n; i++)
-        for (var j = 1; j <= m; j++)
-        {
-            var cost = t[j - 1] == s[i - 1] ? 0 : 1;
-            d[i, j] = Math.Min(
-                Math.Min(d[i - 1, j] + 1, d[i, j - 1] + 1),
-                d[i - 1, j - 1] + cost);
-        }
+            for (var j = 1; j <= m; j++)
+            {
+                var cost = t[j - 1] == s[i - 1] ? 0 : 1;
+                d[i, j] = Math.Min(
+                    Math.Min(d[i - 1, j] + 1, d[i, j - 1] + 1),
+                    d[i - 1, j - 1] + cost);
+            }
 
         return d[n, m];
     }

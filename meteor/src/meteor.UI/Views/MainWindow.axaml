@@ -24,6 +24,7 @@
         <KeyBinding Command="{Binding SaveFileCommand}" Gesture="Cmd+S" />
         <KeyBinding Command="{Binding OpenFileCommand}" Gesture="Cmd+O" />
         <KeyBinding Command="{Binding OpenSettingsCommand}" Gesture="Cmd+OemComma" />
+        <KeyBinding Command="{Binding ToggleCommandPaletteCommand}" Gesture="Cmd+P" />
     </Window.KeyBindings>
 
     <DockPanel>

@@ -86,6 +86,8 @@ public class Theme
     [JsonPropertyName("appForegroundColor")]
     public string AppForegroundColor { get; set; } = "";
 
+    [JsonPropertyName("statusBarColor")] public string StatusBarColor { get; set; } = "";
+
     [JsonPropertyName("backgroundBrush")] public string BackgroundBrush { get; set; } = "";
 
     [JsonPropertyName("completionOverlayBackgroundBrush")]

@@ -26,8 +26,8 @@ public class SyntaxHighlighter : ISyntaxHighlighter
         // First, find all comment segments
         var commentRules = rules.Where(r => r.Style == "comment" || r.Style == "xmldoc").ToList();
         foreach (var rule in commentRules)
-        foreach (Match match in rule.Regex.Matches(text))
-            segments.Add((match.Index, match.Index + match.Length, rule.Style));
+            foreach (Match match in rule.Regex.Matches(text))
+                segments.Add((match.Index, match.Index + match.Length, rule.Style));
 
         // Then, apply other rules only to non-comment parts
         var otherRules = rules.Except(commentRules).ToList();
@@ -101,14 +101,14 @@ public class SyntaxHighlighter : ISyntaxHighlighter
         List<(int Start, int End, string Style)> segments)
     {
         foreach (var rule in rules)
-        foreach (Match match in rule.Regex.Matches(text))
-        {
-            var start = offset + match.Index;
-            var end = start + match.Length;
+            foreach (Match match in rule.Regex.Matches(text))
+            {
+                var start = offset + match.Index;
+                var end = start + match.Length;
 
-            if (!segments.Any(s => s.Start < end && start < s.End))
-                segments.Add((start, end, rule.Style));
-        }
+                if (!segments.Any(s => s.Start < end && start < s.End))
+                    segments.Add((start, end, rule.Style));
+            }
     }
 
     public void AddLanguageRules(string language, List<SyntaxRule> rules)

@@ -112,7 +112,14 @@ public class FileExplorerControl : UserControl
     private void OnThemeChanged(object sender, Theme newTheme)
     {
         _currentTheme = newTheme;
+        UpdateButtonStyles();
         InvalidateVisual();
+    }
+
+    private void UpdateButtonStyles()
+    {
+        _selectPathButton.Styles.Clear();
+        _selectPathButton.Styles.Add(CreateButtonStyles());
     }
 
     private Styles CreateButtonStyles()

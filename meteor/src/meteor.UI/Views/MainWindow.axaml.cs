@@ -1,7 +1,7 @@
 using System.Text;
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Media;
+using Avalonia.Platform.Storage;
 using meteor.Core.Config;
 using meteor.Core.Interfaces.Config;
 using meteor.Core.Interfaces.Services;
@@ -13,25 +13,32 @@ using meteor.UI.Features.Editor.Interfaces;
 using meteor.UI.Features.Editor.ViewModels;
 using meteor.UI.Features.FileExplorer.Controls;
 using meteor.UI.Features.Tabs.ViewModels;
+using meteor.UI.Features.Titlebar.Controls;
+using meteor.UI.Features.StatusBar.Controls;
+using meteor.UI.Features.CommandPalette.Controls;
 using meteor.UI.Services;
 using meteor.UI.ViewModels;
 using Color = Avalonia.Media.Color;
 using SolidColorBrush = Avalonia.Media.SolidColorBrush;
 using TabControl = meteor.UI.Features.Tabs.Controls.TabControl;
-using meteor.UI.Features.Titlebar.Controls;
-using Avalonia.Platform.Storage;
+using Avalonia.Data;
+using Avalonia.Input;
 
 namespace meteor.UI.Views;
 
 public partial class MainWindow : Window
 {
-    private readonly ITabService _tabService;
     private readonly IEditorConfig _config;
+    private readonly IScrollManager _scrollManager;
+    private readonly ITabService _tabService;
     private readonly ITextMeasurer _textMeasurer;
     private readonly IThemeManager _themeManager;
-    private readonly IScrollManager _scrollManager;
-    private Titlebar _titlebar;
-    private FileExplorerControl _fileExplorerSidebar;
+    private readonly FileExplorerControl _fileExplorerSidebar;
+    private readonly Titlebar _titlebar;
+    private readonly StatusBar _statusBar;
+    private readonly CommandPalette _commandPalette;
+    private readonly MainWindowViewModel _mainWindowViewModel;
+    private GridSplitter _gridSplitter;
 
     public MainWindow(
         MainWindowViewModel mainWindowViewModel,
@@ -51,6 +58,7 @@ public partial class MainWindow : Window
         _textMeasurer = textMeasurer;
         _themeManager = themeManager;
         _scrollManager = scrollManager;
+        _mainWindowViewModel = mainWindowViewModel;
 
         DataContext = mainWindowViewModel;
         ClipToBounds = false;
@@ -67,7 +75,7 @@ public partial class MainWindow : Window
         _fileExplorerSidebar.FileSelected += OnFileSelected;
         _fileExplorerSidebar.DirectoryOpened += OnDirectoryOpened;
 
-        var gridSplitter = new GridSplitter
+        _gridSplitter = new GridSplitter
         {
             Width = 1,
             MinWidth = 1,
@@ -80,9 +88,20 @@ public partial class MainWindow : Window
         _titlebar.SetProjectNameFromDirectory(Environment.CurrentDirectory);
         _titlebar.DirectoryOpenRequested += OnDirectoryOpenRequested;
 
+        _statusBar = new StatusBar(_themeManager);
+
+        _commandPalette = new CommandPalette(_themeManager);
+        _commandPalette.ZIndex = 1000;
+        _commandPalette.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center;
+        _commandPalette.VerticalAlignment = Avalonia.Layout.VerticalAlignment.Top;
+        _commandPalette.Width = 400;
+        _commandPalette.MaxHeight = 300;
+        _commandPalette.Margin = new Thickness(0, 40, 0, 0);
+        _commandPalette[!CommandPalette.IsVisibleProperty] = new Binding("IsCommandPaletteVisible");
+
         var mainGrid = new Grid
         {
-            RowDefinitions = new RowDefinitions("Auto,*"),
+            RowDefinitions = new RowDefinitions("Auto,*,Auto"),
             ColumnDefinitions = new ColumnDefinitions("150,Auto,*")
         };
 
@@ -92,22 +111,50 @@ public partial class MainWindow : Window
         Grid.SetRow(_fileExplorerSidebar, 1);
         Grid.SetColumn(_fileExplorerSidebar, 0);
 
-        Grid.SetRow(gridSplitter, 1);
-        Grid.SetColumn(gridSplitter, 1);
+        Grid.SetRow(_gridSplitter, 1);
+        Grid.SetColumn(_gridSplitter, 1);
 
         Grid.SetRow(tabControl, 1);
         Grid.SetColumn(tabControl, 2);
 
+        Grid.SetRow(_statusBar, 2);
+        Grid.SetColumnSpan(_statusBar, 3);
+
+        Grid.SetRow(_commandPalette, 1);
+        Grid.SetColumn(_commandPalette, 0);
+        Grid.SetColumnSpan(_commandPalette, 3);
+
         mainGrid.Children.Add(_titlebar);
         mainGrid.Children.Add(_fileExplorerSidebar);
-        mainGrid.Children.Add(gridSplitter);
+        mainGrid.Children.Add(_gridSplitter);
         mainGrid.Children.Add(tabControl);
+        mainGrid.Children.Add(_statusBar);
+        mainGrid.Children.Add(_commandPalette);
 
         Content = mainGrid;
         mainGrid.ClipToBounds = false;
 
-        this.Activated += (_, _) => UpdateTitlebarBackground(true);
-        this.Deactivated += (_, _) => UpdateTitlebarBackground(false);
+        Activated += (_, _) => UpdateTitlebarBackground(true);
+        Deactivated += (_, _) => UpdateTitlebarBackground(false);
+
+        this.KeyDown += (_, e) =>
+        {
+            if (e.Key == Avalonia.Input.Key.P && e.KeyModifiers == Avalonia.Input.KeyModifiers.Control)
+            {
+                mainWindowViewModel.ToggleCommandPaletteCommand.Execute(null);
+            }
+        };
+
+        this.PointerPressed += MainWindow_PointerPressed;
+    }
+
+    private void MainWindow_PointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        var point = e.GetPosition(this);
+        if (!_commandPalette.Bounds.Contains(point) && _mainWindowViewModel.IsCommandPaletteVisible)
+        {
+            _mainWindowViewModel.ToggleCommandPaletteCommand.Execute(null);
+        }
     }
 
     private void UpdateTitlebarBackground(bool isActive)
@@ -118,7 +165,7 @@ public partial class MainWindow : Window
 
     private async void OnDirectoryOpenRequested(object? sender, string e)
     {
-        var storageProvider = StorageProvider ?? TopLevel.GetTopLevel(this)?.StorageProvider;
+        var storageProvider = StorageProvider ?? GetTopLevel(this)?.StorageProvider;
         if (storageProvider != null)
         {
             var result = await storageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions());
@@ -141,7 +188,13 @@ public partial class MainWindow : Window
 
         var theme = _themeManager.CurrentTheme;
         Background = new SolidColorBrush(Color.Parse(theme.AppBackgroundColor));
-        UpdateTitlebarBackground(this.IsActive);
+        UpdateTitlebarBackground(IsActive);
+
+        // Update GridSplitter background
+        if (_gridSplitter != null)
+        {
+            _gridSplitter.Background = new SolidColorBrush(Color.Parse(theme.BorderBrush));
+        }
     }
 
     private void OnFileSelected(object? sender, string? filePath)

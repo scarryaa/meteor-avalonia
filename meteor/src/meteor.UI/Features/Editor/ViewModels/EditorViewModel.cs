@@ -4,7 +4,6 @@ using meteor.Core.Interfaces.ViewModels;
 using meteor.Core.Models;
 using meteor.Core.Models.EventArgs;
 using meteor.Core.Services;
-using System.Threading.Tasks;
 
 namespace meteor.UI.Features.Editor.ViewModels;
 
@@ -16,9 +15,9 @@ public class EditorViewModel : IEditorViewModel
     private readonly IInputManager _inputManager;
     private readonly ISelectionManager _selectionManager;
     private readonly ITextMeasurer _textMeasurer;
+    private readonly Task<bool> _completionsInitTask;
     private string _content;
     private int _lastSyncedVersion;
-    private Task<bool> _completionsInitTask;
 
     public EditorViewModel(
         ITextBufferService textBufferService,
@@ -58,7 +57,8 @@ public class EditorViewModel : IEditorViewModel
     {
         if (!_completionsInitTask.IsCompleted)
         {
-            CompletionItems = new List<CompletionItem> { new CompletionItem { Text = "Loading...", Kind = CompletionItemKind.Text } };
+            CompletionItems = new List<CompletionItem>
+                { new() { Text = "Loading...", Kind = CompletionItemKind.Text } };
             IsCompletionActive = true;
             CompletionIndexChanged?.Invoke(this, 0);
 
@@ -76,19 +76,6 @@ public class EditorViewModel : IEditorViewModel
         SelectedCompletionIndex = 0;
         IsCompletionActive = true;
         CompletionIndexChanged?.Invoke(this, SelectedCompletionIndex);
-    }
-
-    private async Task<bool> InitializeCompletionsAsync()
-    {
-        try
-        {
-            await _completionProvider.GetCompletionsAsync(0);
-            return true;
-        }
-        catch (Exception)
-        {
-            return false;
-        }
     }
 
     public void ApplySelectedCompletion()
@@ -205,10 +192,7 @@ public class EditorViewModel : IEditorViewModel
         var cursorColumn = _cursorManager.GetCursorColumn();
         var lineContent = TextBufferService.GetContentSlice(cursorLine, cursorLine);
 
-        if (string.IsNullOrEmpty(lineContent) || lineContent == "\n")
-        {
-            return 0;
-        }
+        if (string.IsNullOrEmpty(lineContent) || lineContent == "\n") return 0;
 
         cursorColumn = Math.Min(cursorColumn, lineContent.Length);
         var textUpToCursor = lineContent[..cursorColumn];
@@ -262,6 +246,19 @@ public class EditorViewModel : IEditorViewModel
     public int GetLineEndOffset(int lineIndex)
     {
         return TextBufferService.GetLineEndOffset(lineIndex);
+    }
+
+    private async Task<bool> InitializeCompletionsAsync()
+    {
+        try
+        {
+            await _completionProvider.GetCompletionsAsync(0);
+            return true;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
     }
 
     private void ApplyCompletion(CompletionItem item)
