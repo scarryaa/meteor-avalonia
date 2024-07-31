@@ -23,6 +23,7 @@ public partial class EditorControl : UserControl
     private readonly IScrollManager? _scrollManager;
     private readonly ITextMeasurer _textMeasurer;
     private readonly IEditorViewModel _viewModel;
+    private readonly IThemeManager _themeManager;
     private EditorContentControl? _contentControl;
     private GutterControl? _gutterControl;
 
@@ -30,7 +31,8 @@ public partial class EditorControl : UserControl
 
     public EditorControl(IEditorViewModel viewModel, IScrollManager scrollManager,
         IEditorLayoutManager layoutManager, IEditorInputHandler inputHandler,
-        IPointerEventHandler pointerEventHandler, ITextMeasurer textMeasurer, IEditorConfig config)
+        IPointerEventHandler pointerEventHandler, ITextMeasurer textMeasurer, IEditorConfig config,
+        IThemeManager themeManager)
     {
         Focusable = true;
         _viewModel = viewModel;
@@ -40,6 +42,7 @@ public partial class EditorControl : UserControl
         _pointerEventHandler = pointerEventHandler;
         _textMeasurer = textMeasurer;
         _config = config;
+        _themeManager = themeManager;
 
         InitializeComponent();
         SetupEventHandlers();
@@ -62,8 +65,8 @@ public partial class EditorControl : UserControl
 
     private void InitializeComponent()
     {
-        _contentControl = new EditorContentControl(_viewModel, _textMeasurer, _config, new SyntaxHighlighter());
-        _gutterControl = new GutterControl(_viewModel, _textMeasurer, _config);
+        _contentControl = new EditorContentControl(_viewModel, _textMeasurer, _config, new SyntaxHighlighter(), _themeManager);
+        _gutterControl = new GutterControl(_viewModel, _textMeasurer, _config, _themeManager);
         _scrollViewer = new ScrollViewer
         {
             HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,

@@ -23,8 +23,8 @@ namespace meteor.UI.Views;
 
 public partial class MainWindow : Window
 {
-    private readonly IEditorConfig _config;
     private readonly ITabService _tabService;
+    private readonly IEditorConfig _config;
     private readonly ITextMeasurer _textMeasurer;
 
     public MainWindow(
@@ -35,7 +35,8 @@ public partial class MainWindow : Window
         ITextMeasurer textMeasurer,
         IEditorConfig config,
         IScrollManager scrollManager,
-        IPointerEventHandler pointerEventHandler)
+        IPointerEventHandler pointerEventHandler,
+        IThemeManager themeManager)
     {
         InitializeComponent();
 
@@ -49,7 +50,7 @@ public partial class MainWindow : Window
         _textMeasurer = textMeasurer;
 
         var editorControlFactory = new EditorControlFactory(scrollManager, layoutManager, inputHandler,
-            pointerEventHandler, _textMeasurer, _config);
+            pointerEventHandler, _textMeasurer, _config, themeManager);
         var tabControl = new TabControl(tabService, editorControlFactory);
 
         var fileExplorerSidebar = new FileExplorerControl();

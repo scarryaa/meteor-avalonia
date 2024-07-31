@@ -15,6 +15,7 @@ public class EditorControlFactory : IEditorControlFactory
     private readonly IPointerEventHandler _pointerEventHandler;
     private readonly IScrollManager _scrollManager;
     private readonly ITextMeasurer _textMeasurer;
+    private readonly IThemeManager _themeManager;
 
     public EditorControlFactory(
         IScrollManager scrollManager,
@@ -22,7 +23,8 @@ public class EditorControlFactory : IEditorControlFactory
         IEditorInputHandler inputHandler,
         IPointerEventHandler pointerEventHandler,
         ITextMeasurer textMeasurer,
-        IEditorConfig config)
+        IEditorConfig config,
+        IThemeManager themeManager)
     {
         _scrollManager = scrollManager ?? throw new ArgumentNullException(nameof(scrollManager));
         _layoutManager = layoutManager ?? throw new ArgumentNullException(nameof(layoutManager));
@@ -30,6 +32,7 @@ public class EditorControlFactory : IEditorControlFactory
         _pointerEventHandler = pointerEventHandler ?? throw new ArgumentNullException(nameof(pointerEventHandler));
         _textMeasurer = textMeasurer ?? throw new ArgumentNullException(nameof(textMeasurer));
         _config = config ?? throw new ArgumentNullException(nameof(config));
+        _themeManager = themeManager ?? throw new ArgumentNullException(nameof(themeManager));
     }
 
     public EditorControl CreateEditorControl(IEditorViewModel viewModel)
@@ -43,7 +46,8 @@ public class EditorControlFactory : IEditorControlFactory
             _inputHandler,
             _pointerEventHandler,
             _textMeasurer,
-            _config
+            _config,
+            _themeManager
         );
     }
 }

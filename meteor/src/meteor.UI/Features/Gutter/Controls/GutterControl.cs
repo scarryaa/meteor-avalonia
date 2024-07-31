@@ -15,6 +15,7 @@ public class GutterControl : Control
     private const int Padding = 25;
     private readonly AvaloniaEditorConfig _avaloniaConfig;
     private readonly IEditorConfig _config;
+    private readonly IThemeManager _themeManager;
 
     private readonly double _lineHeight;
     private readonly ITextMeasurer _textMeasurer;
@@ -26,17 +27,19 @@ public class GutterControl : Control
     private int _selectionStartLine;
     private Size _totalSize;
 
-    public GutterControl(IEditorViewModel viewModel, ITextMeasurer textMeasurer, IEditorConfig config)
+    public GutterControl(IEditorViewModel viewModel, ITextMeasurer textMeasurer, IEditorConfig config, IThemeManager themeManager)
     {
         _viewModel = viewModel;
         _textMeasurer = textMeasurer;
         _config = config;
-        _avaloniaConfig = new AvaloniaEditorConfig();
+        _themeManager = themeManager;
+        _avaloniaConfig = new AvaloniaEditorConfig(themeManager);
 
         _lineHeight = _textMeasurer.GetLineHeight(_config.FontFamily, _config.FontSize) * _config.LineHeightMultiplier;
 
         _viewModel.ContentChanged += OnContentChanged;
         _viewModel.SelectionChanged += OnSelectionChanged;
+        _themeManager.ThemeChanged += OnThemeChanged;
 
         PointerPressed += OnPointerPressed;
         PointerMoved += OnPointerMoved;
@@ -63,6 +66,11 @@ public class GutterControl : Control
         InvalidateVisual();
     }
 
+    private void OnThemeChanged(object sender, Core.Models.Theme e)
+    {
+        InvalidateVisual();
+    }
+
     protected override Size MeasureOverride(Size availableSize)
     {
         var lineCount = _viewModel.GetLineCount();
@@ -78,14 +86,16 @@ public class GutterControl : Control
 
     public override void Render(DrawingContext context)
     {
-        context.DrawRectangle(_avaloniaConfig.GutterBackgroundBrush, null, new Rect(Bounds.Size));
+        var theme = _themeManager.CurrentTheme;
+        var gutterBackgroundBrush = new SolidColorBrush(Color.Parse(theme.GutterBackgroundColor));
+        var gutterTextBrush = new SolidColorBrush(Color.Parse(theme.GutterTextColor));
+        var currentLineHighlightBrush = new SolidColorBrush(Color.Parse(theme.CurrentLineHighlightColor));
+
+        context.DrawRectangle(gutterBackgroundBrush, null, new Rect(Bounds.Size));
 
         var startLine = Math.Max(0, (int)(VerticalOffset / _lineHeight));
         var visibleLines = (int)Math.Ceiling(Viewport.Height / _lineHeight) + 1;
         var endLine = Math.Min(_viewModel.GetLineCount() - 1, startLine + visibleLines);
-
-        var textHeight = _textMeasurer.MeasureText("0", _config.FontFamily, _config.FontSize).Height;
-        var verticalOffset = (_lineHeight - textHeight) / 2;
 
         var currentLine = _viewModel.GetCursorLine();
 
@@ -95,7 +105,7 @@ public class GutterControl : Control
 
             // Highlight the current line in the gutter
             if (i == currentLine)
-                context.DrawRectangle(_avaloniaConfig.CurrentLineHighlightBrush, null,
+                context.DrawRectangle(currentLineHighlightBrush, null,
                     new Rect(0, lineY, Bounds.Width, _lineHeight));
 
             var lineNumber = (i + 1).ToString();
@@ -103,11 +113,11 @@ public class GutterControl : Control
                 lineNumber,
                 CultureInfo.CurrentCulture,
                 FlowDirection.LeftToRight,
-                _avaloniaConfig.Typeface,
+                new Typeface(_config.FontFamily),
                 _config.FontSize,
-                _avaloniaConfig.GutterTextBrush);
+                gutterTextBrush);
 
-            var textY = lineY + verticalOffset;
+            var textY = lineY + (_lineHeight - formattedText.Height) / 2;
             var textX = Bounds.Width - formattedText.Width - Padding;
 
             context.DrawText(formattedText, new Point(textX, textY));

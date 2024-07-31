@@ -14,10 +14,10 @@ public class AvaloniaTextMeasurer : ITextMeasurer
     private readonly Dictionary<(string FontFamily, double FontSize), double> _lineHeightCache = new();
     private readonly Dictionary<(string FontFamily, double FontSize), Typeface> _typefaceCache = new();
 
-    public AvaloniaTextMeasurer(IEditorConfig config)
+    public AvaloniaTextMeasurer(IEditorConfig config, IThemeManager themeManager)
     {
         _config = config;
-        _avaloniaConfig = new AvaloniaEditorConfig();
+        _avaloniaConfig = new AvaloniaEditorConfig(themeManager);
     }
 
     public (double Width, double Height) MeasureText(string text, string fontFamily, double fontSize)

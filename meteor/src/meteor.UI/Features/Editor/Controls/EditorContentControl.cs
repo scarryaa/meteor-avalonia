@@ -28,6 +28,7 @@ public class EditorContentControl : Control
     private readonly ISyntaxHighlighter _syntaxHighlighter;
     private readonly ITextMeasurer _textMeasurer;
     private readonly IEditorViewModel _viewModel;
+    private readonly IThemeManager _themeManager;
     private int _cachedDocumentLength;
     private int _completionOverlayScrollOffset;
     private int _documentVersion;
@@ -41,13 +42,14 @@ public class EditorContentControl : Control
     private Size _totalSize;
 
     public EditorContentControl(IEditorViewModel viewModel, ITextMeasurer textMeasurer, IEditorConfig config,
-        ISyntaxHighlighter syntaxHighlighter)
+        ISyntaxHighlighter syntaxHighlighter, IThemeManager themeManager)
     {
         _viewModel = viewModel;
         _textMeasurer = textMeasurer;
         _config = config;
-        _avaloniaConfig = new AvaloniaEditorConfig();
+        _avaloniaConfig = new AvaloniaEditorConfig(themeManager);
         _syntaxHighlighter = syntaxHighlighter;
+        _themeManager = themeManager;
 
         LineHeight = _textMeasurer.GetLineHeight(_config.FontFamily, _config.FontSize) * _config.LineHeightMultiplier;
         ClipToBounds = false;
@@ -55,6 +57,7 @@ public class EditorContentControl : Control
         _viewModel.ContentChanged += (_, _) => { UpdateLineStartOffsets(); };
         _viewModel.SelectionChanged += (_, _) => InvalidateVisual();
         _viewModel.CompletionIndexChanged += (_, index) => { UpdateCompletionOverlayScroll(index); };
+        _themeManager.ThemeChanged += (_, _) => InvalidateVisual();
 
         UpdateContentMeasurements();
         UpdateLineStartOffsets();
@@ -91,7 +94,9 @@ public class EditorContentControl : Control
 
     public override void Render(DrawingContext context)
     {
-        context.DrawRectangle(_avaloniaConfig.BackgroundBrush, null, new Rect(Bounds.Size));
+        var theme = _themeManager.CurrentTheme;
+        var backgroundColor = string.IsNullOrEmpty(theme.BackgroundBrush) ? "#FFFFFF" : theme.BackgroundBrush;
+        context.DrawRectangle(new SolidColorBrush(Color.Parse(backgroundColor)), null, new Rect(Bounds.Size));
 
         var (startLine, endLine) = CalculateVisibleLineRange();
         var visibleContent = _viewModel.GetContentSlice(startLine, endLine);
@@ -113,13 +118,14 @@ public class EditorContentControl : Control
 
     private void RenderCompletionOverlay(DrawingContext context)
     {
+        var theme = _themeManager.CurrentTheme;
         var cursorPosition = _viewModel.GetCursorPosition();
         var completionItems = _viewModel.CompletionItems;
         var selectedIndex = _viewModel.SelectedCompletionIndex;
         var overlayX = cursorPosition.X;
         var overlayY = cursorPosition.Y + LineHeight;
-        var backgroundBrush = new SolidColorBrush(Color.FromRgb(240, 240, 240));
-        var borderBrush = new SolidColorBrush(Color.FromRgb(200, 200, 200));
+        var backgroundBrush = theme.CompletionOverlayBackgroundBrush;
+        var borderBrush = theme.CompletionOverlayBorderBrush;
 
         // Calculate the actual width based on the content
         var contentWidth = completionItems.Max(item => MeasureTextWidth(item.Text));
@@ -139,7 +145,7 @@ public class EditorContentControl : Control
             overlayHeight = visibleItemCount * CompletionItemHeight;
         }
 
-        context.DrawRectangle(backgroundBrush, new Pen(borderBrush),
+        context.DrawRectangle(new SolidColorBrush(Color.Parse(theme.CompletionOverlayBackgroundBrush)), null,
             new Rect(overlayX, overlayY, overlayWidth, overlayHeight));
 
         var clipRect = new Rect(overlayX, overlayY, overlayWidth, overlayHeight);
@@ -222,25 +228,24 @@ public class EditorContentControl : Control
     private void RenderCompletionItem(DrawingContext context, CompletionItem item, int index, double overlayX,
         double itemY, double overlayWidth, double itemHeight, int selectedIndex)
     {
+        var theme = _themeManager.CurrentTheme;
         var itemRect = new Rect(overlayX, itemY, MaxCompletionOverlayWidth, itemHeight);
         if (index == selectedIndex)
         {
-            var selectionBrush = new SolidColorBrush(Color.FromRgb(173, 214, 255));
-            context.DrawRectangle(selectionBrush, null, itemRect);
+            context.DrawRectangle(new SolidColorBrush(Color.Parse(theme.CompletionItemSelectedBrush)), null, itemRect);
         }
         else
         {
             RenderHoverEffect(context, item, index, overlayX, overlayWidth, itemY, itemHeight);
         }
 
-        var textBrush = new SolidColorBrush(Color.FromRgb(0, 0, 0));
         var formattedText = new FormattedText(
             item.Text,
             CultureInfo.CurrentCulture,
             FlowDirection.LeftToRight,
             new Typeface(_config.FontFamily),
             _config.FontSize,
-            textBrush);
+            new SolidColorBrush(Color.Parse(theme.TextBrush)));
 
         context.DrawText(formattedText, new Point(overlayX + 5, itemY + (itemHeight - formattedText.Height) / 2));
     }
@@ -249,6 +254,7 @@ public class EditorContentControl : Control
         double overlayWidth,
         double itemY, double itemHeight)
     {
+        var theme = _themeManager.CurrentTheme;
         var itemRect = new Rect(overlayX, itemY, overlayWidth, itemHeight);
         var cursorPosition = _viewModel.GetCursorPosition();
         var overlayY = cursorPosition.Y + LineHeight;
@@ -263,14 +269,14 @@ public class EditorContentControl : Control
 
         if (isMouseInCompletionBox && itemRect.Contains(_lastMousePosition))
         {
-            var hoverBrush = new SolidColorBrush(Color.FromRgb(220, 220, 220));
-            context.DrawRectangle(hoverBrush, null, itemRect);
+            context.DrawRectangle(new SolidColorBrush(Color.Parse(theme.CompletionItemHoverBrush)), null, itemRect);
         }
     }
 
     private void RenderScrollbarIfNeeded(DrawingContext context, int itemCount, double itemHeight, double overlayX,
         double overlayY, double overlayWidth, double overlayHeight, int selectedIndex)
     {
+        var theme = _themeManager.CurrentTheme;
         var visibleItemCount = Math.Max(1, overlayHeight / itemHeight);
         if (itemCount > visibleItemCount)
         {
@@ -290,14 +296,14 @@ public class EditorContentControl : Control
 
             // Draw scrollbar background
             context.DrawRectangle(
-                new SolidColorBrush(Color.FromRgb(230, 230, 230)),
+                new SolidColorBrush(Color.Parse(theme.ScrollBarBackgroundBrush)),
                 null,
                 new Rect(overlayX + overlayWidth - scrollBarWidth, overlayY, scrollBarWidth, overlayHeight)
             );
 
             // Draw scrollbar thumb
             context.DrawRectangle(
-                new SolidColorBrush(Color.FromRgb(150, 150, 150)),
+                new SolidColorBrush(Color.Parse(theme.ScrollBarThumbBrush)),
                 null,
                 _scrollBarBounds
             );
@@ -453,23 +459,24 @@ public class EditorContentControl : Control
 
     private IBrush GetBrushForStyle(string style)
     {
+        var theme = _themeManager.CurrentTheme;
         return style switch
         {
-            "keyword" => new SolidColorBrush(Color.FromRgb(0, 0, 205)), // Medium Blue
-            "preprocessor" => new SolidColorBrush(Color.FromRgb(138, 43, 226)), // Blue Violet
-            "comment" => new SolidColorBrush(Color.FromRgb(34, 139, 34)), // Forest Green
-            "xmldoc" => new SolidColorBrush(Color.FromRgb(0, 128, 128)), // Teal
-            "attribute" => new SolidColorBrush(Color.FromRgb(255, 69, 0)), // Orange Red
-            "method" => new SolidColorBrush(Color.FromRgb(70, 130, 180)), // Steel Blue
-            "string" => new SolidColorBrush(Color.FromRgb(220, 20, 60)), // Crimson
-            "number" => new SolidColorBrush(Color.FromRgb(0, 128, 128)), // Teal
-            "type" => new SolidColorBrush(Color.FromRgb(72, 61, 139)), // Dark Slate Blue
-            "namespace" => new SolidColorBrush(Color.FromRgb(0, 0, 139)), // Dark Blue
-            "linq" => new SolidColorBrush(Color.FromRgb(0, 0, 205)), // Medium Blue
-            "operator" => new SolidColorBrush(Color.FromRgb(0, 0, 0)), // Black
-            "lambda" => new SolidColorBrush(Color.FromRgb(0, 0, 205)), // Medium Blue
-            "whitespace" => new SolidColorBrush(Color.FromRgb(255, 255, 255)), // White
-            _ => _avaloniaConfig.TextBrush
+            "keyword" => new SolidColorBrush(Color.Parse(theme.KeywordColor)),
+            "preprocessor" => new SolidColorBrush(Color.Parse(theme.PreprocessorColor)),
+            "comment" => new SolidColorBrush(Color.Parse(theme.CommentColor)),
+            "xmldoc" => new SolidColorBrush(Color.Parse(theme.XmlDocColor)),
+            "attribute" => new SolidColorBrush(Color.Parse(theme.AttributeColor)),
+            "method" => new SolidColorBrush(Color.Parse(theme.MethodColor)),
+            "string" => new SolidColorBrush(Color.Parse(theme.StringColor)),
+            "number" => new SolidColorBrush(Color.Parse(theme.NumberColor)),
+            "type" => new SolidColorBrush(Color.Parse(theme.TypeColor)),
+            "namespace" => new SolidColorBrush(Color.Parse(theme.NamespaceColor)),
+            "linq" => new SolidColorBrush(Color.Parse(theme.LinqColor)),
+            "operator" => new SolidColorBrush(Color.Parse(theme.OperatorColor)),
+            "lambda" => new SolidColorBrush(Color.Parse(theme.LambdaColor)),
+            "whitespace" => new SolidColorBrush(Color.Parse(theme.WhitespaceColor)),
+            _ => new SolidColorBrush(Color.Parse(theme.TextColor))
         };
     }
 

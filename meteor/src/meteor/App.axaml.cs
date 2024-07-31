@@ -51,9 +51,10 @@ public class App : Application
             var inputHandler = Services.GetRequiredService<IEditorInputHandler>();
             var pointerEventHandler = Services.GetRequiredService<IPointerEventHandler>();
             var tabService = Services.GetRequiredService<ITabService>();
+            var themeManager = Services.GetRequiredService<IThemeManager>();
 
             desktop.MainWindow = new MainWindow(mainWindowViewModel, tabService, layoutManager, inputHandler,
-                textMeasurer, config, scrollManager, pointerEventHandler);
+                textMeasurer, config, scrollManager, pointerEventHandler, themeManager);
 
             var clipboardManager = Services.GetRequiredService<IClipboardManager>();
             if (clipboardManager is ClipboardManager cm) cm.TopLevelRef = desktop.MainWindow;
@@ -79,6 +80,7 @@ public class App : Application
         services.AddSingleton<ITabService, TabService>();
         services.AddSingleton<IFileDialogService, FileDialogService>();
         services.AddSingleton<IFileService, FileService>();
+        services.AddSingleton<IThemeManager>(sp => new ThemeManager("../../../../meteor.UI/Common/Themes/"));
 
         // Editor Services
         services.AddSingleton<IEditorLayoutManager, EditorLayoutManager>();
