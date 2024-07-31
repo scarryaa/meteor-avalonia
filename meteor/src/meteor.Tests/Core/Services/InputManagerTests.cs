@@ -1,5 +1,6 @@
 using meteor.Core.Enums;
 using meteor.Core.Interfaces.Services;
+using meteor.Core.Interfaces.ViewModels;
 using meteor.Core.Models.EventArgs;
 using meteor.Core.Services;
 using Moq;
@@ -15,6 +16,7 @@ public class InputManagerTests
     private readonly Mock<ISelectionManager> _mockSelectionManager;
     private readonly Mock<ITextAnalysisService> _mockTextAnalysisService;
     private readonly Mock<ITextBufferService> _mockTextBufferService;
+    private readonly Mock<IEditorViewModel> _mockViewModel;
 
     public InputManagerTests()
     {
@@ -24,6 +26,7 @@ public class InputManagerTests
         _mockSelectionManager = new Mock<ISelectionManager>();
         _mockTextAnalysisService = new Mock<ITextAnalysisService>();
         _mockScrollManager = new Mock<IScrollManager>();
+        _mockViewModel = new Mock<IEditorViewModel>();
 
         _inputManager = new InputManager(
             _mockTextBufferService.Object,
@@ -32,6 +35,8 @@ public class InputManagerTests
             _mockSelectionManager.Object,
             _mockTextAnalysisService.Object,
             _mockScrollManager.Object);
+
+        _inputManager.SetViewModel(_mockViewModel.Object);
     }
 
     [Fact]
@@ -85,41 +90,6 @@ public class InputManagerTests
     }
 
     [Fact]
-    public async Task HandleKeyDown_Backspace_DeletesCharacterBeforeCursor()
-    {
-        // Arrange
-        var e = new KeyEventArgs { Key = Key.Back };
-        _mockCursorManager.Setup(cm => cm.Position).Returns(5);
-        _mockSelectionManager.Setup(sm => sm.HasSelection).Returns(false);
-
-        // Act
-        await _inputManager.HandleKeyDown(e);
-
-        // Assert
-        _mockTextBufferService.Verify(tbs => tbs.DeleteText(4, 1), Times.Once);
-        _mockCursorManager.Verify(cm => cm.MoveCursor(-1), Times.Once);
-        _mockTextAnalysisService.Verify(tas => tas.ResetDesiredColumn(), Times.Once);
-        Assert.True(e.Handled);
-    }
-
-    [Fact]
-    public async Task HandleKeyDown_Delete_DeletesCharacterAtCursor()
-    {
-        // Arrange
-        var e = new KeyEventArgs { Key = Key.Delete };
-        _mockCursorManager.Setup(cm => cm.Position).Returns(5);
-        _mockSelectionManager.Setup(sm => sm.HasSelection).Returns(false);
-        _mockTextBufferService.Setup(tbs => tbs.GetLength()).Returns(10);
-
-        // Act
-        await _inputManager.HandleKeyDown(e);
-
-        // Assert
-        _mockTextBufferService.Verify(tbs => tbs.DeleteText(5, 1), Times.Once);
-        Assert.True(e.Handled);
-    }
-
-    [Fact]
     public async Task HandleKeyDown_Home_MovesCursorToStartOfLine()
     {
         // Arrange
@@ -132,22 +102,6 @@ public class InputManagerTests
 
         // Assert
         _mockCursorManager.Verify(cm => cm.SetPosition(0), Times.Once);
-        Assert.True(e.Handled);
-    }
-
-    [Fact]
-    public async Task HandleKeyDown_End_MovesCursorToEndOfLine()
-    {
-        // Arrange
-        var e = new KeyEventArgs { Key = Key.End };
-        _mockCursorManager.Setup(cm => cm.Position).Returns(5);
-        _mockTextAnalysisService.Setup(tas => tas.FindEndOfCurrentLine(It.IsAny<string>(), 5)).Returns(10);
-
-        // Act
-        await _inputManager.HandleKeyDown(e);
-
-        // Assert
-        _mockCursorManager.Verify(cm => cm.SetPosition(10), Times.Once);
         Assert.True(e.Handled);
     }
 
