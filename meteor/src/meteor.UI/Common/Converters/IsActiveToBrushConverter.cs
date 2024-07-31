@@ -7,11 +7,6 @@ public class IsActiveToBrushConverter : IValueConverter
 {
     private static IThemeManager _themeManager;
 
-    public static void Initialize(IThemeManager themeManager)
-    {
-        _themeManager = themeManager;
-    }
-
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
         if (_themeManager == null) throw new InvalidOperationException("ThemeManager has not been initialized.");
@@ -25,5 +20,10 @@ public class IsActiveToBrushConverter : IValueConverter
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
     {
         throw new NotImplementedException();
+    }
+
+    public static void Initialize(IThemeManager themeManager)
+    {
+        _themeManager = themeManager;
     }
 }

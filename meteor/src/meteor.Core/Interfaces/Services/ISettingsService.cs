@@ -1,5 +1,3 @@
-using System.Text.Json;
-
 namespace meteor.Core.Interfaces.Services;
 
 public interface ISettingsService

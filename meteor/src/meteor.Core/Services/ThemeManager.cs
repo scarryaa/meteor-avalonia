@@ -7,13 +7,8 @@ namespace meteor.Core.Services;
 public class ThemeManager : IThemeManager
 {
     private static ThemeManager? _instance;
-    private readonly string _themesDirectory;
     private readonly Dictionary<string, Theme> _themes = new();
-
-    public ISettingsService SettingsService { get; set; }
-    public Theme CurrentTheme { get; set; }
-
-    public static ThemeManager Instance => _instance ??= new ThemeManager();
+    private readonly string _themesDirectory;
 
     private ThemeManager()
     {
@@ -22,52 +17,15 @@ public class ThemeManager : IThemeManager
         CurrentTheme = GetTheme("Dark");
     }
 
+    public static ThemeManager Instance => _instance ??= new ThemeManager();
+
+    public ISettingsService SettingsService { get; set; }
+    public Theme CurrentTheme { get; set; }
+
     public void Initialize(ISettingsService settingsService)
     {
         SettingsService = settingsService;
         LoadCurrentThemeFromSettings();
-    }
-
-    private string GetDefaultThemesDirectory()
-    {
-        return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "../../../../meteor.UI/Common/Themes");
-    }
-
-    private void LoadThemes()
-    {
-        if (!Directory.Exists(_themesDirectory))
-        {
-            Directory.CreateDirectory(_themesDirectory);
-        }
-
-        foreach (var file in Directory.GetFiles(_themesDirectory, "*.json"))
-        {
-            try
-            {
-                var json = File.ReadAllText(file);
-                var theme = JsonSerializer.Deserialize<Theme>(json);
-                if (theme != null && !string.IsNullOrEmpty(theme.Name))
-                {
-                    _themes[theme.Name] = theme;
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error loading theme from {file}: {ex.Message}");
-            }
-        }
-    }
-
-    public void LoadCurrentThemeFromSettings()
-    {
-        if (SettingsService == null)
-        {
-            throw new InvalidOperationException("SettingsService is not set. Call Initialize first.");
-        }
-
-        var themeName = SettingsService.GetSetting("CurrentTheme", "Dark");
-        CurrentTheme = GetTheme(themeName);
-        ThemeChanged?.Invoke(this, CurrentTheme);
     }
 
     public Theme GetTheme(string name)
@@ -83,9 +41,7 @@ public class ThemeManager : IThemeManager
     public void ApplyTheme(string themeName)
     {
         if (SettingsService == null)
-        {
             throw new InvalidOperationException("SettingsService is not set. Call Initialize first.");
-        }
 
         if (_themes.TryGetValue(themeName, out var theme))
         {
@@ -101,4 +57,36 @@ public class ThemeManager : IThemeManager
     }
 
     public event EventHandler<Theme>? ThemeChanged;
+
+    private string GetDefaultThemesDirectory()
+    {
+        return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "../../../../meteor.UI/Common/Themes");
+    }
+
+    private void LoadThemes()
+    {
+        if (!Directory.Exists(_themesDirectory)) Directory.CreateDirectory(_themesDirectory);
+
+        foreach (var file in Directory.GetFiles(_themesDirectory, "*.json"))
+            try
+            {
+                var json = File.ReadAllText(file);
+                var theme = JsonSerializer.Deserialize<Theme>(json);
+                if (theme != null && !string.IsNullOrEmpty(theme.Name)) _themes[theme.Name] = theme;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error loading theme from {file}: {ex.Message}");
+            }
+    }
+
+    public void LoadCurrentThemeFromSettings()
+    {
+        if (SettingsService == null)
+            throw new InvalidOperationException("SettingsService is not set. Call Initialize first.");
+
+        var themeName = SettingsService.GetSetting("CurrentTheme", "Dark");
+        CurrentTheme = GetTheme(themeName);
+        ThemeChanged?.Invoke(this, CurrentTheme);
+    }
 }

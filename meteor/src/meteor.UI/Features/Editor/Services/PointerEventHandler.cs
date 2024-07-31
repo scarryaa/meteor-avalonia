@@ -21,8 +21,8 @@ public class PointerEventHandler : IPointerEventHandler
     private int _clickStartPosition;
     private ClickType _clickType;
     private bool _isDragging;
-    private Point _lastClickPosition;
     private bool _isShiftPressed;
+    private Point _lastClickPosition;
 
     public PointerEventHandler(
         IScrollManager scrollManager,
@@ -37,6 +37,39 @@ public class PointerEventHandler : IPointerEventHandler
         _clickCount = 0;
         _clickTimer = new Timer(300);
         _clickTimer.Elapsed += ResetClickCount;
+    }
+
+    public void HandlePointerMoved(IEditorViewModel viewModel, Point point)
+    {
+        if (_isDragging)
+        {
+            var documentPosition = GetDocumentPositionFromPoint(viewModel, point);
+            UpdateCursorPosition(viewModel, documentPosition, true);
+
+            switch (_clickType)
+            {
+                case ClickType.Single:
+                    viewModel.UpdateSelection(documentPosition);
+                    break;
+                case ClickType.Double:
+                    ExtendSelectionByWord(viewModel, documentPosition);
+                    break;
+                case ClickType.Triple:
+                    ExtendSelectionByLine(viewModel, documentPosition);
+                    break;
+            }
+        }
+    }
+
+    public void HandlePointerReleased(IEditorViewModel viewModel)
+    {
+        _isDragging = false;
+        viewModel.EndSelection();
+    }
+
+    public void HandlePointerPressed(IEditorViewModel viewModel, Point point)
+    {
+        HandlePointerPressed(viewModel, point, false);
     }
 
     public void HandlePointerPressed(IEditorViewModel viewModel, Point point, bool isShiftPressed)
@@ -72,34 +105,6 @@ public class PointerEventHandler : IPointerEventHandler
             _clickType = ClickType.Triple;
             SelectLine(viewModel, documentPosition);
         }
-    }
-
-    public void HandlePointerMoved(IEditorViewModel viewModel, Point point)
-    {
-        if (_isDragging)
-        {
-            var documentPosition = GetDocumentPositionFromPoint(viewModel, point);
-            UpdateCursorPosition(viewModel, documentPosition, true);
-
-            switch (_clickType)
-            {
-                case ClickType.Single:
-                    viewModel.UpdateSelection(documentPosition);
-                    break;
-                case ClickType.Double:
-                    ExtendSelectionByWord(viewModel, documentPosition);
-                    break;
-                case ClickType.Triple:
-                    ExtendSelectionByLine(viewModel, documentPosition);
-                    break;
-            }
-        }
-    }
-
-    public void HandlePointerReleased(IEditorViewModel viewModel)
-    {
-        _isDragging = false;
-        viewModel.EndSelection();
     }
 
     private void UpdateCursorPosition(IEditorViewModel viewModel, int documentPosition, bool isSelection)
@@ -217,11 +222,6 @@ public class PointerEventHandler : IPointerEventHandler
 
         viewModel.StartSelection(newStart);
         viewModel.UpdateSelection(newEnd);
-    }
-
-    public void HandlePointerPressed(IEditorViewModel viewModel, Point point)
-    {
-        HandlePointerPressed(viewModel, point, false);
     }
 
     private enum ClickType

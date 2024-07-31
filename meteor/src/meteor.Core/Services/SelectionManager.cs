@@ -1,4 +1,3 @@
-using System;
 using System.Diagnostics;
 using meteor.Core.Interfaces.Services;
 using meteor.Core.Models;
@@ -9,8 +8,8 @@ public class SelectionManager : ISelectionManager
 {
     private const int ChunkSize = 4096;
     private readonly ITextBufferService _textBufferService;
-    private int _selectionAnchor;
     private bool _isSelectionInProgress;
+    private int _selectionAnchor;
 
     public SelectionManager(ITextBufferService textBufferService)
     {
@@ -94,17 +93,12 @@ public class SelectionManager : ISelectionManager
         if (isShiftPressed)
         {
             if (!_isSelectionInProgress)
-            {
                 StartSelection(CurrentSelection.Start != CurrentSelection.End ? CurrentSelection.Start : position);
-            }
             ExtendSelection(position);
         }
         else
         {
-            if (_isSelectionInProgress)
-            {
-                ClearSelection();
-            }
+            if (_isSelectionInProgress) ClearSelection();
             _selectionAnchor = position;
         }
     }
@@ -113,10 +107,7 @@ public class SelectionManager : ISelectionManager
     {
         if (isShiftPressed)
         {
-            if (!_isSelectionInProgress)
-            {
-                StartSelection(_selectionAnchor);
-            }
+            if (!_isSelectionInProgress) StartSelection(_selectionAnchor);
             ExtendSelection(position);
         }
         else

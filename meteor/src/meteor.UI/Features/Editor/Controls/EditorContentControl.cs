@@ -27,8 +27,8 @@ public class EditorContentControl : Control
     private readonly List<int> _lineStartOffsets = new();
     private readonly ISyntaxHighlighter _syntaxHighlighter;
     private readonly ITextMeasurer _textMeasurer;
-    private readonly IEditorViewModel _viewModel;
     private readonly IThemeManager _themeManager;
+    private readonly IEditorViewModel _viewModel;
     private int _cachedDocumentLength;
     private int _completionOverlayScrollOffset;
     private int _documentVersion;
@@ -173,9 +173,11 @@ public class EditorContentControl : Control
                     overlayWidth, overlayHeight, _completionOverlayScrollOffset);
         }
     }
+
     private int GetCompletionItemIndexAtPosition(Point position)
     {
-        if (!_viewModel.IsCompletionActive || _viewModel.CompletionItems == null || _viewModel.CompletionItems.Count == 0) return -1;
+        if (!_viewModel.IsCompletionActive || _viewModel.CompletionItems == null ||
+            _viewModel.CompletionItems.Count == 0) return -1;
 
         var cursorPosition = _viewModel.GetCursorPosition();
         var overlayX = cursorPosition.X;
@@ -232,13 +234,9 @@ public class EditorContentControl : Control
         var theme = _themeManager.CurrentTheme;
         var itemRect = new Rect(overlayX, itemY, MaxCompletionOverlayWidth, itemHeight);
         if (index == selectedIndex)
-        {
             context.DrawRectangle(new SolidColorBrush(Color.Parse(theme.CompletionItemSelectedBrush)), null, itemRect);
-        }
         else
-        {
             RenderHoverEffect(context, item, index, overlayX, overlayWidth, itemY, itemHeight);
-        }
 
         var formattedText = new FormattedText(
             item.Text,
@@ -269,9 +267,7 @@ public class EditorContentControl : Control
                                      _lastMousePosition.Y <= overlayY + overlayHeight;
 
         if (isMouseInCompletionBox && itemRect.Contains(_lastMousePosition))
-        {
             context.DrawRectangle(new SolidColorBrush(Color.Parse(theme.CompletionItemHoverBrush)), null, itemRect);
-        }
     }
 
     private void RenderScrollbarIfNeeded(DrawingContext context, int itemCount, double itemHeight, double overlayX,

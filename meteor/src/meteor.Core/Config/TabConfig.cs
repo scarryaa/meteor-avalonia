@@ -22,12 +22,23 @@ public class TabConfig : ITabViewModelConfig
         _themeManager.ThemeChanged += OnThemeChanged;
     }
 
-    public ISolidColorBrush BorderBrush => new SolidColorBrush(Color.FromHex(_themeManager.CurrentTheme.TabBorderColor));
-    public ISolidColorBrush Background => new SolidColorBrush(Color.FromHex(_themeManager.CurrentTheme.TabBackgroundColor));
-    public ISolidColorBrush DirtyIndicatorBrush => new SolidColorBrush(Color.FromHex(_themeManager.CurrentTheme.DirtyIndicatorBrush));
-    public ISolidColorBrush Foreground => new SolidColorBrush(Color.FromHex(_themeManager.CurrentTheme.TabForegroundColor));
-    public ISolidColorBrush CloseButtonForeground => new SolidColorBrush(Color.FromHex(_themeManager.CurrentTheme.CloseButtonForeground));
-    public ISolidColorBrush CloseButtonBackground => new SolidColorBrush(Color.FromHex(_themeManager.CurrentTheme.CloseButtonBackground));
+    public ISolidColorBrush BorderBrush =>
+        new SolidColorBrush(Color.FromHex(_themeManager.CurrentTheme.TabBorderColor));
+
+    public ISolidColorBrush Background =>
+        new SolidColorBrush(Color.FromHex(_themeManager.CurrentTheme.TabBackgroundColor));
+
+    public ISolidColorBrush DirtyIndicatorBrush =>
+        new SolidColorBrush(Color.FromHex(_themeManager.CurrentTheme.DirtyIndicatorBrush));
+
+    public ISolidColorBrush Foreground =>
+        new SolidColorBrush(Color.FromHex(_themeManager.CurrentTheme.TabForegroundColor));
+
+    public ISolidColorBrush CloseButtonForeground =>
+        new SolidColorBrush(Color.FromHex(_themeManager.CurrentTheme.CloseButtonForeground));
+
+    public ISolidColorBrush CloseButtonBackground =>
+        new SolidColorBrush(Color.FromHex(_themeManager.CurrentTheme.CloseButtonBackground));
 
     public ICommand CloseTabCommand { get; }
 

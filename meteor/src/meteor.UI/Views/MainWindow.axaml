@@ -9,7 +9,10 @@
         Icon="/Common/Assets/avalonia-logo.ico"
         Width="500"
         Height="500"
-        Title="meteor">
+        Title="meteor"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaChromeHints="PreferSystemChrome"
+        ExtendClientAreaTitleBarHeightHint="-1">
 
     <Window.KeyBindings>
         <KeyBinding x:DataType="viewModels:MainWindowViewModel" Command="{Binding OpenNewTabCommand}"
@@ -22,4 +25,8 @@
         <KeyBinding Command="{Binding OpenFileCommand}" Gesture="Cmd+O" />
         <KeyBinding Command="{Binding OpenSettingsCommand}" Gesture="Cmd+OemComma" />
     </Window.KeyBindings>
+
+    <DockPanel>
+        <ContentControl Content="{Binding Content}" />
+    </DockPanel>
 </Window>

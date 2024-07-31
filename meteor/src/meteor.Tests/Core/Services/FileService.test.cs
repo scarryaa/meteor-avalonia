@@ -1,86 +1,80 @@
-using System;
-using System.IO;
-using System.Threading.Tasks;
-using Xunit;
-using Moq;
 using meteor.Core.Interfaces.Services;
 
-namespace meteor.Core.Services.Tests
+namespace meteor.Core.Services.Tests;
+
+public class FileServiceTests
 {
-    public class FileServiceTests
+    private readonly IFileService _fileService;
+
+    public FileServiceTests()
     {
-        private readonly IFileService _fileService;
+        _fileService = new FileService();
+    }
 
-        public FileServiceTests()
+    [Fact]
+    public async Task SaveFileAsync_ShouldWriteContentToFile()
+    {
+        // Arrange
+        var tempFilePath = Path.GetTempFileName();
+        var content = "Test content";
+
+        try
         {
-            _fileService = new FileService();
-        }
+            // Act
+            await _fileService.SaveFileAsync(tempFilePath, content);
 
-        [Fact]
-        public async Task SaveFileAsync_ShouldWriteContentToFile()
+            // Assert
+            Assert.True(File.Exists(tempFilePath));
+            var savedContent = await File.ReadAllTextAsync(tempFilePath);
+            Assert.Equal(content, savedContent);
+        }
+        finally
         {
-            // Arrange
-            var tempFilePath = Path.GetTempFileName();
-            var content = "Test content";
-
-            try
-            {
-                // Act
-                await _fileService.SaveFileAsync(tempFilePath, content);
-
-                // Assert
-                Assert.True(File.Exists(tempFilePath));
-                var savedContent = await File.ReadAllTextAsync(tempFilePath);
-                Assert.Equal(content, savedContent);
-            }
-            finally
-            {
-                // Cleanup
-                File.Delete(tempFilePath);
-            }
+            // Cleanup
+            File.Delete(tempFilePath);
         }
+    }
 
-        [Fact]
-        public async Task OpenFileAsync_ShouldReadContentFromFile()
+    [Fact]
+    public async Task OpenFileAsync_ShouldReadContentFromFile()
+    {
+        // Arrange
+        var tempFilePath = Path.GetTempFileName();
+        var content = "Test content";
+        await File.WriteAllTextAsync(tempFilePath, content);
+
+        try
         {
-            // Arrange
-            var tempFilePath = Path.GetTempFileName();
-            var content = "Test content";
-            await File.WriteAllTextAsync(tempFilePath, content);
+            // Act
+            var result = await _fileService.OpenFileAsync(tempFilePath);
 
-            try
-            {
-                // Act
-                var result = await _fileService.OpenFileAsync(tempFilePath);
-
-                // Assert
-                Assert.Equal(content, result);
-            }
-            finally
-            {
-                // Cleanup
-                File.Delete(tempFilePath);
-            }
+            // Assert
+            Assert.Equal(content, result);
         }
-
-        [Fact]
-        public async Task SaveFileAsync_ShouldThrowExceptionForInvalidPath()
+        finally
         {
-            // Arrange
-            var invalidPath = Path.Combine(Path.GetTempPath(), new string(Path.GetInvalidFileNameChars()));
-
-            // Act & Assert
-            await Assert.ThrowsAsync<ArgumentException>(() => _fileService.SaveFileAsync(invalidPath, "content"));
+            // Cleanup
+            File.Delete(tempFilePath);
         }
+    }
 
-        [Fact]
-        public async Task OpenFileAsync_ShouldThrowExceptionForNonExistentFile()
-        {
-            // Arrange
-            var nonExistentFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+    [Fact]
+    public async Task SaveFileAsync_ShouldThrowExceptionForInvalidPath()
+    {
+        // Arrange
+        var invalidPath = Path.Combine(Path.GetTempPath(), new string(Path.GetInvalidFileNameChars()));
 
-            // Act & Assert
-            await Assert.ThrowsAsync<FileNotFoundException>(() => _fileService.OpenFileAsync(nonExistentFile));
-        }
+        // Act & Assert
+        await Assert.ThrowsAsync<ArgumentException>(() => _fileService.SaveFileAsync(invalidPath, "content"));
+    }
+
+    [Fact]
+    public async Task OpenFileAsync_ShouldThrowExceptionForNonExistentFile()
+    {
+        // Arrange
+        var nonExistentFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+
+        // Act & Assert
+        await Assert.ThrowsAsync<FileNotFoundException>(() => _fileService.OpenFileAsync(nonExistentFile));
     }
 }

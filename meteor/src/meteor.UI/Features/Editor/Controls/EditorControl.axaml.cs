@@ -22,8 +22,8 @@ public partial class EditorControl : UserControl
     private readonly IPointerEventHandler _pointerEventHandler;
     private readonly IScrollManager? _scrollManager;
     private readonly ITextMeasurer _textMeasurer;
-    private readonly IEditorViewModel _viewModel;
     private readonly IThemeManager _themeManager;
+    private readonly IEditorViewModel _viewModel;
     private EditorContentControl? _contentControl;
     private GutterControl? _gutterControl;
 
@@ -65,7 +65,8 @@ public partial class EditorControl : UserControl
 
     private void InitializeComponent()
     {
-        _contentControl = new EditorContentControl(_viewModel, _textMeasurer, _config, new SyntaxHighlighter(), _themeManager);
+        _contentControl =
+            new EditorContentControl(_viewModel, _textMeasurer, _config, new SyntaxHighlighter(), _themeManager);
         _gutterControl = new GutterControl(_viewModel, _textMeasurer, _config, _themeManager);
         _scrollViewer = new ScrollViewer
         {

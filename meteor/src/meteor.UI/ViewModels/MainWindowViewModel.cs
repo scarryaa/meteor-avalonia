@@ -17,8 +17,8 @@ public class MainWindowViewModel : ObservableObject
     private readonly IFileDialogService _fileDialogService;
     private readonly IFileService _fileService;
     private readonly ITabService _tabService;
-    private ITabViewModel? _activeTab;
     private readonly IThemeManager _themeManager;
+    private ITabViewModel? _activeTab;
 
     public MainWindowViewModel(ITabService tabService, IEditorInstanceFactory editorInstanceFactory,
         IFileService fileService, IFileDialogService fileDialogService, IThemeManager themeManager)
@@ -97,7 +97,7 @@ public class MainWindowViewModel : ObservableObject
     private async void OpenSettings()
     {
         var settingsFilePath = Path.Combine(AppContext.BaseDirectory, "settings.json");
-        
+
         // Check if settings file is already open
         var existingSettingsTab = _tabService.Tabs.FirstOrDefault(tab => tab.FilePath == settingsFilePath);
         if (existingSettingsTab != null)

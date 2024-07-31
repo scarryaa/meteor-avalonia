@@ -1,7 +1,9 @@
 using System.ComponentModel;
 using Avalonia.Media;
 using meteor.Core.Config;
-using meteor.Core.Interfaces.Services;
+using meteor.Core.Models;
+using Color = Avalonia.Media.Color;
+using SolidColorBrush = Avalonia.Media.SolidColorBrush;
 
 namespace meteor.UI.Config;
 
@@ -22,11 +24,13 @@ public class AvaloniaEditorConfig : EditorConfig, INotifyPropertyChanged
 
     public IBrush BackgroundBrush => new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.BackgroundColor));
 
-    public IBrush CurrentLineHighlightBrush => new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.CurrentLineHighlightColor));
+    public IBrush CurrentLineHighlightBrush =>
+        new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.CurrentLineHighlightColor));
 
     public IBrush SelectionBrush => new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.SelectionColor));
 
-    public IBrush GutterBackgroundBrush => new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.GutterBackgroundColor));
+    public IBrush GutterBackgroundBrush =>
+        new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.GutterBackgroundColor));
 
     public IBrush GutterTextBrush => new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.GutterTextColor));
 
@@ -37,13 +41,15 @@ public class AvaloniaEditorConfig : EditorConfig, INotifyPropertyChanged
 
     public IBrush TabBorderBrush => new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.TabBorderColor));
 
-    public IBrush TabActiveBackgroundBrush => new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.TabActiveBackgroundColor));
+    public IBrush TabActiveBackgroundBrush =>
+        new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.TabActiveBackgroundColor));
 
-    public IBrush TabActiveForegroundBrush => new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.TabActiveForegroundColor));
+    public IBrush TabActiveForegroundBrush =>
+        new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.TabActiveForegroundColor));
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    private void OnThemeChanged(object? sender, Core.Models.Theme e)
+    private void OnThemeChanged(object? sender, Theme e)
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TextBrush)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(BackgroundBrush)));

@@ -12,21 +12,15 @@ public class SettingsService : ISettingsService
     {
         _settingsFilePath = Path.Combine(AppContext.BaseDirectory, "settings.json");
         _settings = new Dictionary<string, JsonElement>();
-        
-        if (!File.Exists(_settingsFilePath))
-        {
-            File.WriteAllText(_settingsFilePath, "{}");
-        }
-        
+
+        if (!File.Exists(_settingsFilePath)) File.WriteAllText(_settingsFilePath, "{}");
+
         LoadSettings();
     }
 
     public T GetSetting<T>(string key, T defaultValue)
     {
-        if (_settings.TryGetValue(key, out var value))
-        {
-            return value.Deserialize<T>() ?? defaultValue;
-        }
+        if (_settings.TryGetValue(key, out var value)) return value.Deserialize<T>() ?? defaultValue;
         return defaultValue;
     }
 
@@ -46,7 +40,8 @@ public class SettingsService : ISettingsService
         if (File.Exists(_settingsFilePath))
         {
             var json = File.ReadAllText(_settingsFilePath);
-            _settings = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json) ?? new Dictionary<string, JsonElement>();
+            _settings = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json) ??
+                        new Dictionary<string, JsonElement>();
         }
         else
         {

@@ -6,7 +6,13 @@ using Avalonia.Media;
 using meteor.Core.Interfaces.Config;
 using meteor.Core.Interfaces.Services;
 using meteor.Core.Interfaces.ViewModels;
+using meteor.Core.Models;
 using meteor.UI.Config;
+using Color = Avalonia.Media.Color;
+using Point = Avalonia.Point;
+using Size = Avalonia.Size;
+using SolidColorBrush = Avalonia.Media.SolidColorBrush;
+using Vector = Avalonia.Vector;
 
 namespace meteor.UI.Features.Gutter.Controls;
 
@@ -15,10 +21,10 @@ public class GutterControl : Control
     private const int Padding = 25;
     private readonly AvaloniaEditorConfig _avaloniaConfig;
     private readonly IEditorConfig _config;
-    private readonly IThemeManager _themeManager;
 
     private readonly double _lineHeight;
     private readonly ITextMeasurer _textMeasurer;
+    private readonly IThemeManager _themeManager;
     private readonly IEditorViewModel _viewModel;
 
     private bool _isSelecting;
@@ -27,7 +33,8 @@ public class GutterControl : Control
     private int _selectionStartLine;
     private Size _totalSize;
 
-    public GutterControl(IEditorViewModel viewModel, ITextMeasurer textMeasurer, IEditorConfig config, IThemeManager themeManager)
+    public GutterControl(IEditorViewModel viewModel, ITextMeasurer textMeasurer, IEditorConfig config,
+        IThemeManager themeManager)
     {
         _viewModel = viewModel;
         _textMeasurer = textMeasurer;
@@ -66,7 +73,7 @@ public class GutterControl : Control
         InvalidateVisual();
     }
 
-    private void OnThemeChanged(object sender, Core.Models.Theme e)
+    private void OnThemeChanged(object sender, Theme e)
     {
         InvalidateVisual();
     }

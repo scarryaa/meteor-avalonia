@@ -26,13 +26,13 @@ public class FileExplorerControl : UserControl
     private readonly ObservableCollection<FileItem> _items;
     private readonly double _leftPadding = 10;
     private readonly double _rightPadding = 10;
+    private readonly IThemeManager _themeManager;
     private Canvas _canvas;
+    private Theme _currentTheme;
     private Grid _mainGrid;
     private ScrollViewer _scrollViewer;
     private FileItem _selectedItem;
     private Button _selectPathButton;
-    private readonly IThemeManager _themeManager;
-    private Theme _currentTheme;
 
     public FileExplorerControl(IThemeManager themeManager)
     {
@@ -47,6 +47,18 @@ public class FileExplorerControl : UserControl
     }
 
     public event EventHandler<string> FileSelected;
+    public event EventHandler<string> DirectoryOpened;
+
+    public void SetDirectory(string path)
+    {
+        _selectPathButton.IsVisible = false;
+        _items.Clear();
+        _items.Add(new FileItem(path, true));
+        PopulateChildren(_items[0]);
+        _items[0].IsExpanded = true;
+        UpdateCanvasSize();
+        InvalidateVisual();
+    }
 
     private void InitializeComponent()
     {
@@ -189,6 +201,9 @@ public class FileExplorerControl : UserControl
             UpdateCanvasSize();
             InvalidateVisual();
             UpdateSelectPathButtonVisibility();
+
+            var rootDirectoryName = new DirectoryInfo(result).Name;
+            DirectoryOpened?.Invoke(this, rootDirectoryName);
         }
     }
 

@@ -49,5 +49,7 @@
     "fileExplorerHoverItemBackgroundColor": "#2A2D2E",
     "fileExplorerHoverItemForegroundColor": "#E9E9E9",
     "fileExplorerFolderIconColor": "#D0D0D0",
-    "fileExplorerFileIconColor": "#C8C8C8"
+    "fileExplorerFileIconColor": "#C8C8C8",
+    "titleBarColor": "#080808",
+    "titleBarInactiveColor": "#181818"
 }

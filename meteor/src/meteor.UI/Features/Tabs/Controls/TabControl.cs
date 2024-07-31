@@ -2,19 +2,20 @@ using Avalonia.Controls;
 using Avalonia.Threading;
 using meteor.Core.Interfaces.Services;
 using meteor.Core.Interfaces.ViewModels;
+using meteor.Core.Models;
+using meteor.UI.Config;
 using meteor.UI.Features.Editor.Controls;
 using meteor.UI.Features.Editor.Interfaces;
 using meteor.UI.Features.Editor.ViewModels;
-using meteor.UI.Config;
 
 namespace meteor.UI.Features.Tabs.Controls;
 
 public class TabControl : UserControl
 {
+    private readonly AvaloniaEditorConfig _avaloniaConfig;
     private readonly IEditorControlFactory _editorControlFactory;
     private readonly ITabService _tabService;
     private readonly IThemeManager _themeManager;
-    private readonly AvaloniaEditorConfig _avaloniaConfig;
     private ContentControl _contentArea;
     private bool _isUpdatingActiveTab;
     private ITabViewModel _lastSelectedTab;
@@ -164,20 +165,14 @@ public class TabControl : UserControl
         }
     }
 
-    private void OnThemeChanged(object sender, Core.Models.Theme e)
+    private void OnThemeChanged(object sender, Theme e)
     {
-        if (Content is Grid grid)
-        {
-            grid.Background = _avaloniaConfig.BackgroundBrush;
-        }
+        if (Content is Grid grid) grid.Background = _avaloniaConfig.BackgroundBrush;
 
         _tabStrip.Background = _avaloniaConfig.TabBackgroundBrush;
         _tabStrip.Foreground = _avaloniaConfig.TabForegroundBrush;
 
         // Refresh the content area to apply new theme
-        if (_contentArea.Content is EditorControl editorControl)
-        {
-            editorControl.InvalidateVisual();
-        }
+        if (_contentArea.Content is EditorControl editorControl) editorControl.InvalidateVisual();
     }
 }

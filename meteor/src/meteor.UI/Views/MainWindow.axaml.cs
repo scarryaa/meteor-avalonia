@@ -18,6 +18,8 @@ using meteor.UI.ViewModels;
 using Color = Avalonia.Media.Color;
 using SolidColorBrush = Avalonia.Media.SolidColorBrush;
 using TabControl = meteor.UI.Features.Tabs.Controls.TabControl;
+using meteor.UI.Features.Titlebar.Controls;
+using Avalonia.Platform.Storage;
 
 namespace meteor.UI.Views;
 
@@ -28,6 +30,8 @@ public partial class MainWindow : Window
     private readonly ITextMeasurer _textMeasurer;
     private readonly IThemeManager _themeManager;
     private readonly IScrollManager _scrollManager;
+    private Titlebar _titlebar;
+    private FileExplorerControl _fileExplorerSidebar;
 
     public MainWindow(
         MainWindowViewModel mainWindowViewModel,
@@ -59,8 +63,9 @@ public partial class MainWindow : Window
             pointerEventHandler, _textMeasurer, _config, themeManager);
         var tabControl = new TabControl(tabService, editorControlFactory, themeManager);
 
-        var fileExplorerSidebar = new FileExplorerControl(themeManager);
-        fileExplorerSidebar.FileSelected += OnFileSelected;
+        _fileExplorerSidebar = new FileExplorerControl(themeManager);
+        _fileExplorerSidebar.FileSelected += OnFileSelected;
+        _fileExplorerSidebar.DirectoryOpened += OnDirectoryOpened;
 
         var gridSplitter = new GridSplitter
         {
@@ -71,21 +76,59 @@ public partial class MainWindow : Window
             Background = new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.BorderBrush))
         };
 
-        var horizontalSplit = new Grid
+        _titlebar = new Titlebar(_themeManager);
+        _titlebar.SetProjectNameFromDirectory(Environment.CurrentDirectory);
+        _titlebar.DirectoryOpenRequested += OnDirectoryOpenRequested;
+
+        var mainGrid = new Grid
         {
+            RowDefinitions = new RowDefinitions("Auto,*"),
             ColumnDefinitions = new ColumnDefinitions("150,Auto,*")
         };
 
-        Grid.SetColumn(fileExplorerSidebar, 0);
+        Grid.SetRow(_titlebar, 0);
+        Grid.SetColumnSpan(_titlebar, 3);
+
+        Grid.SetRow(_fileExplorerSidebar, 1);
+        Grid.SetColumn(_fileExplorerSidebar, 0);
+
+        Grid.SetRow(gridSplitter, 1);
         Grid.SetColumn(gridSplitter, 1);
+
+        Grid.SetRow(tabControl, 1);
         Grid.SetColumn(tabControl, 2);
 
-        horizontalSplit.Children.Add(fileExplorerSidebar);
-        horizontalSplit.Children.Add(gridSplitter);
-        horizontalSplit.Children.Add(tabControl);
+        mainGrid.Children.Add(_titlebar);
+        mainGrid.Children.Add(_fileExplorerSidebar);
+        mainGrid.Children.Add(gridSplitter);
+        mainGrid.Children.Add(tabControl);
 
-        Content = horizontalSplit;
-        horizontalSplit.ClipToBounds = false;
+        Content = mainGrid;
+        mainGrid.ClipToBounds = false;
+
+        this.Activated += (_, _) => UpdateTitlebarBackground(true);
+        this.Deactivated += (_, _) => UpdateTitlebarBackground(false);
+    }
+
+    private void UpdateTitlebarBackground(bool isActive)
+    {
+        if (_titlebar != null)
+            _titlebar.UpdateBackground(isActive);
+    }
+
+    private async void OnDirectoryOpenRequested(object? sender, string e)
+    {
+        var storageProvider = StorageProvider ?? TopLevel.GetTopLevel(this)?.StorageProvider;
+        if (storageProvider != null)
+        {
+            var result = await storageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions());
+            if (result.Count > 0)
+            {
+                var selectedFolder = result[0];
+                OnDirectoryOpened(this, selectedFolder.Path.LocalPath);
+                _fileExplorerSidebar.SetDirectory(selectedFolder.Path.LocalPath);
+            }
+        }
     }
 
     private void UpdateTheme()
@@ -98,6 +141,7 @@ public partial class MainWindow : Window
 
         var theme = _themeManager.CurrentTheme;
         Background = new SolidColorBrush(Color.Parse(theme.AppBackgroundColor));
+        UpdateTitlebarBackground(this.IsActive);
     }
 
     private void OnFileSelected(object? sender, string? filePath)
@@ -125,6 +169,11 @@ public partial class MainWindow : Window
         {
             Console.WriteLine($"Error opening file: {ex.Message}");
         }
+    }
+
+    private void OnDirectoryOpened(object? sender, string? directoryPath)
+    {
+        _titlebar.SetProjectNameFromDirectory(directoryPath);
     }
 
     private void CreateOrOpenTab(string? filePath = null)
