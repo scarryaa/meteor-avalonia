@@ -262,7 +262,7 @@ public class FileExplorerControl : UserControl
     private void UpdateCanvasSize()
     {
         var totalHeight = Math.Max(CalculateTotalHeight(_items) + _itemHeight, _scrollViewer.Bounds.Height);
-        var maxWidth = Math.Max(CalculateMaxWidth(_items), _scrollViewer.Bounds.Width) + 20;
+        var maxWidth = Math.Max(CalculateMaxWidth(_items) + 20, _scrollViewer.Bounds.Width);
         _canvas.Width = maxWidth;
         _canvas.Height = totalHeight;
     }
