@@ -128,7 +128,9 @@ public class EditorContentControl : Control
         var borderBrush = theme.CompletionOverlayBorderBrush;
 
         // Calculate the actual width based on the content
-        var contentWidth = completionItems.Max(item => MeasureTextWidth(item.Text));
+        var contentWidth = completionItems.Any()
+            ? completionItems.Max(item => MeasureTextWidth(item.Text))
+            : 0;
         var padding = 20; // Add some padding (10 pixels on each side)
         var overlayWidth = Math.Min(MaxCompletionOverlayWidth, contentWidth + padding);
 

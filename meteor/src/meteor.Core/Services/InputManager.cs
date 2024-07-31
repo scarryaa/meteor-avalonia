@@ -39,6 +39,13 @@ public class InputManager : IInputManager
 
     public async Task HandleKeyDown(KeyEventArgs e)
     {
+        if (e.Key == Key.Space && e.Modifiers == KeyModifiers.Control)
+        {
+            await _viewModel.TriggerCompletionAsync();
+            e.Handled = true;
+            return;
+        }
+
         if (_viewModel.IsCompletionActive)
         {
             HandleCompletionKeyDown(e);
@@ -56,12 +63,6 @@ public class InputManager : IInputManager
                     _viewModel.CloseCompletion();
                     break;
             }
-        }
-
-        if (e.Key == Key.Space && e.Modifiers == KeyModifiers.Control)
-        {
-            await _viewModel.TriggerCompletionAsync();
-            e.Handled = true;
         }
 
         try

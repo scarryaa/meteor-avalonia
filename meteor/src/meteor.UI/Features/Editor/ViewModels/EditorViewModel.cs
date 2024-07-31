@@ -4,6 +4,7 @@ using meteor.Core.Interfaces.ViewModels;
 using meteor.Core.Models;
 using meteor.Core.Models.EventArgs;
 using meteor.Core.Services;
+using System.Threading.Tasks;
 
 namespace meteor.UI.Features.Editor.ViewModels;
 
@@ -17,6 +18,7 @@ public class EditorViewModel : IEditorViewModel
     private readonly ITextMeasurer _textMeasurer;
     private string _content;
     private int _lastSyncedVersion;
+    private Task<bool> _completionsInitTask;
 
     public EditorViewModel(
         ITextBufferService textBufferService,
@@ -40,6 +42,7 @@ public class EditorViewModel : IEditorViewModel
 
         _lastSyncedVersion = TextBufferService.GetDocumentVersion();
         _content = TextBufferService.GetContentSlice(0, TextBufferService.GetLength());
+        _completionsInitTask = InitializeCompletionsAsync();
     }
 
     public event EventHandler<ContentChangeEventArgs>? ContentChanged;
@@ -47,21 +50,50 @@ public class EditorViewModel : IEditorViewModel
     public event EventHandler<int>? CompletionIndexChanged;
 
     public List<CompletionItem> CompletionItems { get; private set; }
-
-    public bool IsCompletionActive => CompletionItems != null && CompletionItems.Any();
+    public bool IsCompletionActive { get; private set; }
 
     public int SelectedCompletionIndex { get; set; }
 
     public async Task TriggerCompletionAsync()
     {
+        if (!_completionsInitTask.IsCompleted)
+        {
+            CompletionItems = new List<CompletionItem> { new CompletionItem { Text = "Loading...", Kind = CompletionItemKind.Text } };
+            IsCompletionActive = true;
+            CompletionIndexChanged?.Invoke(this, 0);
+
+            await _completionsInitTask;
+        }
+
         CompletionItems = (await _completionProvider.GetCompletionsAsync(CursorPosition)).ToList();
+
+        if (CompletionItems.Count == 0)
+        {
+            CloseCompletion();
+            return;
+        }
+
         SelectedCompletionIndex = 0;
+        IsCompletionActive = true;
         CompletionIndexChanged?.Invoke(this, SelectedCompletionIndex);
+    }
+
+    private async Task<bool> InitializeCompletionsAsync()
+    {
+        try
+        {
+            await _completionProvider.GetCompletionsAsync(0);
+            return true;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
     }
 
     public void ApplySelectedCompletion()
     {
-        if (IsCompletionActive && SelectedCompletionIndex >= 0 && SelectedCompletionIndex < CompletionItems.Count())
+        if (IsCompletionActive && SelectedCompletionIndex >= 0 && SelectedCompletionIndex < CompletionItems.Count)
         {
             var selectedItem = CompletionItems[SelectedCompletionIndex];
             ApplyCompletion(selectedItem);
@@ -71,13 +103,16 @@ public class EditorViewModel : IEditorViewModel
     public void MoveCompletionSelection(int delta)
     {
         if (IsCompletionActive)
+        {
             SelectedCompletionIndex = (SelectedCompletionIndex + delta + CompletionItems.Count) % CompletionItems.Count;
-        CompletionIndexChanged?.Invoke(this, SelectedCompletionIndex);
+            CompletionIndexChanged?.Invoke(this, SelectedCompletionIndex);
+        }
     }
 
     public void CloseCompletion()
     {
         CompletionItems = null;
+        IsCompletionActive = false;
     }
 
     public ITextBufferService TextBufferService { get; }
@@ -227,7 +262,7 @@ public class EditorViewModel : IEditorViewModel
         TextBufferService.Replace(wordStart, wordLength, item.Text);
         SetCursorPosition(wordStart + item.Text.Length);
 
-        CompletionItems = null;
+        CloseCompletion();
     }
 
     private int FindWordStart(string text, int position)
