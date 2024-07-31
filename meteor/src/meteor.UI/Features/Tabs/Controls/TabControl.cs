@@ -5,6 +5,7 @@ using meteor.Core.Interfaces.ViewModels;
 using meteor.UI.Features.Editor.Controls;
 using meteor.UI.Features.Editor.Interfaces;
 using meteor.UI.Features.Editor.ViewModels;
+using meteor.UI.Config;
 
 namespace meteor.UI.Features.Tabs.Controls;
 
@@ -12,15 +13,19 @@ public class TabControl : UserControl
 {
     private readonly IEditorControlFactory _editorControlFactory;
     private readonly ITabService _tabService;
+    private readonly IThemeManager _themeManager;
+    private readonly AvaloniaEditorConfig _avaloniaConfig;
     private ContentControl _contentArea;
     private bool _isUpdatingActiveTab;
     private ITabViewModel _lastSelectedTab;
     private HorizontalScrollableTabControl _tabStrip;
 
-    public TabControl(ITabService tabService, IEditorControlFactory editorControlFactory)
+    public TabControl(ITabService tabService, IEditorControlFactory editorControlFactory, IThemeManager themeManager)
     {
         _tabService = tabService ?? throw new ArgumentNullException(nameof(tabService));
         _editorControlFactory = editorControlFactory ?? throw new ArgumentNullException(nameof(editorControlFactory));
+        _themeManager = themeManager ?? throw new ArgumentNullException(nameof(themeManager));
+        _avaloniaConfig = new AvaloniaEditorConfig(_themeManager);
 
         InitializeLayout();
         SetupEventHandlers();
@@ -30,14 +35,17 @@ public class TabControl : UserControl
     {
         _tabStrip = new HorizontalScrollableTabControl
         {
-            ItemsSource = _tabService.Tabs
+            ItemsSource = _tabService.Tabs,
+            Background = _avaloniaConfig.TabBackgroundBrush,
+            Foreground = _avaloniaConfig.TabForegroundBrush
         };
 
         _contentArea = new ContentControl();
 
         var grid = new Grid
         {
-            RowDefinitions = new RowDefinitions("Auto,*")
+            RowDefinitions = new RowDefinitions("Auto,*"),
+            Background = _avaloniaConfig.BackgroundBrush
         };
 
         Grid.SetRow(_tabStrip, 0);
@@ -54,6 +62,7 @@ public class TabControl : UserControl
         _tabService.TabAdded += (_, newTab) => _tabService.SetActiveTab(newTab);
         _tabService.TabRemoved += OnTabRemoved;
         _tabService.ActiveTabChanged += (_, _) => UpdateActiveTab();
+        _themeManager.ThemeChanged += OnThemeChanged;
 
         SetupTabStripSelectionHandler();
     }
@@ -152,6 +161,23 @@ public class TabControl : UserControl
         {
             var currentTab = _tabService.Tabs.FirstOrDefault(t => t.EditorViewModel == viewModel);
             if (currentTab != null) currentTab.Content = viewModel.Content;
+        }
+    }
+
+    private void OnThemeChanged(object sender, Core.Models.Theme e)
+    {
+        if (Content is Grid grid)
+        {
+            grid.Background = _avaloniaConfig.BackgroundBrush;
+        }
+
+        _tabStrip.Background = _avaloniaConfig.TabBackgroundBrush;
+        _tabStrip.Foreground = _avaloniaConfig.TabForegroundBrush;
+
+        // Refresh the content area to apply new theme
+        if (_contentArea.Content is EditorControl editorControl)
+        {
+            editorControl.InvalidateVisual();
         }
     }
 }

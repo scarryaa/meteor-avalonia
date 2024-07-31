@@ -26,6 +26,8 @@ public partial class MainWindow : Window
     private readonly ITabService _tabService;
     private readonly IEditorConfig _config;
     private readonly ITextMeasurer _textMeasurer;
+    private readonly IThemeManager _themeManager;
+    private readonly IScrollManager _scrollManager;
 
     public MainWindow(
         MainWindowViewModel mainWindowViewModel,
@@ -48,10 +50,12 @@ public partial class MainWindow : Window
         _tabService = tabService;
         _config = config;
         _textMeasurer = textMeasurer;
+        _themeManager = themeManager;
+        _scrollManager = scrollManager;
 
         var editorControlFactory = new EditorControlFactory(scrollManager, layoutManager, inputHandler,
             pointerEventHandler, _textMeasurer, _config, themeManager);
-        var tabControl = new TabControl(tabService, editorControlFactory);
+        var tabControl = new TabControl(tabService, editorControlFactory, themeManager);
 
         var fileExplorerSidebar = new FileExplorerControl();
         fileExplorerSidebar.FileSelected += OnFileSelected;
@@ -88,7 +92,7 @@ public partial class MainWindow : Window
         {
             if (string.IsNullOrEmpty(filePath))
             {
-                CreateNewTab();
+                CreateOrOpenTab();
                 return;
             }
 
@@ -101,7 +105,7 @@ public partial class MainWindow : Window
             }
 
             // Open the file in a new tab
-            OpenFileInNewTab(filePath);
+            CreateOrOpenTab(filePath);
         }
         catch (Exception ex)
         {
@@ -109,63 +113,47 @@ public partial class MainWindow : Window
         }
     }
 
-    private void CreateNewTab()
+    private void CreateOrOpenTab(string? filePath = null)
     {
-        var textBufferService = new TextBufferService(new TextBuffer(), _textMeasurer, _config);
-        var editorConfig = new EditorConfig();
-        var cursorManager = new CursorManager(textBufferService, editorConfig);
-        var clipboardManager = new ClipboardManager();
-        clipboardManager.TopLevelRef = this;
-        var selectionManager = new SelectionManager(textBufferService);
-        var textAnalysisService = new TextAnalysisService();
-        var scrollManager = new ScrollManager(editorConfig, _textMeasurer);
-        var inputManager = new InputManager(textBufferService, cursorManager, clipboardManager, selectionManager,
-            textAnalysisService, scrollManager);
-        var editorViewModel = new EditorViewModel(
-            textBufferService,
-            cursorManager,
-            inputManager,
-            selectionManager,
-            new EditorConfig(),
-            _textMeasurer,
-            new CompletionProvider(textBufferService)
-        );
-        inputManager.SetViewModel(editorViewModel);
+        var editorViewModel = CreateEditorViewModel();
+        var tabConfig = new TabConfig(_tabService, _themeManager);
 
-        var tabConfig = new TabConfig(_tabService);
-        _tabService.AddTab(editorViewModel, tabConfig, "Untitled", string.Empty);
+        if (string.IsNullOrEmpty(filePath))
+        {
+            _tabService.AddTab(editorViewModel, tabConfig, "Untitled", string.Empty);
+        }
+        else
+        {
+            var fileContent = File.ReadAllText(filePath, Encoding.UTF8);
+            var fileName = Path.GetFileName(filePath);
+            var newTab = _tabService.AddTab(editorViewModel, tabConfig, fileName, filePath, fileContent);
+
+            if (newTab is TabViewModel tabViewModel) tabViewModel.SetFilePath(filePath);
+        }
     }
 
-    private void OpenFileInNewTab(string filePath)
+    private EditorViewModel CreateEditorViewModel()
     {
-        var fileContent = File.ReadAllText(filePath, Encoding.UTF8);
-        var fileName = Path.GetFileName(filePath);
-
         var textBufferService = new TextBufferService(new TextBuffer(), _textMeasurer, _config);
         var editorConfig = new EditorConfig();
         var cursorManager = new CursorManager(textBufferService, editorConfig);
-        var clipboardManager = new ClipboardManager();
-        clipboardManager.TopLevelRef = this;
+        var clipboardManager = new ClipboardManager { TopLevelRef = this };
         var selectionManager = new SelectionManager(textBufferService);
         var textAnalysisService = new TextAnalysisService();
-        var scrollManager = new ScrollManager(editorConfig, _textMeasurer);
         var inputManager = new InputManager(textBufferService, cursorManager, clipboardManager, selectionManager,
-            textAnalysisService, scrollManager);
+            textAnalysisService, _scrollManager);
 
         var editorViewModel = new EditorViewModel(
             textBufferService,
             cursorManager,
             inputManager,
             selectionManager,
-            new EditorConfig(),
+            editorConfig,
             _textMeasurer,
             new CompletionProvider(textBufferService)
         );
         inputManager.SetViewModel(editorViewModel);
 
-        var tabConfig = new TabConfig(_tabService);
-        var newTab = _tabService.AddTab(editorViewModel, tabConfig, fileName, filePath, fileContent);
-
-        if (newTab is TabViewModel tabViewModel) tabViewModel.SetFilePath(filePath);
+        return editorViewModel;
     }
 }

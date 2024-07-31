@@ -12,6 +12,7 @@ using meteor.Core.Interfaces.Services.Editor;
 using meteor.Core.Interfaces.ViewModels;
 using meteor.Core.Models.Commands;
 using meteor.Core.Services;
+using meteor.UI.Common.Converters;
 using meteor.UI.Features.Editor.Factories;
 using meteor.UI.Features.Editor.Interfaces;
 using meteor.UI.Features.Editor.Services;
@@ -52,6 +53,8 @@ public class App : Application
             var pointerEventHandler = Services.GetRequiredService<IPointerEventHandler>();
             var tabService = Services.GetRequiredService<ITabService>();
             var themeManager = Services.GetRequiredService<IThemeManager>();
+
+            IsActiveToBrushConverter.Initialize(themeManager);
 
             desktop.MainWindow = new MainWindow(mainWindowViewModel, tabService, layoutManager, inputHandler,
                 textMeasurer, config, scrollManager, pointerEventHandler, themeManager);

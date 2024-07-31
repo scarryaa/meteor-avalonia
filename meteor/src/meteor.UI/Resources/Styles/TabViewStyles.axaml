@@ -5,10 +5,8 @@
         xmlns:behaviors="clr-namespace:meteor.UI.Common.Behaviors">
 
     <Styles.Resources>
-        <converters:IsActiveToBrushConverter x:Key="IsActiveToBrushConverter"
-                                             ActiveBrush="White"
-                                             InactiveBrush="LightGray" />
         <converters:BoolToBrushConverter x:Key="BoolToBrushConverter" />
+        <converters:IsActiveToBrushConverter x:Key="IsActiveToBrushConverter" />
 
         <DataTemplate x:Key="TabItemTemplate" x:DataType="viewModels1:TabViewModel">
             <Border x:Name="MainBorder"

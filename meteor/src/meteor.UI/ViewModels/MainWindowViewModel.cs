@@ -18,14 +18,16 @@ public class MainWindowViewModel : ObservableObject
     private readonly IFileService _fileService;
     private readonly ITabService _tabService;
     private ITabViewModel? _activeTab;
+    private readonly IThemeManager _themeManager;
 
     public MainWindowViewModel(ITabService tabService, IEditorInstanceFactory editorInstanceFactory,
-        IFileService fileService, IFileDialogService fileDialogService)
+        IFileService fileService, IFileDialogService fileDialogService, IThemeManager themeManager)
     {
         _tabService = tabService;
         _editorInstanceFactory = editorInstanceFactory;
         _fileService = fileService;
         _fileDialogService = fileDialogService;
+        _themeManager = themeManager;
 
         OpenNewTabCommand = new RelayCommand(OpenNewTab);
         CloseTabCommand = new RelayCommand<ITabViewModel>(CloseTab);
@@ -93,7 +95,7 @@ public class MainWindowViewModel : ObservableObject
     public void OpenNewTab()
     {
         var newEditorInstance = _editorInstanceFactory.Create();
-        _tabService.AddTab(newEditorInstance.EditorViewModel, new TabConfig(_tabService),
+        _tabService.AddTab(newEditorInstance.EditorViewModel, new TabConfig(_tabService, _themeManager),
             string.Empty,
             $"Untitled {_tabService.Tabs.Count + 1}");
         Debug.WriteLine($"New tab opened: Untitled {_tabService.Tabs.Count}");
@@ -107,7 +109,7 @@ public class MainWindowViewModel : ObservableObject
             var content = await _fileService.OpenFileAsync(filePath);
             var newEditorInstance = _editorInstanceFactory.Create();
             newEditorInstance.EditorViewModel.Content = content;
-            _tabService.AddTab(newEditorInstance.EditorViewModel, new TabConfig(_tabService),
+            _tabService.AddTab(newEditorInstance.EditorViewModel, new TabConfig(_tabService, _themeManager),
                 Path.GetFullPath(filePath),
                 Path.GetFileName(filePath),
                 await File.ReadAllTextAsync(filePath)

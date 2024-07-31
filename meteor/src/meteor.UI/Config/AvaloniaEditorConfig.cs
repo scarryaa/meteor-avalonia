@@ -30,6 +30,17 @@ public class AvaloniaEditorConfig : EditorConfig, INotifyPropertyChanged
 
     public IBrush GutterTextBrush => new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.GutterTextColor));
 
+    // Tab properties
+    public IBrush TabBackgroundBrush => new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.TabBackgroundColor));
+
+    public IBrush TabForegroundBrush => new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.TabForegroundColor));
+
+    public IBrush TabBorderBrush => new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.TabBorderColor));
+
+    public IBrush TabActiveBackgroundBrush => new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.TabActiveBackgroundColor));
+
+    public IBrush TabActiveForegroundBrush => new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.TabActiveForegroundColor));
+
     public event PropertyChangedEventHandler? PropertyChanged;
 
     private void OnThemeChanged(object? sender, Core.Models.Theme e)
@@ -40,5 +51,10 @@ public class AvaloniaEditorConfig : EditorConfig, INotifyPropertyChanged
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SelectionBrush)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(GutterBackgroundBrush)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(GutterTextBrush)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TabBackgroundBrush)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TabForegroundBrush)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TabBorderBrush)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TabActiveBackgroundBrush)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TabActiveForegroundBrush)));
     }
 }

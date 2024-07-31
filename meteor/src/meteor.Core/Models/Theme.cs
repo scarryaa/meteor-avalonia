@@ -90,10 +90,12 @@ public class Theme
     public string TabBackgroundColor { get; set; } = "";
     [JsonPropertyName("tabForegroundColor")]
     public string TabForegroundColor { get; set; } = "";
-    [JsonPropertyName("activeTabBackgroundColor")]
-    public string ActiveTabBackgroundColor { get; set; } = "";
-    [JsonPropertyName("activeTabForegroundColor")]
-    public string ActiveTabForegroundColor { get; set; } = "";
+    [JsonPropertyName("tabBorderColor")]
+    public string TabBorderColor { get; set; } = "";
+    [JsonPropertyName("tabActiveBackgroundColor")]
+    public string TabActiveBackgroundColor { get; set; } = "";
+    [JsonPropertyName("tabActiveForegroundColor")]
+    public string TabActiveForegroundColor { get; set; } = "";
 
     // App Colors
     [JsonPropertyName("appBackgroundColor")]
