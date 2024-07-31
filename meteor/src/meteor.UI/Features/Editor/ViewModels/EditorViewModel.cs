@@ -173,7 +173,7 @@ public class EditorViewModel : IEditorViewModel
         var lineContent = TextBufferService.GetContentSlice(cursorLine, cursorLine);
 
         cursorColumn = Math.Min(cursorColumn, lineContent.Length);
-        var textUpToCursor = lineContent.Substring(0, cursorColumn);
+        var textUpToCursor = lineContent[..cursorColumn];
 
         var textMeasurements = string.IsNullOrEmpty(textUpToCursor)
             ? (Width: 0d, Height: _textMeasurer.GetLineHeight(_config.FontFamily, _config.FontSize))
@@ -200,8 +200,13 @@ public class EditorViewModel : IEditorViewModel
         var cursorColumn = _cursorManager.GetCursorColumn();
         var lineContent = TextBufferService.GetContentSlice(cursorLine, cursorLine);
 
+        if (string.IsNullOrEmpty(lineContent) || lineContent == "\n")
+        {
+            return 0;
+        }
+
         cursorColumn = Math.Min(cursorColumn, lineContent.Length);
-        var textUpToCursor = lineContent.Substring(0, cursorColumn);
+        var textUpToCursor = lineContent[..cursorColumn];
 
         return _textMeasurer.MeasureText(textUpToCursor, _config.FontFamily, _config.FontSize).Width;
     }

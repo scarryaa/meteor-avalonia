@@ -90,6 +90,12 @@ public partial class MainWindow : Window
 
     private void UpdateTheme()
     {
+        if (_themeManager == null || _themeManager.CurrentTheme == null)
+        {
+            Console.WriteLine("Error: ThemeManager or CurrentTheme is null in UpdateTheme method.");
+            return;
+        }
+
         var theme = _themeManager.CurrentTheme;
         Background = new SolidColorBrush(Color.Parse(theme.AppBackgroundColor));
     }

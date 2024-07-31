@@ -32,4 +32,10 @@
     <ItemGroup>
         <ProjectReference Include="..\meteor.UI\meteor.UI.csproj"/>
     </ItemGroup>
+
+    <ItemGroup>
+        <None Include="settings.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+    </ItemGroup>
 </Project>

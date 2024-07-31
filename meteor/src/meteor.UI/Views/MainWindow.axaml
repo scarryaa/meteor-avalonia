@@ -20,5 +20,6 @@
                     Gesture="Cmd+W" />
         <KeyBinding Command="{Binding SaveFileCommand}" Gesture="Cmd+S" />
         <KeyBinding Command="{Binding OpenFileCommand}" Gesture="Cmd+O" />
+        <KeyBinding Command="{Binding OpenSettingsCommand}" Gesture="Cmd+OemComma" />
     </Window.KeyBindings>
 </Window>

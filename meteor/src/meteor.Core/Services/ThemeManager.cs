@@ -10,15 +10,22 @@ public class ThemeManager : IThemeManager
     private readonly string _themesDirectory;
     private readonly Dictionary<string, Theme> _themes = new();
 
+    public ISettingsService SettingsService { get; set; }
     public Theme CurrentTheme { get; set; }
 
     public static ThemeManager Instance => _instance ??= new ThemeManager();
 
-    public ThemeManager()
+    private ThemeManager()
     {
         _themesDirectory = GetDefaultThemesDirectory();
         LoadThemes();
         CurrentTheme = GetTheme("Dark");
+    }
+
+    public void Initialize(ISettingsService settingsService)
+    {
+        SettingsService = settingsService;
+        LoadCurrentThemeFromSettings();
     }
 
     private string GetDefaultThemesDirectory()
@@ -51,6 +58,18 @@ public class ThemeManager : IThemeManager
         }
     }
 
+    public void LoadCurrentThemeFromSettings()
+    {
+        if (SettingsService == null)
+        {
+            throw new InvalidOperationException("SettingsService is not set. Call Initialize first.");
+        }
+
+        var themeName = SettingsService.GetSetting("CurrentTheme", "Dark");
+        CurrentTheme = GetTheme(themeName);
+        ThemeChanged?.Invoke(this, CurrentTheme);
+    }
+
     public Theme GetTheme(string name)
     {
         return _themes.TryGetValue(name, out var theme) ? theme : _themes["Dark"];
@@ -63,9 +82,16 @@ public class ThemeManager : IThemeManager
 
     public void ApplyTheme(string themeName)
     {
+        if (SettingsService == null)
+        {
+            throw new InvalidOperationException("SettingsService is not set. Call Initialize first.");
+        }
+
         if (_themes.TryGetValue(themeName, out var theme))
         {
             CurrentTheme = theme;
+            SettingsService.SetSetting("CurrentTheme", themeName);
+            SettingsService.SaveSettings();
             ThemeChanged?.Invoke(this, theme);
         }
         else

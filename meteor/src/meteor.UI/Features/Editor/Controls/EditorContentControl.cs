@@ -173,10 +173,9 @@ public class EditorContentControl : Control
                     overlayWidth, overlayHeight, _completionOverlayScrollOffset);
         }
     }
-
     private int GetCompletionItemIndexAtPosition(Point position)
     {
-        if (!_viewModel.IsCompletionActive) return -1;
+        if (!_viewModel.IsCompletionActive || _viewModel.CompletionItems == null || _viewModel.CompletionItems.Count == 0) return -1;
 
         var cursorPosition = _viewModel.GetCursorPosition();
         var overlayX = cursorPosition.X;

@@ -53,6 +53,7 @@ public class App : Application
             var pointerEventHandler = Services.GetRequiredService<IPointerEventHandler>();
             var tabService = Services.GetRequiredService<ITabService>();
             var themeManager = Services.GetRequiredService<IThemeManager>();
+            themeManager.Initialize(Services.GetRequiredService<ISettingsService>());
 
             IsActiveToBrushConverter.Initialize(themeManager);
 
@@ -84,6 +85,7 @@ public class App : Application
         services.AddSingleton<IFileDialogService, FileDialogService>();
         services.AddSingleton<IFileService, FileService>();
         services.AddSingleton<IThemeManager>(sp => ThemeManager.Instance);
+        services.AddSingleton<ISettingsService, SettingsService>();
 
         // Editor Services
         services.AddSingleton<IEditorLayoutManager, EditorLayoutManager>();

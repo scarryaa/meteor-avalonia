@@ -33,6 +33,7 @@ public class MainWindowViewModel : ObservableObject
         CloseTabCommand = new RelayCommand<ITabViewModel>(CloseTab);
         SaveFileCommand = new RelayCommand(SaveFile, CanSaveFile);
         OpenFileCommand = new RelayCommand(OpenFile);
+        OpenSettingsCommand = new RelayCommand(OpenSettings);
 
         _tabService.TabAdded += (sender, tab) => { OnPropertyChanged(nameof(Tabs)); };
         _tabService.TabRemoved += (sender, tab) => { OnPropertyChanged(nameof(Tabs)); };
@@ -46,6 +47,7 @@ public class MainWindowViewModel : ObservableObject
     public ICommand CloseTabCommand { get; }
     public ICommand SaveFileCommand { get; }
     public ICommand OpenFileCommand { get; }
+    public ICommand OpenSettingsCommand { get; }
 
     public ObservableCollection<ITabViewModel> Tabs => _tabService.Tabs;
 
@@ -90,6 +92,30 @@ public class MainWindowViewModel : ObservableObject
     private bool CanSaveFile()
     {
         return ActiveTab is { EditorViewModel: not null, IsModified: true };
+    }
+
+    private async void OpenSettings()
+    {
+        var settingsFilePath = Path.Combine(AppContext.BaseDirectory, "settings.json");
+        
+        // Check if settings file is already open
+        var existingSettingsTab = _tabService.Tabs.FirstOrDefault(tab => tab.FilePath == settingsFilePath);
+        if (existingSettingsTab != null)
+        {
+            // If settings file is already open, switch to that tab
+            ActiveTab = existingSettingsTab;
+            return;
+        }
+
+        // If settings file is not open, open it in a new tab
+        var content = await _fileService.OpenFileAsync(settingsFilePath);
+        var newEditorInstance = _editorInstanceFactory.Create();
+        newEditorInstance.EditorViewModel.Content = content;
+        _tabService.AddTab(newEditorInstance.EditorViewModel, new TabConfig(_tabService, _themeManager),
+            Path.GetFullPath(settingsFilePath),
+            Path.GetFileName(settingsFilePath),
+            await File.ReadAllTextAsync(settingsFilePath)
+        );
     }
 
     public void OpenNewTab()
