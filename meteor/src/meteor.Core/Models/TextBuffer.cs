@@ -1,3 +1,4 @@
+using System;
 using System.Runtime.InteropServices;
 
 namespace meteor.Core.Models;
@@ -78,172 +79,52 @@ public class TextBuffer : IDisposable
 
     private static class NativeMethods
     {
-        private const string WindowsDllName = "./meteor_rust_core.dll";
-        private const string OsxDllName = "./libmeteor_rust_core.dylib";
-        private const string LinuxDllName = "./libmeteor_rust_core.so";
+#if NATIVELIBNAME
+        private const string DllName = NATIVELIBNAME;
+#else
+        private const string DllName = "meteor_rust_core";
+#endif
 
-        [DllImport(WindowsDllName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "create_document")]
-        internal static extern UIntPtr CreateDocumentWindows();
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "create_document")]
+        private static extern UIntPtr CreateDocumentNative();
 
-        [DllImport(OsxDllName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "create_document")]
-        internal static extern UIntPtr CreateDocumentOsx();
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "delete_document")]
+        private static extern void DeleteDocumentNative(UIntPtr docId);
 
-        [DllImport(LinuxDllName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "create_document")]
-        internal static extern UIntPtr CreateDocumentLinux();
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "insert_text")]
+        private static extern void InsertTextNative(UIntPtr docId, int index, string text);
 
-        internal static UIntPtr CreateDocument()
-        {
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                return CreateDocumentWindows();
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                return CreateDocumentOsx();
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                return CreateDocumentLinux();
-            throw new PlatformNotSupportedException("Unsupported operating system.");
-        }
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "delete_text")]
+        private static extern void DeleteTextNative(UIntPtr docId, int index, int length);
 
-        [DllImport(WindowsDllName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "delete_document")]
-        internal static extern void DeleteDocumentWindows(UIntPtr docId);
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "get_document_slice")]
+        private static extern IntPtr GetDocumentSliceNative(UIntPtr docId, int start, int end);
 
-        [DllImport(OsxDllName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "delete_document")]
-        internal static extern void DeleteDocumentOsx(UIntPtr docId);
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "get_document_length")]
+        private static extern int GetDocumentLengthNative(UIntPtr docId);
 
-        [DllImport(LinuxDllName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "delete_document")]
-        internal static extern void DeleteDocumentLinux(UIntPtr docId);
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "free_string")]
+        private static extern void FreeStringNative(IntPtr s);
 
-        internal static void DeleteDocument(UIntPtr docId)
-        {
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                DeleteDocumentWindows(docId);
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                DeleteDocumentOsx(docId);
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                DeleteDocumentLinux(docId);
-            else
-                throw new PlatformNotSupportedException("Unsupported operating system.");
-        }
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "get_document_version")]
+        private static extern int GetDocumentVersionNative(UIntPtr docId);
 
-        [DllImport(WindowsDllName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "insert_text")]
-        internal static extern void InsertTextWindows(UIntPtr docId, int index, string text);
+        private static readonly Func<UIntPtr> _createDocument = CreateDocumentNative;
+        private static readonly Action<UIntPtr> _deleteDocument = DeleteDocumentNative;
+        private static readonly Action<UIntPtr, int, string> _insertText = InsertTextNative;
+        private static readonly Action<UIntPtr, int, int> _deleteText = DeleteTextNative;
+        private static readonly Func<UIntPtr, int, int, IntPtr> _getDocumentSlice = GetDocumentSliceNative;
+        private static readonly Func<UIntPtr, int> _getDocumentLength = GetDocumentLengthNative;
+        private static readonly Action<IntPtr> _freeString = FreeStringNative;
+        private static readonly Func<UIntPtr, int> _getDocumentVersion = GetDocumentVersionNative;
 
-        [DllImport(OsxDllName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "insert_text")]
-        internal static extern void InsertTextOsx(UIntPtr docId, int index, string text);
-
-        [DllImport(LinuxDllName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "insert_text")]
-        internal static extern void InsertTextLinux(UIntPtr docId, int index, string text);
-
-        internal static void InsertText(UIntPtr docId, int index, string text)
-        {
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                InsertTextWindows(docId, index, text);
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                InsertTextOsx(docId, index, text);
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                InsertTextLinux(docId, index, text);
-            else
-                throw new PlatformNotSupportedException("Unsupported operating system.");
-        }
-
-        [DllImport(WindowsDllName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "delete_text")]
-        internal static extern void DeleteTextWindows(UIntPtr docId, int index, int length);
-
-        [DllImport(OsxDllName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "delete_text")]
-        internal static extern void DeleteTextOsx(UIntPtr docId, int index, int length);
-
-        [DllImport(LinuxDllName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "delete_text")]
-        internal static extern void DeleteTextLinux(UIntPtr docId, int index, int length);
-
-        internal static void DeleteText(UIntPtr docId, int index, int length)
-        {
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                DeleteTextWindows(docId, index, length);
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                DeleteTextOsx(docId, index, length);
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                DeleteTextLinux(docId, index, length);
-            else
-                throw new PlatformNotSupportedException("Unsupported operating system.");
-        }
-
-        [DllImport(WindowsDllName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "get_document_slice")]
-        internal static extern IntPtr GetDocumentSliceWindows(UIntPtr docId, int start, int end);
-
-        [DllImport(OsxDllName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "get_document_slice")]
-        internal static extern IntPtr GetDocumentSliceOsx(UIntPtr docId, int start, int end);
-
-        [DllImport(LinuxDllName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "get_document_slice")]
-        internal static extern IntPtr GetDocumentSliceLinux(UIntPtr docId, int start, int end);
-
-        internal static IntPtr GetDocumentSlice(UIntPtr docId, int start, int end)
-        {
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                return GetDocumentSliceWindows(docId, start, end);
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                return GetDocumentSliceOsx(docId, start, end);
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                return GetDocumentSliceLinux(docId, start, end);
-            throw new PlatformNotSupportedException("Unsupported operating system.");
-        }
-
-        [DllImport(WindowsDllName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "get_document_length")]
-        internal static extern int GetDocumentLengthWindows(UIntPtr docId);
-
-        [DllImport(OsxDllName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "get_document_length")]
-        internal static extern int GetDocumentLengthOsx(UIntPtr docId);
-
-        [DllImport(LinuxDllName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "get_document_length")]
-        internal static extern int GetDocumentLengthLinux(UIntPtr docId);
-
-        internal static int GetDocumentLength(UIntPtr docId)
-        {
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                return GetDocumentLengthWindows(docId);
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                return GetDocumentLengthOsx(docId);
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                return GetDocumentLengthLinux(docId);
-            throw new PlatformNotSupportedException("Unsupported operating system.");
-        }
-
-        [DllImport(WindowsDllName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "free_string")]
-        internal static extern void FreeStringWindows(IntPtr s);
-
-        [DllImport(OsxDllName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "free_string")]
-        internal static extern void FreeStringOsx(IntPtr s);
-
-        [DllImport(LinuxDllName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "free_string")]
-        internal static extern void FreeStringLinux(IntPtr s);
-
-        internal static void FreeString(IntPtr s)
-        {
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                FreeStringWindows(s);
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                FreeStringOsx(s);
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                FreeStringLinux(s);
-            else
-                throw new PlatformNotSupportedException("Unsupported operating system.");
-        }
-
-        [DllImport(WindowsDllName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "get_document_version")]
-        internal static extern int GetDocumentVersionWindows(UIntPtr docId);
-
-        [DllImport(OsxDllName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "get_document_version")]
-        internal static extern int GetDocumentVersionOsx(UIntPtr docId);
-
-        [DllImport(LinuxDllName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "get_document_version")]
-        internal static extern int GetDocumentVersionLinux(UIntPtr docId);
-
-        internal static int GetDocumentVersion(UIntPtr docId)
-        {
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                return GetDocumentVersionWindows(docId);
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                return GetDocumentVersionOsx(docId);
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                return GetDocumentVersionLinux(docId);
-            throw new PlatformNotSupportedException("Unsupported operating system.");
-        }
+        internal static UIntPtr CreateDocument() => _createDocument();
+        internal static void DeleteDocument(UIntPtr docId) => _deleteDocument(docId);
+        internal static void InsertText(UIntPtr docId, int index, string text) => _insertText(docId, index, text);
+        internal static void DeleteText(UIntPtr docId, int index, int length) => _deleteText(docId, index, length);
+        internal static IntPtr GetDocumentSlice(UIntPtr docId, int start, int end) => _getDocumentSlice(docId, start, end);
+        internal static int GetDocumentLength(UIntPtr docId) => _getDocumentLength(docId);
+        internal static void FreeString(IntPtr s) => _freeString(s);
+        internal static int GetDocumentVersion(UIntPtr docId) => _getDocumentVersion(docId);
     }
 }

@@ -6,6 +6,16 @@
         <Nullable>enable</Nullable>
     </PropertyGroup>
 
+    <PropertyGroup Condition="'$(RuntimeIdentifier)' == 'win-x64' or ('$(RuntimeIdentifier)' == '' and $([MSBuild]::IsOSPlatform('Windows')))">
+        <NativeLibName>meteor_rust_core.dll</NativeLibName>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(RuntimeIdentifier)' == 'osx-x64' or ('$(RuntimeIdentifier)' == '' and $([MSBuild]::IsOSPlatform('OSX')))">
+        <NativeLibName>libmeteor_rust_core.dylib</NativeLibName>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(RuntimeIdentifier)' == 'linux-x64' or ('$(RuntimeIdentifier)' == '' and $([MSBuild]::IsOSPlatform('Linux')))">
+        <NativeLibName>libmeteor_rust_core.so</NativeLibName>
+    </PropertyGroup>
+
     <ItemGroup>
         <Folder Include="Services\Editor\"/>
     </ItemGroup>
@@ -13,5 +23,11 @@
     <ItemGroup>
         <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.1"/>
     </ItemGroup>
+
+    <Target Name="SetNativeLibraryName" BeforeTargets="Build">
+        <PropertyGroup>
+            <DefineConstants>$(DefineConstants);NATIVELIBNAME=$(NativeLibName)</DefineConstants>
+        </PropertyGroup>
+    </Target>
 
 </Project>
