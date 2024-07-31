@@ -52,13 +52,16 @@ jobs:
         run: dotnet build --configuration Release --no-restore meteor/src/meteor.sln
 
       - name: Publish
-        run: dotnet publish meteor/src/meteor/meteor.csproj -c Release -r ${{ matrix.output_name }} --self-contained -o publish/${{ matrix.output_name }}
+        run: dotnet publish meteor/src/meteor/meteor.csproj -c Release -r ${{ matrix.output_name }} --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish/${{ matrix.output_name }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.output_name }}
           path: publish/${{ matrix.output_name }}
+
+      - name: List publish directory contents
+        run: ls -R publish/${{ matrix.output_name }}
 
   create-release:
     needs: build
