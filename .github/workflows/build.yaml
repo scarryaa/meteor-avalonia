@@ -45,11 +45,6 @@ jobs:
           cd meteor/src/meteor-rust-core
           cargo build --release --target ${{ matrix.rust_target }}
 
-      - name: Copy Rust library to .NET project
-        run: |
-          mkdir -p meteor/src/meteor/runtimes/${{ matrix.output_name }}
-          cp meteor/src/meteor-rust-core/target/${{ matrix.rust_target }}/release/libmeteor_rust_core.* meteor/src/meteor/runtimes/${{ matrix.output_name }}/
-
       - name: Restore dependencies
         run: dotnet restore meteor/src/meteor.sln
 

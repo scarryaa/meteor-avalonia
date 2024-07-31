@@ -78,9 +78,9 @@ public class TextBuffer : IDisposable
 
     private static class NativeMethods
     {
-        private const string WindowsDllName = "../../../../meteor-rust-core/target/release/meteor_rust_core.dll";
-        private const string OsxDllName = "../../../../meteor-rust-core/target/release/libmeteor_rust_core.dylib";
-        private const string LinuxDllName = "../../../../meteor-rust-core/target/release/libmeteor_rust_core.so";
+        private const string WindowsDllName = "./meteor_rust_core.dll";
+        private const string OsxDllName = "./libmeteor_rust_core.dylib";
+        private const string LinuxDllName = "./libmeteor_rust_core.so";
 
         [DllImport(WindowsDllName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "create_document")]
         internal static extern UIntPtr CreateDocumentWindows();
