@@ -77,7 +77,10 @@ public class InputManager : IInputManager
                     HandleEnterKey();
                     break;
                 case Key.Tab:
-                    HandleTabKey();
+                    if (_isShiftPressed)
+                        HandleShiftTabKey();
+                    else
+                        HandleTabKey();
                     break;
                 case Key.Left:
                     HandleLeftKey();
@@ -230,9 +233,118 @@ public class InputManager : IInputManager
 
     private void HandleTabKey()
     {
-        if (_selectionManager.HasSelection) DeleteSelectedText();
-        InsertTextAndMoveCursor("    ", 4);
+        if (_selectionManager.HasSelection)
+        {
+            var selection = _selectionManager.CurrentSelection;
+            var selectedText = _selectionManager.GetSelectedText(_textBufferService);
+            var indentedText = IndentText(selectedText);
+            ReplaceSelectedText(indentedText);
+            _selectionManager.StartSelection(selection.Start);
+            _selectionManager.ExtendSelection(selection.Start + indentedText.Length);
+        }
+        else
+        {
+            InsertTextAndMoveCursor("    ", 4);
+        }
         _textAnalysisService.ResetDesiredColumn();
+    }
+    
+    private void HandleShiftTabKey()
+    {
+        if (_selectionManager.HasSelection)
+        {
+            var selection = _selectionManager.CurrentSelection;
+            var selectedText = _selectionManager.GetSelectedText(_textBufferService);
+            var unindentedText = UnindentTextBySpacesOrTabs(selectedText);
+            ReplaceSelectedText(unindentedText);
+            _selectionManager.StartSelection(selection.Start);
+            _selectionManager.ExtendSelection(selection.Start + unindentedText.Length);
+        }
+        else
+        {
+            var currentLineStart = _textAnalysisService.FindStartOfCurrentLine(_textBufferService.GetContent(), _cursorManager.Position);
+            var currentLineEnd = _textAnalysisService.FindEndOfCurrentLine(_textBufferService.GetContent(), _cursorManager.Position);
+            var currentLineText = _textBufferService.GetContentSlice(currentLineStart, currentLineEnd - currentLineStart);
+            var unindentedLineText = UnindentTextBySpacesOrTabs(currentLineText);
+            var diff = currentLineText.Length - unindentedLineText.Length;
+            _textBufferService.Replace(currentLineStart, currentLineEnd - currentLineStart, unindentedLineText);
+            _cursorManager.MoveCursor(-Math.Min(diff, _cursorManager.Position - currentLineStart));
+        }
+        _textAnalysisService.ResetDesiredColumn();
+    }
+
+    private string UnindentTextBySpacesOrTabs(string text)
+    {
+        var lines = text.Split('\n');
+        for (int i = 0; i < lines.Length; i++)
+        {
+            string line = lines[i];
+            int charsToRemove = 0;
+
+            // Check for tabs first
+            if (line.StartsWith('\t'))
+            {
+                charsToRemove = 1;
+            }
+            // Then check for spaces (up to 4)
+            else
+            {
+                for (int j = 0; j < Math.Min(line.Length, 4); j++)
+                {
+                    if (line[j] == ' ')
+                        charsToRemove++;
+                    else
+                        break;
+                }
+            }
+
+            // Remove the leading whitespace
+            if (charsToRemove > 0)
+            {
+                lines[i] = line.Substring(charsToRemove);
+            }
+        }
+        return string.Join('\n', lines);
+    }
+
+    private string IndentText(string text)
+    {
+        var lines = text.Split('\n');
+        for (int i = 0; i < lines.Length; i++)
+        {
+            lines[i] = "    " + lines[i];
+        }
+        return string.Join('\n', lines);
+    }
+
+    private string UnindentTextBySpaces(string text, int spaces)
+    {
+        var lines = text.Split('\n');
+        for (int i = 0; i < lines.Length; i++)
+        {
+            int spacesToRemove = 0;
+            for (int j = 0; j < Math.Min(lines[i].Length, spaces); j++)
+            {
+                if (lines[i][j] == ' ')
+                    spacesToRemove++;
+                else
+                    break;
+            }
+            if (spacesToRemove > 0)
+            {
+                lines[i] = lines[i].Substring(spacesToRemove);
+            }
+        }
+        return string.Join('\n', lines);
+    }
+
+    private void ReplaceSelectedText(string newText)
+    {
+        var selection = _selectionManager.CurrentSelection;
+        _textBufferService.DeleteText(selection.Start, selection.End - selection.Start);
+        _textBufferService.InsertText(selection.Start, newText);
+        _cursorManager.SetPosition(selection.Start + newText.Length);
+        _selectionManager.ClearSelection();
     }
 
     private void HandleLeftKey()
