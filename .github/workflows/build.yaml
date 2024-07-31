@@ -9,6 +9,8 @@ on:
 
 jobs:
   build:
+    permissions:
+      contents: write
     strategy:
       matrix:
         os: [windows-latest, macos-latest, ubuntu-latest]
@@ -45,6 +47,17 @@ jobs:
           cd meteor/src/meteor-rust-core
           cargo build --release --target ${{ matrix.rust_target }}
 
+      - name: Copy Rust library to .NET project
+        run: |
+          mkdir -p meteor/src/meteor/bin/Release/net8.0/runtimes/${{ matrix.output_name }}/native
+          if [ "${{ matrix.os }}" == "windows-latest" ]; then
+            cp meteor/src/meteor-rust-core/target/${{ matrix.rust_target }}/release/meteor_rust_core.dll meteor/src/meteor/bin/Release/net8.0/runtimes/win-x64/native/
+          elif [ "${{ matrix.os }}" == "macos-latest" ]; then
+            cp meteor/src/meteor-rust-core/target/${{ matrix.rust_target }}/release/libmeteor_rust_core.dylib meteor/src/meteor/bin/Release/net8.0/runtimes/osx-x64/native/
+          else
+            cp meteor/src/meteor-rust-core/target/${{ matrix.rust_target }}/release/libmeteor_rust_core.so meteor/src/meteor/bin/Release/net8.0/runtimes/linux-x64/native/
+          fi
+
       - name: Restore dependencies
         run: dotnet restore meteor/src/meteor.sln
 
@@ -54,6 +67,16 @@ jobs:
       - name: Publish
         run: dotnet publish meteor/src/meteor/meteor.csproj -c Release -r ${{ matrix.output_name }} --self-contained -o publish/${{ matrix.output_name }}
 
+      - name: Copy Rust library to publish directory
+        run: |
+          if [ "${{ matrix.os }}" == "windows-latest" ]; then
+            cp meteor/src/meteor-rust-core/target/${{ matrix.rust_target }}/release/meteor_rust_core.dll publish/${{ matrix.output_name }}/
+          elif [ "${{ matrix.os }}" == "macos-latest" ]; then
+            cp meteor/src/meteor-rust-core/target/${{ matrix.rust_target }}/release/libmeteor_rust_core.dylib publish/${{ matrix.output_name }}/
+          else
+            cp meteor/src/meteor-rust-core/target/${{ matrix.rust_target }}/release/libmeteor_rust_core.so publish/${{ matrix.output_name }}/
+          fi
+
       - name: Upload artifact
         uses: actions/upload-artifact@v3
         with:
@@ -61,6 +84,8 @@ jobs:
           path: publish/${{ matrix.output_name }}
 
   create-release:
+    permissions:
+      contents: write
     needs: build
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -72,7 +97,7 @@ jobs:
         id: create_release
         uses: actions/create-release@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
         with:
           tag_name: v${{ github.run_number }}
           release_name: Release ${{ github.run_number }}
@@ -84,7 +109,7 @@ jobs:
       - name: Upload Release Asset Windows
         uses: actions/upload-release-asset@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./win-x64/meteor.exe
@@ -94,7 +119,7 @@ jobs:
       - name: Upload Release Asset macOS
         uses: actions/upload-release-asset@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./osx-x64/meteor
@@ -104,7 +129,7 @@ jobs:
       - name: Upload Release Asset Linux
         uses: actions/upload-release-asset@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./linux-x64/meteor
