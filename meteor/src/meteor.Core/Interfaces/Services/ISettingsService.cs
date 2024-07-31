@@ -2,8 +2,7 @@ namespace meteor.Core.Interfaces.Services;
 
 public interface ISettingsService
 {
-    T GetSetting<T>(string key, T defaultValue);
-    void SetSetting<T>(string key, T value);
+    string GetSetting(string key, string defaultValue = "");
+    void SetSetting(string key, string value);
     void SaveSettings();
-    void LoadSettings();
 }

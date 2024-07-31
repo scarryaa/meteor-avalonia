@@ -5,47 +5,36 @@ namespace meteor.Core.Services;
 
 public class SettingsService : ISettingsService
 {
-    private readonly string _settingsFilePath;
-    private Dictionary<string, JsonElement> _settings;
+    private Dictionary<string, string> _settings = new();
+    private const string SettingsFileName = "settings.json";
 
     public SettingsService()
     {
-        _settingsFilePath = Path.Combine(AppContext.BaseDirectory, "settings.json");
-        _settings = new Dictionary<string, JsonElement>();
-
-        if (!File.Exists(_settingsFilePath)) File.WriteAllText(_settingsFilePath, "{}");
-
         LoadSettings();
     }
 
-    public T GetSetting<T>(string key, T defaultValue)
+    public string GetSetting(string key, string defaultValue = "")
     {
-        if (_settings.TryGetValue(key, out var value)) return value.Deserialize<T>() ?? defaultValue;
-        return defaultValue;
+        return _settings.TryGetValue(key, out var value) ? value : defaultValue;
     }
 
-    public void SetSetting<T>(string key, T value)
+    public void SetSetting(string key, string value)
     {
-        _settings[key] = JsonSerializer.SerializeToElement(value);
+        _settings[key] = value;
     }
 
     public void SaveSettings()
     {
-        var json = JsonSerializer.Serialize(_settings, new JsonSerializerOptions { WriteIndented = true });
-        File.WriteAllText(_settingsFilePath, json);
+        var json = JsonSerializer.Serialize(_settings, JsonContext.Default.DictionaryStringString);
+        File.WriteAllText(SettingsFileName, json);
     }
 
-    public void LoadSettings()
+    private void LoadSettings()
     {
-        if (File.Exists(_settingsFilePath))
+        if (File.Exists(SettingsFileName))
         {
-            var json = File.ReadAllText(_settingsFilePath);
-            _settings = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json) ??
-                        new Dictionary<string, JsonElement>();
-        }
-        else
-        {
-            _settings = new Dictionary<string, JsonElement>();
+            var json = File.ReadAllText(SettingsFileName);
+            _settings = JsonSerializer.Deserialize(json, JsonContext.Default.DictionaryStringString) ?? new Dictionary<string, string>();
         }
     }
 }
