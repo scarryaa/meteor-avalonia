@@ -37,7 +37,7 @@ jobs:
         run: dotnet build --configuration Release --no-restore meteor/src/meteor.sln
 
       - name: Test
-        run: dotnet test --no-build --verbosity normal meteor/src/meteor.sln
+        run: dotnet test
 
       - name: Publish
         run: dotnet publish src/meteor/meteor.csproj -c Release -r ${{ matrix.output_name }} --self-contained -o publish/${{ matrix.output_name }}
