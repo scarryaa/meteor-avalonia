@@ -62,11 +62,24 @@ public class FileExplorerControl : UserControl
 
     private void InitializeComponent()
     {
+        CreateMainGrid();
+        CreateSelectPathButton();
+        CreateScrollViewer();
+        SetupEventHandlers();
+        SetupLayout();
+        UpdateSelectPathButtonVisibility();
+    }
+
+    private void CreateMainGrid()
+    {
         _mainGrid = new Grid
         {
             RowDefinitions = new RowDefinitions("Auto,*")
         };
+    }
 
+    private void CreateSelectPathButton()
+    {
         _selectPathButton = new Button
         {
             Content = "Select Folder",
@@ -77,14 +90,15 @@ public class FileExplorerControl : UserControl
             Classes = { "noBg" }
         };
 
-        // Create and apply button styles
         _selectPathButton.Styles.Add(CreateButtonStyles());
-
         _selectPathButton.Click += OnSelectPathButtonClick;
 
         Grid.SetRow(_selectPathButton, 0);
         _mainGrid.Children.Add(_selectPathButton);
+    }
 
+    private void CreateScrollViewer()
+    {
         _scrollViewer = new ScrollViewer
         {
             HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
@@ -95,18 +109,21 @@ public class FileExplorerControl : UserControl
         _scrollViewer.Content = _canvas;
         Grid.SetRow(_scrollViewer, 1);
         _mainGrid.Children.Add(_scrollViewer);
+    }
 
-        Content = _mainGrid;
-
+    private void SetupEventHandlers()
+    {
         _scrollViewer.ScrollChanged += OnScrollChanged;
         PointerPressed += OnPointerPressed;
         KeyDown += OnKeyDown;
-        Focusable = true;
+    }
 
+    private void SetupLayout()
+    {
+        Content = _mainGrid;
+        Focusable = true;
         VerticalAlignment = VerticalAlignment.Stretch;
         HorizontalAlignment = HorizontalAlignment.Stretch;
-
-        UpdateSelectPathButtonVisibility();
     }
 
     private void OnThemeChanged(object sender, Theme newTheme)
@@ -124,43 +141,57 @@ public class FileExplorerControl : UserControl
 
     private Styles CreateButtonStyles()
     {
-        var styles = new Styles
+        return new Styles
         {
-            // Normal state
-            new Style(x => x.OfType<Button>().Class("noBg"))
+            CreateButtonStyle(),
+            CreateButtonHoverStyle(),
+            CreateButtonPressedStyle(),
+            CreateButtonDisabledStyle()
+        };
+    }
+
+    private Style CreateButtonStyle()
+    {
+        return new Style(x => x.OfType<Button>().Class("noBg"))
+        {
+            Setters =
             {
-                Setters =
-                {
-                    new Setter(TemplateProperty, CreateButtonTemplate())
-                }
-            },
-            // PointerOver state
-            new Style(x => x.OfType<Button>().Class("noBg").Class(":pointerover"))
-            {
-                Setters =
-                {
-                    new Setter(TemplateProperty, CreateButtonTemplate(true))
-                }
-            },
-            // Pressed state
-            new Style(x => x.OfType<Button>().Class("noBg").Class(":pressed"))
-            {
-                Setters =
-                {
-                    new Setter(TemplateProperty, CreateButtonTemplate(isPressed: true))
-                }
-            },
-            // Disabled state
-            new Style(x => x.OfType<Button>().Class("noBg").Class(":disabled"))
-            {
-                Setters =
-                {
-                    new Setter(TemplateProperty, CreateButtonTemplate(isDisabled: true))
-                }
+                new Setter(TemplateProperty, CreateButtonTemplate())
             }
         };
+    }
 
-        return styles;
+    private Style CreateButtonHoverStyle()
+    {
+        return new Style(x => x.OfType<Button>().Class("noBg").Class(":pointerover"))
+        {
+            Setters =
+            {
+                new Setter(TemplateProperty, CreateButtonTemplate(true))
+            }
+        };
+    }
+
+    private Style CreateButtonPressedStyle()
+    {
+        return new Style(x => x.OfType<Button>().Class("noBg").Class(":pressed"))
+        {
+            Setters =
+            {
+                new Setter(TemplateProperty, CreateButtonTemplate(isPressed: true))
+            }
+        };
+    }
+
+    private Style CreateButtonDisabledStyle()
+    {
+        return new Style(x => x.OfType<Button>().Class("noBg").Class(":disabled"))
+        {
+            Setters =
+            {
+                new Setter(TemplateProperty, CreateButtonTemplate(isDisabled: true))
+            }
+        };
     }
 
     private IControlTemplate CreateButtonTemplate(bool isPointerOver = false, bool isPressed = false,
@@ -179,10 +210,7 @@ public class FileExplorerControl : UserControl
                 [!ContentPresenter.ContentTemplateProperty] = parent[!ContentTemplateProperty]
             };
 
-            if (isDisabled)
-                contentPresenter.Foreground = new SolidColorBrush(Color.Parse(_currentTheme.TextColor));
-            else
-                contentPresenter.Foreground = new SolidColorBrush(Color.Parse(_currentTheme.TextColor));
+            contentPresenter.Foreground = new SolidColorBrush(Color.Parse(_currentTheme.TextColor));
 
             return contentPresenter;
         });
@@ -226,15 +254,8 @@ public class FileExplorerControl : UserControl
         try
         {
             var children = new List<FileItem>();
-            var directories = Directory.GetDirectories(item.FullPath)
-                .Where(dir => !Path.GetFileName(dir).StartsWith(".")) // Exclude hidden directories
-                .Select(dir => new FileItem(dir, true))
-                .OrderBy(d => d.Name, StringComparer.OrdinalIgnoreCase);
-
-            var files = Directory.GetFiles(item.FullPath)
-                .Where(file => !ShouldHideFile(file)) // Filter out files to hide
-                .Select(file => new FileItem(file, false))
-                .OrderBy(f => f.Name, StringComparer.OrdinalIgnoreCase);
+            var directories = GetDirectories(item.FullPath);
+            var files = GetFiles(item.FullPath);
 
             children.AddRange(directories);
             children.AddRange(files);
@@ -254,6 +275,22 @@ public class FileExplorerControl : UserControl
         }
     }
 
+    private IEnumerable<FileItem> GetDirectories(string path)
+    {
+        return Directory.GetDirectories(path)
+            .Where(dir => !Path.GetFileName(dir).StartsWith("."))
+            .Select(dir => new FileItem(dir, true))
+            .OrderBy(d => d.Name, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private IEnumerable<FileItem> GetFiles(string path)
+    {
+        return Directory.GetFiles(path)
+            .Where(file => !ShouldHideFile(file))
+            .Select(file => new FileItem(file, false))
+            .OrderBy(f => f.Name, StringComparer.OrdinalIgnoreCase);
+    }
+
     private bool ShouldHideFile(string filePath)
     {
         var fileName = Path.GetFileName(filePath);
@@ -265,14 +302,7 @@ public class FileExplorerControl : UserControl
             "desktop.ini"
         };
 
-        // Hide files that start with a dot (hidden files on Unix-like systems)
-        if (fileName.StartsWith("."))
-            return true;
-
-        if (hiddenFiles.Contains(fileName))
-            return true;
-
-        return false;
+        return fileName.StartsWith(".") || hiddenFiles.Contains(fileName);
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
@@ -355,61 +385,91 @@ public class FileExplorerControl : UserControl
 
     private void RenderItem(DrawingContext context, FileItem item, int indentLevel, double y, Rect viewport)
     {
+        RenderItemBackground(context, item, y, viewport);
+        RenderItemIcon(context, item, indentLevel, y);
+        RenderItemChevron(context, item, indentLevel, y);
+        RenderItemText(context, item, indentLevel, y);
+    }
+
+    private void RenderItemBackground(DrawingContext context, FileItem item, double y, Rect viewport)
+    {
         if (item == _selectedItem)
             context.FillRectangle(
                 new SolidColorBrush(Color.Parse(_currentTheme.FileExplorerSelectedItemBackgroundColor)),
                 new Rect(0, y, viewport.Width, _itemHeight));
+    }
 
-        var brush = new SolidColorBrush(Color.Parse(_currentTheme.TextColor));
-        var text = new FormattedText(item.Name, CultureInfo.CurrentCulture, FlowDirection.LeftToRight,
-            new Typeface("San Francisco"), 13, brush);
-
+    private void RenderItemIcon(DrawingContext context, FileItem item, int indentLevel, double y)
+    {
         var iconSize = 16;
         var iconChar = item.IsDirectory ? "\uf07b" : "\uf15b"; // folder icon : file icon
         var iconBrush = new SolidColorBrush(Color.Parse(_currentTheme.FileExplorerFileIconColor));
-        var fontAwesomeSolid = new FontFamily("avares://meteor.UI/Common/Assets/Fonts/FontAwesome/Font Awesome 6 Free-Solid-900.otf#Font Awesome 6 Free");
+        var fontAwesomeSolid =
+            new FontFamily(
+                "avares://meteor.UI/Common/Assets/Fonts/FontAwesome/Font Awesome 6 Free-Solid-900.otf#Font Awesome 6 Free");
         var typeface = new Typeface(fontAwesomeSolid);
 
-        var iconGeometry = new FormattedText(
-            iconChar,
-            CultureInfo.CurrentCulture,
-            FlowDirection.LeftToRight,
-            typeface,
-            iconSize,
-            iconBrush
-        ).BuildGeometry(new Point(0, 0));
+        var iconGeometry = CreateFormattedTextGeometry(iconChar, typeface, iconSize, iconBrush);
 
         var iconX = _leftPadding * 2.35 + indentLevel * _indentWidth - _scrollViewer.Offset.X;
         var iconY = y + (_itemHeight - iconSize) / 2;
 
         iconGeometry.Transform = new MatrixTransform(Matrix.CreateTranslation(iconX + 1, iconY));
         context.DrawGeometry(iconBrush, null, iconGeometry);
+    }
+
+    private void RenderItemChevron(DrawingContext context, FileItem item, int indentLevel, double y)
+    {
+        if (!item.IsDirectory) return;
 
         var chevronBrush = new SolidColorBrush(Color.Parse(_currentTheme.TextColor));
         var chevronSize = 10;
-        if (item.IsDirectory)
-        {
-            var chevronChar = item.IsExpanded ? "\uf078" : "\uf054"; // chevron-down : chevron-right
-            var chevronGeometry = new FormattedText(
-                chevronChar,
-                CultureInfo.CurrentCulture,
-                FlowDirection.LeftToRight,
-                typeface,
-                chevronSize,
-                chevronBrush
-            ).BuildGeometry(new Point(0, 0));
+        var chevronChar = item.IsExpanded ? "\uf078" : "\uf054"; // chevron-down : chevron-right
+        var fontAwesomeSolid =
+            new FontFamily(
+                "avares://meteor.UI/Common/Assets/Fonts/FontAwesome/Font Awesome 6 Free-Solid-900.otf#Font Awesome 6 Free");
+        var typeface = new Typeface(fontAwesomeSolid);
 
-            var chevronX = iconX - iconSize;
-            var chevronY = y + (_itemHeight - chevronSize) / 2;
+        var chevronGeometry = CreateFormattedTextGeometry(chevronChar, typeface, chevronSize, chevronBrush);
 
-            chevronGeometry.Transform = new MatrixTransform(Matrix.CreateTranslation(chevronX, chevronY));
-            context.DrawGeometry(chevronBrush, null, chevronGeometry);
-        }
+        var chevronX = _leftPadding * 2.35 + indentLevel * _indentWidth - _scrollViewer.Offset.X - chevronSize;
+        var chevronY = y + (_itemHeight - chevronSize) / 2;
 
-        var textVerticalOffset = (_itemHeight - text.Height) / 2;
-        context.DrawText(text,
-            new Point(_leftPadding * 2.65 + indentLevel * _indentWidth + iconSize + 4 - _scrollViewer.Offset.X,
-                y + textVerticalOffset));
+        chevronGeometry.Transform = new MatrixTransform(Matrix.CreateTranslation(chevronX, chevronY));
+        context.DrawGeometry(chevronBrush, null, chevronGeometry);
+    }
+
+    private void RenderItemText(DrawingContext context, FileItem item, int indentLevel, double y)
+    {
+        var textBrush = new SolidColorBrush(Color.Parse(_currentTheme.TextColor));
+        var textSize = 13;
+        var typeface = new Typeface("San Francisco");
+
+        var formattedText = new FormattedText(
+            item.Name,
+            CultureInfo.CurrentCulture,
+            FlowDirection.LeftToRight,
+            typeface,
+            textSize,
+            textBrush
+        );
+
+        var textX = _leftPadding * 2.65 + indentLevel * _indentWidth + 20 - _scrollViewer.Offset.X;
+        var textY = y + (_itemHeight - formattedText.Height) / 2;
+
+        context.DrawText(formattedText, new Point(textX, textY));
+    }
+
+    private Geometry CreateFormattedTextGeometry(string text, Typeface typeface, double size, IBrush brush)
+    {
+        return new FormattedText(
+            text,
+            CultureInfo.CurrentCulture,
+            FlowDirection.LeftToRight,
+            typeface,
+            size,
+            brush
+        ).BuildGeometry(new Point(0, 0));
     }
 
     private void OnPointerPressed(object sender, PointerPressedEventArgs e)
@@ -421,25 +481,26 @@ public class FileExplorerControl : UserControl
         {
             _selectedItem = itemClicked;
             if (itemClicked.IsDirectory)
-            {
-                itemClicked.IsExpanded = !itemClicked.IsExpanded;
-                if (itemClicked.IsExpanded && !itemClicked.ChildrenPopulated) PopulateChildren(itemClicked);
-            }
+                ToggleDirectoryExpansion(itemClicked);
             else
-            {
                 FileSelected?.Invoke(this, itemClicked.FullPath);
-            }
 
             UpdateCanvasSize();
             InvalidateVisual();
         }
     }
 
+    private void ToggleDirectoryExpansion(FileItem directory)
+    {
+        directory.IsExpanded = !directory.IsExpanded;
+        if (directory.IsExpanded && !directory.ChildrenPopulated) PopulateChildren(directory);
+    }
+
     private FileItem FindClickedItem(IEnumerable<FileItem> items, double clickY, double startY)
     {
         foreach (var item in items)
         {
-            if (clickY >= startY && clickY < startY + _itemHeight)
+            if (IsClickWithinItemBounds(clickY, startY))
                 return item;
 
             startY += _itemHeight;
@@ -455,6 +516,11 @@ public class FileExplorerControl : UserControl
         }
 
         return null;
+    }
+
+    private bool IsClickWithinItemBounds(double clickY, double startY)
+    {
+        return clickY >= startY && clickY < startY + _itemHeight;
     }
 
     private void OnKeyDown(object sender, KeyEventArgs e)
@@ -515,8 +581,7 @@ public class FileExplorerControl : UserControl
     {
         if (_selectedItem?.IsDirectory == true && !_selectedItem.IsExpanded)
         {
-            _selectedItem.IsExpanded = true;
-            if (!_selectedItem.ChildrenPopulated) PopulateChildren(_selectedItem);
+            ToggleDirectoryExpansion(_selectedItem);
             UpdateCanvasSize();
         }
         else if (_selectedItem?.IsDirectory == true && _selectedItem.IsExpanded && _selectedItem.Children.Any())
@@ -532,8 +597,7 @@ public class FileExplorerControl : UserControl
     {
         if (_selectedItem?.IsDirectory == true)
         {
-            _selectedItem.IsExpanded = !_selectedItem.IsExpanded;
-            if (_selectedItem.IsExpanded && !_selectedItem.ChildrenPopulated) PopulateChildren(_selectedItem);
+            ToggleDirectoryExpansion(_selectedItem);
             UpdateCanvasSize();
         }
 
@@ -567,7 +631,7 @@ public class FileExplorerControl : UserControl
         return null;
     }
 
-    private async void ScrollToItem(FileItem item)
+    private void ScrollToItem(FileItem item)
     {
         var allItems = GetFlattenedItems(_items);
         var index = allItems.IndexOf(item);
@@ -577,15 +641,22 @@ public class FileExplorerControl : UserControl
         var viewportTop = _scrollViewer.Offset.Y;
         var viewportBottom = viewportTop + _scrollViewer.Viewport.Height;
 
-        var desiredOffset = _scrollViewer.Offset.Y;
+        var desiredOffset = CalculateDesiredOffset(itemTop, itemBottom, viewportTop, viewportBottom);
 
+        if (desiredOffset != _scrollViewer.Offset.Y) UpdateScrollViewerOffset(desiredOffset);
+    }
+
+    private double CalculateDesiredOffset(double itemTop, double itemBottom, double viewportTop, double viewportBottom)
+    {
         if (itemTop < viewportTop)
-            desiredOffset = itemTop;
-        else if (itemBottom > viewportBottom)
-            desiredOffset = itemBottom - _scrollViewer.Viewport.Height;
-        else
-            return;
+            return itemTop;
+        if (itemBottom > viewportBottom)
+            return itemBottom - _scrollViewer.Viewport.Height;
+        return _scrollViewer.Offset.Y;
+    }
 
+    private void UpdateScrollViewerOffset(double desiredOffset)
+    {
         var maxScrollOffset = Math.Max(0, _canvas.Bounds.Height - _scrollViewer.Viewport.Height);
         desiredOffset = Math.Max(0, Math.Min(desiredOffset, maxScrollOffset));
         _scrollViewer.Offset = new Point(0, desiredOffset);

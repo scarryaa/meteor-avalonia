@@ -5,8 +5,8 @@ namespace meteor.Core.Services;
 
 public class SettingsService : ISettingsService
 {
-    private Dictionary<string, string> _settings = new();
     private const string SettingsFileName = "settings.json";
+    private Dictionary<string, string> _settings = new();
 
     public SettingsService()
     {
@@ -34,7 +34,8 @@ public class SettingsService : ISettingsService
         if (File.Exists(SettingsFileName))
         {
             var json = File.ReadAllText(SettingsFileName);
-            _settings = JsonSerializer.Deserialize(json, JsonContext.Default.DictionaryStringString) ?? new Dictionary<string, string>();
+            _settings = JsonSerializer.Deserialize(json, JsonContext.Default.DictionaryStringString) ??
+                        new Dictionary<string, string>();
         }
     }
 }

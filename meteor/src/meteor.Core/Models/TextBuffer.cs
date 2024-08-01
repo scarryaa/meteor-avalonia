@@ -1,4 +1,3 @@
-using System;
 using System.Runtime.InteropServices;
 
 namespace meteor.Core.Models;
@@ -118,13 +117,44 @@ public class TextBuffer : IDisposable
         private static readonly Action<IntPtr> _freeString = FreeStringNative;
         private static readonly Func<UIntPtr, int> _getDocumentVersion = GetDocumentVersionNative;
 
-        internal static UIntPtr CreateDocument() => _createDocument();
-        internal static void DeleteDocument(UIntPtr docId) => _deleteDocument(docId);
-        internal static void InsertText(UIntPtr docId, int index, string text) => _insertText(docId, index, text);
-        internal static void DeleteText(UIntPtr docId, int index, int length) => _deleteText(docId, index, length);
-        internal static IntPtr GetDocumentSlice(UIntPtr docId, int start, int end) => _getDocumentSlice(docId, start, end);
-        internal static int GetDocumentLength(UIntPtr docId) => _getDocumentLength(docId);
-        internal static void FreeString(IntPtr s) => _freeString(s);
-        internal static int GetDocumentVersion(UIntPtr docId) => _getDocumentVersion(docId);
+        internal static UIntPtr CreateDocument()
+        {
+            return _createDocument();
+        }
+
+        internal static void DeleteDocument(UIntPtr docId)
+        {
+            _deleteDocument(docId);
+        }
+
+        internal static void InsertText(UIntPtr docId, int index, string text)
+        {
+            _insertText(docId, index, text);
+        }
+
+        internal static void DeleteText(UIntPtr docId, int index, int length)
+        {
+            _deleteText(docId, index, length);
+        }
+
+        internal static IntPtr GetDocumentSlice(UIntPtr docId, int start, int end)
+        {
+            return _getDocumentSlice(docId, start, end);
+        }
+
+        internal static int GetDocumentLength(UIntPtr docId)
+        {
+            return _getDocumentLength(docId);
+        }
+
+        internal static void FreeString(IntPtr s)
+        {
+            _freeString(s);
+        }
+
+        internal static int GetDocumentVersion(UIntPtr docId)
+        {
+            return _getDocumentVersion(docId);
+        }
     }
 }

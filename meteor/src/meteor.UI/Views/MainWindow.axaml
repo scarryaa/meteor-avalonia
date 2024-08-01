@@ -21,19 +21,19 @@
     <Window.KeyBindings>
         <KeyBinding Command="{Binding OpenNewTabCommand}" Gesture="Ctrl+N" />
         <KeyBinding Command="{Binding OpenNewTabCommand}" Gesture="Cmd+N" />
-        
+
         <KeyBinding Command="{Binding CloseTabCommand}" CommandParameter="{Binding ActiveTab}" Gesture="Ctrl+W" />
         <KeyBinding Command="{Binding CloseTabCommand}" CommandParameter="{Binding ActiveTab}" Gesture="Cmd+W" />
-        
+
         <KeyBinding Command="{Binding SaveFileCommand}" Gesture="Ctrl+S" />
         <KeyBinding Command="{Binding SaveFileCommand}" Gesture="Cmd+S" />
-        
+
         <KeyBinding Command="{Binding OpenFileCommand}" Gesture="Ctrl+O" />
         <KeyBinding Command="{Binding OpenFileCommand}" Gesture="Cmd+O" />
-        
+
         <KeyBinding Command="{Binding OpenSettingsCommand}" Gesture="Ctrl+OemComma" />
         <KeyBinding Command="{Binding OpenSettingsCommand}" Gesture="Cmd+OemComma" />
-        
+
         <KeyBinding Command="{Binding ToggleCommandPaletteCommand}" Gesture="Ctrl+P" />
         <KeyBinding Command="{Binding ToggleCommandPaletteCommand}" Gesture="Cmd+P" />
     </Window.KeyBindings>

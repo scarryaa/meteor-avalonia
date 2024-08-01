@@ -20,7 +20,6 @@ public class MainWindowViewModel : ObservableObject
     private readonly ITabService _tabService;
     private readonly IThemeManager _themeManager;
     private ITabViewModel? _activeTab;
-    private bool _isCommandPaletteVisible;
 
     public MainWindowViewModel(ITabService tabService, IEditorInstanceFactory editorInstanceFactory,
         IFileService fileService, IFileDialogService fileDialogService, IThemeManager themeManager)
@@ -30,10 +29,7 @@ public class MainWindowViewModel : ObservableObject
         _fileService = fileService;
         _fileDialogService = fileDialogService;
         _themeManager = themeManager;
-        _themeManager.ThemeChanged += (sender, theme) =>
-        {
-            OnPropertyChanged(nameof(CurrentTheme));
-        };
+        _themeManager.ThemeChanged += (sender, theme) => { OnPropertyChanged(nameof(CurrentTheme)); };
 
         OpenNewTabCommand = new RelayCommand(OpenNewTab);
         CloseTabCommand = new RelayCommand<ITabViewModel>(CloseTab);
@@ -50,12 +46,6 @@ public class MainWindowViewModel : ObservableObject
             (sender, args) => OnPropertyChanged(nameof(Tabs));
     }
 
-    private void ToggleCommandPalette()
-    {
-        _isCommandPaletteVisible = !_isCommandPaletteVisible;
-        OnPropertyChanged(nameof(IsCommandPaletteVisible));
-    }
-
     public ICommand OpenNewTabCommand { get; }
     public ICommand CloseTabCommand { get; }
     public ICommand SaveFileCommand { get; }
@@ -64,7 +54,7 @@ public class MainWindowViewModel : ObservableObject
     public ICommand ToggleCommandPaletteCommand { get; }
 
     public ObservableCollection<ITabViewModel> Tabs => _tabService.Tabs;
-    public bool IsCommandPaletteVisible => _isCommandPaletteVisible;
+    public bool IsCommandPaletteVisible { get; private set; }
 
     public ITabViewModel? ActiveTab
     {
@@ -80,6 +70,12 @@ public class MainWindowViewModel : ObservableObject
     }
 
     public Theme CurrentTheme => _themeManager.CurrentTheme;
+
+    private void ToggleCommandPalette()
+    {
+        IsCommandPaletteVisible = !IsCommandPaletteVisible;
+        OnPropertyChanged(nameof(IsCommandPaletteVisible));
+    }
 
     private async void SaveFile()
     {

@@ -10,12 +10,12 @@ namespace meteor.UI.Features.Editor.ViewModels;
 public class EditorViewModel : IEditorViewModel
 {
     private readonly ICompletionProvider _completionProvider;
+    private readonly Task<bool> _completionsInitTask;
     private readonly IEditorConfig _config;
     private readonly ICursorManager _cursorManager;
     private readonly IInputManager _inputManager;
     private readonly ISelectionManager _selectionManager;
     private readonly ITextMeasurer _textMeasurer;
-    private readonly Task<bool> _completionsInitTask;
     private string _content;
     private int _lastSyncedVersion;
 

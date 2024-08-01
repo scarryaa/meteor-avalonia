@@ -116,7 +116,8 @@ public class Titlebar : UserControl
         {
             if (this.GetVisualRoot() is Window window) window.BeginMoveDrag(e);
         }
-        else if (e.GetCurrentPoint(this).Properties.IsRightButtonPressed && !RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        else if (e.GetCurrentPoint(this).Properties.IsRightButtonPressed &&
+                 !RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
             OpenContextMenu();
             e.Handled = true;
@@ -130,12 +131,14 @@ public class Titlebar : UserControl
                 ? WindowState.Normal
                 : WindowState.Maximized;
     }
-    
+
     private void OpenContextMenu()
     {
         var contextMenu = new ContextMenu();
-        contextMenu.Items.Add(new MenuItem { Header = "Minimize", Command = new RelayCommand(() => ToggleWindowState(WindowState.Minimized)) });
-        contextMenu.Items.Add(new MenuItem { Header = GetMaximizeRestoreMenuItemHeader(), Command = new RelayCommand(() => ToggleMaximizeRestore()) });
+        contextMenu.Items.Add(new MenuItem
+            { Header = "Minimize", Command = new RelayCommand(() => ToggleWindowState(WindowState.Minimized)) });
+        contextMenu.Items.Add(new MenuItem
+            { Header = GetMaximizeRestoreMenuItemHeader(), Command = new RelayCommand(() => ToggleMaximizeRestore()) });
         contextMenu.Items.Add(new MenuItem { Header = "Close", Command = new RelayCommand(() => CloseWindow()) });
         contextMenu.Open(this);
     }
@@ -143,25 +146,20 @@ public class Titlebar : UserControl
     private void ToggleWindowState(WindowState state)
     {
         if (this.GetVisualRoot() is Window window)
-        {
             window.WindowState = window.WindowState == state ? WindowState.Normal : state;
-        }
     }
 
     private void ToggleMaximizeRestore()
     {
         if (this.GetVisualRoot() is Window window)
-        {
-            window.WindowState = window.WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
-        }
+            window.WindowState =
+                window.WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
     }
 
     private string GetMaximizeRestoreMenuItemHeader()
     {
         if (this.GetVisualRoot() is Window window)
-        {
             return window.WindowState == WindowState.Maximized ? "Restore" : "Maximize";
-        }
         return "Maximize";
     }
 

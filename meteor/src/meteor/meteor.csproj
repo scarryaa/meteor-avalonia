@@ -27,10 +27,10 @@
         <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="Avalonia.Diagnostics" Version="11.1.0"/>
         <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.1"/>
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0-preview.6.24327.7"/>
-        <PackageReference Include="SkiaSharp" Version="2.88.8" />
-        <PackageReference Include="SkiaSharp.NativeAssets.macOS" Version="2.88.8" />
-        <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="2.88.8" />
-        <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="2.88.8" />
+        <PackageReference Include="SkiaSharp" Version="2.88.8"/>
+        <PackageReference Include="SkiaSharp.NativeAssets.macOS" Version="2.88.8"/>
+        <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="2.88.8"/>
+        <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="2.88.8"/>
     </ItemGroup>
 
     <ItemGroup>
@@ -54,16 +54,16 @@
             <RustProjectDir>$(MSBuildThisFileDirectory)../meteor-rust-core</RustProjectDir>
             <RustOutputDir>$(RustProjectDir)/target/release</RustOutputDir>
         </PropertyGroup>
-        <Message Text="Building Rust library..." Importance="high" />
-        <Exec Command="cargo build --release" WorkingDirectory="$(RustProjectDir)" />
+        <Message Text="Building Rust library..." Importance="high"/>
+        <Exec Command="cargo build --release" WorkingDirectory="$(RustProjectDir)"/>
     </Target>
 
     <Target Name="CopyRustLibrary" AfterTargets="BuildRustLibrary">
         <ItemGroup>
-            <RustLibFiles Include="$(RustOutputDir)/libmeteor_rust_core.*" />
-            <RustLibFiles Include="$(RustOutputDir)/meteor_rust_core.dll" Condition="Exists('$(RustOutputDir)/meteor_rust_core.dll')" />
+            <RustLibFiles Include="$(RustOutputDir)/libmeteor_rust_core.*"/>
+            <RustLibFiles Include="$(RustOutputDir)/meteor_rust_core.dll" Condition="Exists('$(RustOutputDir)/meteor_rust_core.dll')"/>
         </ItemGroup>
-        <Copy SourceFiles="@(RustLibFiles)" DestinationFolder="$(OutDir)" />
+        <Copy SourceFiles="@(RustLibFiles)" DestinationFolder="$(OutDir)"/>
     </Target>
 
     <Target Name="CopyRustLibraryForPublish" AfterTargets="Publish">
@@ -71,10 +71,10 @@
             <RustLibDir>$(RustOutputDir)</RustLibDir>
         </PropertyGroup>
         <ItemGroup>
-            <RustLibFiles Include="$(RustLibDir)/libmeteor_rust_core.*" />
-            <RustLibFiles Include="$(RustLibDir)/meteor_rust_core.dll" Condition="Exists('$(RustLibDir)/meteor_rust_core.dll')" />
+            <RustLibFiles Include="$(RustLibDir)/libmeteor_rust_core.*"/>
+            <RustLibFiles Include="$(RustLibDir)/meteor_rust_core.dll" Condition="Exists('$(RustLibDir)/meteor_rust_core.dll')"/>
         </ItemGroup>
-        <Copy SourceFiles="@(RustLibFiles)" DestinationFolder="$(PublishDir)" />
+        <Copy SourceFiles="@(RustLibFiles)" DestinationFolder="$(PublishDir)"/>
     </Target>
 
     <Target Name="CopyRustLibraryForDevelopment" AfterTargets="Build" Condition="'$(Configuration)' == 'Debug'">
@@ -82,23 +82,23 @@
             <RustLibDir>$(RustOutputDir)</RustLibDir>
         </PropertyGroup>
         <ItemGroup>
-            <RustLibFiles Include="$(RustLibDir)/libmeteor_rust_core.*" />
-            <RustLibFiles Include="$(RustLibDir)/meteor_rust_core.dll" Condition="Exists('$(RustLibDir)/meteor_rust_core.dll')" />
+            <RustLibFiles Include="$(RustLibDir)/libmeteor_rust_core.*"/>
+            <RustLibFiles Include="$(RustLibDir)/meteor_rust_core.dll" Condition="Exists('$(RustLibDir)/meteor_rust_core.dll')"/>
         </ItemGroup>
-        <Copy SourceFiles="@(RustLibFiles)" DestinationFolder="$(OutDir)" />
+        <Copy SourceFiles="@(RustLibFiles)" DestinationFolder="$(OutDir)"/>
     </Target>
 
     <Target Name="CopyThemes" AfterTargets="Build">
         <ItemGroup>
-            <ThemeFiles Include="$(MSBuildThisFileDirectory)../meteor.UI/Common/Themes/*.json" />
+            <ThemeFiles Include="$(MSBuildThisFileDirectory)../meteor.UI/Common/Themes/*.json"/>
         </ItemGroup>
-        <Copy SourceFiles="@(ThemeFiles)" DestinationFolder="$(OutDir)Common/Themes" />
+        <Copy SourceFiles="@(ThemeFiles)" DestinationFolder="$(OutDir)Common/Themes"/>
     </Target>
 
     <Target Name="CopyThemesForPublish" AfterTargets="Publish">
         <ItemGroup>
-            <ThemeFiles Include="$(MSBuildThisFileDirectory)../meteor.UI/Common/Themes/*.json" />
+            <ThemeFiles Include="$(MSBuildThisFileDirectory)../meteor.UI/Common/Themes/*.json"/>
         </ItemGroup>
-        <Copy SourceFiles="@(ThemeFiles)" DestinationFolder="$(PublishDir)Common/Themes" />
+        <Copy SourceFiles="@(ThemeFiles)" DestinationFolder="$(PublishDir)Common/Themes"/>
     </Target>
 </Project>

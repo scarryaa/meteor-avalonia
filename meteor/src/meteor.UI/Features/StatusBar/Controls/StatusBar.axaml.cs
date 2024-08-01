@@ -1,19 +1,17 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Layout;
 using Avalonia.Media;
-using System;
 
 namespace meteor.UI.Features.StatusBar.Controls;
 
 public class StatusBar : UserControl
 {
     private readonly IThemeManager _themeManager;
-    private TextBlock _statusTextBlock;
-    private TextBlock _lineColumnTextBlock;
     private Border _border;
-
-    public event EventHandler<(int Line, int Column)> GoToLineColumnRequested;
+    private TextBlock _lineColumnTextBlock;
+    private TextBlock _statusTextBlock;
 
     public StatusBar(IThemeManager themeManager)
     {
@@ -23,20 +21,22 @@ public class StatusBar : UserControl
         _themeManager.ThemeChanged += (_, _) => ApplyTheme();
     }
 
+    public event EventHandler<(int Line, int Column)> GoToLineColumnRequested;
+
     private void InitializeComponent()
     {
         Height = 25;
 
         _statusTextBlock = new TextBlock
         {
-            VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(10, 0, 10, 0)
         };
 
         _lineColumnTextBlock = new TextBlock
         {
-            VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
-            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Right,
             Margin = new Thickness(10, 0, 10, 0),
             Cursor = new Cursor(StandardCursorType.Hand)
         };
@@ -48,7 +48,7 @@ public class StatusBar : UserControl
             Child = new Grid
             {
                 ColumnDefinitions = new ColumnDefinitions("*, Auto"),
-                Children = 
+                Children =
                 {
                     new Panel { Children = { _statusTextBlock }, [Grid.ColumnProperty] = 0 },
                     new Panel { Children = { _lineColumnTextBlock }, [Grid.ColumnProperty] = 1 }
@@ -83,10 +83,8 @@ public class StatusBar : UserControl
     {
         var parts = _lineColumnTextBlock.Text.Split(',');
         if (parts.Length == 2 &&
-            int.TryParse(parts[0].Split(' ')[1], out int line) &&
-            int.TryParse(parts[1].Split(' ')[2], out int column))
-        {
+            int.TryParse(parts[0].Split(' ')[1], out var line) &&
+            int.TryParse(parts[1].Split(' ')[2], out var column))
             GoToLineColumnRequested?.Invoke(this, (line, column));
-        }
     }
 }

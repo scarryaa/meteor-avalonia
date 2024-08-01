@@ -32,10 +32,7 @@ public class ThemeManager : IThemeManager
 
     public Theme GetTheme(string name)
     {
-        if (_themes.TryGetValue(name, out var theme))
-        {
-            return theme;
-        }
+        if (_themes.TryGetValue(name, out var theme)) return theme;
         Console.WriteLine($"Theme '{name}' not found. Using default theme.");
         return _themes.Values.First(); // Return the first available theme
     }
@@ -77,9 +74,7 @@ public class ThemeManager : IThemeManager
         var resourceNames = assembly.GetManifestResourceNames();
 
         foreach (var resourceName in resourceNames)
-        {
             if (resourceName.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
-            {
                 try
                 {
                     using var stream = assembly.GetManifestResourceStream(resourceName);
@@ -87,7 +82,7 @@ public class ThemeManager : IThemeManager
                     {
                         using var reader = new StreamReader(stream);
                         var json = reader.ReadToEnd();
-                        var theme = JsonSerializer.Deserialize<Theme>(json, JsonContext.Default.Theme);
+                        var theme = JsonSerializer.Deserialize(json, JsonContext.Default.Theme);
                         if (theme != null && !string.IsNullOrEmpty(theme.Name))
                         {
                             _themes[theme.Name] = theme;
@@ -99,23 +94,17 @@ public class ThemeManager : IThemeManager
                 {
                     Console.WriteLine($"Error loading embedded theme from {resourceName}: {ex.Message}");
                 }
-            }
-        }
     }
 
     private void LoadFileSystemThemes()
     {
-        if (!Directory.Exists(_themesDirectory))
-        {
-            Directory.CreateDirectory(_themesDirectory);
-        }
+        if (!Directory.Exists(_themesDirectory)) Directory.CreateDirectory(_themesDirectory);
 
         foreach (var file in Directory.GetFiles(_themesDirectory, "*.json"))
-        {
             try
             {
                 var json = File.ReadAllText(file);
-                var theme = JsonSerializer.Deserialize<Theme>(json, JsonContext.Default.Theme);
+                var theme = JsonSerializer.Deserialize(json, JsonContext.Default.Theme);
                 if (theme != null && !string.IsNullOrEmpty(theme.Name))
                 {
                     _themes[theme.Name] = theme;
@@ -126,7 +115,6 @@ public class ThemeManager : IThemeManager
             {
                 Console.WriteLine($"Error loading theme from {file}: {ex.Message}");
             }
-        }
     }
 
     private void EnsureDefaultThemes()

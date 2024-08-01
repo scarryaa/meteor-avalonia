@@ -1,4 +1,7 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
+using System.IO;
+using System.Runtime.InteropServices;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core.Plugins;
@@ -22,9 +25,6 @@ using meteor.UI.Services;
 using meteor.UI.ViewModels;
 using meteor.UI.Views;
 using Microsoft.Extensions.DependencyInjection;
-using System.Runtime.InteropServices;
-using System.IO;
-using System.Diagnostics.CodeAnalysis;
 
 namespace meteor;
 
@@ -58,21 +58,23 @@ public class App : Application
             var pointerEventHandler = Services.GetRequiredService<IPointerEventHandler>();
             var tabService = Services.GetRequiredService<ITabService>();
             var themeManager = Services.GetRequiredService<IThemeManager>();
+            var fileService = Services.GetRequiredService<IFileService>();
+            var gitService = Services.GetRequiredService<IGitService>();
             themeManager.Initialize(Services.GetRequiredService<ISettingsService>());
 
             IsActiveToBrushConverter.Initialize(themeManager);
 
             desktop.MainWindow = new MainWindow(mainWindowViewModel, tabService, layoutManager, inputHandler,
-                textMeasurer, config, scrollManager, pointerEventHandler, themeManager);
+                textMeasurer, config, scrollManager, pointerEventHandler, themeManager, fileService, gitService);
 
             var clipboardManager = Services.GetRequiredService<IClipboardManager>();
             if (clipboardManager is ClipboardManager cm) cm.TopLevelRef = desktop.MainWindow;
 
-            var fileService = Services.GetRequiredService<IFileDialogService>();
-            if (fileService is IFileDialogService fs) fs.TopLevelRef = desktop.MainWindow;
-        }
+            var fileDialogService = Services.GetRequiredService<IFileDialogService>();
+            if (fileDialogService is FileDialogService fds) fds.TopLevelRef = desktop.MainWindow;
 
-        base.OnFrameworkInitializationCompleted();
+            base.OnFrameworkInitializationCompleted();
+        }
     }
 
     private void LoadNativeLibrary()
@@ -85,9 +87,7 @@ public class App : Application
 
         var libraryPath = Path.Combine(AppContext.BaseDirectory, libraryName);
         if (!File.Exists(libraryPath) && !File.Exists("./" + libraryName))
-        {
             throw new FileNotFoundException($"Native library not found: {libraryPath}");
-        }
 
         NativeLibrary.Load(libraryPath);
     }
@@ -108,6 +108,8 @@ public class App : Application
         services.AddSingleton<IFileService, FileService>();
         services.AddSingleton<IThemeManager>(sp => ThemeManager.Instance);
         services.AddSingleton<ISettingsService, SettingsService>();
+        services.AddSingleton<IGitService, GitService>(sp =>
+            new GitService(Path.Combine(AppContext.BaseDirectory, "meteor.git")));
 
         // Editor Services
         services.AddSingleton<IEditorLayoutManager, EditorLayoutManager>();
