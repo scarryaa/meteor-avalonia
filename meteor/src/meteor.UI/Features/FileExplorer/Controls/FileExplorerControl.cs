@@ -25,11 +25,11 @@ public class FileExplorerControl : UserControl
 {
     private const int MaxItemsPerDirectory = 1000;
     private const int LazyLoadThreshold = 100;
-    private readonly double _indentWidth = 20;
+    private readonly double _indentWidth = 8;
     private readonly double _itemHeight = 24;
     private readonly ObservableCollection<FileItem> _items;
-    private readonly double _leftPadding = 10;
-    private readonly double _rightPadding = 10;
+    private readonly double _leftPadding = 8;
+    private readonly double _rightPadding = 8;
     private readonly IThemeManager _themeManager;
     private Canvas _canvas;
     private Theme _currentTheme;
@@ -61,7 +61,7 @@ public class FileExplorerControl : UserControl
             _selectPathButton.IsVisible = false;
             _items.Clear();
             _items.Add(new FileItem(path, true));
-            PopulateChildrenAsync(_items[0]);
+            _ = PopulateChildrenAsync(_items[0]);
             _items[0].IsExpanded = true;
             UpdateCanvasSize();
             InvalidateVisual();
@@ -418,18 +418,20 @@ public class FileExplorerControl : UserControl
         RenderItems(context, _items, 0, -_scrollViewer.Offset.Y + buttonHeight, viewportRect);
     }
 
-    private double RenderItems(DrawingContext context, IEnumerable<FileItem> items, int indentLevel, double y,
-        Rect viewport)
+    private double RenderItems(DrawingContext context, IEnumerable<FileItem> items, int indentLevel, double y, Rect viewport)
     {
         foreach (var item in items)
         {
-            if (y + _itemHeight > 0 && y < viewport.Height) RenderItem(context, item, indentLevel, y, viewport);
+            if (y + _itemHeight > 0 && y < viewport.Height)
+                RenderItem(context, item, indentLevel, y, viewport);
 
             y += _itemHeight;
 
-            if (item.IsExpanded) y = RenderItems(context, item.Children, indentLevel + 1, y, viewport);
+            if (item.IsExpanded)
+                y = RenderItems(context, item.Children, indentLevel + 1, y, viewport);
 
-            if (y > viewport.Height) break;
+            if (y > viewport.Height)
+                break;
         }
 
         return y;
@@ -438,17 +440,18 @@ public class FileExplorerControl : UserControl
     private void RenderItem(DrawingContext context, FileItem item, int indentLevel, double y, Rect viewport)
     {
         RenderItemBackground(context, item, y, viewport);
-        RenderItemIcon(context, item, indentLevel, y);
         RenderItemChevron(context, item, indentLevel, y);
+        RenderItemIcon(context, item, indentLevel, y);
         RenderItemText(context, item, indentLevel, y);
     }
 
     private void RenderItemBackground(DrawingContext context, FileItem item, double y, Rect viewport)
     {
         if (item == _selectedItem)
-            context.FillRectangle(
-                new SolidColorBrush(Color.Parse(_currentTheme.FileExplorerSelectedItemBackgroundColor)),
-                new Rect(0, y, viewport.Width, _itemHeight));
+        {
+            var backgroundBrush = new SolidColorBrush(Color.Parse(_currentTheme.FileExplorerSelectedItemBackgroundColor));
+            context.FillRectangle(backgroundBrush, new Rect(0, y, viewport.Width, _itemHeight));
+        }
     }
 
     private void RenderItemIcon(DrawingContext context, FileItem item, int indentLevel, double y)
@@ -456,17 +459,15 @@ public class FileExplorerControl : UserControl
         var iconSize = 16;
         var iconChar = item.IsDirectory ? "\uf07b" : "\uf15b"; // folder icon : file icon
         var iconBrush = new SolidColorBrush(Color.Parse(_currentTheme.FileExplorerFileIconColor));
-        var fontAwesomeSolid =
-            new FontFamily(
-                "avares://meteor.UI/Common/Assets/Fonts/FontAwesome/Font Awesome 6 Free-Solid-900.otf#Font Awesome 6 Free");
+        var fontAwesomeSolid = new FontFamily("avares://meteor.UI/Common/Assets/Fonts/FontAwesome/Font Awesome 6 Free-Solid-900.otf#Font Awesome 6 Free");
         var typeface = new Typeface(fontAwesomeSolid);
 
         var iconGeometry = CreateFormattedTextGeometry(iconChar, typeface, iconSize, iconBrush);
 
-        var iconX = _leftPadding * 2.35 + indentLevel * _indentWidth - _scrollViewer.Offset.X;
+        var iconX = _leftPadding + indentLevel * _indentWidth + 20 - _scrollViewer.Offset.X;
         var iconY = y + (_itemHeight - iconSize) / 2;
 
-        iconGeometry.Transform = new MatrixTransform(Matrix.CreateTranslation(iconX + 1, iconY));
+        iconGeometry.Transform = new MatrixTransform(Matrix.CreateTranslation(iconX, iconY));
         context.DrawGeometry(iconBrush, null, iconGeometry);
     }
 
@@ -477,14 +478,12 @@ public class FileExplorerControl : UserControl
         var chevronBrush = new SolidColorBrush(Color.Parse(_currentTheme.TextColor));
         var chevronSize = 10;
         var chevronChar = item.IsExpanded ? "\uf078" : "\uf054"; // chevron-down : chevron-right
-        var fontAwesomeSolid =
-            new FontFamily(
-                "avares://meteor.UI/Common/Assets/Fonts/FontAwesome/Font Awesome 6 Free-Solid-900.otf#Font Awesome 6 Free");
+        var fontAwesomeSolid = new FontFamily("avares://meteor.UI/Common/Assets/Fonts/FontAwesome/Font Awesome 6 Free-Solid-900.otf#Font Awesome 6 Free");
         var typeface = new Typeface(fontAwesomeSolid);
 
         var chevronGeometry = CreateFormattedTextGeometry(chevronChar, typeface, chevronSize, chevronBrush);
 
-        var chevronX = _leftPadding * 2.35 + indentLevel * _indentWidth - _scrollViewer.Offset.X - chevronSize;
+        var chevronX = _leftPadding + indentLevel * _indentWidth - _scrollViewer.Offset.X;
         var chevronY = y + (_itemHeight - chevronSize) / 2;
 
         chevronGeometry.Transform = new MatrixTransform(Matrix.CreateTranslation(chevronX, chevronY));
@@ -506,8 +505,13 @@ public class FileExplorerControl : UserControl
             textBrush
         );
 
-        var textX = _leftPadding * 2.65 + indentLevel * _indentWidth + 20 - _scrollViewer.Offset.X;
-        var textY = y + (_itemHeight - formattedText.Height) / 2;
+        var textX = _leftPadding + indentLevel * _indentWidth + 40 - _scrollViewer.Offset.X;
+        var textY = y + (_itemHeight - formattedText.Height) / 2 + 1;
+
+        if (item.IsDirectory)
+        {
+            textX += 2;
+        }
 
         context.DrawText(formattedText, new Point(textX, textY));
     }
