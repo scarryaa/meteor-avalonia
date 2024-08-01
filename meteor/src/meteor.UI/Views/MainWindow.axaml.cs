@@ -1,8 +1,4 @@
-using System;
-using System.IO;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Data;
@@ -230,20 +226,43 @@ public partial class MainWindow : Window
 
         _titlebar.SetProjectNameFromDirectory(directoryPath);
 
-        await Dispatcher.UIThread.InvokeAsync(async () =>
-        {
-            await Task.WhenAll(
-                Task.Run(() => _gitService.UpdateProjectRoot(directoryPath)),
-                Task.Run(() => _searchService.UpdateProjectRoot(directoryPath)),
-                Task.Run(() => _leftSideBar.UpdateFiles(directoryPath)),
-                Task.Run(() => _leftSideBar.SetDirectory(directoryPath)),
-                _sourceControlView.UpdateChangesAsync()
-            );
-        });
+        // Use a CancellationTokenSource to allow cancellation of long-running tasks
+        using var cts = new CancellationTokenSource();
+        cts.CancelAfter(TimeSpan.FromSeconds(30)); // Set a timeout
 
-        // Refresh UI components
-        _leftSideBar.InvalidateVisual();
-        _sourceControlView.InvalidateVisual();
+        try
+        {
+            await Task.Run(async () =>
+            {
+                await Dispatcher.UIThread.InvokeAsync(async () =>
+                {
+                    await Task.WhenAll(
+                        Task.Run(() => _gitService.UpdateProjectRoot(directoryPath), cts.Token),
+                        Task.Run(() => _searchService.UpdateProjectRoot(directoryPath), cts.Token),
+                        Task.Run(() => _leftSideBar.UpdateFiles(directoryPath), cts.Token),
+                        Task.Run(() => _leftSideBar.SetDirectory(directoryPath), cts.Token),
+                        _sourceControlView.UpdateChangesAsync(cts.Token)
+                    );
+                }, DispatcherPriority.Background);
+            }, cts.Token);
+
+            // Refresh UI components
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                _leftSideBar.InvalidateVisual();
+                _sourceControlView.InvalidateVisual();
+            }, DispatcherPriority.Background);
+        }
+        catch (OperationCanceledException)
+        {
+            Console.WriteLine("Directory opening operation timed out or was cancelled.");
+            // Handle the timeout, e.g., show a message to the user
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error opening directory: {ex.Message}");
+            // Handle other exceptions
+        }
     }
 
     private void CreateOrOpenTab(string? filePath = null)

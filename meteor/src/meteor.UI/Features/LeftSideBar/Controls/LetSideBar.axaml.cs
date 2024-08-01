@@ -182,7 +182,7 @@ public class LeftSideBar : UserControl
         {
             _viewModel.DirectoryOpenedCommand.Execute(directoryPath);
             _searchService.UpdateProjectRoot(directoryPath);
-            _ = _sourceControlView.UpdateChangesAsync();
+            _ = _sourceControlView.UpdateChangesAsync(CancellationToken.None);
         };
         Grid.SetRow(explorer, 0);
         return explorer;
@@ -209,7 +209,7 @@ public class LeftSideBar : UserControl
     {
         _viewModel.SetDirectoryCommand.Execute(path);
         _fileExplorer.SetDirectory(path);
-        _ = _sourceControlView.UpdateChangesAsync();
+        _ = _sourceControlView.UpdateChangesAsync(CancellationToken.None);
         Dispatcher.UIThread.InvokeAsync(() =>
         {
             _searchView.SetSearchDirectory(path);

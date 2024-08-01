@@ -4,12 +4,12 @@ using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Media;
+using Avalonia.Threading;
 using meteor.Core.Interfaces.Services;
 using meteor.Core.Models;
 using meteor.UI.Features.SourceControl.ViewModels;
 using Color = Avalonia.Media.Color;
 using Point = Avalonia.Point;
-using Size = Avalonia.Size;
 using SolidColorBrush = Avalonia.Media.SolidColorBrush;
 using Vector = Avalonia.Vector;
 
@@ -218,12 +218,25 @@ public partial class SourceControlView : UserControl
         );
         return formattedText.Width;
     }
-
-    internal async Task UpdateChangesAsync()
+    internal async Task UpdateChangesAsync(CancellationToken cancellationToken)
     {
-        await _viewModel.LoadChangesCommand.ExecuteAsync(null);
-        UpdateCanvasSize();
-        InvalidateVisual();
+        try
+        {
+            await Dispatcher.UIThread.InvokeAsync(async () =>
+            {
+                await _viewModel.LoadChangesCommand.ExecuteAsync(cancellationToken);
+                UpdateCanvasSize();
+                InvalidateVisual();
+            });
+        }
+        catch (OperationCanceledException)
+        {
+            Console.WriteLine("UpdateChanges operation was canceled.");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error updating changes: {ex.Message}");
+        }
     }
 
     internal void UpdateBackground(Theme theme)

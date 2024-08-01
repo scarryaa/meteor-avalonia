@@ -1,9 +1,4 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Text.RegularExpressions;
-using meteor.Core.Enums;
 using meteor.Core.Interfaces.Services;
 using meteor.Core.Models;
 
@@ -112,6 +107,13 @@ namespace meteor.Core.Services
         {
             if (!_isValidRepo)
             {
+                return string.Empty;
+            }
+
+            var gitDir = Path.Combine(_repoPath, ".git");
+            if (!Directory.Exists(gitDir))
+            {
+                _isValidRepo = false;
                 return string.Empty;
             }
 
