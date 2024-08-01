@@ -6,6 +6,7 @@ using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Platform.Storage;
 using meteor.Core.Config;
+using meteor.Core.Interfaces;
 using meteor.Core.Interfaces.Config;
 using meteor.Core.Interfaces.Services;
 using meteor.Core.Interfaces.Services.Editor;
@@ -42,6 +43,7 @@ public partial class MainWindow : Window
     private readonly IThemeManager _themeManager;
     private readonly Titlebar _titlebar;
     private readonly GridSplitter _gridSplitter;
+    private readonly ISearchService _searchService;
 
     public MainWindow(
         MainWindowViewModel mainWindowViewModel,
@@ -54,7 +56,8 @@ public partial class MainWindow : Window
         IPointerEventHandler pointerEventHandler,
         IThemeManager themeManager,
         IFileService fileService,
-        IGitService gitService)
+        IGitService gitService,
+        ISearchService searchService)
     {
         InitializeComponent();
 
@@ -64,6 +67,7 @@ public partial class MainWindow : Window
         _themeManager = themeManager;
         _scrollManager = scrollManager;
         _mainWindowViewModel = mainWindowViewModel;
+        _searchService = searchService;
 
         DataContext = mainWindowViewModel;
         ClipToBounds = false;
@@ -102,7 +106,7 @@ public partial class MainWindow : Window
         };
         _commandPalette[!IsVisibleProperty] = new Binding("IsCommandPaletteVisible");
 
-        _leftSideBar = new LeftSideBar(fileService, _themeManager, gitService);
+        _leftSideBar = new LeftSideBar(fileService, _themeManager, gitService, _searchService);
         _leftSideBar.FileSelected += OnFileSelected;
         _leftSideBar.DirectoryOpened += OnDirectoryOpened;
         _sourceControlView = new SourceControlView(_themeManager, gitService);

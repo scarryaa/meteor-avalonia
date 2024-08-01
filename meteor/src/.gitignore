@@ -5,4 +5,7 @@ obj/
 # Rust output directories
 target/
 **/*.rs.bk
+
+# macOS system files
 .DS_Store
+**/.DS_Store

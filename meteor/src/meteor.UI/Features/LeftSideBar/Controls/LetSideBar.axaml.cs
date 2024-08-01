@@ -2,10 +2,12 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
+using meteor.Core.Interfaces;
 using meteor.Core.Interfaces.Services;
 using meteor.UI.Features.FileExplorer.Controls;
 using meteor.UI.Features.LeftSideBar.ViewModels;
 using meteor.UI.Features.SourceControl.Controls;
+using meteor.UI.Features.SearchView.Controls;
 
 namespace meteor.UI.Features.LeftSideBar.Controls;
 
@@ -14,6 +16,7 @@ public class LeftSideBar : UserControl
     private readonly IFileService _fileService;
     private readonly IGitService _gitService;
     private readonly IThemeManager _themeManager;
+    private readonly ISearchService _searchService;
     private FileExplorerControl _fileExplorer;
     private Grid _mainGrid;
     private SearchView.Controls.SearchView _searchView;
@@ -21,11 +24,12 @@ public class LeftSideBar : UserControl
     private SourceControlView _sourceControlView;
     private readonly LeftSideBarViewModel _viewModel;
 
-    public LeftSideBar(IFileService fileService, IThemeManager themeManager, IGitService gitService)
+    public LeftSideBar(IFileService fileService, IThemeManager themeManager, IGitService gitService, ISearchService searchService)
     {
         _fileService = fileService;
         _themeManager = themeManager;
         _gitService = gitService;
+        _searchService = searchService;
         InitializeComponent();
         _viewModel = new LeftSideBarViewModel(_fileService, _themeManager);
         DataContext = _viewModel;
@@ -80,8 +84,8 @@ public class LeftSideBar : UserControl
         Grid.SetRow(_fileExplorer, 0);
         _mainGrid.Children.Add(_fileExplorer);
 
-        _searchView = new SearchView.Controls.SearchView(_themeManager, _fileService);
-        _searchView.FileSelected += (_, filePath) => _viewModel.FileSelectedCommand.Execute(filePath);
+        _searchView = new SearchView.Controls.SearchView(_searchService, _themeManager);
+
         Grid.SetRow(_searchView, 0);
         _mainGrid.Children.Add(_searchView);
         _searchView.IsVisible = false;

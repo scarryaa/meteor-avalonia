@@ -7,6 +7,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core.Plugins;
 using Avalonia.Markup.Xaml;
 using meteor.Core.Config;
+using meteor.Core.Interfaces;
 using meteor.Core.Interfaces.Commands;
 using meteor.Core.Interfaces.Config;
 using meteor.Core.Interfaces.Factories;
@@ -60,12 +61,13 @@ public class App : Application
             var themeManager = Services.GetRequiredService<IThemeManager>();
             var fileService = Services.GetRequiredService<IFileService>();
             var gitService = Services.GetRequiredService<IGitService>();
+            var searchService = Services.GetRequiredService<ISearchService>();
             themeManager.Initialize(Services.GetRequiredService<ISettingsService>());
 
             IsActiveToBrushConverter.Initialize(themeManager);
 
             desktop.MainWindow = new MainWindow(mainWindowViewModel, tabService, layoutManager, inputHandler,
-                textMeasurer, config, scrollManager, pointerEventHandler, themeManager, fileService, gitService);
+                textMeasurer, config, scrollManager, pointerEventHandler, themeManager, fileService, gitService, searchService);
 
             var clipboardManager = Services.GetRequiredService<IClipboardManager>();
             if (clipboardManager is ClipboardManager cm) cm.TopLevelRef = desktop.MainWindow;
@@ -110,6 +112,7 @@ public class App : Application
         services.AddSingleton<ISettingsService, SettingsService>();
         services.AddSingleton<IGitService, GitService>(sp =>
             new GitService(Path.Combine(AppContext.BaseDirectory, "meteor.git")));
+        services.AddSingleton<ISearchService, SearchService>();
 
         // Editor Services
         services.AddSingleton<IEditorLayoutManager, EditorLayoutManager>();

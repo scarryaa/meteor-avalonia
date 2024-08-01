@@ -1,22 +1,24 @@
 using System.Collections.ObjectModel;
+using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using meteor.Core.Interfaces.Services;
+using meteor.Core.Interfaces;
+using meteor.Core.Models;
 
 namespace meteor.UI.Features.SearchView.ViewModels;
 
 public partial class SearchViewModel : ObservableObject
 {
-    private readonly IFileService _fileService;
+    private readonly ISearchService _searchService;
 
-    [ObservableProperty] private string _searchQuery;
+    [ObservableProperty] private string _searchQuery = string.Empty;
 
-    [ObservableProperty] private ObservableCollection<object> _searchResults;
+    [ObservableProperty] private ObservableCollection<SearchResult> _searchResults;
 
-    public SearchViewModel(IFileService fileService)
+    public SearchViewModel(ISearchService searchService)
     {
-        _fileService = fileService;
-        SearchResults = new ObservableCollection<object>();
+        _searchService = searchService;
+        SearchResults = new ObservableCollection<SearchResult>();
     }
 
     [RelayCommand]
@@ -26,7 +28,10 @@ public partial class SearchViewModel : ObservableObject
             return;
 
         SearchResults.Clear();
-        var results = await _fileService.SearchInFilesAsync(SearchQuery);
-        foreach (var result in results) SearchResults.Add(result);
+        var results = await _searchService.SearchAsync(SearchQuery);
+        foreach (var result in results)
+        {
+            SearchResults.Add(result);
+        }
     }
 }
