@@ -26,23 +26,25 @@ using meteor.UI.ViewModels;
 using Color = Avalonia.Media.Color;
 using SolidColorBrush = Avalonia.Media.SolidColorBrush;
 using TabControl = meteor.UI.Features.Tabs.Controls.TabControl;
+using Vector = Avalonia.Vector;
 
 namespace meteor.UI.Views;
 
 public partial class MainWindow : Window
 {
     private readonly CommandPalette _commandPalette;
-    private readonly IEditorConfig _config;
     private readonly LeftSideBar _leftSideBar;
     private readonly MainWindowViewModel _mainWindowViewModel;
-    private readonly IScrollManager _scrollManager;
     private readonly SourceControlView _sourceControlView;
     private readonly StatusBar _statusBar;
+    private readonly Titlebar _titlebar;
+    private readonly GridSplitter _gridSplitter;
+
+    private readonly IEditorConfig _config;
+    private readonly IScrollManager _scrollManager;
     private readonly ITabService _tabService;
     private readonly ITextMeasurer _textMeasurer;
     private readonly IThemeManager _themeManager;
-    private readonly Titlebar _titlebar;
-    private readonly GridSplitter _gridSplitter;
     private readonly ISearchService _searchService;
 
     public MainWindow(
@@ -61,13 +63,8 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
 
-        _tabService = tabService;
-        _config = config;
-        _textMeasurer = textMeasurer;
-        _themeManager = themeManager;
-        _scrollManager = scrollManager;
-        _mainWindowViewModel = mainWindowViewModel;
-        _searchService = searchService;
+        (_tabService, _config, _textMeasurer, _themeManager, _scrollManager, _mainWindowViewModel, _searchService) =
+            (tabService, config, textMeasurer, themeManager, scrollManager, mainWindowViewModel, searchService);
 
         DataContext = mainWindowViewModel;
         ClipToBounds = false;
@@ -136,12 +133,7 @@ public partial class MainWindow : Window
         Grid.SetColumn(_commandPalette, 0);
         Grid.SetColumnSpan(_commandPalette, 3);
 
-        mainGrid.Children.Add(_titlebar);
-        mainGrid.Children.Add(_leftSideBar);
-        mainGrid.Children.Add(_gridSplitter);
-        mainGrid.Children.Add(tabControl);
-        mainGrid.Children.Add(_statusBar);
-        mainGrid.Children.Add(_commandPalette);
+        mainGrid.Children.AddRange([_titlebar, _leftSideBar, _gridSplitter, tabControl, _statusBar, _commandPalette]);
 
         Content = mainGrid;
         mainGrid.ClipToBounds = false;
@@ -160,16 +152,11 @@ public partial class MainWindow : Window
 
     private void MainWindow_PointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        var point = e.GetPosition(this);
-        if (!_commandPalette.Bounds.Contains(point) && _mainWindowViewModel.IsCommandPaletteVisible)
+        if (!_commandPalette.Bounds.Contains(e.GetPosition(this)) && _mainWindowViewModel.IsCommandPaletteVisible)
             _mainWindowViewModel.ToggleCommandPaletteCommand.Execute(null);
     }
 
-    private void UpdateTitlebarBackground(bool isActive)
-    {
-        if (_titlebar != null)
-            _titlebar.UpdateBackground(isActive);
-    }
+    private void UpdateTitlebarBackground(bool isActive) => _titlebar?.UpdateBackground(isActive);
 
     private async void OnDirectoryOpenRequested(object? sender, string e)
     {
@@ -179,15 +166,14 @@ public partial class MainWindow : Window
             var result = await storageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions());
             if (result.Count > 0)
             {
-                var selectedFolder = result[0];
-                OnDirectoryOpened(this, selectedFolder.Path.LocalPath);
+                OnDirectoryOpened(this, result[0].Path.LocalPath);
             }
         }
     }
 
     private void UpdateTheme()
     {
-        if (_themeManager == null || _themeManager.CurrentTheme == null)
+        if (_themeManager?.CurrentTheme == null)
         {
             Console.WriteLine("Error: ThemeManager or CurrentTheme is null in UpdateTheme method.");
             return;
@@ -197,9 +183,12 @@ public partial class MainWindow : Window
         Background = new SolidColorBrush(Color.Parse(theme.AppBackgroundColor));
         UpdateTitlebarBackground(IsActive);
 
-        if (_gridSplitter != null) _gridSplitter.Background = new SolidColorBrush(Color.Parse(theme.BorderBrush));
-        if (_sourceControlView != null) _sourceControlView.UpdateBackground(theme);
-        if (_leftSideBar!= null) _leftSideBar.UpdateBackground(theme);
+        if (_gridSplitter != null)
+        {
+            _gridSplitter.Background = new SolidColorBrush(Color.Parse(theme.BorderBrush));
+        }
+        _sourceControlView?.UpdateBackground(theme);
+        _leftSideBar?.UpdateBackground(theme);
     }
 
     private void OnFileSelected(object? sender, string? filePath)
@@ -212,16 +201,15 @@ public partial class MainWindow : Window
                 return;
             }
 
-            // Check if the file is already open
             var existingTab = _tabService.Tabs.FirstOrDefault(t => t?.FilePath == filePath);
             if (existingTab != null)
             {
                 _tabService.SetActiveTab(existingTab);
-                return;
             }
-
-            // Open the file in a new tab
-            CreateOrOpenTab(filePath);
+            else
+            {
+                CreateOrOpenTab(filePath);
+            }
         }
         catch (Exception ex)
         {
@@ -232,7 +220,7 @@ public partial class MainWindow : Window
     private void OnDirectoryOpened(object? sender, string? directoryPath)
     {
         _titlebar.SetProjectNameFromDirectory(directoryPath);
-        _sourceControlView.UpdateChangesAsync();
+        _ = _sourceControlView.UpdateChangesAsync();
     }
 
     private void CreateOrOpenTab(string? filePath = null)

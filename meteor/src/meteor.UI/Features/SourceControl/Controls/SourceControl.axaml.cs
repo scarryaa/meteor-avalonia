@@ -48,20 +48,13 @@ public class SourceControlView : UserControl
 
         Content = new Grid
         {
-            RowDefinitions = new RowDefinitions("Auto,*"),
+            RowDefinitions = new RowDefinitions("*"),
             Children =
             {
-                new TextBlock
-                {
-                    Text = "Source Control",
-                    FontWeight = FontWeight.Bold,
-                    FontSize = 16,
-                    Margin = new Thickness(10)
-                },
                 new Border
                 {
                     Child = _scrollViewer,
-                    [Grid.RowProperty] = 1
+                    [Grid.RowProperty] = 0
                 }
             }
         };
