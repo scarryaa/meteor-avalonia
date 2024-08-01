@@ -166,7 +166,7 @@ public partial class MainWindow : Window
         return new Grid
         {
             RowDefinitions = new RowDefinitions("Auto,*,Auto"),
-            ColumnDefinitions = new ColumnDefinitions($"{_leftPanelWidth},Auto,*,Auto,{_rightPanelWidth}"),
+            ColumnDefinitions = new ColumnDefinitions($"{_leftPanelWidth},Auto,*,Auto,0"),
             ClipToBounds = false
         };
     }
