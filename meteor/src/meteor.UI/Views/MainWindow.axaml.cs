@@ -1,10 +1,15 @@
+using System;
+using System.IO;
+using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Data;
 using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Platform.Storage;
+using Avalonia.Threading;
 using meteor.Core.Config;
 using meteor.Core.Interfaces;
 using meteor.Core.Interfaces.Config;
@@ -45,6 +50,7 @@ public partial class MainWindow : Window
     private readonly ITextMeasurer _textMeasurer;
     private readonly IThemeManager _themeManager;
     private readonly ISearchService _searchService;
+    private readonly IGitService _gitService;
 
     public MainWindow(
         MainWindowViewModel mainWindowViewModel,
@@ -62,8 +68,8 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
 
-        (_tabService, _config, _textMeasurer, _themeManager, _scrollManager, _mainWindowViewModel, _searchService) =
-            (tabService, config, textMeasurer, themeManager, scrollManager, mainWindowViewModel, searchService);
+        (_tabService, _config, _textMeasurer, _themeManager, _scrollManager, _mainWindowViewModel, _searchService, _gitService) =
+            (tabService, config, textMeasurer, themeManager, scrollManager, mainWindowViewModel, searchService, gitService);
 
         DataContext = mainWindowViewModel;
         ClipToBounds = false;
@@ -87,7 +93,7 @@ public partial class MainWindow : Window
 
         _titlebar = new Titlebar(_themeManager);
         _titlebar.SetProjectNameFromDirectory(Environment.CurrentDirectory);
-        _titlebar.DirectoryOpenRequested += OnDirectoryOpenRequested;
+        _titlebar.DirectoryOpenRequested += OnOpenDirectoryRequested;
 
         _statusBar = new StatusBar(_themeManager);
 
@@ -104,7 +110,6 @@ public partial class MainWindow : Window
 
         _leftSideBar = new LeftSideBar(fileService, _themeManager, gitService, _searchService);
         _leftSideBar.FileSelected += OnFileSelected;
-        _leftSideBar.DirectoryOpened += OnDirectoryOpened;
         _sourceControlView = new SourceControlView(_themeManager, gitService);
 
         var mainGrid = new Grid
@@ -149,15 +154,7 @@ public partial class MainWindow : Window
         PointerPressed += MainWindow_PointerPressed;
     }
 
-    private void MainWindow_PointerPressed(object? sender, PointerPressedEventArgs e)
-    {
-        if (!_commandPalette.Bounds.Contains(e.GetPosition(this)) && _mainWindowViewModel.IsCommandPaletteVisible)
-            _mainWindowViewModel.ToggleCommandPaletteCommand.Execute(null);
-    }
-
-    private void UpdateTitlebarBackground(bool isActive) => _titlebar?.UpdateBackground(isActive);
-
-    private async void OnDirectoryOpenRequested(object? sender, string e)
+    private async void OnOpenDirectoryRequested(object? sender, string? e)
     {
         var storageProvider = StorageProvider ?? GetTopLevel(this)?.StorageProvider;
         if (storageProvider != null)
@@ -165,10 +162,18 @@ public partial class MainWindow : Window
             var result = await storageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions());
             if (result.Count > 0)
             {
-                OnDirectoryOpened(this, result[0].Path.LocalPath);
+                await OnDirectoryOpenedAsync(this, result[0].Path.LocalPath);
             }
         }
     }
+
+    private void MainWindow_PointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (!_commandPalette.Bounds.Contains(e.GetPosition(this)) && _mainWindowViewModel.IsCommandPaletteVisible)
+            _mainWindowViewModel.ToggleCommandPaletteCommand.Execute(null);
+    }
+
+    private void UpdateTitlebarBackground(bool isActive) => _titlebar?.UpdateBackground(isActive);
 
     private void UpdateTheme()
     {
@@ -216,12 +221,29 @@ public partial class MainWindow : Window
         }
     }
 
-    private void OnDirectoryOpened(object? sender, string? directoryPath)
+    private async Task OnDirectoryOpenedAsync(object? sender, string? directoryPath)
     {
+        if (string.IsNullOrEmpty(directoryPath))
+        {
+            return;
+        }
+
         _titlebar.SetProjectNameFromDirectory(directoryPath);
-        _ = _sourceControlView.UpdateChangesAsync();
-        _searchService.UpdateProjectRoot(directoryPath);
-        _leftSideBar.UpdateFiles(directoryPath);
+
+        await Dispatcher.UIThread.InvokeAsync(async () =>
+        {
+            await Task.WhenAll(
+                Task.Run(() => _gitService.UpdateProjectRoot(directoryPath)),
+                Task.Run(() => _searchService.UpdateProjectRoot(directoryPath)),
+                Task.Run(() => _leftSideBar.UpdateFiles(directoryPath)),
+                Task.Run(() => _leftSideBar.SetDirectory(directoryPath)),
+                _sourceControlView.UpdateChangesAsync()
+            );
+        });
+
+        // Refresh UI components
+        _leftSideBar.InvalidateVisual();
+        _sourceControlView.InvalidateVisual();
     }
 
     private void CreateOrOpenTab(string? filePath = null)

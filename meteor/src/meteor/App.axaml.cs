@@ -110,8 +110,7 @@ public class App : Application
         services.AddSingleton<IFileService, FileService>();
         services.AddSingleton<IThemeManager>(sp => ThemeManager.Instance);
         services.AddSingleton<ISettingsService, SettingsService>();
-        services.AddSingleton<IGitService, GitService>(sp =>
-            new GitService(Path.Combine(AppContext.BaseDirectory, "meteor.git")));
+        services.AddSingleton<IGitService, GitService>(sp => new GitService(""));
         services.AddSingleton<ISearchService, SearchService>();
 
         // Editor Services

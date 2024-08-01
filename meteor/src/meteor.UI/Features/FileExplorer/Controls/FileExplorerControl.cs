@@ -10,6 +10,7 @@ using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Styling;
+using Avalonia.Threading;
 using meteor.Core.Models;
 using Color = Avalonia.Media.Color;
 using Point = Avalonia.Point;
@@ -51,13 +52,16 @@ public class FileExplorerControl : UserControl
 
     public void SetDirectory(string path)
     {
-        _selectPathButton.IsVisible = false;
-        _items.Clear();
-        _items.Add(new FileItem(path, true));
-        PopulateChildren(_items[0]);
-        _items[0].IsExpanded = true;
-        UpdateCanvasSize();
-        InvalidateVisual();
+        Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            _selectPathButton.IsVisible = false;
+            _items.Clear();
+            _items.Add(new FileItem(path, true));
+            PopulateChildren(_items[0]);
+            _items[0].IsExpanded = true;
+            UpdateCanvasSize();
+            InvalidateVisual();
+        });
     }
 
     private void InitializeComponent()
@@ -229,14 +233,7 @@ public class FileExplorerControl : UserControl
 
         if (!string.IsNullOrEmpty(result))
         {
-            _items.Clear();
-            _items.Add(new FileItem(result, true));
-            PopulateChildren(_items[0]);
-            _items[0].IsExpanded = true;
-            UpdateCanvasSize();
-            InvalidateVisual();
-            UpdateSelectPathButtonVisibility();
-
+            SetDirectory(result);
             var rootDirectoryPath = Path.GetFullPath(result);
             DirectoryOpened?.Invoke(this, rootDirectoryPath);
         }

@@ -2,6 +2,7 @@ using System.Globalization;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
+using Avalonia.Input;
 using Avalonia.Media;
 using meteor.Core.Interfaces.Services;
 using meteor.Core.Models;
@@ -10,19 +11,25 @@ using Color = Avalonia.Media.Color;
 using Point = Avalonia.Point;
 using Size = Avalonia.Size;
 using SolidColorBrush = Avalonia.Media.SolidColorBrush;
+using Vector = Avalonia.Vector;
 
 namespace meteor.UI.Features.SourceControl.Controls;
 
-public class SourceControlView : UserControl
+public partial class SourceControlView : UserControl
 {
-    private const double _itemHeight = 24;
-    private readonly IGitService _gitService;
-    private readonly double _leftPadding = 10;
-    private readonly double _rightPadding = 10;
+    private const double ItemHeight = 24;
+    private const double LeftPadding = 10;
+    private const double IconSize = 16;
+    private const double ItemSpacing = 0;
+    private const double HeaderHeight = 24;
+    private const double ChevronLeftMargin = 10;
+
     private readonly IThemeManager _themeManager;
+    private readonly IGitService _gitService;
+    private SourceControlViewModel _viewModel;
     private Canvas _canvas;
     private ScrollViewer _scrollViewer;
-    private SourceControlViewModel _viewModel;
+    private bool _isChangesExpanded = true;
 
     public SourceControlView(IThemeManager themeManager, IGitService gitService)
     {
@@ -32,7 +39,7 @@ public class SourceControlView : UserControl
         DataContext = _viewModel;
 
         InitializeComponent();
-        _viewModel.PropertyChanged += (_, __) => InvalidateVisual();
+        SetupEventHandlers();
     }
 
     private void InitializeComponent()
@@ -49,173 +56,167 @@ public class SourceControlView : UserControl
         Content = new Grid
         {
             RowDefinitions = new RowDefinitions("*"),
-            Children =
-            {
-                new Border
-                {
-                    Child = _scrollViewer,
-                    [Grid.RowProperty] = 0
-                }
-            }
+            Children = { new Border { Child = _scrollViewer, [Grid.RowProperty] = 0 } }
         };
 
         UpdateCanvasSize();
-        LoadChanges();
     }
 
-    private async Task LoadChanges()
+    private void SetupEventHandlers()
     {
-        await _viewModel.LoadChangesCommand.ExecuteAsync(null);
+        _scrollViewer.ScrollChanged += (_, _) => InvalidateVisual();
+        PointerPressed += OnPointerPressed;
+        PointerMoved += OnPointerMoved;
+        PointerExited += OnPointerExited;
+        KeyDown += OnKeyDown;
+        _viewModel.PropertyChanged += (_, _) => InvalidateVisual();
+        _themeManager.ThemeChanged += OnThemeChanged;
     }
 
-    protected override void OnDataContextChanged(EventArgs e)
+    private void OnThemeChanged(object sender, Theme newTheme)
     {
-        base.OnDataContextChanged(e);
-        if (DataContext is SourceControlViewModel vm)
-        {
-            _viewModel = vm;
-            _viewModel.PropertyChanged += (_, __) => InvalidateVisual();
-            InvalidateVisual();
-        }
+        InvalidateVisual();
     }
 
     public override void Render(DrawingContext context)
     {
         base.Render(context);
+        if (!IsVisible) return;
 
-        if (!IsVisible)
-            return;
+        var viewportRect = new Rect(new Point(0, 0), _scrollViewer.Viewport);
+        context.FillRectangle(new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.BackgroundColor)), viewportRect);
 
-        var viewportRect = new Rect(new Point(0, 0),
-            new Size(_scrollViewer.Viewport.Width, _scrollViewer.Viewport.Height));
-        context.FillRectangle(new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.BackgroundColor)),
-            viewportRect);
+        RenderHeader(context, viewportRect);
 
-        RenderItems(context, _viewModel.Changes, -_scrollViewer.Offset.Y, viewportRect);
+        if (_isChangesExpanded && _viewModel.Changes != null && _viewModel.Changes.Any())
+        {
+            RenderItems(context, _viewModel.Changes, -_scrollViewer.Offset.Y + HeaderHeight, viewportRect);
+        }
+        else if (!_isChangesExpanded)
+        {
+            // Render nothing when collapsed
+        }
     }
 
-    private void RenderItems(DrawingContext context, IEnumerable<FileChange> changes, double y, Rect viewport)
+    private void RenderHeader(DrawingContext context, Rect viewport)
     {
-        foreach (var change in changes)
+        var textBrush = new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.TextColor));
+
+        // Draw selection or hover rectangle for header
+        if (_viewModel.SelectedFile == null || _viewModel.HoveredItem == null)
         {
-            if (y + _itemHeight > 0 && y < viewport.Height) RenderItem(context, change, y, viewport);
+            var selectionRect = new Rect(0, 0, viewport.Width, HeaderHeight);
+            var fillColor = _viewModel.SelectedFile == null ? Color.FromArgb(50, 128, 128, 128) : Color.FromArgb(30, 128, 128, 128);
+            context.FillRectangle(new SolidColorBrush(fillColor), selectionRect);
+        }
 
-            y += _itemHeight;
+        // Draw collapse/expand icon
+        var iconChar = _isChangesExpanded ? "\uf078" : "\uf054"; // chevron-down : chevron-right
+        var fontAwesomeSolid = new FontFamily("avares://meteor.UI/Common/Assets/Fonts/FontAwesome/Font Awesome 6 Free-Solid-900.otf#Font Awesome 6 Free");
+        var iconGeometry = CreateFormattedTextGeometry(iconChar, new Typeface(fontAwesomeSolid), 12, textBrush);
 
+        iconGeometry.Transform = new MatrixTransform(Matrix.CreateTranslation(ChevronLeftMargin, (HeaderHeight - 12) / 2));
+        context.DrawGeometry(textBrush, null, iconGeometry);
+
+        var headerText = "Changes";
+        var formattedText = new FormattedText(headerText, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, new Typeface("San Francisco", FontStyle.Normal, FontWeight.Normal, FontStretch.Normal), 14, textBrush);
+
+        context.DrawText(formattedText, new Point(ChevronLeftMargin + 20, (HeaderHeight - formattedText.Height) / 2));
+    }
+
+    private void RenderItems(DrawingContext context, IEnumerable<FileChange> changedFiles, double startY, Rect viewport)
+    {
+        double y = startY;
+        foreach (var file in changedFiles)
+        {
+            if (y + ItemHeight > HeaderHeight && y < viewport.Height)
+            {
+                RenderItem(context, file, y, viewport.Width);
+            }
+            y += ItemHeight + ItemSpacing;
             if (y > viewport.Height) break;
         }
     }
 
-    private void RenderItem(DrawingContext context, FileChange change, double y, Rect viewport)
+    private void RenderItem(DrawingContext context, FileChange file, double y, double viewportWidth)
     {
-        RenderItemIcon(context, change, y);
-        RenderItemText(context, change, y);
+        // Draw selection/hover effect
+        if (file == _viewModel.SelectedFile || file == _viewModel.HoveredItem)
+        {
+            var rect = new Rect(0, y, viewportWidth, ItemHeight);
+            context.FillRectangle(new SolidColorBrush(Color.FromArgb(50, 128, 128, 128)), rect);
+        }
+
+        RenderItemIcon(context, y);
+        RenderItemText(context, Path.GetFileName(file.FilePath), y, viewportWidth);
     }
 
-    private void RenderItemIcon(DrawingContext context, FileChange change, double y)
+    private void RenderItemIcon(DrawingContext context, double y)
     {
-        var iconSize = 16;
-        var iconChar = GetChangeTypeIcon(change.ChangeType);
-        var iconBrush = new SolidColorBrush(GetChangeTypeColor(change.ChangeType));
-        var fontAwesomeSolid =
-            new FontFamily(
-                "avares://meteor.UI/Common/Assets/Fonts/FontAwesome/Font Awesome 6 Free-Solid-900.otf#Font Awesome 6 Free");
-        var typeface = new Typeface(fontAwesomeSolid);
+        var iconChar = "\uf15b"; // Default file icon
+        var iconBrush = new SolidColorBrush(Colors.Gray);
+        var fontAwesomeSolid = new FontFamily("avares://meteor.UI/Common/Assets/Fonts/FontAwesome/Font Awesome 6 Free-Solid-900.otf#Font Awesome 6 Free");
+        var iconGeometry = CreateFormattedTextGeometry(iconChar, new Typeface(fontAwesomeSolid), IconSize, iconBrush);
 
-        var iconGeometry = CreateFormattedTextGeometry(iconChar, typeface, iconSize, iconBrush);
-
-        var iconX = _leftPadding * 2.35 - _scrollViewer.Offset.X;
-        var iconY = y + (_itemHeight - iconSize) / 2;
-
-        iconGeometry.Transform = new MatrixTransform(Matrix.CreateTranslation(iconX + 1, iconY));
+        iconGeometry.Transform = new MatrixTransform(Matrix.CreateTranslation(LeftPadding - _scrollViewer.Offset.X, y + (ItemHeight - IconSize) / 2));
         context.DrawGeometry(iconBrush, null, iconGeometry);
     }
 
-    private void RenderItemText(DrawingContext context, FileChange change, double y)
+    private void RenderItemText(DrawingContext context, string fileName, double y, double viewportWidth)
     {
         var textBrush = new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.TextColor));
-        var textSize = 13;
-        var typeface = new Typeface("San Francisco");
-
-        var formattedText = new FormattedText(
-            change.FilePath,
-            CultureInfo.CurrentCulture,
-            FlowDirection.LeftToRight,
-            typeface,
-            textSize,
-            textBrush
-        );
-
-        var textX = _leftPadding * 2.65 + 20 - _scrollViewer.Offset.X;
-        var textY = y + (_itemHeight - formattedText.Height) / 2;
-
-        context.DrawText(formattedText, new Point(textX, textY));
+        var maxTextWidth = viewportWidth - LeftPadding - IconSize - 10;
+        var truncatedText = TruncateText(fileName, maxTextWidth);
+        var formattedText = new FormattedText(truncatedText, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, new Typeface("San Francisco"), 13, textBrush);
+        context.DrawText(formattedText, new Point(LeftPadding + IconSize + 10 - _scrollViewer.Offset.X, y + (ItemHeight - formattedText.Height) / 2));
     }
 
-    private Geometry CreateFormattedTextGeometry(string text, Typeface typeface, double size, IBrush brush)
+    private string TruncateText(string text, double maxWidth)
     {
-        return new FormattedText(
-            text,
-            CultureInfo.CurrentCulture,
-            FlowDirection.LeftToRight,
-            typeface,
-            size,
-            brush
-        ).BuildGeometry(new Point(0, 0));
-    }
+        var ellipsis = "...";
+        var formattedText = new FormattedText(text, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, new Typeface("San Francisco"), 13, Brushes.Black);
 
-    private string GetChangeTypeIcon(FileChangeType changeType)
-    {
-        return changeType switch
+        if (formattedText.Width <= maxWidth)
+            return text;
+
+        while (formattedText.Width > maxWidth && text.Length > 1)
         {
-            FileChangeType.Added => "\uf055", // plus-circle
-            FileChangeType.Deleted => "\uf056", // minus-circle
-            FileChangeType.Modified => "\uf044", // edit
-            _ => "\uf128" // question
-        };
+            text = text.Substring(0, text.Length - 1);
+            formattedText = new FormattedText(text + ellipsis, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, new Typeface("San Francisco"), 13, Brushes.Black);
+        }
+
+        return text + ellipsis;
     }
 
-    private Color GetChangeTypeColor(FileChangeType changeType)
-    {
-        return changeType switch
-        {
-            FileChangeType.Added => Colors.Green,
-            FileChangeType.Deleted => Colors.Red,
-            FileChangeType.Modified => Colors.Orange,
-            _ => Colors.Gray
-        };
-    }
+    private Geometry CreateFormattedTextGeometry(string text, Typeface typeface, double size, IBrush brush) =>
+        new FormattedText(text, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, typeface, size, brush).BuildGeometry(new Point(0, 0));
 
     private void UpdateCanvasSize()
     {
-        var totalHeight = Math.Max(_viewModel.Changes.Count * _itemHeight, _scrollViewer.Bounds.Height);
-        var maxWidth = Math.Max(CalculateMaxWidth(_viewModel.Changes) + 20, _scrollViewer.Bounds.Width);
-        _canvas.Width = maxWidth;
-        _canvas.Height = totalHeight;
+        _canvas.Height = CalculateTotalHeight(_viewModel.Changes);
     }
 
-    private double CalculateMaxWidth(IEnumerable<FileChange> changes)
+    private double CalculateTotalHeight(IEnumerable<FileChange> changedFiles)
     {
-        var maxWidth = 0.0;
-        foreach (var change in changes)
+        if (changedFiles == null || !changedFiles.Any() || !_isChangesExpanded)
         {
-            var itemWidth = _leftPadding + MeasureTextWidth(change.FilePath) + _rightPadding;
-            maxWidth = Math.Max(maxWidth, itemWidth);
+            return HeaderHeight;
         }
 
-        return maxWidth;
+        return Math.Max(HeaderHeight + changedFiles.Count() * (ItemHeight + ItemSpacing), _scrollViewer.Bounds.Height);
     }
 
-    private double MeasureTextWidth(string text)
+    private double MeasureTextWidth(string text, double fontSize)
     {
-        return new FormattedText(
-                   text,
-                   CultureInfo.CurrentCulture,
-                   FlowDirection.LeftToRight,
-                   new Typeface("San Francisco"),
-                   13,
-                   new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.TextColor))).Width + _rightPadding +
-               _leftPadding;
+        var formattedText = new FormattedText(
+            text,
+            CultureInfo.CurrentCulture,
+            FlowDirection.LeftToRight,
+            new Typeface("San Francisco"),
+            fontSize,
+            new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.TextColor))
+        );
+        return formattedText.Width;
     }
 
     internal async Task UpdateChangesAsync()
@@ -228,6 +229,7 @@ public class SourceControlView : UserControl
     internal void UpdateBackground(Theme theme)
     {
         Background = new SolidColorBrush(Color.Parse(theme.BackgroundColor));
+        InvalidateVisual();
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
@@ -237,6 +239,156 @@ public class SourceControlView : UserControl
         {
             UpdateCanvasSize();
             InvalidateVisual();
+        }
+    }
+
+    private void OnPointerPressed(object sender, PointerPressedEventArgs e)
+    {
+        var point = e.GetPosition(this);
+
+        // Check if header was clicked
+        if (point.Y < HeaderHeight)
+        {
+            _viewModel.SelectedFile = null;
+            _isChangesExpanded = !_isChangesExpanded;
+            UpdateCanvasSize();
+            InvalidateVisual();
+            return;
+        }
+
+        if (!_isChangesExpanded) return;
+
+        double y = HeaderHeight - _scrollViewer.Offset.Y;
+
+        if (_viewModel.Changes == null) return;
+
+        foreach (var file in _viewModel.Changes)
+        {
+            if (point.Y >= y && point.Y < y + ItemHeight)
+            {
+                _viewModel.SelectedFile = file;
+                InvalidateVisual();
+                // TODO: Implement action for selected file
+                return;
+            }
+            y += ItemHeight + ItemSpacing;
+        }
+    }
+
+    private void OnPointerMoved(object sender, PointerEventArgs e)
+    {
+        var point = e.GetPosition(this);
+
+        if (point.Y < HeaderHeight || !_isChangesExpanded)
+        {
+            if (_viewModel.HoveredItem != null)
+            {
+                _viewModel.HoveredItem = null;
+                InvalidateVisual();
+            }
+            return;
+        }
+
+        double y = HeaderHeight - _scrollViewer.Offset.Y;
+
+        if (_viewModel.Changes == null) return;
+
+        FileChange newHoveredItem = null;
+
+        foreach (var file in _viewModel.Changes)
+        {
+            if (point.Y >= y && point.Y < y + ItemHeight)
+            {
+                newHoveredItem = file;
+                break;
+            }
+            y += ItemHeight + ItemSpacing;
+        }
+
+        if (_viewModel.HoveredItem != newHoveredItem)
+        {
+            _viewModel.HoveredItem = newHoveredItem;
+            InvalidateVisual();
+        }
+
+        if (newHoveredItem != null)
+        {
+            ToolTip.SetTip(this, newHoveredItem.FilePath);
+        }
+        else
+        {
+            ToolTip.SetTip(this, null);
+        }
+    }
+
+    private void OnPointerExited(object sender, PointerEventArgs e)
+    {
+        if (_viewModel.HoveredItem != null)
+        {
+            _viewModel.HoveredItem = null;
+            InvalidateVisual();
+        }
+        ToolTip.SetTip(this, null);
+    }
+
+    private void OnKeyDown(object sender, KeyEventArgs e)
+    {
+        if (!_isChangesExpanded) return;
+
+        switch (e.Key)
+        {
+            case Key.Up:
+                if (_viewModel.SelectedFile == null)
+                {
+                    // If header is selected, do nothing on Up key
+                    return;
+                }
+                _viewModel.MoveSelection(-1);
+                EnsureSelectedItemVisible();
+                break;
+            case Key.Down:
+                if (_viewModel.SelectedFile == null)
+                {
+                    // If header is selected, select the first item
+                    _viewModel.MoveSelection(0);
+                }
+                else
+                {
+                    _viewModel.MoveSelection(1);
+                }
+                EnsureSelectedItemVisible();
+                break;
+            case Key.Enter:
+                if (_viewModel.SelectedFile == null)
+                {
+                    _isChangesExpanded = !_isChangesExpanded;
+                    UpdateCanvasSize();
+                    InvalidateVisual();
+                }
+                else
+                {
+                    // TODO: Implement action for selected file
+                }
+                break;
+        }
+    }
+
+    private void EnsureSelectedItemVisible()
+    {
+        if (_viewModel.SelectedFile == null) return;
+
+        int index = _viewModel.Changes.IndexOf(_viewModel.SelectedFile);
+        if (index == -1) return;
+
+        double y = HeaderHeight + index * (ItemHeight + ItemSpacing);
+
+        if (y < _scrollViewer.Offset.Y + HeaderHeight)
+        {
+            _scrollViewer.Offset = new Vector(_scrollViewer.Offset.X, y - HeaderHeight);
+        }
+        else if (y + ItemHeight > _scrollViewer.Offset.Y + _scrollViewer.Viewport.Height)
+        {
+            _scrollViewer.Offset = new Vector(_scrollViewer.Offset.X, y + ItemHeight - _scrollViewer.Viewport.Height);
         }
     }
 }
