@@ -220,6 +220,8 @@ public partial class MainWindow : Window
     {
         _titlebar.SetProjectNameFromDirectory(directoryPath);
         _ = _sourceControlView.UpdateChangesAsync();
+        _searchService.UpdateProjectRoot(directoryPath);
+        _leftSideBar.UpdateFiles(directoryPath);
     }
 
     private void CreateOrOpenTab(string? filePath = null)

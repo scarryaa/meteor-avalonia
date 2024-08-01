@@ -1,7 +1,6 @@
 using System.Globalization;
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.Presenters;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Media;
@@ -36,13 +35,8 @@ namespace meteor.UI.Features.SearchView.Controls
         private Canvas _canvas;
         private ScrollViewer _scrollViewer;
         private TextBox _searchBox;
-        private Dictionary<string, List<SearchResult>> _groupedItems;
-        private HashSet<string> _collapsedGroups = new HashSet<string>();
-        private double _totalContentHeight;
-        private FormattedText _cachedFormattedText;
         private Dictionary<string, double> _cachedItemHeights = new Dictionary<string, double>();
-        private SearchResult _hoveredItem;
-        private string _hoveredHeader;
+        private FormattedText _cachedFormattedText;
 
         public SearchView(ISearchService searchService, IThemeManager themeManager)
         {
@@ -65,6 +59,7 @@ namespace meteor.UI.Features.SearchView.Controls
                 CornerRadius = new CornerRadius(4),
                 BorderThickness = new Thickness(1),
                 Height = SearchBoxHeight,
+                Foreground = new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.TextColor))
             };
             _searchBox.Classes.Add("default-style");
             UpdateSearchBoxStyles();
@@ -129,6 +124,7 @@ namespace meteor.UI.Features.SearchView.Controls
                     new Setter(Border.BorderBrushProperty, new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.BorderBrush))),
                     new Setter(Border.CornerRadiusProperty, new CornerRadius(4)),
                     new Setter(Border.BorderThicknessProperty, new Thickness(1)),
+                    new Setter(ForegroundProperty, new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.TextColor)))
                 }
             });
 
@@ -162,18 +158,8 @@ namespace meteor.UI.Features.SearchView.Controls
         {
             _viewModel.SearchQuery = _searchBox.Text;
             await _viewModel.ExecuteSearchCommand.ExecuteAsync(null);
-            UpdateGroupedItems();
             UpdateCanvasSize();
             InvalidateVisual();
-        }
-
-        private void UpdateGroupedItems()
-        {
-            _groupedItems = _viewModel.SearchResults
-                .GroupBy(r => r.FileName)
-                .ToDictionary(g => g.Key, g => g.ToList());
-            _totalContentHeight = CalculateTotalHeight(_groupedItems);
-            _cachedItemHeights.Clear(); // Clear the cache when updating items
         }
 
         public override void Render(DrawingContext context)
@@ -195,12 +181,12 @@ namespace meteor.UI.Features.SearchView.Controls
 
         private void RenderVisibleItems(DrawingContext context, double startY, Rect viewport)
         {
-            if (_groupedItems == null || _groupedItems.Count == 0) return;
+            if (_viewModel.GroupedItems == null || _viewModel.GroupedItems.Count == 0) return;
 
             double y = startY;
             var textBrush = new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.TextColor));
 
-            foreach (var group in _groupedItems)
+            foreach (var group in _viewModel.GroupedItems)
             {
                 if (y > viewport.Bottom) break;
 
@@ -214,7 +200,7 @@ namespace meteor.UI.Features.SearchView.Controls
                 RenderFileHeader(context, group.Key, y, textBrush);
                 y += ItemHeight + ItemSpacing;
 
-                if (!_collapsedGroups.Contains(group.Key))
+                if (!_viewModel.CollapsedGroups.Contains(group.Key))
                 {
                     foreach (var item in group.Value)
                     {
@@ -233,7 +219,7 @@ namespace meteor.UI.Features.SearchView.Controls
 
         private double CalculateGroupHeight(KeyValuePair<string, List<SearchResult>> group)
         {
-            if (_collapsedGroups.Contains(group.Key))
+            if (_viewModel.CollapsedGroups.Contains(group.Key))
             {
                 return ItemHeight + ItemSpacing;
             }
@@ -247,7 +233,7 @@ namespace meteor.UI.Features.SearchView.Controls
 
         private void RenderFileHeader(DrawingContext context, string fileName, double y, IBrush textBrush)
         {
-            var isCollapsed = _collapsedGroups.Contains(fileName);
+            var isCollapsed = _viewModel.CollapsedGroups.Contains(fileName);
             var chevronChar = isCollapsed ? "\uf078" : "\uf054"; // chevron-down : chevron-right
 
             // Render chevron
@@ -278,7 +264,7 @@ namespace meteor.UI.Features.SearchView.Controls
             context.DrawText(_cachedFormattedText, new Point(LeftPadding + ChevronWidth + 5 - _scrollViewer.Offset.X, textY));
 
             // Render hover effect
-            if (fileName == _hoveredHeader)
+            if (fileName == _viewModel.HoveredHeader)
             {
                 var hoverRect = new Rect(LeftPadding - _scrollViewer.Offset.X, y, _scrollViewer.Viewport.Width - LeftPadding - RightPadding, ItemHeight);
                 context.FillRectangle(new SolidColorBrush(Color.FromArgb(50, 128, 128, 128)), hoverRect);
@@ -291,7 +277,7 @@ namespace meteor.UI.Features.SearchView.Controls
             var snippet = TruncateText(item.SurroundingContext?.TrimStart() ?? "No snippet available", maxWidth, SnippetFontSize);
 
             // Draw hover effect
-            if (item == _hoveredItem)
+            if (item == _viewModel.HoveredItem)
             {
                 var hoverRect = new Rect(LeftPadding - _scrollViewer.Offset.X, y, _scrollViewer.Viewport.Width - LeftPadding - RightPadding, itemHeight);
                 context.FillRectangle(new SolidColorBrush(Color.FromArgb(50, 128, 128, 128)), hoverRect);
@@ -373,9 +359,10 @@ namespace meteor.UI.Features.SearchView.Controls
 
         private void UpdateCanvasSize()
         {
-            var maxWidth = Math.Max(CalculateMaxWidth(_groupedItems), _scrollViewer.Bounds.Width);
+            var maxWidth = Math.Max(CalculateMaxWidth(_viewModel.GroupedItems), _scrollViewer.Bounds.Width);
             _canvas.Width = maxWidth;
-            _canvas.Height = CalculateTotalHeight(_groupedItems);
+            _canvas.Height = CalculateTotalHeight(_viewModel.GroupedItems);
+            _viewModel.TotalContentHeight = _canvas.Height;
         }
 
         private double CalculateTotalHeight(Dictionary<string, List<SearchResult>> groupedItems)
@@ -391,7 +378,7 @@ namespace meteor.UI.Features.SearchView.Controls
             {
                 totalHeight += ItemHeight + ItemSpacing; // Group header height
 
-                if (!_collapsedGroups.Contains(group.Key))
+                if (!_viewModel.CollapsedGroups.Contains(group.Key))
                 {
                     totalHeight += group.Value.Sum(item => GetCachedItemHeight(item) + ItemSpacing);
                 }
@@ -412,7 +399,7 @@ namespace meteor.UI.Features.SearchView.Controls
             {
                 double groupWidth = MeasureTextWidth(group.Key ?? "No file name", FileNameFontSize, FontWeight.Bold);
 
-                if (!_collapsedGroups.Contains(group.Key))
+                if (!_viewModel.CollapsedGroups.Contains(group.Key))
                 {
                     groupWidth = Math.Max(groupWidth, group.Value.Max(item =>
                         MeasureTextWidth(item.FileName, FileNameFontSize) + ItemIndentation));
@@ -443,7 +430,6 @@ namespace meteor.UI.Features.SearchView.Controls
         internal async Task UpdateSearchAsync()
         {
             await _viewModel.ExecuteSearchCommand.ExecuteAsync(null);
-            UpdateGroupedItems();
             UpdateCanvasSize();
             InvalidateVisual();
         }
@@ -468,18 +454,20 @@ namespace meteor.UI.Features.SearchView.Controls
             var point = e.GetPosition(this);
             double y = -_scrollViewer.Offset.Y + _searchBox.Bounds.Height + SearchBoxBottomMargin;
 
-            if (_groupedItems == null) return;
+            if (_viewModel.GroupedItems == null) return;
 
-            foreach (var group in _groupedItems)
+            foreach (var group in _viewModel.GroupedItems)
             {
                 if (point.Y >= y && point.Y < y + ItemHeight)
                 {
-                    ToggleGroupCollapse(group.Key);
+                    _viewModel.ToggleGroupCollapse(group.Key);
+                    UpdateCanvasSize();
+                    InvalidateVisual();
                     return;
                 }
                 y += ItemHeight + ItemSpacing;
 
-                if (!_collapsedGroups.Contains(group.Key))
+                if (!_viewModel.CollapsedGroups.Contains(group.Key))
                 {
                     foreach (var item in group.Value)
                     {
@@ -502,12 +490,12 @@ namespace meteor.UI.Features.SearchView.Controls
             var point = e.GetPosition(this);
             double y = -_scrollViewer.Offset.Y + _searchBox.Bounds.Height + SearchBoxBottomMargin;
 
-            if (_groupedItems == null) return;
+            if (_viewModel.GroupedItems == null) return;
 
             SearchResult newHoveredItem = null;
             string newHoveredHeader = null;
 
-            foreach (var group in _groupedItems)
+            foreach (var group in _viewModel.GroupedItems)
             {
                 if (point.Y >= y && point.Y < y + ItemHeight)
                 {
@@ -516,7 +504,7 @@ namespace meteor.UI.Features.SearchView.Controls
                 }
                 y += ItemHeight + ItemSpacing;
 
-                if (!_collapsedGroups.Contains(group.Key))
+                if (!_viewModel.CollapsedGroups.Contains(group.Key))
                 {
                     foreach (var item in group.Value)
                     {
@@ -532,20 +520,20 @@ namespace meteor.UI.Features.SearchView.Controls
                 }
             }
 
-            if (_hoveredItem != newHoveredItem || _hoveredHeader != newHoveredHeader)
+            if (_viewModel.HoveredItem != newHoveredItem || _viewModel.HoveredHeader != newHoveredHeader)
             {
-                _hoveredItem = newHoveredItem;
-                _hoveredHeader = newHoveredHeader;
+                _viewModel.HoveredItem = newHoveredItem;
+                _viewModel.HoveredHeader = newHoveredHeader;
                 InvalidateVisual();
             }
         }
 
         private void OnPointerExited(object sender, PointerEventArgs e)
         {
-            if (_hoveredItem != null || _hoveredHeader != null)
+            if (_viewModel.HoveredItem != null || _viewModel.HoveredHeader != null)
             {
-                _hoveredItem = null;
-                _hoveredHeader = null;
+                _viewModel.HoveredItem = null;
+                _viewModel.HoveredHeader = null;
                 InvalidateVisual();
             }
         }
@@ -555,10 +543,12 @@ namespace meteor.UI.Features.SearchView.Controls
             switch (e.Key)
             {
                 case Key.Up:
-                    MoveSelection(-1);
+                    _viewModel.MoveSelection(-1);
+                    EnsureSelectedItemVisible();
                     break;
                 case Key.Down:
-                    MoveSelection(1);
+                    _viewModel.MoveSelection(1);
+                    EnsureSelectedItemVisible();
                     break;
                 case Key.Enter:
                     OpenSelectedResult();
@@ -566,22 +556,13 @@ namespace meteor.UI.Features.SearchView.Controls
             }
         }
 
-        private void MoveSelection(int direction)
-        {
-            var flatResults = _viewModel.SearchResults.ToList();
-            var currentIndex = flatResults.IndexOf(_viewModel.SelectedResult);
-            var newIndex = (currentIndex + direction + flatResults.Count) % flatResults.Count;
-            _viewModel.SelectedResult = flatResults[newIndex];
-            EnsureSelectedItemVisible();
-        }
-
         private void EnsureSelectedItemVisible()
         {
             double y = _searchBox.Bounds.Height + SearchBoxBottomMargin;
-            foreach (var group in _groupedItems)
+            foreach (var group in _viewModel.GroupedItems)
             {
                 y += ItemHeight + ItemSpacing; // File header
-                if (!_collapsedGroups.Contains(group.Key))
+                if (!_viewModel.CollapsedGroups.Contains(group.Key))
                 {
                     foreach (var item in group.Value)
                     {
@@ -632,21 +613,6 @@ namespace meteor.UI.Features.SearchView.Controls
         {
             _viewModel.SearchQuery = path;
             _viewModel.ExecuteSearchCommand.ExecuteAsync(null);
-            UpdateGroupedItems();
-            UpdateCanvasSize();
-            InvalidateVisual();
-        }
-
-        private void ToggleGroupCollapse(string groupKey)
-        {
-            if (_collapsedGroups.Contains(groupKey))
-            {
-                _collapsedGroups.Remove(groupKey);
-            }
-            else
-            {
-                _collapsedGroups.Add(groupKey);
-            }
             UpdateCanvasSize();
             InvalidateVisual();
         }

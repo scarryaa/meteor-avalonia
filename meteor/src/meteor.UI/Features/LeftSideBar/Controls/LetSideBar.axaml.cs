@@ -177,7 +177,11 @@ public class LeftSideBar : UserControl
     {
         var explorer = new FileExplorerControl(_themeManager);
         explorer.FileSelected += (_, filePath) => _viewModel.FileSelectedCommand.Execute(filePath);
-        explorer.DirectoryOpened += (_, directoryPath) => _viewModel.DirectoryOpenedCommand.Execute(directoryPath);
+        explorer.DirectoryOpened += (_, directoryPath) =>
+        {
+            _viewModel.DirectoryOpenedCommand.Execute(directoryPath);
+            _searchService.UpdateProjectRoot(directoryPath);
+        };
         Grid.SetRow(explorer, 0);
         return explorer;
     }
@@ -226,5 +230,10 @@ public class LeftSideBar : UserControl
     internal void UpdateBackground(Core.Models.Theme theme)
     {
         _sidebarViewSelector.Background = new SolidColorBrush(Color.Parse(theme.BackgroundColor));
+    }
+
+    internal void UpdateFiles(string directoryPath)
+    {
+        _fileExplorer.SetDirectory(directoryPath);
     }
 }

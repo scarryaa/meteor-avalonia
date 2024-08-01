@@ -237,8 +237,8 @@ public class FileExplorerControl : UserControl
             InvalidateVisual();
             UpdateSelectPathButtonVisibility();
 
-            var rootDirectoryName = new DirectoryInfo(result).Name;
-            DirectoryOpened?.Invoke(this, rootDirectoryName);
+            var rootDirectoryPath = Path.GetFullPath(result);
+            DirectoryOpened?.Invoke(this, rootDirectoryPath);
         }
     }
 

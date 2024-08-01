@@ -6,7 +6,7 @@ namespace meteor.Core.Services
 {
     public class SearchService : ISearchService
     {
-        private readonly string _projectRoot;
+        private string _projectRoot;
         private readonly string[] _excludedDirectories = { "bin", "obj", ".git", ".vs" };
         private readonly string[] _includedExtensions = { ".cs", ".xaml", ".axaml", ".json", ".xml" };
 
@@ -15,12 +15,31 @@ namespace meteor.Core.Services
             _projectRoot = Directory.GetCurrentDirectory();
         }
 
+        public void UpdateProjectRoot(string directoryPath)
+        {
+            if (!Directory.Exists(directoryPath))
+            {
+                Console.WriteLine($"Warning: The directory '{directoryPath}' does not exist. Using current directory as fallback.");
+                _projectRoot = Directory.GetCurrentDirectory();
+            }
+            else
+            {
+                _projectRoot = directoryPath;
+            }
+        }
+
         public async Task<IEnumerable<SearchResult>> SearchAsync(string query)
         {
             var results = new List<SearchResult>();
 
             await Task.Run(() =>
             {
+                if (!Directory.Exists(_projectRoot))
+                {
+                    Console.WriteLine($"Warning: The project root directory '{_projectRoot}' does not exist. Using current directory as fallback.");
+                    _projectRoot = Directory.GetCurrentDirectory();
+                }
+
                 var files = GetRelevantFiles(_projectRoot);
 
                 Parallel.ForEach(files, file =>
@@ -68,9 +87,23 @@ namespace meteor.Core.Services
 
         private IEnumerable<string> GetRelevantFiles(string root)
         {
+            if (!Directory.Exists(root))
+            {
+                Console.WriteLine($"Warning: The directory '{root}' does not exist. Using current directory as fallback.");
+                root = Directory.GetCurrentDirectory();
+            }
+
             return Directory.EnumerateFiles(root, "*.*", SearchOption.AllDirectories)
-                .Where(file => _includedExtensions.Contains(Path.GetExtension(file).ToLower()) &&
-                               !_excludedDirectories.Any(dir => file.Contains(Path.DirectorySeparatorChar + dir + Path.DirectorySeparatorChar)));
+                .Where(file =>
+                {
+                    var extension = Path.GetExtension(file).ToLowerInvariant();
+                    var relativePath = Path.GetRelativePath(root, file);
+
+                    return _includedExtensions.Contains(extension) &&
+                           !_excludedDirectories.Any(dir =>
+                               relativePath.StartsWith(dir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
+                               relativePath.Contains(Path.DirectorySeparatorChar + dir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase));
+                });
         }
 
         private double CalculateRelevance(int matchCount, int contentLength)
