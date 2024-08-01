@@ -39,6 +39,7 @@ public class MainWindowViewModel : ObservableObject
         OpenSettingsCommand = new RelayCommand(OpenSettings);
         ToggleCommandPaletteCommand = new RelayCommand(ToggleCommandPalette);
         ToggleLeftSidebarCommand = new RelayCommand(ToggleLeftSidebar);
+        ToggleRightSidebarCommand = new RelayCommand(ToggleRightSidebar);
 
         _tabService.TabAdded += (sender, tab) => { OnPropertyChanged(nameof(Tabs)); };
         _tabService.TabRemoved += (sender, tab) => { OnPropertyChanged(nameof(Tabs)); };
@@ -80,6 +81,9 @@ public class MainWindowViewModel : ObservableObject
 
     public Theme CurrentTheme => _themeManager.CurrentTheme;
 
+    public bool IsRightSidebarVisible { get; internal set; }
+    public ICommand ToggleRightSidebarCommand { get; internal set; }
+
     private void ToggleCommandPalette()
     {
         IsCommandPaletteVisible = !IsCommandPaletteVisible;
@@ -90,6 +94,12 @@ public class MainWindowViewModel : ObservableObject
     {
         IsLeftSidebarVisible = !IsLeftSidebarVisible;
         OnPropertyChanged(nameof(IsLeftSidebarVisible));
+    }
+
+    private void ToggleRightSidebar()
+    {
+        IsRightSidebarVisible = !IsRightSidebarVisible;
+        OnPropertyChanged(nameof(IsRightSidebarVisible));
     }
 
     private async void SaveFile()

@@ -43,4 +43,5 @@ public interface IEditorViewModel
     void SetCursorPosition(int position);
     int GetLineStartOffset(int lineIndex);
     int GetLineEndOffset(int lineIndex);
+    void GoToLineColumn(int line, int column);
 }

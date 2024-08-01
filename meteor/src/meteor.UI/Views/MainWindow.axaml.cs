@@ -1,4 +1,9 @@
+using System;
+using System.IO;
+using System.Linq;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Data;
@@ -18,6 +23,7 @@ using meteor.UI.Features.Editor.Factories;
 using meteor.UI.Features.Editor.Interfaces;
 using meteor.UI.Features.Editor.ViewModels;
 using meteor.UI.Features.LeftSideBar.Controls;
+using meteor.UI.Features.RightSideBar.Controls;
 using meteor.UI.Features.SourceControl.Controls;
 using meteor.UI.Features.StatusBar.Controls;
 using meteor.UI.Features.Tabs.ViewModels;
@@ -32,15 +38,17 @@ namespace meteor.UI.Views;
 
 public partial class MainWindow : Window
 {
-    private readonly CommandPalette _commandPalette;
-    private readonly LeftSideBar _leftSideBar;
+    private CommandPalette _commandPalette;
+    private LeftSideBar _leftSideBar;
+    private RightSideBar _rightSideBar;
     private readonly MainWindowViewModel _mainWindowViewModel;
-    private readonly SourceControlView _sourceControlView;
-    private readonly StatusBar _statusBar;
-    private readonly Titlebar _titlebar;
-    private readonly GridSplitter _gridSplitter;
-    private readonly Grid _mainGrid;
-    private readonly TabControl _tabControl;
+    private SourceControlView _sourceControlView;
+    private StatusBar _statusBar;
+    private Titlebar _titlebar;
+    private GridSplitter _leftGridSplitter;
+    private GridSplitter _rightGridSplitter;
+    private Grid _mainGrid;
+    private TabControl _tabControl;
 
     private readonly IEditorConfig _config;
     private readonly IScrollManager _scrollManager;
@@ -51,6 +59,7 @@ public partial class MainWindow : Window
     private readonly IGitService _gitService;
 
     private double _leftPanelWidth = 150;
+    private double _rightPanelWidth = 150;
 
     public MainWindow(
         MainWindowViewModel mainWindowViewModel,
@@ -75,14 +84,51 @@ public partial class MainWindow : Window
         ClipToBounds = false;
         this.AttachDevTools();
 
+        InitializeUI(layoutManager, inputHandler, pointerEventHandler, fileService);
+        SetupEventHandlers();
+    }
+
+    private void InitializeUI(IEditorLayoutManager layoutManager, IEditorInputHandler inputHandler, IPointerEventHandler pointerEventHandler, IFileService fileService)
+    {
         UpdateTheme();
         _themeManager.ThemeChanged += (_, _) => UpdateTheme();
 
-        var editorControlFactory = new EditorControlFactory(scrollManager, layoutManager, inputHandler,
-            pointerEventHandler, _textMeasurer, _config, themeManager);
-        _tabControl = new TabControl(tabService, editorControlFactory, themeManager);
+        var editorControlFactory = new EditorControlFactory(_scrollManager, layoutManager, inputHandler,
+            pointerEventHandler, _textMeasurer, _config, _themeManager);
+        _tabControl = new TabControl(_tabService, editorControlFactory, _themeManager);
 
-        _gridSplitter = new GridSplitter
+        _leftGridSplitter = CreateGridSplitter();
+        _rightGridSplitter = CreateGridSplitter();
+        _titlebar = CreateTitlebar();
+        _statusBar = new StatusBar(_themeManager);
+        _statusBar.LeftSidebarToggleRequested += OnLeftSidebarToggleRequested;
+        _statusBar.RightSidebarToggleRequested += OnRightSidebarToggleRequested;
+        _statusBar.GoToLineColumnRequested += OnGoToLineColumnRequested;
+
+        _commandPalette = CreateCommandPalette();
+        _leftSideBar = new LeftSideBar(fileService, _themeManager, _gitService, _searchService);
+        _rightSideBar = new RightSideBar(_themeManager);
+        _sourceControlView = new SourceControlView(_themeManager, _gitService);
+
+        _mainGrid = CreateMainGrid();
+        SetupGridLayout();
+
+        Content = _mainGrid;
+    }
+
+    private void OnRightSidebarToggleRequested(object? sender, EventArgs e)
+    {
+        _mainWindowViewModel.ToggleRightSidebarCommand.Execute(null);
+    }
+
+    private void OnLeftSidebarToggleRequested(object? sender, EventArgs e)
+    {
+        _mainWindowViewModel.ToggleLeftSidebarCommand.Execute(null);
+    }
+
+    private GridSplitter CreateGridSplitter()
+    {
+        return new GridSplitter
         {
             Width = 1,
             MinWidth = 1,
@@ -90,14 +136,19 @@ public partial class MainWindow : Window
             ResizeDirection = GridResizeDirection.Columns,
             Background = new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.BorderBrush))
         };
+    }
 
-        _titlebar = new Titlebar(_themeManager);
-        _titlebar.SetProjectNameFromDirectory(Environment.CurrentDirectory);
-        _titlebar.DirectoryOpenRequested += OnOpenDirectoryRequested;
+    private Titlebar CreateTitlebar()
+    {
+        var titlebar = new Titlebar(_themeManager);
+        titlebar.SetProjectNameFromDirectory(Environment.CurrentDirectory);
+        titlebar.DirectoryOpenRequested += OnOpenDirectoryRequested;
+        return titlebar;
+    }
 
-        _statusBar = new StatusBar(_themeManager);
-
-        _commandPalette = new CommandPalette(_themeManager)
+    private CommandPalette CreateCommandPalette()
+    {
+        var commandPalette = new CommandPalette(_themeManager)
         {
             ZIndex = 1000,
             HorizontalAlignment = HorizontalAlignment.Center,
@@ -106,59 +157,72 @@ public partial class MainWindow : Window
             MaxHeight = 300,
             Margin = new Thickness(0, 40, 0, 0)
         };
-        _commandPalette[!IsVisibleProperty] = new Binding("IsCommandPaletteVisible");
+        commandPalette[!IsVisibleProperty] = new Binding("IsCommandPaletteVisible");
+        return commandPalette;
+    }
 
-        _leftSideBar = new LeftSideBar(fileService, _themeManager, gitService, _searchService);
-        _leftSideBar.FileSelected += OnFileSelected;
-        _sourceControlView = new SourceControlView(_themeManager, gitService);
-
-        _mainGrid = new Grid
+    private Grid CreateMainGrid()
+    {
+        return new Grid
         {
             RowDefinitions = new RowDefinitions("Auto,*,Auto"),
-            ColumnDefinitions = new ColumnDefinitions($"{_leftPanelWidth},Auto,*")
+            ColumnDefinitions = new ColumnDefinitions($"{_leftPanelWidth},Auto,*,Auto,{_rightPanelWidth}"),
+            ClipToBounds = false
         };
+    }
 
+    private void SetupGridLayout()
+    {
         Grid.SetRow(_titlebar, 0);
-        Grid.SetColumnSpan(_titlebar, 3);
+        Grid.SetColumnSpan(_titlebar, 5);
 
         Grid.SetRow(_leftSideBar, 1);
         Grid.SetColumn(_leftSideBar, 0);
 
-        Grid.SetRow(_gridSplitter, 1);
-        Grid.SetColumn(_gridSplitter, 1);
+        Grid.SetRow(_leftGridSplitter, 1);
+        Grid.SetColumn(_leftGridSplitter, 1);
 
         Grid.SetRow(_tabControl, 1);
         Grid.SetColumn(_tabControl, 2);
 
+        Grid.SetRow(_rightGridSplitter, 1);
+        Grid.SetColumn(_rightGridSplitter, 3);
+
+        Grid.SetRow(_rightSideBar, 1);
+        Grid.SetColumn(_rightSideBar, 4);
+
         Grid.SetRow(_statusBar, 2);
-        Grid.SetColumnSpan(_statusBar, 3);
+        Grid.SetColumnSpan(_statusBar, 5);
 
         Grid.SetRow(_commandPalette, 1);
         Grid.SetColumn(_commandPalette, 0);
-        Grid.SetColumnSpan(_commandPalette, 3);
+        Grid.SetColumnSpan(_commandPalette, 5);
 
-        _mainGrid.Children.AddRange([_titlebar, _leftSideBar, _gridSplitter, _tabControl, _statusBar, _commandPalette]);
+        _mainGrid.Children.AddRange([_titlebar, _leftSideBar, _leftGridSplitter, _tabControl, _rightGridSplitter, _rightSideBar, _statusBar, _commandPalette]);
+    }
 
-        Content = _mainGrid;
-        _mainGrid.ClipToBounds = false;
-
+    private void SetupEventHandlers()
+    {
         Activated += (_, _) => UpdateTitlebarBackground(true);
         Deactivated += (_, _) => UpdateTitlebarBackground(false);
 
         KeyDown += (_, e) =>
         {
             if (e.Key == Key.P && e.KeyModifiers == KeyModifiers.Control)
-                mainWindowViewModel.ToggleCommandPaletteCommand.Execute(null);
+                _mainWindowViewModel.ToggleCommandPaletteCommand.Execute(null);
         };
 
         PointerPressed += MainWindow_PointerPressed;
 
         _leftSideBar.Bind(IsVisibleProperty, new Binding("IsLeftSidebarVisible"));
-        _gridSplitter.Bind(IsVisibleProperty, new Binding("IsLeftSidebarVisible"));
+        _leftGridSplitter.Bind(IsVisibleProperty, new Binding("IsLeftSidebarVisible"));
+        _rightSideBar.Bind(IsVisibleProperty, new Binding("IsRightSidebarVisible"));
+        _rightGridSplitter.Bind(IsVisibleProperty, new Binding("IsRightSidebarVisible"));
 
         _mainWindowViewModel.PropertyChanged += (sender, args) =>
         {
-            if (args.PropertyName == nameof(MainWindowViewModel.IsLeftSidebarVisible))
+            if (args.PropertyName == nameof(MainWindowViewModel.IsLeftSidebarVisible) ||
+                args.PropertyName == nameof(MainWindowViewModel.IsRightSidebarVisible))
             {
                 UpdateLayout();
             }
@@ -168,24 +232,32 @@ public partial class MainWindow : Window
         {
             if (_mainWindowViewModel.IsLeftSidebarVisible)
             {
-                _leftPanelWidth = args.NewSize.Width;
+                _leftPanelWidth = Math.Max(args.NewSize.Width, 150);
             }
         };
+
+        _rightSideBar.SizeChanged += (sender, args) =>
+        {
+            if (_mainWindowViewModel.IsRightSidebarVisible)
+            {
+                _rightPanelWidth = Math.Max(args.NewSize.Width, 150);
+            }
+        };
+
+        _leftSideBar.FileSelected += OnFileSelected;
     }
 
     private void UpdateLayout()
     {
-        if (_mainWindowViewModel.IsLeftSidebarVisible)
-        {
-            _mainGrid.ColumnDefinitions = new ColumnDefinitions($"{_leftPanelWidth},Auto,*");
-            Grid.SetColumn(_tabControl, 2);
-        }
-        else
-        {
-            _mainGrid.ColumnDefinitions = new ColumnDefinitions("0,0,*");
-            Grid.SetColumn(_tabControl, 0);
-            Grid.SetColumnSpan(_tabControl, 3);
-        }
+        var leftSidebarWidth = _mainWindowViewModel.IsLeftSidebarVisible ? $"{_leftPanelWidth}" : "0";
+        var rightSidebarWidth = _mainWindowViewModel.IsRightSidebarVisible ? $"{_rightPanelWidth}" : "0";
+        var leftSplitterWidth = _mainWindowViewModel.IsLeftSidebarVisible ? "Auto" : "0";
+        var rightSplitterWidth = _mainWindowViewModel.IsRightSidebarVisible ? "Auto" : "0";
+
+        _mainGrid.ColumnDefinitions = new ColumnDefinitions($"{leftSidebarWidth},{leftSplitterWidth},*,{rightSplitterWidth},{rightSidebarWidth}");
+
+        Grid.SetColumn(_tabControl, 2);
+        Grid.SetColumnSpan(_tabControl, 1);
     }
 
     private async void OnOpenDirectoryRequested(object? sender, string? e)
@@ -221,12 +293,17 @@ public partial class MainWindow : Window
         Background = new SolidColorBrush(Color.Parse(theme.AppBackgroundColor));
         UpdateTitlebarBackground(IsActive);
 
-        if (_gridSplitter != null)
+        if (_leftGridSplitter != null)
         {
-            _gridSplitter.Background = new SolidColorBrush(Color.Parse(theme.BorderBrush));
+            _leftGridSplitter.Background = new SolidColorBrush(Color.Parse(theme.BorderBrush));
+        }
+        if (_rightGridSplitter != null)
+        {
+            _rightGridSplitter.Background = new SolidColorBrush(Color.Parse(theme.BorderBrush));
         }
         _sourceControlView?.UpdateBackground(theme);
         _leftSideBar?.UpdateBackground(theme);
+        _rightSideBar?.UpdateBackground(theme);
     }
 
     private void OnFileSelected(object? sender, string? filePath)
@@ -342,5 +419,16 @@ public partial class MainWindow : Window
         inputManager.SetViewModel(editorViewModel);
 
         return editorViewModel;
+    }
+
+    private void OnSidebarToggleRequested(object? sender, EventArgs e)
+    {
+        _mainWindowViewModel.ToggleLeftSidebarCommand.Execute(null);
+        _statusBar.UpdateLeftSidebarButtonStyle(_mainWindowViewModel.IsLeftSidebarVisible);
+    }
+
+    private void OnGoToLineColumnRequested(object? sender, (int Line, int Column) e)
+    {
+        _tabService.ActiveTab?.EditorViewModel.GoToLineColumn(e.Line, e.Column);
     }
 }

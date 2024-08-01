@@ -295,4 +295,9 @@ public class EditorViewModel : IEditorViewModel
     {
         yield return new TextChange(0, oldContent.Length, newContent.Length, newContent);
     }
+
+    public void GoToLineColumn(int line, int column)
+    {
+        _cursorManager.SetPosition(GetLineStartOffset(line) + column);
+    }
 }
