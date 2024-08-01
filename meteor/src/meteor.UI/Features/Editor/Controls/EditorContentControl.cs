@@ -379,6 +379,9 @@ public class EditorContentControl : Control
             var cursorPosition = _viewModel.GetCursorPosition();
             var overlayX = cursorPosition.X;
             var overlayY = cursorPosition.Y + LineHeight;
+            // Check for no items
+            if (_viewModel.CompletionItems == null || _viewModel.CompletionItems.Count == 0) return;
+
             var overlayWidth = Math.Min(MaxCompletionOverlayWidth,
                 _viewModel.CompletionItems.Max(item => MeasureTextWidth(item.Text)) + 10);
             var maxAvailableHeight = Math.Min(MaxCompletionOverlayHeight, Bounds.Height - overlayY);
