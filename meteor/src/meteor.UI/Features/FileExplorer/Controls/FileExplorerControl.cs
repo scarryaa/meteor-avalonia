@@ -16,12 +16,15 @@ using Color = Avalonia.Media.Color;
 using Point = Avalonia.Point;
 using Size = Avalonia.Size;
 using SolidColorBrush = Avalonia.Media.SolidColorBrush;
+using System.Collections.Concurrent;
+using Avalonia.Platform.Storage;
 
 namespace meteor.UI.Features.FileExplorer.Controls;
 
 public class FileExplorerControl : UserControl
 {
-    private const int MaxItemsPerDirectory = 10_000;
+    private const int MaxItemsPerDirectory = 1000;
+    private const int LazyLoadThreshold = 100;
     private readonly double _indentWidth = 20;
     private readonly double _itemHeight = 24;
     private readonly ObservableCollection<FileItem> _items;
@@ -34,6 +37,7 @@ public class FileExplorerControl : UserControl
     private ScrollViewer _scrollViewer;
     private FileItem _selectedItem;
     private Button _selectPathButton;
+    private ConcurrentDictionary<string, Task> _populationTasks = new ConcurrentDictionary<string, Task>();
 
     public FileExplorerControl(IThemeManager themeManager)
     {
@@ -57,7 +61,7 @@ public class FileExplorerControl : UserControl
             _selectPathButton.IsVisible = false;
             _items.Clear();
             _items.Add(new FileItem(path, true));
-            PopulateChildren(_items[0]);
+            PopulateChildrenAsync(_items[0]);
             _items[0].IsExpanded = true;
             UpdateCanvasSize();
             InvalidateVisual();
@@ -227,14 +231,16 @@ public class FileExplorerControl : UserControl
 
     private async void OnSelectPathButtonClick(object sender, RoutedEventArgs e)
     {
-        var dialog = new OpenFolderDialog();
+        var dialog = TopLevel.GetTopLevel(this);
         var window = GetMainWindow();
-        var result = await dialog.ShowAsync(window);
+        var result = await dialog.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions());
 
-        if (!string.IsNullOrEmpty(result))
+        if (result != null && result.Count > 0)
         {
-            SetDirectory(result);
-            var rootDirectoryPath = Path.GetFullPath(result);
+            var selectedFolder = result[0];
+            var folderPath = selectedFolder.Path.LocalPath;
+            SetDirectory(folderPath);
+            var rootDirectoryPath = Path.GetFullPath(folderPath);
             DirectoryOpened?.Invoke(this, rootDirectoryPath);
         }
     }
@@ -244,27 +250,15 @@ public class FileExplorerControl : UserControl
         return (Window)VisualRoot;
     }
 
-    private void PopulateChildren(FileItem item)
+    private async Task PopulateChildrenAsync(FileItem item)
     {
         if (item.ChildrenPopulated) return;
 
         try
         {
-            var children = new List<FileItem>();
-            var directories = GetDirectories(item.FullPath);
-            var files = GetFiles(item.FullPath);
-
-            children.AddRange(directories);
-            children.AddRange(files);
-
-            if (children.Count > MaxItemsPerDirectory)
-            {
-                children = children.Take(MaxItemsPerDirectory).ToList();
-                children.Add(new FileItem("... (More items not shown)", item.FullPath, false));
-            }
-
-            item.Children.AddRange(children);
-            item.ChildrenPopulated = true;
+            var task = _populationTasks.GetOrAdd(item.FullPath, _ => Task.Run(() => PopulateChildrenInternal(item)));
+            await task;
+            _populationTasks.TryRemove(item.FullPath, out _);
         }
         catch (Exception ex)
         {
@@ -272,9 +266,33 @@ public class FileExplorerControl : UserControl
         }
     }
 
+    private void PopulateChildrenInternal(FileItem item)
+    {
+        var children = new List<FileItem>();
+        var directories = GetDirectories(item.FullPath);
+        var files = GetFiles(item.FullPath);
+
+        children.AddRange(directories.Take(MaxItemsPerDirectory / 2));
+        children.AddRange(files.Take(MaxItemsPerDirectory / 2));
+
+        if (children.Count > MaxItemsPerDirectory)
+        {
+            children = children.Take(MaxItemsPerDirectory).ToList();
+            children.Add(new FileItem("... (More items not shown)", item.FullPath, false));
+        }
+
+        Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            item.Children.AddRange(children);
+            item.ChildrenPopulated = true;
+            UpdateCanvasSize();
+            InvalidateVisual();
+        });
+    }
+
     private IEnumerable<FileItem> GetDirectories(string path)
     {
-        return Directory.GetDirectories(path)
+        return Directory.EnumerateDirectories(path)
             .Where(dir => !Path.GetFileName(dir).StartsWith("."))
             .Select(dir => new FileItem(dir, true))
             .OrderBy(d => d.Name, StringComparer.OrdinalIgnoreCase);
@@ -282,7 +300,7 @@ public class FileExplorerControl : UserControl
 
     private IEnumerable<FileItem> GetFiles(string path)
     {
-        return Directory.GetFiles(path)
+        return Directory.EnumerateFiles(path)
             .Where(file => !ShouldHideFile(file))
             .Select(file => new FileItem(file, false))
             .OrderBy(f => f.Name, StringComparer.OrdinalIgnoreCase);
@@ -349,6 +367,40 @@ public class FileExplorerControl : UserControl
     private void OnScrollChanged(object sender, ScrollChangedEventArgs e)
     {
         InvalidateVisual();
+        LazyLoadVisibleItems();
+    }
+
+    private void LazyLoadVisibleItems()
+    {
+        var visibleItems = GetVisibleItems(_items, -_scrollViewer.Offset.Y, _scrollViewer.Viewport.Height);
+        foreach (var item in visibleItems)
+        {
+            if (item.IsDirectory && item.IsExpanded && !item.ChildrenPopulated)
+            {
+                _ = PopulateChildrenAsync(item);
+            }
+        }
+    }
+
+    private List<FileItem> GetVisibleItems(IEnumerable<FileItem> items, double startY, double viewportHeight)
+    {
+        var visibleItems = new List<FileItem>();
+        foreach (var item in items)
+        {
+            if (startY + _itemHeight > 0 && startY < viewportHeight)
+                visibleItems.Add(item);
+
+            startY += _itemHeight;
+
+            if (item.IsExpanded)
+            {
+                visibleItems.AddRange(GetVisibleItems(item.Children, startY, viewportHeight));
+                startY += CalculateTotalHeight(item.Children);
+            }
+
+            if (startY > viewportHeight) break;
+        }
+        return visibleItems;
     }
 
     public override void Render(DrawingContext context)
@@ -493,7 +545,7 @@ public class FileExplorerControl : UserControl
     private void ToggleDirectoryExpansion(FileItem directory)
     {
         directory.IsExpanded = !directory.IsExpanded;
-        if (directory.IsExpanded && !directory.ChildrenPopulated) PopulateChildren(directory);
+        if (directory.IsExpanded && !directory.ChildrenPopulated) _ = PopulateChildrenAsync(directory);
     }
 
     private FileItem FindClickedItem(IEnumerable<FileItem> items, double clickY, double startY)

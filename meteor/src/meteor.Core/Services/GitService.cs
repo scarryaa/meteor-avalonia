@@ -13,15 +13,20 @@ namespace meteor.Core.Services
     {
         private string _repoPath;
         private HashSet<string> _ignoredPatterns;
+        private bool _isValidRepo;
 
         public GitService(string repoPath)
         {
-            _repoPath = repoPath;
-            _ignoredPatterns = LoadGitIgnore();
+            UpdateProjectRoot(repoPath);
         }
 
         public IEnumerable<FileChange> GetChanges()
         {
+            if (!_isValidRepo)
+            {
+                return Enumerable.Empty<FileChange>();
+            }
+
             var changes = new List<FileChange>();
             var gitStatusOutput = ExecuteGitCommand("status --porcelain");
 
@@ -44,7 +49,19 @@ namespace meteor.Core.Services
         public void UpdateProjectRoot(string directoryPath)
         {
             _repoPath = directoryPath;
-            _ignoredPatterns = LoadGitIgnore();
+            _isValidRepo = IsValidGitRepository(_repoPath);
+            _ignoredPatterns = _isValidRepo ? LoadGitIgnore() : new HashSet<string>();
+        }
+
+        private bool IsValidGitRepository(string path)
+        {
+            if (!Directory.Exists(path))
+            {
+                return false;
+            }
+
+            var gitDir = Path.Combine(path, ".git");
+            return Directory.Exists(gitDir);
         }
 
         private FileChangeType GetChangeType(string status)
@@ -93,19 +110,33 @@ namespace meteor.Core.Services
 
         private string ExecuteGitCommand(string arguments)
         {
+            if (!_isValidRepo)
+            {
+                return string.Empty;
+            }
+
             var processStartInfo = new System.Diagnostics.ProcessStartInfo
             {
                 FileName = "git",
                 Arguments = arguments,
                 WorkingDirectory = _repoPath,
                 RedirectStandardOutput = true,
+                RedirectStandardError = true,
                 UseShellExecute = false,
                 CreateNoWindow = true
             };
 
-            using var process = System.Diagnostics.Process.Start(processStartInfo);
-            return process?.StandardOutput.ReadToEnd() ?? string.Empty;
+            try
+            {
+                using var process = System.Diagnostics.Process.Start(processStartInfo);
+                return process?.StandardOutput.ReadToEnd() ?? string.Empty;
+            }
+            catch (System.ComponentModel.Win32Exception)
+            {
+                // Git is not installed or not in the PATH
+                _isValidRepo = false;
+                return string.Empty;
+            }
         }
     }
 }
-
