@@ -16,6 +16,7 @@ public partial class SourceControlViewModel : ObservableObject
     {
         _gitService = gitService;
         Changes = new ObservableCollection<FileChange>();
+        LoadDummyChanges();
     }
 
     [RelayCommand]
@@ -23,5 +24,14 @@ public partial class SourceControlViewModel : ObservableObject
     {
         var changes = await _gitService.GetChanges();
         Changes = new ObservableCollection<FileChange>(changes);
+    }
+
+    private void LoadDummyChanges()
+    {
+        Changes.Add(new FileChange("src/file1.cs", FileChangeType.Modified));
+        Changes.Add(new FileChange("src/file2.cs", FileChangeType.Added));
+        Changes.Add(new FileChange("src/file3.cs", FileChangeType.Deleted));
+        Changes.Add(new FileChange("src/file4.cs", FileChangeType.Renamed));
+        Changes.Add(new FileChange("src/file5.cs", FileChangeType.Modified));
     }
 }

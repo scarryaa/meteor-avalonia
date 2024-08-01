@@ -83,6 +83,9 @@ public class SourceControlView : UserControl
     {
         base.Render(context);
 
+        if (!IsVisible)
+            return;
+
         var viewportRect = new Rect(new Point(0, 0),
             new Size(_scrollViewer.Viewport.Width, _scrollViewer.Viewport.Height));
         context.FillRectangle(new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.BackgroundColor)),
@@ -225,5 +228,15 @@ public class SourceControlView : UserControl
     internal void UpdateBackground(Theme theme)
     {
         Background = new SolidColorBrush(Color.Parse(theme.BackgroundColor));
+    }
+
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+        if (change.Property == BoundsProperty)
+        {
+            UpdateCanvasSize();
+            InvalidateVisual();
+        }
     }
 }

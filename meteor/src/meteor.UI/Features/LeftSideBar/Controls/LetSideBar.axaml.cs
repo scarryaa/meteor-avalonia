@@ -7,8 +7,6 @@ using meteor.Core.Interfaces.Services;
 using meteor.UI.Features.FileExplorer.Controls;
 using meteor.UI.Features.LeftSideBar.ViewModels;
 using meteor.UI.Features.SourceControl.Controls;
-using meteor.UI.Features.SearchView.Controls;
-using System.Linq;
 
 namespace meteor.UI.Features.LeftSideBar.Controls;
 
@@ -187,6 +185,7 @@ public class LeftSideBar : UserControl
     private SearchView.Controls.SearchView CreateSearchView()
     {
         var searchView = new SearchView.Controls.SearchView(_searchService, _themeManager);
+        searchView.FileSelected += (_, args) => _viewModel.FileSelectedCommand.Execute(args.FilePath);
         Grid.SetRow(searchView, 0);
         searchView.IsVisible = false;
         return searchView;
@@ -205,6 +204,7 @@ public class LeftSideBar : UserControl
         _viewModel.SetDirectoryCommand.Execute(path);
         _fileExplorer.SetDirectory(path);
         _ = _sourceControlView.UpdateChangesAsync();
+        _searchView.SetSearchDirectory(path);
     }
 
     private void OnViewChanged(object? sender, string view)

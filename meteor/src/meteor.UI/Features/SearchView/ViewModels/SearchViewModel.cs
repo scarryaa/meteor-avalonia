@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using meteor.Core.Interfaces;
@@ -14,6 +13,8 @@ public partial class SearchViewModel : ObservableObject
     [ObservableProperty] private string _searchQuery = string.Empty;
 
     [ObservableProperty] private ObservableCollection<SearchResult> _searchResults;
+
+    [ObservableProperty] private SearchResult _selectedResult;
 
     public SearchViewModel(ISearchService searchService)
     {
@@ -33,5 +34,8 @@ public partial class SearchViewModel : ObservableObject
         {
             SearchResults.Add(result);
         }
+
+        // Reset selected result when performing a new search
+        SelectedResult = null;
     }
 }

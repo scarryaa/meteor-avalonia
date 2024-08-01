@@ -358,6 +358,9 @@ public class FileExplorerControl : UserControl
     {
         base.Render(context);
 
+        if (!IsVisible)
+            return;
+
         var viewportRect = new Rect(new Point(0, 0),
             new Size(_scrollViewer.Viewport.Width, _scrollViewer.Viewport.Height + 50));
         context.FillRectangle(new SolidColorBrush(Color.Parse(_currentTheme.BackgroundColor)), viewportRect);

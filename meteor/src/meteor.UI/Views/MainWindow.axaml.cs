@@ -26,7 +26,6 @@ using meteor.UI.ViewModels;
 using Color = Avalonia.Media.Color;
 using SolidColorBrush = Avalonia.Media.SolidColorBrush;
 using TabControl = meteor.UI.Features.Tabs.Controls.TabControl;
-using Vector = Avalonia.Vector;
 
 namespace meteor.UI.Views;
 
