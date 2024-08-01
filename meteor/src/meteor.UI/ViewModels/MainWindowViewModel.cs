@@ -19,18 +19,27 @@ public class MainWindowViewModel : ObservableObject
     private readonly IFileService _fileService;
     private readonly ITabService _tabService;
     private readonly IThemeManager _themeManager;
+    private readonly ISettingsService _settingsService;
     private ITabViewModel? _activeTab;
-    private bool _isLeftSidebarVisible = true;
+    private bool _isLeftSidebarVisible;
+    private bool _isRightSidebarVisible;
+    private string _activeLeftSidebarView;
 
     public MainWindowViewModel(ITabService tabService, IEditorInstanceFactory editorInstanceFactory,
-        IFileService fileService, IFileDialogService fileDialogService, IThemeManager themeManager)
+        IFileService fileService, IFileDialogService fileDialogService, IThemeManager themeManager,
+        ISettingsService settingsService)
     {
         _tabService = tabService;
         _editorInstanceFactory = editorInstanceFactory;
         _fileService = fileService;
         _fileDialogService = fileDialogService;
         _themeManager = themeManager;
+        _settingsService = settingsService;
         _themeManager.ThemeChanged += (sender, theme) => { OnPropertyChanged(nameof(CurrentTheme)); };
+
+        // Load saved settings
+        _isLeftSidebarVisible = _settingsService.GetSetting("IsLeftSidebarVisible", false);
+        _isRightSidebarVisible = _settingsService.GetSetting("IsRightSidebarVisible", false);
 
         OpenNewTabCommand = new RelayCommand(OpenNewTab);
         CloseTabCommand = new RelayCommand<ITabViewModel>(CloseTab);
@@ -56,6 +65,7 @@ public class MainWindowViewModel : ObservableObject
     public ICommand OpenSettingsCommand { get; }
     public ICommand ToggleCommandPaletteCommand { get; }
     public ICommand ToggleLeftSidebarCommand { get; }
+    public ICommand ToggleRightSidebarCommand { get; }
 
     public ObservableCollection<ITabViewModel> Tabs => _tabService.Tabs;
     public bool IsCommandPaletteVisible { get; private set; }
@@ -63,7 +73,40 @@ public class MainWindowViewModel : ObservableObject
     public bool IsLeftSidebarVisible
     {
         get => _isLeftSidebarVisible;
-        set => SetProperty(ref _isLeftSidebarVisible, value);
+        set
+        {
+            if (SetProperty(ref _isLeftSidebarVisible, value))
+            {
+                _settingsService.SetSetting("IsLeftSidebarVisible", value);
+                _settingsService.SaveSettings();
+            }
+        }
+    }
+
+    public bool IsRightSidebarVisible
+    {
+        get => _isRightSidebarVisible;
+        set
+        {
+            if (SetProperty(ref _isRightSidebarVisible, value))
+            {
+                _settingsService.SetSetting("IsRightSidebarVisible", value);
+                _settingsService.SaveSettings();
+            }
+        }
+    }
+
+    public string ActiveLeftSidebarView
+    {
+        get => _activeLeftSidebarView;
+        set
+        {
+            if (SetProperty(ref _activeLeftSidebarView, value))
+            {
+                _settingsService.SetSetting("ActiveLeftSidebarView", value);
+                _settingsService.SaveSettings();
+            }
+        }
     }
 
     public ITabViewModel? ActiveTab
@@ -81,9 +124,6 @@ public class MainWindowViewModel : ObservableObject
 
     public Theme CurrentTheme => _themeManager.CurrentTheme;
 
-    public bool IsRightSidebarVisible { get; internal set; }
-    public ICommand ToggleRightSidebarCommand { get; internal set; }
-
     private void ToggleCommandPalette()
     {
         IsCommandPaletteVisible = !IsCommandPaletteVisible;
@@ -93,13 +133,15 @@ public class MainWindowViewModel : ObservableObject
     private void ToggleLeftSidebar()
     {
         IsLeftSidebarVisible = !IsLeftSidebarVisible;
-        OnPropertyChanged(nameof(IsLeftSidebarVisible));
+        _settingsService.SetSetting("IsLeftSidebarVisible", IsLeftSidebarVisible);
+        _settingsService.SaveSettings();
     }
 
     private void ToggleRightSidebar()
     {
         IsRightSidebarVisible = !IsRightSidebarVisible;
-        OnPropertyChanged(nameof(IsRightSidebarVisible));
+        _settingsService.SetSetting("IsRightSidebarVisible", IsRightSidebarVisible);
+        _settingsService.SaveSettings();
     }
 
     private async void SaveFile()
@@ -124,6 +166,10 @@ public class MainWindowViewModel : ObservableObject
             ActiveTab.SetFilePath(filePath);
             ActiveTab.SetOriginalContent(ActiveTab.EditorViewModel.Content);
             ActiveTab.IsModified = false;
+
+            // Update last opened directory
+            _settingsService.SetSetting("LastOpenedDirectory", Path.GetDirectoryName(filePath));
+            _settingsService.SaveSettings();
         }
     }
 
@@ -167,6 +213,7 @@ public class MainWindowViewModel : ObservableObject
 
     private async void OpenFile()
     {
+        var lastOpenedDirectory = _settingsService.GetSetting<string>("LastOpenedDirectory", string.Empty);
         var filePath = await _fileDialogService.ShowOpenFileDialogAsync();
         if (!string.IsNullOrEmpty(filePath))
         {
@@ -178,6 +225,10 @@ public class MainWindowViewModel : ObservableObject
                 Path.GetFileName(filePath),
                 await File.ReadAllTextAsync(filePath)
             );
+
+            // Update last opened directory
+            _settingsService.SetSetting("LastOpenedDirectory", Path.GetDirectoryName(filePath));
+            _settingsService.SaveSettings();
         }
     }
 

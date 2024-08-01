@@ -10,7 +10,7 @@
         <RuntimeIdentifiers>win-x64;osx-x64;linux-x64</RuntimeIdentifiers>
         <PublishTrimmed>true</PublishTrimmed>
         <TrimMode>link</TrimMode>
-        <JsonSerializerIsReflectionEnabledByDefault>false</JsonSerializerIsReflectionEnabledByDefault>
+        <JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>
         <BuildRustLibrary Condition="'$(BuildRustLibrary)' == ''">true</BuildRustLibrary>
     </PropertyGroup>
 

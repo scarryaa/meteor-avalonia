@@ -38,10 +38,19 @@ namespace meteor.UI.Views;
 
 public partial class MainWindow : Window
 {
+    private readonly MainWindowViewModel _mainWindowViewModel;
+    private readonly IEditorConfig _config;
+    private readonly IScrollManager _scrollManager;
+    private readonly ITabService _tabService;
+    private readonly ITextMeasurer _textMeasurer;
+    private readonly IThemeManager _themeManager;
+    private readonly ISearchService _searchService;
+    private readonly IGitService _gitService;
+    private readonly ISettingsService _settingsService;
+
     private CommandPalette _commandPalette;
     private LeftSideBar _leftSideBar;
     private RightSideBar _rightSideBar;
-    private readonly MainWindowViewModel _mainWindowViewModel;
     private SourceControlView _sourceControlView;
     private StatusBar _statusBar;
     private Titlebar _titlebar;
@@ -50,35 +59,18 @@ public partial class MainWindow : Window
     private Grid _mainGrid;
     private TabControl _tabControl;
 
-    private readonly IEditorConfig _config;
-    private readonly IScrollManager _scrollManager;
-    private readonly ITabService _tabService;
-    private readonly ITextMeasurer _textMeasurer;
-    private readonly IThemeManager _themeManager;
-    private readonly ISearchService _searchService;
-    private readonly IGitService _gitService;
-
     private double _leftPanelWidth = 150;
     private double _rightPanelWidth = 150;
 
-    public MainWindow(
-        MainWindowViewModel mainWindowViewModel,
-        ITabService tabService,
-        IEditorLayoutManager layoutManager,
-        IEditorInputHandler inputHandler,
-        ITextMeasurer textMeasurer,
-        IEditorConfig config,
-        IScrollManager scrollManager,
-        IPointerEventHandler pointerEventHandler,
-        IThemeManager themeManager,
-        IFileService fileService,
-        IGitService gitService,
-        ISearchService searchService)
+    public MainWindow(MainWindowViewModel mainWindowViewModel, ITabService tabService, IEditorLayoutManager layoutManager,
+        IEditorInputHandler inputHandler, ITextMeasurer textMeasurer, IEditorConfig config, IScrollManager scrollManager,
+        IPointerEventHandler pointerEventHandler, IThemeManager themeManager, IFileService fileService,
+        IGitService gitService, ISearchService searchService, ISettingsService settingsService)
     {
         InitializeComponent();
 
-        (_tabService, _config, _textMeasurer, _themeManager, _scrollManager, _mainWindowViewModel, _searchService, _gitService) =
-            (tabService, config, textMeasurer, themeManager, scrollManager, mainWindowViewModel, searchService, gitService);
+        (_mainWindowViewModel, _tabService, _config, _textMeasurer, _themeManager, _scrollManager, _searchService, _gitService, _settingsService) =
+            (mainWindowViewModel, tabService, config, textMeasurer, themeManager, scrollManager, searchService, gitService, settingsService);
 
         DataContext = mainWindowViewModel;
         ClipToBounds = false;
@@ -86,6 +78,26 @@ public partial class MainWindow : Window
 
         InitializeUI(layoutManager, inputHandler, pointerEventHandler, fileService);
         SetupEventHandlers();
+        LoadSettings();
+    }
+
+    private void LoadSettings()
+    {
+        Width = _settingsService.GetSetting("WindowWidth", 500.0);
+        Height = _settingsService.GetSetting("WindowHeight", 500.0);
+
+        var lastOpenedDirectory = _settingsService.GetSetting<string>("LastOpenedDirectory", string.Empty);
+        if (!string.IsNullOrEmpty(lastOpenedDirectory) && Directory.Exists(lastOpenedDirectory))
+        {
+            _ = OnDirectoryOpenedAsync(this, lastOpenedDirectory);
+        }
+
+        _mainWindowViewModel.IsLeftSidebarVisible = _settingsService.GetSetting("IsLeftSidebarVisible", true);
+        _mainWindowViewModel.IsRightSidebarVisible = _settingsService.GetSetting("IsRightSidebarVisible", true);
+        _leftPanelWidth = _settingsService.GetSetting("LeftSidebarWidth", 150.0);
+        _rightPanelWidth = _settingsService.GetSetting("RightSidebarWidth", 150.0);
+
+        UpdateLayout();
     }
 
     private void InitializeUI(IEditorLayoutManager layoutManager, IEditorInputHandler inputHandler, IPointerEventHandler pointerEventHandler, IFileService fileService)
@@ -100,11 +112,7 @@ public partial class MainWindow : Window
         _leftGridSplitter = CreateGridSplitter();
         _rightGridSplitter = CreateGridSplitter();
         _titlebar = CreateTitlebar();
-        _statusBar = new StatusBar(_themeManager);
-        _statusBar.LeftSidebarToggleRequested += OnLeftSidebarToggleRequested;
-        _statusBar.RightSidebarToggleRequested += OnRightSidebarToggleRequested;
-        _statusBar.GoToLineColumnRequested += OnGoToLineColumnRequested;
-
+        _statusBar = CreateStatusBar();
         _commandPalette = CreateCommandPalette();
         _leftSideBar = new LeftSideBar(fileService, _themeManager, _gitService, _searchService);
         _rightSideBar = new RightSideBar(_themeManager);
@@ -116,27 +124,23 @@ public partial class MainWindow : Window
         Content = _mainGrid;
     }
 
-    private void OnRightSidebarToggleRequested(object? sender, EventArgs e)
+    private StatusBar CreateStatusBar()
     {
-        _mainWindowViewModel.ToggleRightSidebarCommand.Execute(null);
+        var statusBar = new StatusBar(_themeManager);
+        statusBar.LeftSidebarToggleRequested += (_, _) => _mainWindowViewModel.ToggleLeftSidebarCommand.Execute(null);
+        statusBar.RightSidebarToggleRequested += (_, _) => _mainWindowViewModel.ToggleRightSidebarCommand.Execute(null);
+        statusBar.GoToLineColumnRequested += (_, e) => _tabService.ActiveTab?.EditorViewModel.GoToLineColumn(e.Line, e.Column);
+        return statusBar;
     }
 
-    private void OnLeftSidebarToggleRequested(object? sender, EventArgs e)
+    private GridSplitter CreateGridSplitter() => new()
     {
-        _mainWindowViewModel.ToggleLeftSidebarCommand.Execute(null);
-    }
-
-    private GridSplitter CreateGridSplitter()
-    {
-        return new GridSplitter
-        {
-            Width = 1,
-            MinWidth = 1,
-            MaxWidth = 1,
-            ResizeDirection = GridResizeDirection.Columns,
-            Background = new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.BorderBrush))
-        };
-    }
+        Width = 1,
+        MinWidth = 1,
+        MaxWidth = 1,
+        ResizeDirection = GridResizeDirection.Columns,
+        Background = new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.BorderBrush))
+    };
 
     private Titlebar CreateTitlebar()
     {
@@ -161,15 +165,11 @@ public partial class MainWindow : Window
         return commandPalette;
     }
 
-    private Grid CreateMainGrid()
+    private Grid CreateMainGrid() => new()
     {
-        return new Grid
-        {
-            RowDefinitions = new RowDefinitions("Auto,*,Auto"),
-            ColumnDefinitions = new ColumnDefinitions($"{_leftPanelWidth},Auto,*,Auto,0"),
-            ClipToBounds = false
-        };
-    }
+        RowDefinitions = new RowDefinitions("Auto,*,Auto"),
+        ColumnDefinitions = new ColumnDefinitions($"{_leftPanelWidth},Auto,*,Auto,0"),
+    };
 
     private void SetupGridLayout()
     {
@@ -206,44 +206,64 @@ public partial class MainWindow : Window
         Activated += (_, _) => UpdateTitlebarBackground(true);
         Deactivated += (_, _) => UpdateTitlebarBackground(false);
 
+        SizeChanged += (_, args) =>
+        {
+            if (args.NewSize.Width > 0 && args.NewSize.Height > 0)
+            {
+                _settingsService.SetSetting("WindowWidth", Width);
+                _settingsService.SetSetting("WindowHeight", Height);
+                _settingsService.SaveSettings();
+            }
+        };
+
         KeyDown += (_, e) =>
         {
             if (e.Key == Key.P && e.KeyModifiers == KeyModifiers.Control)
                 _mainWindowViewModel.ToggleCommandPaletteCommand.Execute(null);
         };
 
-        PointerPressed += MainWindow_PointerPressed;
+        PointerPressed += (_, e) =>
+        {
+            if (!_commandPalette.Bounds.Contains(e.GetPosition(this)) && _mainWindowViewModel.IsCommandPaletteVisible)
+                _mainWindowViewModel.ToggleCommandPaletteCommand.Execute(null);
+        };
 
         _leftSideBar.Bind(IsVisibleProperty, new Binding("IsLeftSidebarVisible"));
-        _leftGridSplitter.Bind(IsVisibleProperty, new Binding("IsLeftSidebarVisible"));
         _rightSideBar.Bind(IsVisibleProperty, new Binding("IsRightSidebarVisible"));
-        _rightGridSplitter.Bind(IsVisibleProperty, new Binding("IsRightSidebarVisible"));
+        _leftGridSplitter.Bind(IsVisibleProperty, new Binding("IsLeftSidebarVisible"));
 
-        _mainWindowViewModel.PropertyChanged += (sender, args) =>
+        _rightGridSplitter.Bind(IsVisibleProperty, new Binding("IsRightSidebarVisible"));
+        _mainWindowViewModel.PropertyChanged += (_, args) =>
         {
             if (args.PropertyName == nameof(MainWindowViewModel.IsLeftSidebarVisible) ||
                 args.PropertyName == nameof(MainWindowViewModel.IsRightSidebarVisible))
             {
                 UpdateLayout();
+                _settingsService.SetSetting("IsLeftSidebarVisible", _mainWindowViewModel.IsLeftSidebarVisible);
+                _settingsService.SetSetting("IsRightSidebarVisible", _mainWindowViewModel.IsRightSidebarVisible);
+                _settingsService.SaveSettings();
             }
         };
 
-        _leftSideBar.SizeChanged += (sender, args) =>
+        _leftSideBar.SizeChanged += (_, args) =>
         {
             if (_mainWindowViewModel.IsLeftSidebarVisible)
             {
                 _leftPanelWidth = Math.Max(args.NewSize.Width, 150);
+                _settingsService.SetSetting("LeftSidebarWidth", _leftPanelWidth);
+                _settingsService.SaveSettings();
             }
         };
 
-        _rightSideBar.SizeChanged += (sender, args) =>
+        _rightSideBar.SizeChanged += (_, args) =>
         {
             if (_mainWindowViewModel.IsRightSidebarVisible)
             {
                 _rightPanelWidth = Math.Max(args.NewSize.Width, 150);
+                _settingsService.SetSetting("RightSidebarWidth", _rightPanelWidth);
+                _settingsService.SaveSettings();
             }
         };
-
         _leftSideBar.FileSelected += OnFileSelected;
     }
 
@@ -251,10 +271,13 @@ public partial class MainWindow : Window
     {
         var leftSidebarWidth = _mainWindowViewModel.IsLeftSidebarVisible ? $"{_leftPanelWidth}" : "0";
         var rightSidebarWidth = _mainWindowViewModel.IsRightSidebarVisible ? $"{_rightPanelWidth}" : "0";
-        var leftSplitterWidth = _mainWindowViewModel.IsLeftSidebarVisible ? "Auto" : "0";
-        var rightSplitterWidth = _mainWindowViewModel.IsRightSidebarVisible ? "Auto" : "0";
+        var leftSplitterWidth = "Auto";
+        var rightSplitterWidth = "Auto";
 
         _mainGrid.ColumnDefinitions = new ColumnDefinitions($"{leftSidebarWidth},{leftSplitterWidth},*,{rightSplitterWidth},{rightSidebarWidth}");
+
+        _leftGridSplitter.IsVisible = _mainWindowViewModel.IsLeftSidebarVisible;
+        _rightGridSplitter.IsVisible = _mainWindowViewModel.IsRightSidebarVisible;
 
         Grid.SetColumn(_tabControl, 2);
         Grid.SetColumnSpan(_tabControl, 1);
@@ -268,39 +291,29 @@ public partial class MainWindow : Window
             var result = await storageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions());
             if (result.Count > 0)
             {
-                await OnDirectoryOpenedAsync(this, result[0].Path.LocalPath);
+                var directoryPath = result[0].Path.LocalPath;
+                await OnDirectoryOpenedAsync(this, directoryPath);
+                _settingsService.SetSetting("LastOpenedDirectory", directoryPath);
+                _settingsService.SaveSettings();
             }
         }
-    }
-
-    private void MainWindow_PointerPressed(object? sender, PointerPressedEventArgs e)
-    {
-        if (!_commandPalette.Bounds.Contains(e.GetPosition(this)) && _mainWindowViewModel.IsCommandPaletteVisible)
-            _mainWindowViewModel.ToggleCommandPaletteCommand.Execute(null);
     }
 
     private void UpdateTitlebarBackground(bool isActive) => _titlebar?.UpdateBackground(isActive);
 
     private void UpdateTheme()
     {
-        if (_themeManager?.CurrentTheme == null)
-        {
-            Console.WriteLine("Error: ThemeManager or CurrentTheme is null in UpdateTheme method.");
-            return;
-        }
+        if (_themeManager?.CurrentTheme == null) return;
 
         var theme = _themeManager.CurrentTheme;
         Background = new SolidColorBrush(Color.Parse(theme.AppBackgroundColor));
         UpdateTitlebarBackground(IsActive);
 
         if (_leftGridSplitter != null)
-        {
             _leftGridSplitter.Background = new SolidColorBrush(Color.Parse(theme.BorderBrush));
-        }
         if (_rightGridSplitter != null)
-        {
             _rightGridSplitter.Background = new SolidColorBrush(Color.Parse(theme.BorderBrush));
-        }
+
         _sourceControlView?.UpdateBackground(theme);
         _leftSideBar?.UpdateBackground(theme);
         _rightSideBar?.UpdateBackground(theme);
@@ -318,13 +331,9 @@ public partial class MainWindow : Window
 
             var existingTab = _tabService.Tabs.FirstOrDefault(t => t?.FilePath == filePath);
             if (existingTab != null)
-            {
                 _tabService.SetActiveTab(existingTab);
-            }
             else
-            {
                 CreateOrOpenTab(filePath);
-            }
         }
         catch (Exception ex)
         {
@@ -334,15 +343,11 @@ public partial class MainWindow : Window
 
     private async Task OnDirectoryOpenedAsync(object? sender, string? directoryPath)
     {
-        if (string.IsNullOrEmpty(directoryPath))
-        {
-            return;
-        }
+        if (string.IsNullOrEmpty(directoryPath)) return;
 
         _titlebar.SetProjectNameFromDirectory(directoryPath);
 
-        using var cts = new CancellationTokenSource();
-        cts.CancelAfter(TimeSpan.FromSeconds(30));
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
 
         try
         {
@@ -360,7 +365,6 @@ public partial class MainWindow : Window
                 }, DispatcherPriority.Background);
             }, cts.Token);
 
-            // Refresh UI components
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
                 _leftSideBar.InvalidateVisual();

@@ -62,12 +62,13 @@ public class App : Application
             var fileService = Services.GetRequiredService<IFileService>();
             var gitService = Services.GetRequiredService<IGitService>();
             var searchService = Services.GetRequiredService<ISearchService>();
+            var settingsService = Services.GetRequiredService<ISettingsService>();
             themeManager.Initialize(Services.GetRequiredService<ISettingsService>());
 
             IsActiveToBrushConverter.Initialize(themeManager);
 
             desktop.MainWindow = new MainWindow(mainWindowViewModel, tabService, layoutManager, inputHandler,
-                textMeasurer, config, scrollManager, pointerEventHandler, themeManager, fileService, gitService, searchService);
+                textMeasurer, config, scrollManager, pointerEventHandler, themeManager, fileService, gitService, searchService, settingsService);
 
             var clipboardManager = Services.GetRequiredService<IClipboardManager>();
             if (clipboardManager is ClipboardManager cm) cm.TopLevelRef = desktop.MainWindow;
