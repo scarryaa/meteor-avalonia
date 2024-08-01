@@ -39,6 +39,9 @@
 
         <KeyBinding Command="{Binding ToggleLeftSidebarCommand}" Gesture="Ctrl+B" />
         <KeyBinding Command="{Binding ToggleLeftSidebarCommand}" Gesture="Cmd+B" />
+
+        <KeyBinding Command="{Binding ToggleRightSidebarCommand}" Gesture="Ctrl+Shift+B" />
+        <KeyBinding Command="{Binding ToggleRightSidebarCommand}" Gesture="Cmd+Shift+B" />
     </Window.KeyBindings>
 
     <Window.Styles>
