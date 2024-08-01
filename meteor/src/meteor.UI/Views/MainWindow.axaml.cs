@@ -39,6 +39,8 @@ public partial class MainWindow : Window
     private readonly StatusBar _statusBar;
     private readonly Titlebar _titlebar;
     private readonly GridSplitter _gridSplitter;
+    private readonly Grid _mainGrid;
+    private readonly TabControl _tabControl;
 
     private readonly IEditorConfig _config;
     private readonly IScrollManager _scrollManager;
@@ -47,6 +49,8 @@ public partial class MainWindow : Window
     private readonly IThemeManager _themeManager;
     private readonly ISearchService _searchService;
     private readonly IGitService _gitService;
+
+    private double _leftPanelWidth = 150;
 
     public MainWindow(
         MainWindowViewModel mainWindowViewModel,
@@ -76,7 +80,7 @@ public partial class MainWindow : Window
 
         var editorControlFactory = new EditorControlFactory(scrollManager, layoutManager, inputHandler,
             pointerEventHandler, _textMeasurer, _config, themeManager);
-        var tabControl = new TabControl(tabService, editorControlFactory, themeManager);
+        _tabControl = new TabControl(tabService, editorControlFactory, themeManager);
 
         _gridSplitter = new GridSplitter
         {
@@ -108,10 +112,10 @@ public partial class MainWindow : Window
         _leftSideBar.FileSelected += OnFileSelected;
         _sourceControlView = new SourceControlView(_themeManager, gitService);
 
-        var mainGrid = new Grid
+        _mainGrid = new Grid
         {
             RowDefinitions = new RowDefinitions("Auto,*,Auto"),
-            ColumnDefinitions = new ColumnDefinitions("150,Auto,*")
+            ColumnDefinitions = new ColumnDefinitions($"{_leftPanelWidth},Auto,*")
         };
 
         Grid.SetRow(_titlebar, 0);
@@ -123,8 +127,8 @@ public partial class MainWindow : Window
         Grid.SetRow(_gridSplitter, 1);
         Grid.SetColumn(_gridSplitter, 1);
 
-        Grid.SetRow(tabControl, 1);
-        Grid.SetColumn(tabControl, 2);
+        Grid.SetRow(_tabControl, 1);
+        Grid.SetColumn(_tabControl, 2);
 
         Grid.SetRow(_statusBar, 2);
         Grid.SetColumnSpan(_statusBar, 3);
@@ -133,10 +137,10 @@ public partial class MainWindow : Window
         Grid.SetColumn(_commandPalette, 0);
         Grid.SetColumnSpan(_commandPalette, 3);
 
-        mainGrid.Children.AddRange([_titlebar, _leftSideBar, _gridSplitter, tabControl, _statusBar, _commandPalette]);
+        _mainGrid.Children.AddRange([_titlebar, _leftSideBar, _gridSplitter, _tabControl, _statusBar, _commandPalette]);
 
-        Content = mainGrid;
-        mainGrid.ClipToBounds = false;
+        Content = _mainGrid;
+        _mainGrid.ClipToBounds = false;
 
         Activated += (_, _) => UpdateTitlebarBackground(true);
         Deactivated += (_, _) => UpdateTitlebarBackground(false);
@@ -148,6 +152,40 @@ public partial class MainWindow : Window
         };
 
         PointerPressed += MainWindow_PointerPressed;
+
+        _leftSideBar.Bind(IsVisibleProperty, new Binding("IsLeftSidebarVisible"));
+        _gridSplitter.Bind(IsVisibleProperty, new Binding("IsLeftSidebarVisible"));
+
+        _mainWindowViewModel.PropertyChanged += (sender, args) =>
+        {
+            if (args.PropertyName == nameof(MainWindowViewModel.IsLeftSidebarVisible))
+            {
+                UpdateLayout();
+            }
+        };
+
+        _leftSideBar.SizeChanged += (sender, args) =>
+        {
+            if (_mainWindowViewModel.IsLeftSidebarVisible)
+            {
+                _leftPanelWidth = args.NewSize.Width;
+            }
+        };
+    }
+
+    private void UpdateLayout()
+    {
+        if (_mainWindowViewModel.IsLeftSidebarVisible)
+        {
+            _mainGrid.ColumnDefinitions = new ColumnDefinitions($"{_leftPanelWidth},Auto,*");
+            Grid.SetColumn(_tabControl, 2);
+        }
+        else
+        {
+            _mainGrid.ColumnDefinitions = new ColumnDefinitions("0,0,*");
+            Grid.SetColumn(_tabControl, 0);
+            Grid.SetColumnSpan(_tabControl, 3);
+        }
     }
 
     private async void OnOpenDirectoryRequested(object? sender, string? e)
@@ -226,9 +264,8 @@ public partial class MainWindow : Window
 
         _titlebar.SetProjectNameFromDirectory(directoryPath);
 
-        // Use a CancellationTokenSource to allow cancellation of long-running tasks
         using var cts = new CancellationTokenSource();
-        cts.CancelAfter(TimeSpan.FromSeconds(30)); // Set a timeout
+        cts.CancelAfter(TimeSpan.FromSeconds(30));
 
         try
         {
@@ -256,12 +293,10 @@ public partial class MainWindow : Window
         catch (OperationCanceledException)
         {
             Console.WriteLine("Directory opening operation timed out or was cancelled.");
-            // Handle the timeout, e.g., show a message to the user
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error opening directory: {ex.Message}");
-            // Handle other exceptions
         }
     }
 

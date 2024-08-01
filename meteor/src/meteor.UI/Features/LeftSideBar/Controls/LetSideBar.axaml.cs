@@ -44,7 +44,12 @@ public class LeftSideBar : UserControl
 
     private void InitializeComponent()
     {
-        _mainGrid = new Grid { RowDefinitions = new RowDefinitions("*,Auto") };
+        _mainGrid = new Grid
+        {
+            RowDefinitions = new RowDefinitions("*,Auto"),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            VerticalAlignment = VerticalAlignment.Stretch
+        };
         _sidebarViewSelector = CreateSidebarViewSelector();
         _fileExplorer = CreateFileExplorer();
         _searchView = CreateSearchView();
@@ -60,6 +65,10 @@ public class LeftSideBar : UserControl
 
         _mainGrid.Children.AddRange(new Control[] { _fileExplorer, _searchView, _sourceControlView });
         Content = _mainGrid;
+
+        // Set the UserControl to expand and fill its container
+        HorizontalAlignment = HorizontalAlignment.Stretch;
+        VerticalAlignment = VerticalAlignment.Stretch;
     }
 
     private StackPanel CreateSidebarViewSelector()
@@ -68,7 +77,8 @@ public class LeftSideBar : UserControl
         {
             Orientation = Orientation.Horizontal,
             Height = 30,
-            Background = new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.BackgroundColor))
+            Background = new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.BackgroundColor)),
+            HorizontalAlignment = HorizontalAlignment.Stretch
         };
 
         _sidebarButtons = new List<Button>
@@ -176,7 +186,11 @@ public class LeftSideBar : UserControl
 
     private FileExplorerControl CreateFileExplorer()
     {
-        var explorer = new FileExplorerControl(_themeManager);
+        var explorer = new FileExplorerControl(_themeManager)
+        {
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            VerticalAlignment = VerticalAlignment.Stretch
+        };
         explorer.FileSelected += (_, filePath) => _viewModel.FileSelectedCommand.Execute(filePath);
         explorer.DirectoryOpened += (_, directoryPath) =>
         {
@@ -190,18 +204,26 @@ public class LeftSideBar : UserControl
 
     private SearchView.Controls.SearchView CreateSearchView()
     {
-        var searchView = new SearchView.Controls.SearchView(_searchService, _themeManager);
+        var searchView = new SearchView.Controls.SearchView(_searchService, _themeManager)
+        {
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            VerticalAlignment = VerticalAlignment.Stretch,
+            IsVisible = false
+        };
         searchView.FileSelected += (_, args) => _viewModel.FileSelectedCommand.Execute(args.FilePath);
         Grid.SetRow(searchView, 0);
-        searchView.IsVisible = false;
         return searchView;
     }
 
     private SourceControlView CreateSourceControlView()
     {
-        var sourceControlView = new SourceControlView(_themeManager, _gitService);
+        var sourceControlView = new SourceControlView(_themeManager, _gitService)
+        {
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            VerticalAlignment = VerticalAlignment.Stretch,
+            IsVisible = false
+        };
         Grid.SetRow(sourceControlView, 0);
-        sourceControlView.IsVisible = false;
         return sourceControlView;
     }
 

@@ -36,6 +36,9 @@
 
         <KeyBinding Command="{Binding ToggleCommandPaletteCommand}" Gesture="Ctrl+P" />
         <KeyBinding Command="{Binding ToggleCommandPaletteCommand}" Gesture="Cmd+P" />
+
+        <KeyBinding Command="{Binding ToggleLeftSidebarCommand}" Gesture="Ctrl+B" />
+        <KeyBinding Command="{Binding ToggleLeftSidebarCommand}" Gesture="Cmd+B" />
     </Window.KeyBindings>
 
     <Window.Styles>

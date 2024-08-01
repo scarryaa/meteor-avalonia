@@ -20,6 +20,7 @@ public class MainWindowViewModel : ObservableObject
     private readonly ITabService _tabService;
     private readonly IThemeManager _themeManager;
     private ITabViewModel? _activeTab;
+    private bool _isLeftSidebarVisible = true;
 
     public MainWindowViewModel(ITabService tabService, IEditorInstanceFactory editorInstanceFactory,
         IFileService fileService, IFileDialogService fileDialogService, IThemeManager themeManager)
@@ -37,6 +38,7 @@ public class MainWindowViewModel : ObservableObject
         OpenFileCommand = new RelayCommand(OpenFile);
         OpenSettingsCommand = new RelayCommand(OpenSettings);
         ToggleCommandPaletteCommand = new RelayCommand(ToggleCommandPalette);
+        ToggleLeftSidebarCommand = new RelayCommand(ToggleLeftSidebar);
 
         _tabService.TabAdded += (sender, tab) => { OnPropertyChanged(nameof(Tabs)); };
         _tabService.TabRemoved += (sender, tab) => { OnPropertyChanged(nameof(Tabs)); };
@@ -52,9 +54,16 @@ public class MainWindowViewModel : ObservableObject
     public ICommand OpenFileCommand { get; }
     public ICommand OpenSettingsCommand { get; }
     public ICommand ToggleCommandPaletteCommand { get; }
+    public ICommand ToggleLeftSidebarCommand { get; }
 
     public ObservableCollection<ITabViewModel> Tabs => _tabService.Tabs;
     public bool IsCommandPaletteVisible { get; private set; }
+
+    public bool IsLeftSidebarVisible
+    {
+        get => _isLeftSidebarVisible;
+        set => SetProperty(ref _isLeftSidebarVisible, value);
+    }
 
     public ITabViewModel? ActiveTab
     {
@@ -75,6 +84,12 @@ public class MainWindowViewModel : ObservableObject
     {
         IsCommandPaletteVisible = !IsCommandPaletteVisible;
         OnPropertyChanged(nameof(IsCommandPaletteVisible));
+    }
+
+    private void ToggleLeftSidebar()
+    {
+        IsLeftSidebarVisible = !IsLeftSidebarVisible;
+        OnPropertyChanged(nameof(IsLeftSidebarVisible));
     }
 
     private async void SaveFile()
