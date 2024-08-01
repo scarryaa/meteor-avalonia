@@ -38,7 +38,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <Folder Include="Assets\Fonts\FontAwesome\"/>
+        <Folder Include="Common\Assets\Fonts\FontAwesome\"/>
         <Folder Include="Features/"/>
         <Folder Include="Features/Editor/"/>
         <Folder Include="Features/Editor/Controls/"/>

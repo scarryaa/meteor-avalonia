@@ -367,7 +367,8 @@ public class FileExplorerControl : UserControl
         var iconSize = 16;
         var iconChar = item.IsDirectory ? "\uf07b" : "\uf15b"; // folder icon : file icon
         var iconBrush = new SolidColorBrush(Color.Parse(_currentTheme.FileExplorerFileIconColor));
-        var typeface = new Typeface("Font Awesome 6 Free", FontStyle.Normal, FontWeight.Black);
+        var fontFamily = new FontFamily(new Uri("avares://meteor.UI/Common/Assets/Fonts/FontAwesome/Font Awesome 6 Free-Solid-900.otf"), "Font Awesome 6 Free");
+        var typeface = new Typeface(fontFamily);
 
         var iconGeometry = new FormattedText(
             iconChar,
