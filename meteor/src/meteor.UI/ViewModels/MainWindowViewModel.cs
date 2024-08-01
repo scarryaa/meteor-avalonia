@@ -8,6 +8,7 @@ using meteor.Core.Config;
 using meteor.Core.Interfaces.Factories;
 using meteor.Core.Interfaces.Services;
 using meteor.Core.Interfaces.ViewModels;
+using meteor.Core.Models;
 
 namespace meteor.UI.ViewModels;
 
@@ -29,6 +30,10 @@ public class MainWindowViewModel : ObservableObject
         _fileService = fileService;
         _fileDialogService = fileDialogService;
         _themeManager = themeManager;
+        _themeManager.ThemeChanged += (sender, theme) =>
+        {
+            OnPropertyChanged(nameof(CurrentTheme));
+        };
 
         OpenNewTabCommand = new RelayCommand(OpenNewTab);
         CloseTabCommand = new RelayCommand<ITabViewModel>(CloseTab);
@@ -73,6 +78,8 @@ public class MainWindowViewModel : ObservableObject
             }
         }
     }
+
+    public Theme CurrentTheme => _themeManager.CurrentTheme;
 
     private async void SaveFile()
     {

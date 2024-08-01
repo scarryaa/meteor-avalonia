@@ -11,8 +11,12 @@
         Height="500"
         Title="meteor"
         ExtendClientAreaToDecorationsHint="True"
-        ExtendClientAreaChromeHints="PreferSystemChrome"
-        ExtendClientAreaTitleBarHeightHint="-1">
+        ExtendClientAreaChromeHints="Default"
+        ExtendClientAreaTitleBarHeightHint="-1"
+        SystemDecorations="Full"
+        TransparencyLevelHint="AcrylicBlur"
+        Background="Transparent"
+        Theme="{Binding CurrentTheme, Converter={StaticResource ThemeVariantConverter}}">
 
     <Window.KeyBindings>
         <KeyBinding Command="{Binding OpenNewTabCommand}" Gesture="Ctrl+N" />
@@ -34,7 +38,26 @@
         <KeyBinding Command="{Binding ToggleCommandPaletteCommand}" Gesture="Cmd+P" />
     </Window.KeyBindings>
 
-    <DockPanel>
-        <ContentControl Content="{Binding Content}" />
-    </DockPanel>
+    <Window.Styles>
+        <Style Selector="Window[IsActive=true]">
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SystemChromeAltLowColor}" />
+        </Style>
+    </Window.Styles>
+
+    <Panel>
+        <ExperimentalAcrylicBorder IsHitTestVisible="False">
+            <ExperimentalAcrylicBorder.Material>
+                <ExperimentalAcrylicMaterial
+                    BackgroundSource="Digger"
+                    TintColor="{DynamicResource SystemAltHighColor}"
+                    TintOpacity="1"
+                    MaterialOpacity="0.65" />
+            </ExperimentalAcrylicBorder.Material>
+        </ExperimentalAcrylicBorder>
+
+        <DockPanel>
+            <ContentControl Content="{Binding Content}" />
+        </DockPanel>
+    </Panel>
 </Window>

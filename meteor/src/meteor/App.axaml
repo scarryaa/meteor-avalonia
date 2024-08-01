@@ -24,6 +24,7 @@
         <converters:BoolToBrushConverter x:Key="BoolToBrushConverter" />
         <converters:IsTemporaryTabToFontFamilyConverter x:Key="IsTemporaryTabToFontFamilyConverter" />
         <converters:IsTemporaryTabToFontStyleConverter x:Key="IsTemporaryTabToFontStyleConverter" />
+        <converters:ThemeVariantConverter x:Key="ThemeVariantConverter" />
     </Application.Resources>
 
     <Application.Styles>
