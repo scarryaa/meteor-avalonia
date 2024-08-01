@@ -91,13 +91,15 @@ public partial class MainWindow : Window
 
         _statusBar = new StatusBar(_themeManager);
 
-        _commandPalette = new CommandPalette(_themeManager);
-        _commandPalette.ZIndex = 1000;
-        _commandPalette.HorizontalAlignment = HorizontalAlignment.Center;
-        _commandPalette.VerticalAlignment = VerticalAlignment.Top;
-        _commandPalette.Width = 400;
-        _commandPalette.MaxHeight = 300;
-        _commandPalette.Margin = new Thickness(0, 40, 0, 0);
+        _commandPalette = new CommandPalette(_themeManager)
+        {
+            ZIndex = 1000,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Top,
+            Width = 400,
+            MaxHeight = 300,
+            Margin = new Thickness(0, 40, 0, 0)
+        };
         _commandPalette[!IsVisibleProperty] = new Binding("IsCommandPaletteVisible");
 
         _leftSideBar = new LeftSideBar(fileService, _themeManager, gitService);
@@ -191,8 +193,9 @@ public partial class MainWindow : Window
         Background = new SolidColorBrush(Color.Parse(theme.AppBackgroundColor));
         UpdateTitlebarBackground(IsActive);
 
-        // Update GridSplitter background
         if (_gridSplitter != null) _gridSplitter.Background = new SolidColorBrush(Color.Parse(theme.BorderBrush));
+        if (_sourceControlView != null) _sourceControlView.UpdateBackground(theme);
+        if (_leftSideBar!= null) _leftSideBar.UpdateBackground(theme);
     }
 
     private void OnFileSelected(object? sender, string? filePath)

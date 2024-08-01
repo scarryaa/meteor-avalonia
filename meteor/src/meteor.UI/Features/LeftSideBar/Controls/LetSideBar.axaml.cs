@@ -154,4 +154,9 @@ public class LeftSideBar : UserControl
                 if (button.Tag?.ToString() == view) button.Classes.Add("selected");
             }
     }
+
+    internal void UpdateBackground(Core.Models.Theme theme)
+    {
+        _sidebarViewSelector.Background = new SolidColorBrush(Color.Parse(theme.BackgroundColor));
+    }
 }

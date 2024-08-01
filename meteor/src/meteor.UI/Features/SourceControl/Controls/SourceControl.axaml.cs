@@ -228,4 +228,9 @@ public class SourceControlView : UserControl
         UpdateCanvasSize();
         InvalidateVisual();
     }
+
+    internal void UpdateBackground(Theme theme)
+    {
+        Background = new SolidColorBrush(Color.Parse(theme.BackgroundColor));
+    }
 }
