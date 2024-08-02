@@ -26,6 +26,7 @@ public class LeftSideBar : UserControl
     private Button _overflowButton;
     private List<Button> _sidebarButtons;
     private ContextMenu _overflowMenu;
+    private Border _sidebarViewSelectorBorder;
 
     public event EventHandler<string> FileSelected;
     public event EventHandler<string> DirectoryOpened;
@@ -34,12 +35,14 @@ public class LeftSideBar : UserControl
     {
         (_fileService, _themeManager, _gitService, _searchService) = (fileService, themeManager, gitService, searchService);
         InitializeComponent();
+        UpdateBackground(_themeManager.CurrentTheme);
         _viewModel = new LeftSideBarViewModel(_fileService, _themeManager);
         DataContext = _viewModel;
 
         _viewModel.FileSelected += (_, filePath) => FileSelected?.Invoke(this, filePath);
         _viewModel.DirectoryOpened += (_, directoryPath) => DirectoryOpened?.Invoke(this, directoryPath);
         _viewModel.ViewChanged += OnViewChanged;
+        _themeManager.ThemeChanged += OnThemeChanged;
     }
 
     private void InitializeComponent()
@@ -55,12 +58,13 @@ public class LeftSideBar : UserControl
         _searchView = CreateSearchView();
         _sourceControlView = CreateSourceControlView();
 
-        _mainGrid.Children.Add(new Border
+        _sidebarViewSelectorBorder = new Border
         {
             BorderThickness = new Thickness(0, 1, 0, 0),
             BorderBrush = new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.BorderBrush)),
             Child = _sidebarViewSelector
-        });
+        };
+        _mainGrid.Children.Add(_sidebarViewSelectorBorder);
         Grid.SetRow(_mainGrid.Children[^1], 1);
 
         _mainGrid.Children.AddRange(new Control[] { _fileExplorer, _searchView, _sourceControlView });
@@ -257,10 +261,27 @@ public class LeftSideBar : UserControl
     internal void UpdateBackground(Core.Models.Theme theme)
     {
         _sidebarViewSelector.Background = new SolidColorBrush(Color.Parse(theme.BackgroundColor));
+        _sidebarViewSelectorBorder.BorderBrush = new SolidColorBrush(Color.Parse(theme.BorderBrush));
+
+        foreach (var button in _sidebarButtons.Concat(new[] { _overflowButton }))
+        {
+            UpdateButtonColors(button, theme);
+        }
+    }
+
+    private void UpdateButtonColors(Button button, Core.Models.Theme theme)
+    {
+        button.Foreground = new SolidColorBrush(Color.Parse(theme.AppForegroundColor));
+        button.Background = new SolidColorBrush(Color.Parse(theme.BackgroundColor));
     }
 
     internal void UpdateFiles(string directoryPath)
     {
         _fileExplorer.SetDirectory(directoryPath);
+    }
+
+    private void OnThemeChanged(object sender, Core.Models.Theme theme)
+    {
+        UpdateBackground(theme);
     }
 }

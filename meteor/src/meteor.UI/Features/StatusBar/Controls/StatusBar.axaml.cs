@@ -4,6 +4,9 @@ using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Styling;
+using meteor.Core.Models;
+using Color = Avalonia.Media.Color;
+using SolidColorBrush = Avalonia.Media.SolidColorBrush;
 
 namespace meteor.UI.Features.StatusBar.Controls;
 
@@ -21,7 +24,7 @@ public class StatusBar : UserControl
         _themeManager = themeManager;
         InitializeComponent();
         ApplyTheme();
-        _themeManager.ThemeChanged += (_, _) => ApplyTheme();
+        _themeManager.ThemeChanged += OnThemeChanged;
     }
 
     public event EventHandler<(int Line, int Column)> GoToLineColumnRequested;
@@ -35,8 +38,8 @@ public class StatusBar : UserControl
         _leftSidebarToggleButton = CreateSidebarToggleButton("\uf0c9", HorizontalAlignment.Left);
         _rightSidebarToggleButton = CreateSidebarToggleButton("\uf0c9", HorizontalAlignment.Right);
 
-        _leftSidebarToggleButton.Click += LeftSidebarToggleButton_Click;
-        _rightSidebarToggleButton.Click += RightSidebarToggleButton_Click;
+        _leftSidebarToggleButton.Click += (_, _) => LeftSidebarToggleRequested?.Invoke(this, EventArgs.Empty);
+        _rightSidebarToggleButton.Click += (_, _) => RightSidebarToggleRequested?.Invoke(this, EventArgs.Empty);
 
         _statusTextBlock = new TextBlock
         {
@@ -52,7 +55,14 @@ public class StatusBar : UserControl
             Cursor = new Cursor(StandardCursorType.Hand)
         };
 
-        _lineColumnTextBlock.PointerPressed += LineColumnTextBlock_PointerPressed;
+        _lineColumnTextBlock.PointerPressed += (_, _) =>
+        {
+            var parts = _lineColumnTextBlock.Text.Split(',');
+            if (parts.Length == 2 &&
+                int.TryParse(parts[0].Split(' ')[1], out var line) &&
+                int.TryParse(parts[1].Split(' ')[2], out var column))
+                GoToLineColumnRequested?.Invoke(this, (line, column));
+        };
 
         _border = new Border
         {
@@ -89,9 +99,18 @@ public class StatusBar : UserControl
             Height = 25,
             VerticalAlignment = VerticalAlignment.Center,
             HorizontalAlignment = alignment,
-            Margin = new Thickness(0, 0, 0, 0),
+            Margin = new Thickness(0),
             Classes = { "sidebar-toggle", "sidebar-open" }
         };
+
+        UpdateButtonStyles(button);
+
+        return button;
+    }
+
+    private void UpdateButtonStyles(Button button)
+    {
+        var theme = _themeManager.CurrentTheme;
 
         button.Styles.Add(new Style(x => x.OfType<Button>().Class("sidebar-toggle"))
         {
@@ -102,92 +121,77 @@ public class StatusBar : UserControl
             }
         });
 
-        button.Styles.Add(new Style(x => x.OfType<Button>().Class("sidebar-toggle").Class(":pointerover"))
+        if (Color.TryParse(theme.ButtonHoverColor, out var hoverColor))
         {
-            Setters =
+            button.Styles.Add(new Style(x => x.OfType<Button>().Class("sidebar-toggle").Class(":pointerover"))
             {
-                new Setter(Button.BackgroundProperty, new SolidColorBrush(Color.Parse("#3A3A3A"))),
-            }
-        });
+                Setters =
+                {
+                    new Setter(Button.BackgroundProperty, new SolidColorBrush(hoverColor)),
+                }
+            });
+        }
 
-        button.Styles.Add(new Style(x => x.OfType<Button>().Class("sidebar-toggle").Class(":pressed"))
+        if (Color.TryParse(theme.ButtonPressedColor, out var pressedColor))
         {
-            Setters =
+            button.Styles.Add(new Style(x => x.OfType<Button>().Class("sidebar-toggle").Class(":pressed"))
             {
-                new Setter(Button.BackgroundProperty, new SolidColorBrush(Color.Parse("#1E1E1E"))),
-            }
-        });
+                Setters =
+                {
+                    new Setter(Button.BackgroundProperty, new SolidColorBrush(pressedColor)),
+                }
+            });
+        }
 
-        button.Styles.Add(new Style(x => x.OfType<Button>().Class("sidebar-toggle").Class("sidebar-open"))
+        if (Color.TryParse(theme.ButtonActiveColor, out var activeColor))
         {
-            Setters =
+            button.Styles.Add(new Style(x => x.OfType<Button>().Class("sidebar-toggle").Class("sidebar-open"))
             {
-                new Setter(Button.BackgroundProperty, new SolidColorBrush(Color.Parse("#1E1E1E"))),
-            }
-        });
-
-        return button;
+                Setters =
+                {
+                    new Setter(Button.BackgroundProperty, new SolidColorBrush(activeColor)),
+                }
+            });
+        }
     }
 
     private void ApplyTheme()
     {
-        var theme = _themeManager.CurrentTheme;
-        Background = new SolidColorBrush(Color.Parse(theme.StatusBarColor));
-        _statusTextBlock.Foreground = new SolidColorBrush(Color.Parse(theme.AppForegroundColor));
-        _lineColumnTextBlock.Foreground = new SolidColorBrush(Color.Parse(theme.AppForegroundColor));
-        _border.BorderBrush = new SolidColorBrush(Color.Parse(theme.BorderBrush));
-        _leftSidebarToggleButton.Foreground = new SolidColorBrush(Color.Parse(theme.AppForegroundColor));
-        _rightSidebarToggleButton.Foreground = new SolidColorBrush(Color.Parse(theme.AppForegroundColor));
+        Background = new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.StatusBarColor));
+        _statusTextBlock.Foreground = new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.AppForegroundColor));
+        _lineColumnTextBlock.Foreground = new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.AppForegroundColor));
+        _border.BorderBrush = new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.BorderBrush));
+        _leftSidebarToggleButton.Foreground = new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.AppForegroundColor));
+        _rightSidebarToggleButton.Foreground = new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.AppForegroundColor));
+
+        UpdateButtonStyles(_leftSidebarToggleButton);
+        UpdateButtonStyles(_rightSidebarToggleButton);
     }
 
-    public void SetStatus(string status)
+    private void OnThemeChanged(object sender, Theme theme)
     {
-        _statusTextBlock.Text = status;
+        ApplyTheme();
+        InvalidateVisual();
     }
 
-    public void SetLineAndColumn(int line, int column)
-    {
-        _lineColumnTextBlock.Text = $"Ln {line}, Col {column}";
-    }
+    public void SetStatus(string status) => _statusTextBlock.Text = status;
 
-    private void LineColumnTextBlock_PointerPressed(object sender, PointerPressedEventArgs e)
-    {
-        var parts = _lineColumnTextBlock.Text.Split(',');
-        if (parts.Length == 2 &&
-            int.TryParse(parts[0].Split(' ')[1], out var line) &&
-            int.TryParse(parts[1].Split(' ')[2], out var column))
-            GoToLineColumnRequested?.Invoke(this, (line, column));
-    }
+    public void SetLineAndColumn(int line, int column) => _lineColumnTextBlock.Text = $"Ln {line}, Col {column}";
 
-    private void LeftSidebarToggleButton_Click(object sender, Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        LeftSidebarToggleRequested?.Invoke(this, EventArgs.Empty);
-    }
+    internal void UpdateLeftSidebarButtonStyle(bool isSidebarOpen) => UpdateSidebarButtonStyle(_leftSidebarToggleButton, isSidebarOpen);
 
-    private void RightSidebarToggleButton_Click(object sender, Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        RightSidebarToggleRequested?.Invoke(this, EventArgs.Empty);
-    }
-
-    internal void UpdateLeftSidebarButtonStyle(bool isSidebarOpen)
-    {
-        UpdateSidebarButtonStyle(_leftSidebarToggleButton, isSidebarOpen);
-    }
-
-    internal void UpdateRightSidebarButtonStyle(bool isSidebarOpen)
-    {
-        UpdateSidebarButtonStyle(_rightSidebarToggleButton, isSidebarOpen);
-    }
+    internal void UpdateRightSidebarButtonStyle(bool isSidebarOpen) => UpdateSidebarButtonStyle(_rightSidebarToggleButton, isSidebarOpen);
 
     private void UpdateSidebarButtonStyle(Button button, bool isSidebarOpen)
     {
-        if (isSidebarOpen)
-        {
-            button.Classes.Add("sidebar-open");
-        }
-        else
-        {
-            button.Classes.Remove("sidebar-open");
-        }
+        if (isSidebarOpen) button.Classes.Add("sidebar-open");
+        else button.Classes.Remove("sidebar-open");
+        UpdateButtonStyles(button);
+    }
+
+    public void UpdateTheme()
+    {
+        ApplyTheme();
+        InvalidateVisual();
     }
 }

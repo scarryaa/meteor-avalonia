@@ -171,8 +171,8 @@ public class TabControl : UserControl
 
         _tabStrip.Background = _avaloniaConfig.TabBackgroundBrush;
         _tabStrip.Foreground = _avaloniaConfig.TabForegroundBrush;
+        _tabStrip.InvalidateVisual();
 
-        // Refresh the content area to apply new theme
         if (_contentArea.Content is EditorControl editorControl) editorControl.InvalidateVisual();
     }
 }

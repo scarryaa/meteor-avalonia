@@ -25,7 +25,7 @@
   "attributeColor": "#50FA7B",
   "namespaceColor": "#8BE9FD",
   "linqColor": "#FF79C6",
-  "lambdaColor": "#FF79C6",
+"lambdaColor": "#FF79C6",
   "whitespaceColor": "#282A36",
   "tabBackgroundColor": "#1A1A1A",
   "tabForegroundColor": "#808080",
@@ -52,5 +52,8 @@
   "fileExplorerFileIconColor": "#C8C8C8",
   "titleBarColor": "#080808",
   "titleBarInactiveColor": "#181818",
-  "statusBarColor": "#121212"
+  "statusBarColor": "#121212",
+  "buttonHoverColor": "#2A2A2A",
+  "buttonPressedColor": "#3A3A3A",
+  "buttonActiveColor": "#4A4A4A"
 }

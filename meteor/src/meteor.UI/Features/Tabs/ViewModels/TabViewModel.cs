@@ -1,9 +1,12 @@
+using System;
 using System.ComponentModel;
+using System.IO;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
-using Avalonia.Media;
 using meteor.Core.Interfaces.Config;
+using meteor.Core.Interfaces.Services;
 using meteor.Core.Interfaces.ViewModels;
+using meteor.Core.Models;
 
 namespace meteor.UI.Features.Tabs.ViewModels;
 
@@ -16,9 +19,11 @@ public class TabViewModel : ITabViewModel
     private bool _isModified;
     private string _originalContent;
     private string _title;
+    private readonly ITabViewModelConfig _configuration;
+    private readonly IThemeManager _themeManager;
 
     public TabViewModel(IEditorViewModel editorViewModel, string filePath, string fileName,
-        ITabViewModelConfig configuration)
+        ITabViewModelConfig configuration, IThemeManager themeManager)
     {
         EditorViewModel = editorViewModel;
         Title = fileName;
@@ -26,29 +31,26 @@ public class TabViewModel : ITabViewModel
         _originalContent = string.Empty;
         _fileName = fileName;
         _filePath = filePath;
+        _configuration = configuration;
+        _themeManager = themeManager;
 
-        // Ideally we would make this Avalonia independent
-        BorderBrush = new SolidColorBrush(ConvertToColor(configuration.GetBorderBrush()));
-        Background = new SolidColorBrush(ConvertToColor(configuration.GetBackground()));
-        DirtyIndicatorBrush = new SolidColorBrush(ConvertToColor(configuration.GetDirtyIndicatorBrush()));
-        Foreground = new SolidColorBrush(ConvertToColor(configuration.GetForeground()));
-        CloseButtonForeground = new SolidColorBrush(ConvertToColor(configuration.GetCloseButtonForeground()));
-        CloseButtonBackground = new SolidColorBrush(ConvertToColor(configuration.GetCloseButtonBackground()));
+        UpdateThemeProperties();
 
         IsModified = false;
         IsActive = false;
         CloseTabCommand = configuration.GetCloseTabCommand();
 
         EditorViewModel.ContentChanged += OnEditorContentChanged;
+        _themeManager.ThemeChanged += OnThemeChanged;
     }
 
-    public ISolidColorBrush BorderBrush { get; set; }
-    public ISolidColorBrush Background { get; set; }
-    public ISolidColorBrush DirtyIndicatorBrush { get; set; }
-    public ISolidColorBrush Foreground { get; set; }
-    public ISolidColorBrush CloseButtonForeground { get; set; }
-    public ISolidColorBrush CloseButtonBackground { get; set; }
-    public ICommand CloseTabCommand { get; set; }
+    public Core.Models.Color BorderBrushColor { get; private set; }
+    public Core.Models.Color BackgroundColor { get; private set; }
+    public Core.Models.Color DirtyIndicatorColor { get; private set; }
+    public Core.Models.Color ForegroundColor { get; private set; }
+    public Core.Models.Color CloseButtonForegroundColor { get; private set; }
+    public Core.Models.Color CloseButtonBackgroundColor { get; private set; }
+    public ICommand CloseTabCommand { get; }
 
     public double ScrollPositionX { get; set; }
     public double ScrollPositionY { get; set; }
@@ -142,8 +144,21 @@ public class TabViewModel : ITabViewModel
         return true;
     }
 
-    private Color ConvertToColor(Core.Interfaces.Models.ISolidColorBrush brush)
+    private void UpdateThemeProperties()
     {
-        return Color.FromArgb(brush.Color.A, brush.Color.R, brush.Color.G, brush.Color.B);
+        var theme = _themeManager.CurrentTheme;
+        if (theme == null) return;
+
+        BorderBrushColor = Color.FromHex(theme.BorderBrush);
+        BackgroundColor = Color.FromHex(theme.TabBackgroundColor);
+        DirtyIndicatorColor = Color.FromHex(theme.DirtyIndicatorBrush);
+        ForegroundColor = Color.FromHex(theme.TabForegroundColor);
+        CloseButtonForegroundColor = Color.FromHex(theme.CloseButtonForeground);
+        CloseButtonBackgroundColor = Color.FromHex(theme.CloseButtonBackground);
+    }
+
+    private void OnThemeChanged(object sender, Theme newTheme)
+    {
+        UpdateThemeProperties();
     }
 }

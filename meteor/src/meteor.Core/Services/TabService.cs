@@ -10,11 +10,13 @@ public class TabService : ITabService
 {
     private readonly List<ITabViewModel> _tabHistory = [];
     private readonly ITabViewModelFactory _tabViewModelFactory;
+    private readonly IThemeManager _themeManager;
     private ITabViewModel _previousActiveTab;
 
-    public TabService(ITabViewModelFactory tabViewModelFactory)
+    public TabService(ITabViewModelFactory tabViewModelFactory, IThemeManager themeManager)
     {
         _tabViewModelFactory = tabViewModelFactory;
+        _themeManager = themeManager;
     }
 
     public ObservableCollection<ITabViewModel?> Tabs { get; } = [];
@@ -25,45 +27,32 @@ public class TabService : ITabService
     public event EventHandler<ITabViewModel?> ActiveTabChanged;
 
     public ITabViewModel AddTab(IEditorViewModel editorViewModel, ITabViewModelConfig tabConfig, string filePath,
-        string fileName,
-        string initialContent = "")
+        string fileName, string initialContent = "")
     {
-        var tabViewModel = CreateTabViewModel(editorViewModel, tabConfig, filePath, fileName, initialContent);
+        var tabViewModel = _tabViewModelFactory.Create(editorViewModel, tabConfig, filePath, fileName, _themeManager);
+        tabViewModel?.LoadContent(initialContent);
         Tabs.Add(tabViewModel);
         TabAdded?.Invoke(this, tabViewModel);
         SetActiveTab(tabViewModel);
-
         return tabViewModel;
     }
 
-    public ITabViewModel GetPreviousActiveTab()
-    {
-        return _previousActiveTab;
-    }
+    public ITabViewModel GetPreviousActiveTab() => _previousActiveTab;
 
     public void RemoveTab(ITabViewModel? tab)
     {
-        if (Tabs.Remove(tab))
-        {
-            TabRemoved?.Invoke(this, tab);
-            _tabHistory.Remove(tab);
-            UpdateActiveTabAfterRemoval(tab);
-        }
+        if (!Tabs.Remove(tab)) return;
+        TabRemoved?.Invoke(this, tab);
+        _tabHistory.Remove(tab);
+        UpdateActiveTabAfterRemoval(tab);
     }
 
     public void SetActiveTab(ITabViewModel? tab)
     {
-        if (ShouldUpdateActiveTab(tab))
+        if (tab != null && tab != ActiveTab && Tabs.Contains(tab))
             UpdateActiveTab(tab);
-        else if (tab == null) ClearActiveTab();
-    }
-
-    private ITabViewModel CreateTabViewModel(IEditorViewModel editorViewModel, ITabViewModelConfig tabConfig,
-        string filePath, string fileName, string initialContent)
-    {
-        var tabViewModel = _tabViewModelFactory.Create(editorViewModel, tabConfig, filePath, fileName);
-        tabViewModel?.LoadContent(initialContent);
-        return tabViewModel;
+        else if (tab == null)
+            ClearActiveTab();
     }
 
     private void UpdateActiveTabAfterRemoval(ITabViewModel? removedTab)
@@ -73,39 +62,21 @@ public class TabService : ITabService
             var newActiveTab = _tabHistory.LastOrDefault(t => Tabs.Contains(t)) ?? Tabs.LastOrDefault();
             SetActiveTab(newActiveTab);
         }
-
         if (Tabs.Count == 0) SetActiveTab(null);
     }
 
-    private bool ShouldUpdateActiveTab(ITabViewModel? tab)
-    {
-        return tab != null && tab != ActiveTab && Tabs.Contains(tab);
-    }
-
     private void UpdateActiveTab(ITabViewModel tab)
-    {
-        DeactivateCurrentTab();
-        ActiveTab = tab;
-        ActiveTab.IsActive = true;
-
-        UpdateTabHistory(tab);
-
-        ActiveTabChanged?.Invoke(this, tab);
-    }
-
-    private void DeactivateCurrentTab()
     {
         if (ActiveTab != null)
         {
             ActiveTab.IsActive = false;
             _previousActiveTab = ActiveTab;
         }
-    }
-
-    private void UpdateTabHistory(ITabViewModel tab)
-    {
+        ActiveTab = tab;
+        ActiveTab.IsActive = true;
         _tabHistory.Remove(tab);
         _tabHistory.Add(tab);
+        ActiveTabChanged?.Invoke(this, tab);
     }
 
     private void ClearActiveTab()

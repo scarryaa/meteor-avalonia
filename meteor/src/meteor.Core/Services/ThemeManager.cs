@@ -191,7 +191,10 @@ public class ThemeManager : IThemeManager
             FileExplorerFileIconColor = "#C8C8C8",
             TitleBarColor = "#080808",
             TitleBarInactiveColor = "#181818",
-            StatusBarColor = "#121212"
+            StatusBarColor = "#121212",
+            ButtonHoverColor = "#2A2A2A",
+            ButtonPressedColor = "#3A3A3A",
+            ButtonActiveColor = "#4A4A4A"
         };
     }
 
@@ -252,7 +255,10 @@ public class ThemeManager : IThemeManager
             FileExplorerFileIconColor = "#B0B0B0",
             TitleBarColor = "#C0C0C0",
             TitleBarInactiveColor = "#E0E0E0",
-            StatusBarColor = "#FFFFFF"
+            StatusBarColor = "#FFFFFF",
+            ButtonHoverColor = "#E0E0E0",
+            ButtonPressedColor = "#D0D0D0",
+            ButtonActiveColor = "#C0C0C0"
         };
     }
 

@@ -16,6 +16,7 @@ namespace meteor.UI.Features.RightSideBar.Controls
         public RightSideBar(IThemeManager themeManager)
         {
             _themeManager = themeManager;
+            Background = new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.BackgroundColor));
         }
 
         private void InitializeComponent()
@@ -40,7 +41,7 @@ namespace meteor.UI.Features.RightSideBar.Controls
 
         internal void UpdateBackground(Theme theme)
         {
-            Background = new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.BackgroundColor));
+            Background = new SolidColorBrush(Color.Parse(theme.BackgroundColor));
         }
     }
 }

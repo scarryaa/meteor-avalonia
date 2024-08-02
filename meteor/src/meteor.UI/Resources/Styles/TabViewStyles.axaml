@@ -7,11 +7,16 @@
     <Styles.Resources>
         <converters:BoolToBrushConverter x:Key="BoolToBrushConverter" />
         <converters:IsActiveToBrushConverter x:Key="IsActiveToBrushConverter" />
+        <converters:ThemeToBackgroundConverter x:Key="ThemeToBackgroundConverter" />
+        <converters:ThemeToBorderBrushConverter x:Key="ThemeToBorderBrushConverter" />
+        <converters:ThemeToForegroundConverter x:Key="ThemeToForegroundConverter" />
+        <converters:ThemeToCloseButtonForegroundConverter x:Key="ThemeToCloseButtonForegroundConverter" />
+        <converters:ColorToSolidColorBrushConverter x:Key="ColorToSolidColorBrushConverter" />
 
         <DataTemplate x:Key="TabItemTemplate" x:DataType="viewModels1:TabViewModel">
             <Border x:Name="MainBorder"
-                    BorderBrush="{Binding BorderBrush}"
-                    Background="{Binding IsActive, Converter={StaticResource IsActiveToBrushConverter}}"
+                    BorderBrush="{Binding DataContext.CurrentTheme, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource ThemeToBorderBrushConverter}}"
+                    Background="{Binding DataContext.CurrentTheme, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource ThemeToBackgroundConverter}}"
                     BorderThickness="0 0 1 0"
                     Padding="14 4 2 4" behaviors:MiddleTabClickBehavior.CloseCommand="{Binding CloseTabCommand}"
                     behaviors:MiddleTabClickBehavior.CloseCommandParameter="{Binding}">
@@ -31,14 +36,14 @@
                     <TextBlock Grid.Column="1" Text="{Binding Title}" VerticalAlignment="Center"
                                HorizontalAlignment="Center" FontSize="14"
                                FontWeight="Normal" Margin="0 1 0 0"
-                               Foreground="{Binding Foreground}"
+                               Foreground="{Binding DataContext.CurrentTheme, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource ThemeToForegroundConverter}}"
                                FontFamily="{Binding IsTemporary, Converter={StaticResource IsTemporaryTabToFontFamilyConverter}}"
                                FontStyle="{Binding IsTemporary, Converter={StaticResource IsTemporaryTabToFontStyleConverter}}" />
                     <Button x:Name="CloseButton" Grid.Column="2"
                             Width="18"
                             Height="16"
                             Padding="0"
-                            Foreground="{Binding CloseButtonForeground}"
+                            Foreground="{Binding DataContext.CurrentTheme, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource ThemeToCloseButtonForegroundConverter}}"
                             VerticalAlignment="Center" HorizontalAlignment="Center"
                             VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
                             Margin="2 1 0 0"
@@ -62,7 +67,7 @@
         <Setter Property="MinHeight" Value="20" />
         <Setter Property="FontSize" Value="14" />
         <Setter Property="Background" Value="Transparent" />
-        <Setter Property="Foreground" Value="Black" />
+        <Setter Property="Foreground" Value="{Binding DataContext.CurrentTheme, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource ThemeToForegroundConverter}}" />
         <Setter Property="Template">
             <ControlTemplate>
                 <ContentPresenter Name="PART_ContentPresenter"
@@ -86,9 +91,8 @@
     <Style Selector="Border#MainBorder:pointerover Button#CloseButton">
         <Setter Property="Opacity" Value="1" />
     </Style>
-
     <Style Selector="Button#CloseButton:pointerover /template/ ContentPresenter">
-        <Setter Property="Background" x:DataType="viewModels1:TabViewModel" Value="{Binding CloseButtonBackground}" />
-        <Setter Property="Foreground" x:DataType="viewModels1:TabViewModel" Value="{Binding CloseButtonForeground}" />
+        <Setter Property="Background" Value="{Binding CloseButtonBackgroundColor, Converter={StaticResource ColorToSolidColorBrushConverter}}" />
+        <Setter Property="Foreground" Value="{Binding CloseButtonForegroundColor, Converter={StaticResource ColorToSolidColorBrushConverter}}" />
     </Style>
 </Styles>

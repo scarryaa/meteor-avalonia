@@ -138,4 +138,13 @@ public class Theme
 
     [JsonPropertyName("titleBarInactiveColor")]
     public string TitleBarInactiveColor { get; set; } = "";
+
+    [JsonPropertyName("buttonHoverColor")]
+    public string ButtonHoverColor { get; set; } = "";
+
+    [JsonPropertyName("buttonPressedColor")]
+    public string ButtonPressedColor { get; set; } = "";
+
+    [JsonPropertyName("buttonActiveColor")]
+    public string ButtonActiveColor { get; set; } = "";
 }

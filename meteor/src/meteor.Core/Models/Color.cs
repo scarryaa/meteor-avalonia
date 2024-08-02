@@ -1,4 +1,6 @@
+using System;
 using System.Globalization;
+using System.Linq;
 
 namespace meteor.Core.Models;
 
@@ -23,17 +25,34 @@ public struct Color
     public static Color Green => new(255, 0, 255, 0);
     public static Color Blue => new(255, 0, 0, 255);
     public static Color Transparent => new(0, 0, 0, 0);
-
     public static Color FromHex(string hex)
     {
         hex = hex.TrimStart('#');
+
+        if (hex.Length == 3)
+        {
+            hex = string.Concat(hex.Select(c => $"{c}{c}"));
+        }
+
         if (hex.Length == 6)
+        {
             hex = "FF" + hex;
+        }
+        else if (hex.Length != 8)
+        {
+            throw new ArgumentException("Invalid hex color format. Expected 3, 6, or 8 characters.", nameof(hex));
+        }
+
+        if (!uint.TryParse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out uint hexValue))
+        {
+            throw new ArgumentException("Invalid hex color format.", nameof(hex));
+        }
+
         return new Color(
-            byte.Parse(hex.Substring(0, 2), NumberStyles.HexNumber),
-            byte.Parse(hex.Substring(2, 2), NumberStyles.HexNumber),
-            byte.Parse(hex.Substring(4, 2), NumberStyles.HexNumber),
-            byte.Parse(hex.Substring(6, 2), NumberStyles.HexNumber)
+            (byte)((hexValue >> 24) & 0xFF),
+            (byte)((hexValue >> 16) & 0xFF),
+            (byte)((hexValue >> 8) & 0xFF),
+            (byte)(hexValue & 0xFF)
         );
     }
 
