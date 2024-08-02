@@ -160,5 +160,7 @@ public class TabViewModel : ITabViewModel
     private void OnThemeChanged(object sender, Theme newTheme)
     {
         UpdateThemeProperties();
+        OnPropertyChanged(nameof(BackgroundColor));
+        OnPropertyChanged(nameof(IsActive));
     }
 }
