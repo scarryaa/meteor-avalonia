@@ -8,8 +8,8 @@ namespace meteor.Core.Services
     {
         private string _projectRoot;
         private Dictionary<string, bool> _filters;
-        private readonly string[] _excludedDirectories = { "bin", "obj", ".git", ".vs" };
-        private readonly string[] _includedExtensions = { ".cs", ".xaml", ".axaml", ".json", ".xml" };
+        private readonly string[] _excludedDirectories = { "bin", "obj", ".git", ".vs", "target" };
+        private readonly string[] _includedExtensions = { ".cs", ".xaml", ".axaml", ".json", ".xml", ".rs" };
 
         public SearchService()
         {

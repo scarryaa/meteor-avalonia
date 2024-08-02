@@ -66,9 +66,9 @@ namespace meteor.UI.Features.SearchView.Controls
 
             _filterButtons = new List<FilterButton>
             {
-                new FilterButton("Aa", "Match Case"),
-                new FilterButton(".*", "Regex"),
-                new FilterButton("W", "Match Whole Word")
+                new FilterButton("Aa", "Match Case", _themeManager),
+                new FilterButton(".*", "Regex", _themeManager),
+                new FilterButton("W", "Match Whole Word", _themeManager)
             };
 
             foreach (var button in _filterButtons)

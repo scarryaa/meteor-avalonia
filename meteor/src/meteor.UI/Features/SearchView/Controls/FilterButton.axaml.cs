@@ -4,6 +4,7 @@ using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Rendering;
 using System.Globalization;
+using meteor.Core.Interfaces;
 
 namespace meteor.UI.Features.SearchView.Controls
 {
@@ -20,6 +21,7 @@ namespace meteor.UI.Features.SearchView.Controls
 
         private bool _isHovered;
         private bool _isUpdatingIsActive;
+        private readonly IThemeManager _themeManager;
 
         public string Text
         {
@@ -54,15 +56,16 @@ namespace meteor.UI.Features.SearchView.Controls
 
         public event EventHandler<bool> FilterToggled;
 
-        public FilterButton()
+        public FilterButton(IThemeManager themeManager)
         {
+            _themeManager = themeManager;
             Width = 24;
             Height = 24;
             PointerEntered += OnPointerEntered;
             PointerExited += OnPointerExited;
         }
 
-        public FilterButton(string text, string tooltip) : this()
+        public FilterButton(string text, string tooltip, IThemeManager themeManager) : this(themeManager)
         {
             Text = text;
             Tooltip = tooltip;
@@ -84,9 +87,10 @@ namespace meteor.UI.Features.SearchView.Controls
 
         public override void Render(DrawingContext context)
         {
-            var backgroundBrush = IsActive ? Brushes.LightGray : (_isHovered ? Brushes.LightBlue : Brushes.Transparent);
-            var borderBrush = _isHovered ? Brushes.DarkGray : Brushes.Gray;
-            var textBrush = Brushes.Black;
+            var theme = _themeManager.CurrentTheme;
+            var backgroundBrush = new SolidColorBrush(IsActive ? Color.Parse(theme.ButtonActiveColor) : (_isHovered ? Color.Parse(theme.ButtonHoverColor) : Color.Parse(theme.ButtonColor)));
+            var borderBrush = new SolidColorBrush(_isHovered ? Color.Parse(theme.ButtonHoverColor) : Color.Parse(theme.ButtonBorderColor));
+            var textBrush = new SolidColorBrush(Color.Parse(theme.TextColor));
 
             // Draw background
             context.FillRectangle(backgroundBrush, new Rect(0, 0, Width, Height));

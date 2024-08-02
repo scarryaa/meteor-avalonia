@@ -193,6 +193,8 @@ public class ThemeManager : IThemeManager
             TitleBarInactiveColor = "#181818",
             StatusBarColor = "#121212",
             ButtonHoverColor = "#2A2A2A",
+            ButtonColor = "#1A1A1A",
+            ButtonBorderColor = "#2A2A2A",
             ButtonPressedColor = "#3A3A3A",
             ButtonActiveColor = "#4A4A4A",
             SearchViewBackgroundColor = "#121212",
@@ -261,6 +263,8 @@ public class ThemeManager : IThemeManager
             ButtonHoverColor = "#E0E0E0",
             ButtonPressedColor = "#D0D0D0",
             ButtonActiveColor = "#C0C0C0",
+            ButtonColor = "#FFFFFF",
+            ButtonBorderColor = "#B0B0B0",
             SearchViewBackgroundColor = "#FFFFFF",
             SearchViewBorderColor = "#C0C0C0"
         };

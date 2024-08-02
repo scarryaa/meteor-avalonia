@@ -53,9 +53,11 @@
   "titleBarColor": "#080808",
   "titleBarInactiveColor": "#181818",
   "statusBarColor": "#121212",
+  "buttonColor": "#1A1A1A",
   "buttonHoverColor": "#2A2A2A",
   "buttonPressedColor": "#3A3A3A",
   "buttonActiveColor": "#4A4A4A",
+  "buttonBorderColor": "#2A2A2A",
   "searchViewBackgroundColor": "#121212",
   "searchViewBorderColor": "#2A2A2A"
 }

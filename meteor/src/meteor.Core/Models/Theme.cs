@@ -139,7 +139,7 @@ public class Theme
     [JsonPropertyName("titleBarInactiveColor")]
     public string TitleBarInactiveColor { get; set; } = "";
 
-    [JsonPropertyName("buttonHoverColor")]
+    [JsonPropertyName("c")]
     public string ButtonHoverColor { get; set; } = "";
 
     [JsonPropertyName("buttonPressedColor")]
@@ -148,9 +148,15 @@ public class Theme
     [JsonPropertyName("buttonActiveColor")]
     public string ButtonActiveColor { get; set; } = "";
 
+    [JsonPropertyName("buttonBorderColor")]
+    public string ButtonBorderColor { get; set; } = "";
+
     [JsonPropertyName("searchViewBackgroundColor")]
     public string SearchViewBackgroundColor { get; set; } = "";
 
     [JsonPropertyName("searchViewBorderColor")]
     public string SearchViewBorderColor { get; set; } = "";
+
+    [JsonPropertyName("buttonColor")]
+    public string ButtonColor { get; set; } = "";
 }
