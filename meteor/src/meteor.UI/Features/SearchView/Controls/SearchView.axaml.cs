@@ -19,13 +19,9 @@ namespace meteor.UI.Features.SearchView.Controls
     public partial class SearchView : UserControl
     {
         private const double ItemHeight = 24;
-        private const double LeftPadding = 0;
-        private const double RightPadding = 0;
         private const double SearchBoxBottomMargin = 15;
         private const double FileNameFontSize = 13;
         private const double SnippetFontSize = 13;
-        private const double ItemSpacing = 0;
-        private const double ItemIndentation = 20;
         private const double ChevronWidth = 16;
         private const double SearchBoxHeight = 12;
 
@@ -34,9 +30,8 @@ namespace meteor.UI.Features.SearchView.Controls
         private SearchViewModel _viewModel;
         private Canvas _canvas;
         private ScrollViewer _scrollViewer;
-        private TextBox _searchBox;
+        private SearchBox _searchBox;
         private Dictionary<string, double> _cachedItemHeights = new Dictionary<string, double>();
-        private FormattedText _cachedFormattedText;
 
         public SearchView(ISearchService searchService, IThemeManager themeManager)
         {
@@ -51,45 +46,23 @@ namespace meteor.UI.Features.SearchView.Controls
 
         private void InitializeComponent()
         {
-            _searchBox = CreateSearchBox();
-            _scrollViewer = CreateScrollViewer();
-            _canvas = new Canvas();
-            _scrollViewer.Content = _canvas;
-
-            Content = CreateMainLayout();
-
-            UpdateCanvasSize();
-        }
-
-        private TextBox CreateSearchBox()
-        {
-            var searchBox = new TextBox
+            _searchBox = new SearchBox(_themeManager)
             {
-                Name = "SearchBox",
-                Margin = new Thickness(10, 10, 10, SearchBoxBottomMargin),
-                Watermark = "Search",
-                CornerRadius = new CornerRadius(4),
-                BorderThickness = new Thickness(1),
-                Height = SearchBoxHeight,
-                Foreground = new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.TextColor))
+                BorderThickness = 1,
+                Height = 24,
+                HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch,
+                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Stretch,
+                Margin = new Thickness(15, 10, 15, 10),
             };
-            searchBox.Classes.Add("default-style");
-            UpdateSearchBoxStyles(searchBox);
-            return searchBox;
-        }
-
-        private ScrollViewer CreateScrollViewer()
-        {
-            return new ScrollViewer
+            _scrollViewer = new ScrollViewer
             {
                 HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto
             };
-        }
+            _canvas = new Canvas();
+            _scrollViewer.Content = _canvas;
 
-        private Grid CreateMainLayout()
-        {
-            return new Grid
+            Content = new Grid
             {
                 RowDefinitions = new RowDefinitions("Auto,*"),
                 Children =
@@ -98,11 +71,13 @@ namespace meteor.UI.Features.SearchView.Controls
                     new Border { Child = _scrollViewer, [Grid.RowProperty] = 1 }
                 }
             };
+
+            UpdateCanvasSize();
         }
 
         private void SetupEventHandlers()
         {
-            _searchBox.TextChanged += async (_, _) => await PerformSearch();
+            _searchBox.OnSearchQueryChanged += async (query) => await PerformSearch();
             _scrollViewer.ScrollChanged += (_, _) => InvalidateVisual();
             PointerPressed += OnPointerPressed;
             PointerMoved += OnPointerMoved;
@@ -114,81 +89,20 @@ namespace meteor.UI.Features.SearchView.Controls
 
         private void OnThemeChanged(object sender, Theme newTheme)
         {
-            UpdateSearchBoxStyles(_searchBox);
             InvalidateVisual();
-        }
-
-        private void UpdateSearchBoxStyles(TextBox searchBox)
-        {
-            searchBox.Styles.Clear();
-            searchBox.Styles.Add(CreateDefaultStyle());
-            searchBox.Styles.Add(CreateBorderElementStyle());
-            searchBox.Styles.Add(CreateFocusStyle());
-            searchBox.Styles.Add(CreateHoverStyle());
-        }
-
-        private Style CreateDefaultStyle()
-        {
-            return new Style(x => x.OfType<TextBox>().Class("default-style"))
-            {
-                Setters =
-                {
-                    new Setter(TextBox.HeightProperty, SearchBoxHeight),
-                    new Setter(ForegroundProperty, new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.TextColor)))
-                }
-            };
-        }
-
-        private Style CreateBorderElementStyle()
-        {
-            return new Style(x => x.OfType<TextBox>().Class("default-style").Template().Name("PART_BorderElement"))
-            {
-                Setters =
-                {
-                    new Setter(Border.BackgroundProperty, new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.FileExplorerSelectedItemBackgroundColor))),
-                    new Setter(Border.BorderBrushProperty, new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.BorderBrush))),
-                    new Setter(Border.CornerRadiusProperty, new CornerRadius(4)),
-                    new Setter(Border.BorderThicknessProperty, new Thickness(1)),
-                    new Setter(ForegroundProperty, new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.TextColor)))
-                }
-            };
-        }
-
-        private Style CreateFocusStyle()
-        {
-            return new Style(x => x.OfType<TextBox>().Class(":focus").Template().Name("PART_BorderElement"))
-            {
-                Setters =
-                {
-                    new Setter(Border.BackgroundProperty, new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.FileExplorerSelectedItemBackgroundColor))),
-                    new Setter(Border.BorderBrushProperty, new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.BorderBrush))),
-                    new Setter(Border.CornerRadiusProperty, new CornerRadius(4)),
-                    new Setter(Border.BorderThicknessProperty, new Thickness(1)),
-                    new Setter(ForegroundProperty, new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.TextColor)))
-                }
-            };
-        }
-
-        private Style CreateHoverStyle()
-        {
-            return new Style(x => x.OfType<TextBox>().Class(":pointerover").Template().Name("PART_BorderElement"))
-            {
-                Setters =
-                {
-                    new Setter(Border.BackgroundProperty, new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.FileExplorerSelectedItemBackgroundColor))),
-                    new Setter(Border.BorderBrushProperty, new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.BorderBrush))),
-                    new Setter(Border.CornerRadiusProperty, new CornerRadius(4)),
-                    new Setter(Border.BorderThicknessProperty, new Thickness(1)),
-                    new Setter(Border.PaddingProperty, new Thickness(4)),
-                    new Setter(ForegroundProperty, new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.TextColor)))
-                }
-            };
         }
 
         private async Task PerformSearch()
         {
             _viewModel.SearchQuery = _searchBox.Text;
-            await _viewModel.ExecuteSearchCommand.ExecuteAsync(null);
+            if (string.IsNullOrWhiteSpace(_viewModel.SearchQuery))
+            {
+                _viewModel.ClearResults();
+            }
+            else
+            {
+                await _viewModel.ExecuteSearchCommand.ExecuteAsync(null);
+            }
             UpdateCanvasSize();
             InvalidateVisual();
         }
@@ -200,6 +114,9 @@ namespace meteor.UI.Features.SearchView.Controls
 
             var searchBoxHeight = _searchBox.Bounds.Height + SearchBoxBottomMargin;
             var viewportRect = new Rect(new Point(0, searchBoxHeight), new Size(_scrollViewer.Viewport.Width, _scrollViewer.Viewport.Height + SearchBoxBottomMargin));
+
+            // Draw background for the search view
+            context.FillRectangle(new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.BackgroundColor)), new Rect(0, 0, _scrollViewer.Viewport.Width, _scrollViewer.Viewport.Height));
 
             using (context.PushClip(viewportRect))
             {
@@ -229,7 +146,7 @@ namespace meteor.UI.Features.SearchView.Controls
                 }
 
                 RenderFileHeader(context, group.Key, y, textBrush);
-                y += ItemHeight + ItemSpacing;
+                y += ItemHeight;
 
                 if (!_viewModel.CollapsedGroups.Contains(group.Key))
                 {
@@ -241,7 +158,7 @@ namespace meteor.UI.Features.SearchView.Controls
                             RenderItem(context, item, y, itemHeight, textBrush);
                         }
 
-                        y += itemHeight + ItemSpacing;
+                        y += itemHeight;
                         if (y > viewport.Bottom) break;
                     }
                 }
@@ -252,9 +169,9 @@ namespace meteor.UI.Features.SearchView.Controls
         {
             if (_viewModel.CollapsedGroups.Contains(group.Key))
             {
-                return ItemHeight + ItemSpacing;
+                return ItemHeight;
             }
-            return ItemHeight + ItemSpacing + group.Value.Sum(item => GetCachedItemHeight(item) + ItemSpacing);
+            return ItemHeight + group.Value.Sum(item => GetCachedItemHeight(item));
         }
 
         private bool IsItemVisible(double itemY, double itemHeight, Rect viewport)
@@ -274,7 +191,7 @@ namespace meteor.UI.Features.SearchView.Controls
 
         private void RenderChevron(DrawingContext context, string chevronChar, double y, IBrush textBrush)
         {
-            _cachedFormattedText = new FormattedText(
+            var formattedText = new FormattedText(
                 chevronChar,
                 CultureInfo.CurrentCulture,
                 FlowDirection.LeftToRight,
@@ -283,14 +200,14 @@ namespace meteor.UI.Features.SearchView.Controls
                 textBrush
             );
 
-            double chevronX = 4 + (ChevronWidth - _cachedFormattedText.Width) / 2 - _scrollViewer.Offset.X;
-            double chevronY = y + (ItemHeight - _cachedFormattedText.Height) / 2;
-            context.DrawText(_cachedFormattedText, new Point(chevronX, chevronY));
+            double chevronX = 4 + (ChevronWidth - formattedText.Width) / 2 - _scrollViewer.Offset.X;
+            double chevronY = y + (ItemHeight - formattedText.Height) / 2;
+            context.DrawText(formattedText, new Point(chevronX, chevronY));
         }
 
         private void RenderFileName(DrawingContext context, string fileName, double y, IBrush textBrush)
         {
-            _cachedFormattedText = new FormattedText(
+            var formattedText = new FormattedText(
                 fileName ?? "No file name",
                 CultureInfo.CurrentCulture,
                 FlowDirection.LeftToRight,
@@ -299,22 +216,22 @@ namespace meteor.UI.Features.SearchView.Controls
                 textBrush
             );
 
-            double textY = y + (ItemHeight - _cachedFormattedText.Height) / 2;
-            context.DrawText(_cachedFormattedText, new Point(LeftPadding + ChevronWidth + 5 - _scrollViewer.Offset.X, textY));
+            double textY = y + (ItemHeight - formattedText.Height) / 2;
+            context.DrawText(formattedText, new Point(ChevronWidth + 5 - _scrollViewer.Offset.X, textY));
         }
 
         private void RenderHeaderHoverEffect(DrawingContext context, string fileName, double y)
         {
             if (fileName == _viewModel.HoveredHeader)
             {
-                var hoverRect = new Rect(LeftPadding - _scrollViewer.Offset.X, y, _scrollViewer.Viewport.Width - LeftPadding - RightPadding, ItemHeight);
+                var hoverRect = new Rect(-_scrollViewer.Offset.X, y, _scrollViewer.Viewport.Width, ItemHeight);
                 context.FillRectangle(new SolidColorBrush(Color.FromArgb(50, 128, 128, 128)), hoverRect);
             }
         }
 
         private void RenderItem(DrawingContext context, SearchResult item, double y, double itemHeight, IBrush textBrush)
         {
-            var maxWidth = _scrollViewer.Viewport.Width - LeftPadding * 2 - RightPadding - ItemIndentation;
+            var maxWidth = _scrollViewer.Viewport.Width - ChevronWidth;
             var snippet = TruncateText(item.SurroundingContext?.TrimStart() ?? "No snippet available", maxWidth, SnippetFontSize);
 
             RenderItemHoverEffect(context, item, y, itemHeight);
@@ -326,14 +243,14 @@ namespace meteor.UI.Features.SearchView.Controls
         {
             if (item == _viewModel.HoveredItem)
             {
-                var hoverRect = new Rect(LeftPadding - _scrollViewer.Offset.X, y, _scrollViewer.Viewport.Width - LeftPadding - RightPadding, itemHeight);
+                var hoverRect = new Rect(-_scrollViewer.Offset.X, y, _scrollViewer.Viewport.Width, itemHeight);
                 context.FillRectangle(new SolidColorBrush(Color.FromArgb(50, 128, 128, 128)), hoverRect);
             }
         }
 
         private void RenderItemSnippet(DrawingContext context, string snippet, double y, double itemHeight, IBrush textBrush)
         {
-            _cachedFormattedText = new FormattedText(
+            var formattedText = new FormattedText(
                 snippet,
                 CultureInfo.CurrentCulture,
                 FlowDirection.LeftToRight,
@@ -342,8 +259,8 @@ namespace meteor.UI.Features.SearchView.Controls
                 textBrush
             );
 
-            double textY = y + (itemHeight - _cachedFormattedText.Height) / 2;
-            context.DrawText(_cachedFormattedText, new Point(LeftPadding + ItemIndentation - _scrollViewer.Offset.X, textY));
+            double textY = y + (itemHeight - formattedText.Height) / 2;
+            context.DrawText(formattedText, new Point(ChevronWidth - _scrollViewer.Offset.X, textY));
         }
 
         private void SetItemTooltip(SearchResult item)
@@ -426,11 +343,11 @@ namespace meteor.UI.Features.SearchView.Controls
 
             foreach (var group in groupedItems)
             {
-                totalHeight += ItemHeight + ItemSpacing; // Group header height
+                totalHeight += ItemHeight; // Group header height
 
                 if (!_viewModel.CollapsedGroups.Contains(group.Key))
                 {
-                    totalHeight += group.Value.Sum(item => GetCachedItemHeight(item) + ItemSpacing);
+                    totalHeight += group.Value.Sum(item => GetCachedItemHeight(item));
                 }
             }
 
@@ -475,7 +392,7 @@ namespace meteor.UI.Features.SearchView.Controls
                     InvalidateVisual();
                     return;
                 }
-                y += ItemHeight + ItemSpacing;
+                y += ItemHeight;
 
                 if (!_viewModel.CollapsedGroups.Contains(group.Key))
                 {
@@ -489,7 +406,7 @@ namespace meteor.UI.Features.SearchView.Controls
                             OpenSelectedResult();
                             return;
                         }
-                        y += itemHeight + ItemSpacing;
+                        y += itemHeight;
                     }
                 }
             }
@@ -512,7 +429,7 @@ namespace meteor.UI.Features.SearchView.Controls
                     newHoveredHeader = group.Key;
                     break;
                 }
-                y += ItemHeight + ItemSpacing;
+                y += ItemHeight;
 
                 if (!_viewModel.CollapsedGroups.Contains(group.Key))
                 {
@@ -524,7 +441,7 @@ namespace meteor.UI.Features.SearchView.Controls
                             newHoveredItem = item;
                             break;
                         }
-                        y += itemHeight + ItemSpacing;
+                        y += itemHeight;
                     }
                     if (newHoveredItem != null) break;
                 }
@@ -571,7 +488,7 @@ namespace meteor.UI.Features.SearchView.Controls
             double y = _searchBox.Bounds.Height + SearchBoxBottomMargin;
             foreach (var group in _viewModel.GroupedItems)
             {
-                y += ItemHeight + ItemSpacing; // File header
+                y += ItemHeight; // File header
                 if (!_viewModel.CollapsedGroups.Contains(group.Key))
                 {
                     foreach (var item in group.Value)
@@ -589,11 +506,12 @@ namespace meteor.UI.Features.SearchView.Controls
                             }
                             return;
                         }
-                        y += itemHeight + ItemSpacing;
+                        y += itemHeight;
                     }
                 }
             }
         }
+
         private void OpenSelectedResult()
         {
             if (_viewModel.SelectedResult != null)

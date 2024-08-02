@@ -147,4 +147,10 @@ public class Theme
 
     [JsonPropertyName("buttonActiveColor")]
     public string ButtonActiveColor { get; set; } = "";
+
+    [JsonPropertyName("searchViewBackgroundColor")]
+    public string SearchViewBackgroundColor { get; set; } = "";
+
+    [JsonPropertyName("searchViewBorderColor")]
+    public string SearchViewBorderColor { get; set; } = "";
 }

@@ -55,5 +55,7 @@
   "statusBarColor": "#FFFFFF",
   "buttonHoverColor": "#E0E0E0",
   "buttonPressedColor": "#D0D0D0",
-  "buttonActiveColor": "#C0C0C0"
+  "buttonActiveColor": "#C0C0C0",
+  "searchViewBackgroundColor": "#FFFFFF",
+  "searchViewBorderColor": "#C0C0C0"
 }

@@ -74,4 +74,14 @@ public partial class SearchViewModel : ObservableObject
         Console.WriteLine("UpdateProjectRoot called with projectRoot: " + projectRoot);
         _searchService.UpdateProjectRoot(projectRoot);
     }
+
+    internal void ClearResults()
+    {
+        SearchResults.Clear();
+        UpdateGroupedItems();
+        SelectedResult = null;
+        TotalContentHeight = 0;
+        HoveredItem = null;
+        HoveredHeader = null;
+    }
 }
