@@ -7,14 +7,19 @@ namespace meteor.Core.Services
     public class SearchService : ISearchService
     {
         private string _projectRoot;
-        private HashSet<string> _filters;
+        private Dictionary<string, bool> _filters;
         private readonly string[] _excludedDirectories = { "bin", "obj", ".git", ".vs" };
         private readonly string[] _includedExtensions = { ".cs", ".xaml", ".axaml", ".json", ".xml" };
 
         public SearchService()
         {
             _projectRoot = Directory.GetCurrentDirectory();
-            _filters = new HashSet<string>();
+            _filters = new Dictionary<string, bool>
+            {
+                { "Match Case", false },
+                { "Regex", false },
+                { "Match Whole Word", false }
+            };
         }
 
         public void UpdateProjectRoot(string directoryPath)
@@ -46,48 +51,67 @@ namespace meteor.Core.Services
 
                 Parallel.ForEach(files, file =>
                 {
-                    if (ShouldIncludeFile(file))
+                    try
                     {
-                        try
+                        var content = File.ReadAllText(file);
+                        var matches = PerformSearch(content, query);
+
+                        if (matches.Count > 0)
                         {
-                            var content = File.ReadAllText(file);
-                            var matches = Regex.Matches(content, query, RegexOptions.IgnoreCase);
-
-                            if (matches.Count > 0)
+                            lock (results)
                             {
-                                lock (results)
+                                foreach (Match match in matches)
                                 {
-                                    foreach (Match match in matches)
+                                    int contextStart = Math.Max(0, match.Index - 100);
+                                    int contextLength = Math.Min(300, content.Length - contextStart);
+                                    string matchContext = content.Substring(contextStart, contextLength);
+
+                                    int lineNumber = content.Substring(0, match.Index).Count(c => c == '\n') + 1;
+
+                                    results.Add(new SearchResult
                                     {
-                                        int contextStart = Math.Max(0, match.Index - 100);
-                                        int contextLength = Math.Min(300, content.Length - contextStart);
-                                        string matchContext = content.Substring(contextStart, contextLength);
-
-                                        int lineNumber = content.Substring(0, match.Index).Count(c => c == '\n') + 1;
-
-                                        results.Add(new SearchResult
-                                        {
-                                            FileName = Path.GetFileName(file),
-                                            FilePath = file,
-                                            LineNumber = lineNumber,
-                                            MatchedText = match.Value,
-                                            SurroundingContext = matchContext,
-                                            LastModified = File.GetLastWriteTime(file),
-                                            Relevance = CalculateRelevance(matches.Count, content.Length)
-                                        });
-                                    }
+                                        FileName = Path.GetFileName(file),
+                                        FilePath = file,
+                                        LineNumber = lineNumber,
+                                        MatchedText = match.Value,
+                                        SurroundingContext = matchContext,
+                                        LastModified = File.GetLastWriteTime(file),
+                                        Relevance = CalculateRelevance(matches.Count, content.Length)
+                                    });
                                 }
                             }
                         }
-                        catch (Exception ex)
-                        {
-                            Console.WriteLine($"Error reading file: {file}. Error: {ex.Message}");
-                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Error reading file: {file}. Error: {ex.Message}");
                     }
                 });
             });
 
             return results.OrderByDescending(r => r.Relevance);
+        }
+
+        private MatchCollection PerformSearch(string content, string query)
+        {
+            RegexOptions options = RegexOptions.None;
+            if (!_filters["Match Case"])
+            {
+                options |= RegexOptions.IgnoreCase;
+            }
+
+            string pattern = query;
+            if (!_filters["Regex"])
+            {
+                pattern = Regex.Escape(pattern);
+            }
+
+            if (_filters["Match Whole Word"])
+            {
+                pattern = $@"\b{pattern}\b";
+            }
+
+            return Regex.Matches(content, pattern, options);
         }
 
         private IEnumerable<string> GetRelevantFiles(string root)
@@ -111,17 +135,6 @@ namespace meteor.Core.Services
                 });
         }
 
-        private bool ShouldIncludeFile(string filePath)
-        {
-            if (_filters.Count == 0)
-            {
-                return true;
-            }
-
-            string extension = Path.GetExtension(filePath).ToLowerInvariant();
-            return _filters.Contains(extension);
-        }
-
         private double CalculateRelevance(int matchCount, int contentLength)
         {
             // Base relevance on match count and content length
@@ -142,13 +155,9 @@ namespace meteor.Core.Services
 
         public void UpdateFilter(string filterName, bool isActive)
         {
-            if (isActive)
+            if (_filters.ContainsKey(filterName))
             {
-                _filters.Add(filterName);
-            }
-            else
-            {
-                _filters.Remove(filterName);
+                _filters[filterName] = isActive;
             }
         }
     }

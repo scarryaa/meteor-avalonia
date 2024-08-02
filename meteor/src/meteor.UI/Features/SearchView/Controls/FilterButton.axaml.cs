@@ -19,6 +19,7 @@ namespace meteor.UI.Features.SearchView.Controls
             AvaloniaProperty.Register<FilterButton, bool>(nameof(IsActive), defaultValue: false);
 
         private bool _isHovered;
+        private bool _isUpdatingIsActive;
 
         public string Text
         {
@@ -35,7 +36,20 @@ namespace meteor.UI.Features.SearchView.Controls
         public bool IsActive
         {
             get => GetValue(IsActiveProperty);
-            set => SetValue(IsActiveProperty, value);
+            set
+            {
+                if (!_isUpdatingIsActive)
+                {
+                    _isUpdatingIsActive = true;
+                    SetValue(IsActiveProperty, value);
+                    OnIsActiveChanged(this, value);
+                    _isUpdatingIsActive = false;
+                }
+                else
+                {
+                    SetValue(IsActiveProperty, value);
+                }
+            }
         }
 
         public event EventHandler<bool> FilterToggled;
@@ -98,12 +112,9 @@ namespace meteor.UI.Features.SearchView.Controls
             context.DrawText(formattedText, textPosition);
         }
 
-        private static void OnIsActiveChanged(object? sender, bool e)
+        private static void OnIsActiveChanged(FilterButton filterButton, bool isActive)
         {
-            if (sender is FilterButton filterButton)
-            {
-                filterButton.FilterToggled?.Invoke(filterButton, e);
-            }
+            filterButton.FilterToggled?.Invoke(filterButton, isActive);
         }
     }
 }
