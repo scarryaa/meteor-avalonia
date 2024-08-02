@@ -7,12 +7,14 @@ namespace meteor.Core.Services
     public class SearchService : ISearchService
     {
         private string _projectRoot;
+        private HashSet<string> _filters;
         private readonly string[] _excludedDirectories = { "bin", "obj", ".git", ".vs" };
         private readonly string[] _includedExtensions = { ".cs", ".xaml", ".axaml", ".json", ".xml" };
 
         public SearchService()
         {
             _projectRoot = Directory.GetCurrentDirectory();
+            _filters = new HashSet<string>();
         }
 
         public void UpdateProjectRoot(string directoryPath)
@@ -44,40 +46,43 @@ namespace meteor.Core.Services
 
                 Parallel.ForEach(files, file =>
                 {
-                    try
+                    if (ShouldIncludeFile(file))
                     {
-                        var content = File.ReadAllText(file);
-                        var matches = Regex.Matches(content, query, RegexOptions.IgnoreCase);
-
-                        if (matches.Count > 0)
+                        try
                         {
-                            lock (results)
+                            var content = File.ReadAllText(file);
+                            var matches = Regex.Matches(content, query, RegexOptions.IgnoreCase);
+
+                            if (matches.Count > 0)
                             {
-                                foreach (Match match in matches)
+                                lock (results)
                                 {
-                                    int contextStart = Math.Max(0, match.Index - 100);
-                                    int contextLength = Math.Min(300, content.Length - contextStart);
-                                    string matchContext = content.Substring(contextStart, contextLength);
-
-                                    int lineNumber = content.Substring(0, match.Index).Count(c => c == '\n') + 1;
-
-                                    results.Add(new SearchResult
+                                    foreach (Match match in matches)
                                     {
-                                        FileName = Path.GetFileName(file),
-                                        FilePath = file,
-                                        LineNumber = lineNumber,
-                                        MatchedText = match.Value,
-                                        SurroundingContext = matchContext,
-                                        LastModified = File.GetLastWriteTime(file),
-                                        Relevance = CalculateRelevance(matches.Count, content.Length)
-                                    });
+                                        int contextStart = Math.Max(0, match.Index - 100);
+                                        int contextLength = Math.Min(300, content.Length - contextStart);
+                                        string matchContext = content.Substring(contextStart, contextLength);
+
+                                        int lineNumber = content.Substring(0, match.Index).Count(c => c == '\n') + 1;
+
+                                        results.Add(new SearchResult
+                                        {
+                                            FileName = Path.GetFileName(file),
+                                            FilePath = file,
+                                            LineNumber = lineNumber,
+                                            MatchedText = match.Value,
+                                            SurroundingContext = matchContext,
+                                            LastModified = File.GetLastWriteTime(file),
+                                            Relevance = CalculateRelevance(matches.Count, content.Length)
+                                        });
+                                    }
                                 }
                             }
                         }
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"Error reading file: {file}. Error: {ex.Message}");
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Error reading file: {file}. Error: {ex.Message}");
+                        }
                     }
                 });
             });
@@ -106,6 +111,17 @@ namespace meteor.Core.Services
                 });
         }
 
+        private bool ShouldIncludeFile(string filePath)
+        {
+            if (_filters.Count == 0)
+            {
+                return true;
+            }
+
+            string extension = Path.GetExtension(filePath).ToLowerInvariant();
+            return _filters.Contains(extension);
+        }
+
         private double CalculateRelevance(int matchCount, int contentLength)
         {
             // Base relevance on match count and content length
@@ -122,6 +138,18 @@ namespace meteor.Core.Services
             double boostedRelevance = normalizedRelevance * (1 + matchDensity);
 
             return Math.Min(boostedRelevance, 1.0);
+        }
+
+        public void UpdateFilter(string filterName, bool isActive)
+        {
+            if (isActive)
+            {
+                _filters.Add(filterName);
+            }
+            else
+            {
+                _filters.Remove(filterName);
+            }
         }
     }
 }

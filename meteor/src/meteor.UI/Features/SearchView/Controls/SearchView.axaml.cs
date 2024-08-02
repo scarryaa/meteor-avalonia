@@ -54,6 +54,8 @@ namespace meteor.UI.Features.SearchView.Controls
                 VerticalAlignment = Avalonia.Layout.VerticalAlignment.Stretch,
                 Margin = new Thickness(15, 10, 15, 10),
             };
+            _searchBox.FilterToggled += OnFilterToggled;
+
             _scrollViewer = new ScrollViewer
             {
                 HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
@@ -85,6 +87,7 @@ namespace meteor.UI.Features.SearchView.Controls
             KeyDown += OnKeyDown;
             _viewModel.PropertyChanged += (_, _) => InvalidateVisual();
             _themeManager.ThemeChanged += OnThemeChanged;
+            _viewModel.FilterToggled += async (_, _) => await PerformSearch();
         }
 
         private void OnThemeChanged(object sender, Theme newTheme)
@@ -565,6 +568,12 @@ namespace meteor.UI.Features.SearchView.Controls
             _viewModel.ExecuteSearchCommand.ExecuteAsync(null);
             UpdateCanvasSize();
             InvalidateVisual();
+        }
+
+        private void OnFilterToggled(object sender, FilterToggledEventArgs e)
+        {
+            _viewModel.UpdateFilter(e.FilterName, e.IsActive);
+            _ = PerformSearch();
         }
     }
 }

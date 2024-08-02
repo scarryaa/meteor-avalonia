@@ -19,6 +19,8 @@ public partial class SearchViewModel : ObservableObject
     [ObservableProperty] private SearchResult _hoveredItem;
     [ObservableProperty] private string _hoveredHeader;
 
+    public event EventHandler FilterToggled;
+
     public SearchViewModel(ISearchService searchService)
     {
         _searchService = searchService;
@@ -83,5 +85,16 @@ public partial class SearchViewModel : ObservableObject
         TotalContentHeight = 0;
         HoveredItem = null;
         HoveredHeader = null;
+    }
+
+    public async Task OnFilterToggled()
+    {
+        FilterToggled?.Invoke(this, EventArgs.Empty);
+        await ExecuteSearch();
+    }
+
+    internal void UpdateFilter(string filterName, bool isActive)
+    {
+        _searchService.UpdateFilter(filterName, isActive);
     }
 }

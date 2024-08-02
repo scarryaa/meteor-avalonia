@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Threading.Tasks;
 using Avalonia;
@@ -21,6 +22,7 @@ namespace meteor.UI.Features.SearchView.Controls
         private int _selectionEnd;
         private bool _isSelecting;
         private bool _isFocused;
+        private List<FilterButton> _filterButtons;
 
         public static readonly StyledProperty<IBrush> BackgroundBrushProperty =
             AvaloniaProperty.Register<SearchBox, IBrush>(nameof(BackgroundBrush));
@@ -61,6 +63,18 @@ namespace meteor.UI.Features.SearchView.Controls
             _selectionEnd = 0;
             _isSelecting = false;
             _isFocused = false;
+
+            _filterButtons = new List<FilterButton>
+            {
+                new FilterButton("Aa", "Match Case"),
+                new FilterButton(".*", "Regex"),
+                new FilterButton("W", "Match Whole Word")
+            };
+
+            foreach (var button in _filterButtons)
+            {
+                button.FilterToggled += OnFilterToggled;
+            }
 
             _themeManager.ThemeChanged += (sender, theme) => UpdateTheme();
         }
@@ -122,6 +136,28 @@ namespace meteor.UI.Features.SearchView.Controls
                 var cursorY = textPosition.Y;
                 context.DrawLine(new Pen(textBrush, 1), new Point(cursorX, cursorY), new Point(cursorX, cursorY + _formattedText.Height));
             }
+
+            // Draw filter buttons
+            const double buttonWidth = 24;
+            const double buttonHeight = 24;
+            const double buttonSpacing = 5;
+            double totalButtonsWidth = _filterButtons.Count * buttonWidth + (_filterButtons.Count - 1) * buttonSpacing;
+            double buttonX = Bounds.Width - totalButtonsWidth - 5;
+
+            for (int i = 0; i < _filterButtons.Count; i++)
+            {
+                var button = _filterButtons[i];
+                var buttonY = (Bounds.Height - buttonHeight) / 2;
+                var buttonRect = new Rect(buttonX, buttonY, buttonWidth, buttonHeight);
+
+                using (context.PushTransform(Matrix.CreateTranslation(buttonRect.X - button.Bounds.X, buttonRect.Y - button.Bounds.Y)))
+                {
+                    button.Width = buttonWidth;
+                    button.Height = buttonHeight;
+                    button.Render(context);
+                }
+                buttonX += buttonWidth + buttonSpacing;
+            }
         }
 
         protected override void OnTextInput(TextInputEventArgs e)
@@ -144,11 +180,45 @@ namespace meteor.UI.Features.SearchView.Controls
             base.OnPointerPressed(e);
             Focus();
             var point = e.GetPosition(this);
+
+            // Check if a filter button was clicked
+            var clickedButton = GetClickedFilterButton(point);
+            if (clickedButton != null)
+            {
+                clickedButton.IsActive = !clickedButton.IsActive;
+                InvalidateVisual();
+                e.Handled = true;
+                return;
+            }
+
             _cursorPosition = GetCursorPositionFromPoint(point);
             _selectionStart = _cursorPosition;
             _selectionEnd = _cursorPosition;
             _isSelecting = true;
             InvalidateVisual();
+        }
+
+        private FilterButton GetClickedFilterButton(Point point)
+        {
+            const double buttonWidth = 24;
+            const double buttonHeight = 24;
+            const double buttonSpacing = 5;
+            double totalButtonsWidth = _filterButtons.Count * buttonWidth + (_filterButtons.Count - 1) * buttonSpacing;
+            double buttonX = Bounds.Width - totalButtonsWidth - 5;
+
+            for (int i = 0; i < _filterButtons.Count; i++)
+            {
+                var buttonY = (Bounds.Height - buttonHeight) / 2;
+                var buttonRect = new Rect(buttonX, buttonY, buttonWidth, buttonHeight);
+
+                if (buttonRect.Contains(point))
+                {
+                    return _filterButtons[i];
+                }
+
+                buttonX += buttonWidth + buttonSpacing;
+            }
+            return null;
         }
 
         protected override void OnPointerMoved(PointerEventArgs e)
@@ -387,5 +457,27 @@ namespace meteor.UI.Features.SearchView.Controls
 
         public static readonly RoutedEvent<RoutedEventArgs> TextChangedEvent =
             RoutedEvent.Register<RoutedEventArgs>("TextChanged", RoutingStrategies.Bubble, typeof(SearchBox));
+
+        public event EventHandler<FilterToggledEventArgs> FilterToggled;
+
+        private void OnFilterToggled(object sender, bool isActive)
+        {
+            if (sender is FilterButton filterButton)
+            {
+                FilterToggled?.Invoke(this, new FilterToggledEventArgs(filterButton.Tooltip, isActive));
+            }
+        }
+    }
+
+    public class FilterToggledEventArgs : EventArgs
+    {
+        public string FilterName { get; }
+        public bool IsActive { get; }
+
+        public FilterToggledEventArgs(string filterName, bool isActive)
+        {
+            FilterName = filterName;
+            IsActive = isActive;
+        }
     }
 }
