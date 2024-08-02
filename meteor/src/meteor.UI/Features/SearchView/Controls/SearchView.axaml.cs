@@ -379,7 +379,19 @@ namespace meteor.UI.Features.SearchView.Controls
         private void OnPointerPressed(object sender, PointerPressedEventArgs e)
         {
             var point = e.GetPosition(this);
+
+            // Ignore clicks in the search box area
+            if (point.Y <= _searchBox.Bounds.Height + SearchBoxBottomMargin)
+            {
+                return;
+            }
+
             double y = -_scrollViewer.Offset.Y + _searchBox.Bounds.Height + SearchBoxBottomMargin;
+
+            if (point.X < 0 || point.X > Bounds.Width || point.Y < 0 || point.Y > Bounds.Height)
+            {
+                return;
+            }
 
             if (_viewModel.GroupedItems == null) return;
 
@@ -411,10 +423,20 @@ namespace meteor.UI.Features.SearchView.Controls
                 }
             }
         }
-
         private void OnPointerMoved(object sender, PointerEventArgs e)
         {
             var point = e.GetPosition(this);
+
+            // Ignore hover in search box area
+            if (point.Y <= _searchBox.Bounds.Height + SearchBoxBottomMargin)
+            {
+                // Deselect hovered item
+                _viewModel.HoveredItem = null;
+                _viewModel.HoveredHeader = null;
+                InvalidateVisual();
+                return;
+            }
+
             double y = -_scrollViewer.Offset.Y + _searchBox.Bounds.Height + SearchBoxBottomMargin;
 
             if (_viewModel.GroupedItems == null) return;
