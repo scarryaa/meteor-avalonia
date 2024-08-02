@@ -4,7 +4,6 @@ using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Media;
-using Avalonia.Styling;
 using meteor.Core.Interfaces;
 using meteor.Core.Models;
 using meteor.UI.Features.SearchView.ViewModels;

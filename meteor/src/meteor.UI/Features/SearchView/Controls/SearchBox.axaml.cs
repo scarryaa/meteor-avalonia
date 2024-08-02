@@ -1,14 +1,10 @@
-using System;
-using System.Collections.Generic;
 using System.Globalization;
-using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
-using Avalonia.Styling;
-using meteor.Core.Interfaces;
+using Avalonia.Threading;
 
 namespace meteor.UI.Features.SearchView.Controls
 {
@@ -17,13 +13,13 @@ namespace meteor.UI.Features.SearchView.Controls
         private readonly IThemeManager _themeManager;
         private string _searchQuery = string.Empty;
         private FormattedText _formattedText;
-        private int _cursorPosition;
-        private int _selectionStart;
-        private int _selectionEnd;
-        private bool _isSelecting;
-        private bool _isFocused;
+        private int _cursorPosition, _selectionStart, _selectionEnd;
+        private bool _isSelecting, _isFocused;
         private List<FilterButton> _filterButtons;
         private double _scrollOffset = 0;
+        private List<string> _searchHistory = new List<string>();
+        private int _historyIndex = -1;
+        private System.Timers.Timer _typingTimer;
 
         public static readonly StyledProperty<IBrush> BackgroundBrushProperty =
             AvaloniaProperty.Register<SearchBox, IBrush>(nameof(BackgroundBrush));
@@ -59,11 +55,6 @@ namespace meteor.UI.Features.SearchView.Controls
             Height = 30;
             Focusable = true;
             _formattedText = CreateFormattedText(_searchQuery);
-            _cursorPosition = 0;
-            _selectionStart = 0;
-            _selectionEnd = 0;
-            _isSelecting = false;
-            _isFocused = false;
 
             _filterButtons = new List<FilterButton>
             {
@@ -72,17 +63,12 @@ namespace meteor.UI.Features.SearchView.Controls
                 new FilterButton("W", "Match Whole Word", _themeManager)
             };
 
-            foreach (var button in _filterButtons)
-            {
-                button.FilterToggled += OnFilterToggled;
-            }
+            _filterButtons.ForEach(button => button.FilterToggled += OnFilterToggled);
 
-            _themeManager.ThemeChanged += (sender, theme) => UpdateTheme();
-        }
+            _themeManager.ThemeChanged += (sender, theme) => InvalidateVisual();
 
-        private void UpdateTheme()
-        {
-            InvalidateVisual();
+            _typingTimer = new System.Timers.Timer(1000) { AutoReset = false };
+            _typingTimer.Elapsed += (sender, e) => Dispatcher.UIThread.InvokeAsync(AddToSearchHistory);
         }
 
         public Func<string, Task> OnSearchQueryChanged { get; set; }
@@ -93,7 +79,14 @@ namespace meteor.UI.Features.SearchView.Controls
             {
                 _searchQuery = value;
                 OnSearchQueryChanged?.Invoke(_searchQuery);
+                ResetTypingTimer();
             }
+        }
+
+        private void ResetTypingTimer()
+        {
+            _typingTimer.Stop();
+            _typingTimer.Start();
         }
 
         public override void Render(DrawingContext context)
@@ -107,55 +100,43 @@ namespace meteor.UI.Features.SearchView.Controls
             var rect = new Rect(0, 0, Bounds.Width, Bounds.Height);
             var innerRect = rect.Deflate(BorderThickness / 2);
 
-            // Calculate the space needed for filter buttons
-            const double buttonWidth = 24;
-            const double buttonHeight = 24;
-            const double buttonSpacing = 5;
-            double totalButtonsWidth = _filterButtons.Count * buttonWidth + (_filterButtons.Count - 1) * buttonSpacing;
+            const double buttonWidth = 24, buttonHeight = 24, buttonSpacing = 5;
+            double totalButtonsWidth = _filterButtons.Count * (buttonWidth + buttonSpacing) - buttonSpacing;
 
-            // Adjust the clipping rectangle to account for filter buttons
             var clipRect = new Rect(0, 0, Bounds.Width - totalButtonsWidth - 10, Bounds.Height);
 
             using (context.PushClip(clipRect))
             {
-                // Draw background
                 context.FillRectangle(backgroundBrush, innerRect);
-
-                // Draw border
                 context.DrawRectangle(null, new Pen(borderBrush, BorderThickness), rect);
 
                 _formattedText = CreateFormattedText(_searchQuery);
                 var textPosition = new Point(5 + BorderThickness / 2 - _scrollOffset, (innerRect.Height - _formattedText.Height) / 2 + BorderThickness / 2);
 
-                // Draw selection
                 if (_selectionStart != _selectionEnd)
                 {
                     var start = Math.Min(_selectionStart, _selectionEnd);
                     var end = Math.Max(_selectionStart, _selectionEnd);
-                    var selectionStartX = textPosition.X + CreateFormattedText(_searchQuery.Substring(0, start)).WidthIncludingTrailingWhitespace;
-                    var selectionEndX = textPosition.X + CreateFormattedText(_searchQuery.Substring(0, end)).WidthIncludingTrailingWhitespace;
+                    var selectionStartX = textPosition.X + CreateFormattedText(_searchQuery[..start]).WidthIncludingTrailingWhitespace;
+                    var selectionEndX = textPosition.X + CreateFormattedText(_searchQuery[..end]).WidthIncludingTrailingWhitespace;
                     var selectionRect = new Rect(selectionStartX, textPosition.Y, selectionEndX - selectionStartX, _formattedText.Height);
                     context.FillRectangle(new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.SelectionColor)), selectionRect);
                 }
 
-                // Draw text
                 context.DrawText(_formattedText, textPosition);
 
-                // Draw cursor only if focused
                 if (_isFocused)
                 {
-                    var cursorX = textPosition.X + CreateFormattedText(_searchQuery.Substring(0, _cursorPosition)).WidthIncludingTrailingWhitespace;
+                    var cursorX = textPosition.X + CreateFormattedText(_searchQuery[.._cursorPosition]).WidthIncludingTrailingWhitespace;
                     var cursorY = textPosition.Y;
                     context.DrawLine(new Pen(textBrush, 1), new Point(cursorX, cursorY), new Point(cursorX, cursorY + _formattedText.Height));
                 }
             }
 
-            // Draw filter buttons
             double buttonX = Bounds.Width - totalButtonsWidth - 5;
 
-            for (int i = 0; i < _filterButtons.Count; i++)
+            foreach (var button in _filterButtons)
             {
-                var button = _filterButtons[i];
                 var buttonY = (Bounds.Height - buttonHeight) / 2;
                 var buttonRect = new Rect(buttonX, buttonY, buttonWidth, buttonHeight);
 
@@ -178,11 +159,11 @@ namespace meteor.UI.Features.SearchView.Controls
 
             _searchQuery = _searchQuery.Insert(_cursorPosition, e.Text);
             _cursorPosition += e.Text.Length;
-            _selectionStart = _cursorPosition;
-            _selectionEnd = _cursorPosition;
+            _selectionStart = _selectionEnd = _cursorPosition;
             OnSearchQueryChanged?.Invoke(_searchQuery);
             UpdateScrollOffset();
             InvalidateVisual();
+            ResetTypingTimer();
         }
 
         protected override void OnPointerPressed(PointerPressedEventArgs e)
@@ -191,7 +172,6 @@ namespace meteor.UI.Features.SearchView.Controls
             Focus();
             var point = e.GetPosition(this);
 
-            // Check if a filter button was clicked
             var clickedButton = GetClickedFilterButton(point);
             if (clickedButton != null)
             {
@@ -201,9 +181,7 @@ namespace meteor.UI.Features.SearchView.Controls
                 return;
             }
 
-            _cursorPosition = GetCursorPositionFromPoint(point);
-            _selectionStart = _cursorPosition;
-            _selectionEnd = _cursorPosition;
+            _cursorPosition = _selectionStart = _selectionEnd = GetCursorPositionFromPoint(point);
             _isSelecting = true;
             UpdateScrollOffset();
             InvalidateVisual();
@@ -211,22 +189,18 @@ namespace meteor.UI.Features.SearchView.Controls
 
         private FilterButton GetClickedFilterButton(Point point)
         {
-            const double buttonWidth = 24;
-            const double buttonHeight = 24;
-            const double buttonSpacing = 5;
-            double totalButtonsWidth = _filterButtons.Count * buttonWidth + (_filterButtons.Count - 1) * buttonSpacing;
+            const double buttonWidth = 24, buttonHeight = 24, buttonSpacing = 5;
+            double totalButtonsWidth = _filterButtons.Count * (buttonWidth + buttonSpacing) - buttonSpacing;
             double buttonX = Bounds.Width - totalButtonsWidth - 5;
 
-            for (int i = 0; i < _filterButtons.Count; i++)
+            foreach (var button in _filterButtons)
             {
                 var buttonY = (Bounds.Height - buttonHeight) / 2;
                 var buttonRect = new Rect(buttonX, buttonY, buttonWidth, buttonHeight);
-
                 if (buttonRect.Contains(point))
                 {
-                    return _filterButtons[i];
+                    return button;
                 }
-
                 buttonX += buttonWidth + buttonSpacing;
             }
             return null;
@@ -257,53 +231,80 @@ namespace meteor.UI.Features.SearchView.Controls
             {
                 case Key.Back:
                     HandleBackspaceKey();
-                    e.Handled = true;
                     break;
                 case Key.Delete:
                     HandleDeleteKey();
-                    e.Handled = true;
                     break;
                 case Key.Left:
                     MoveCursor(-1, e.KeyModifiers.HasFlag(KeyModifiers.Shift));
-                    e.Handled = true;
                     break;
                 case Key.Right:
                     MoveCursor(1, e.KeyModifiers.HasFlag(KeyModifiers.Shift));
-                    e.Handled = true;
                     break;
                 case Key.Home:
                     MoveCursorToStart(e.KeyModifiers.HasFlag(KeyModifiers.Shift));
-                    e.Handled = true;
                     break;
                 case Key.End:
                     MoveCursorToEnd(e.KeyModifiers.HasFlag(KeyModifiers.Shift));
-                    e.Handled = true;
                     break;
                 case Key.A when e.KeyModifiers.HasFlag(KeyModifiers.Control) || e.KeyModifiers.HasFlag(KeyModifiers.Meta):
                     SelectAll();
-                    e.Handled = true;
                     break;
                 case Key.C when e.KeyModifiers.HasFlag(KeyModifiers.Control) || e.KeyModifiers.HasFlag(KeyModifiers.Meta):
                     _ = CopySelectionAsync();
-                    e.Handled = true;
                     break;
                 case Key.X when e.KeyModifiers.HasFlag(KeyModifiers.Control) || e.KeyModifiers.HasFlag(KeyModifiers.Meta):
                     _ = CutSelection();
-                    e.Handled = true;
                     break;
                 case Key.V when e.KeyModifiers.HasFlag(KeyModifiers.Control) || e.KeyModifiers.HasFlag(KeyModifiers.Meta):
                     _ = PasteClipboard();
-                    e.Handled = true;
                     break;
+                case Key.Up:
+                    NavigateSearchHistory(-1);
+                    break;
+                case Key.Down:
+                    NavigateSearchHistory(1);
+                    break;
+                case Key.Enter:
+                    AddToSearchHistory();
+                    break;
+                default:
+                    return;
             }
 
-            // Only raise the event if the text has changed
+            e.Handled = true;
+
             if (e.Key == Key.Back || e.Key == Key.Delete)
             {
                 OnSearchQueryChanged?.Invoke(_searchQuery);
                 UpdateScrollOffset();
                 InvalidateVisual();
                 RaiseTextChangedEvent();
+                ResetTypingTimer();
+            }
+        }
+
+        private void NavigateSearchHistory(int direction)
+        {
+            if (_searchHistory.Count == 0) return;
+
+            _historyIndex = Math.Clamp(_historyIndex + direction, -1, _searchHistory.Count - 1);
+
+            _searchQuery = _historyIndex == -1 ? string.Empty : _searchHistory[_historyIndex];
+
+            _cursorPosition = _searchQuery.Length;
+            _selectionStart = _selectionEnd = _cursorPosition;
+            OnSearchQueryChanged?.Invoke(_searchQuery);
+            UpdateScrollOffset();
+            InvalidateVisual();
+        }
+
+        private void AddToSearchHistory()
+        {
+            if (!string.IsNullOrWhiteSpace(_searchQuery) && (_searchHistory.Count == 0 || _searchQuery != _searchHistory[^1]))
+            {
+                _searchHistory.Add(_searchQuery);
+                _historyIndex = _searchHistory.Count;
             }
         }
 
@@ -330,8 +331,7 @@ namespace meteor.UI.Features.SearchView.Controls
             else if (_cursorPosition > 0)
             {
                 _searchQuery = _searchQuery.Remove(--_cursorPosition, 1);
-                _selectionStart = _cursorPosition;
-                _selectionEnd = _cursorPosition;
+                _selectionStart = _selectionEnd = _cursorPosition;
             }
             UpdateScrollOffset();
         }
@@ -345,8 +345,7 @@ namespace meteor.UI.Features.SearchView.Controls
             else if (_cursorPosition < _searchQuery.Length)
             {
                 _searchQuery = _searchQuery.Remove(_cursorPosition, 1);
-                _selectionStart = _cursorPosition;
-                _selectionEnd = _cursorPosition;
+                _selectionStart = _selectionEnd = _cursorPosition;
             }
             UpdateScrollOffset();
         }
@@ -376,8 +375,7 @@ namespace meteor.UI.Features.SearchView.Controls
         {
             if (!isShiftPressed)
             {
-                _selectionStart = _cursorPosition;
-                _selectionEnd = _cursorPosition;
+                _selectionStart = _selectionEnd = _cursorPosition;
             }
             else
             {
@@ -426,8 +424,7 @@ namespace meteor.UI.Features.SearchView.Controls
                 }
                 _searchQuery = _searchQuery.Insert(_cursorPosition, clipboardText);
                 _cursorPosition += clipboardText.Length;
-                _selectionStart = _cursorPosition;
-                _selectionEnd = _cursorPosition;
+                _selectionStart = _selectionEnd = _cursorPosition;
                 OnSearchQueryChanged?.Invoke(_searchQuery);
                 UpdateScrollOffset();
                 InvalidateVisual();
@@ -443,7 +440,7 @@ namespace meteor.UI.Features.SearchView.Controls
 
             double textWidth = _formattedText.WidthIncludingTrailingWhitespace;
             double filterButtonsWidth = CalculateFilterButtonsWidth();
-            double visibleWidth = Bounds.Width - BorderThickness * 2 - 20 - filterButtonsWidth; // 10 for padding
+            double visibleWidth = Bounds.Width - BorderThickness * 2 - 20 - filterButtonsWidth;
 
             if (textWidth <= visibleWidth)
             {
@@ -455,7 +452,7 @@ namespace meteor.UI.Features.SearchView.Controls
 
                 if (cursorX - _scrollOffset < 0)
                 {
-                    _scrollOffset = Math.Max(0, cursorX - 10); // 10 for some padding
+                    _scrollOffset = Math.Max(0, cursorX - 10);
                 }
                 else if (cursorX - _scrollOffset > visibleWidth)
                 {
@@ -475,7 +472,7 @@ namespace meteor.UI.Features.SearchView.Controls
 
             const double buttonWidth = 24;
             const double buttonSpacing = 5;
-            return _filterButtons.Count * buttonWidth + (_filterButtons.Count - 1) * buttonSpacing + 5; // 5 for right padding
+            return _filterButtons.Count * buttonWidth + (_filterButtons.Count - 1) * buttonSpacing + 5;
         }
 
         private int GetCursorPositionFromPoint(Point point)

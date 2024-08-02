@@ -30,6 +30,8 @@ public partial class SourceControlView : UserControl
     private Canvas _canvas;
     private ScrollViewer _scrollViewer;
     private bool _isChangesExpanded = true;
+    private bool _isHeaderHovered = false;
+    private bool _isHeaderSelected = false;
 
     public SourceControlView(IThemeManager themeManager, IGitService gitService)
     {
@@ -71,6 +73,13 @@ public partial class SourceControlView : UserControl
         KeyDown += OnKeyDown;
         _viewModel.PropertyChanged += (_, _) => InvalidateVisual();
         _themeManager.ThemeChanged += OnThemeChanged;
+
+        // Add focus handling for keyboard navigation
+        GotFocus += (_, _) => Focus();
+        LostFocus += (_, _) => InvalidateVisual();
+
+        // Make the control focusable
+        Focusable = true;
     }
 
     private void OnThemeChanged(object sender, Theme newTheme)
@@ -102,12 +111,11 @@ public partial class SourceControlView : UserControl
     {
         var textBrush = new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.TextColor));
 
-        // Draw selection or hover rectangle for header
-        if (_viewModel.SelectedFile == null || _viewModel.HoveredItem == null)
+        // Draw hover rectangle for header if hovered or selected
+        if (_isHeaderHovered || _isHeaderSelected)
         {
-            var selectionRect = new Rect(0, 0, viewport.Width, HeaderHeight);
-            var fillColor = _viewModel.SelectedFile == null ? Color.FromArgb(50, 128, 128, 128) : Color.FromArgb(30, 128, 128, 128);
-            context.FillRectangle(new SolidColorBrush(fillColor), selectionRect);
+            var hoverRect = new Rect(0, 0, viewport.Width, HeaderHeight);
+            context.FillRectangle(new SolidColorBrush(Color.FromArgb(30, 128, 128, 128)), hoverRect);
         }
 
         // Draw collapse/expand icon
@@ -144,14 +152,14 @@ public partial class SourceControlView : UserControl
         if (file == _viewModel.SelectedFile || file == _viewModel.HoveredItem)
         {
             var rect = new Rect(0, y, viewportWidth, ItemHeight);
-            context.FillRectangle(new SolidColorBrush(Color.FromArgb(50, 128, 128, 128)), rect);
+            context.FillRectangle(new SolidColorBrush(Color.FromArgb(30, 128, 128, 128)), rect);
         }
 
-        RenderItemIcon(context, y);
-        RenderItemText(context, Path.GetFileName(file.FilePath), y, viewportWidth);
+        RenderItemIcon(context, file, y);
+        RenderItemText(context, file, y, viewportWidth);
     }
 
-    private void RenderItemIcon(DrawingContext context, double y)
+    private void RenderItemIcon(DrawingContext context, FileChange file, double y)
     {
         var iconChar = "\uf15b"; // Default file icon
         var iconBrush = new SolidColorBrush(Colors.Gray);
@@ -162,11 +170,11 @@ public partial class SourceControlView : UserControl
         context.DrawGeometry(iconBrush, null, iconGeometry);
     }
 
-    private void RenderItemText(DrawingContext context, string fileName, double y, double viewportWidth)
+    private void RenderItemText(DrawingContext context, FileChange file, double y, double viewportWidth)
     {
         var textBrush = new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.TextColor));
         var maxTextWidth = viewportWidth - LeftPadding - IconSize - 10;
-        var truncatedText = TruncateText(fileName, maxTextWidth);
+        var truncatedText = TruncateText(Path.GetFileName(file.FilePath), maxTextWidth);
         var formattedText = new FormattedText(truncatedText, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, new Typeface("San Francisco"), 13, textBrush);
         context.DrawText(formattedText, new Point(LeftPadding + IconSize + 10 - _scrollViewer.Offset.X, y + (ItemHeight - formattedText.Height) / 2));
     }
@@ -262,7 +270,6 @@ public partial class SourceControlView : UserControl
         // Check if header was clicked
         if (point.Y < HeaderHeight)
         {
-            _viewModel.SelectedFile = null;
             _isChangesExpanded = !_isChangesExpanded;
             UpdateCanvasSize();
             InvalidateVisual();
@@ -280,19 +287,30 @@ public partial class SourceControlView : UserControl
             if (point.Y >= y && point.Y < y + ItemHeight)
             {
                 _viewModel.SelectedFile = file;
+                _isHeaderSelected = false;
                 InvalidateVisual();
                 // TODO: Implement action for selected file
                 return;
             }
             y += ItemHeight + ItemSpacing;
         }
+
+        Focus();
     }
 
     private void OnPointerMoved(object sender, PointerEventArgs e)
     {
         var point = e.GetPosition(this);
 
-        if (point.Y < HeaderHeight || !_isChangesExpanded)
+        bool wasHeaderHovered = _isHeaderHovered;
+        _isHeaderHovered = point.Y < HeaderHeight;
+
+        if (wasHeaderHovered != _isHeaderHovered)
+        {
+            InvalidateVisual();
+        }
+
+        if (!_isChangesExpanded)
         {
             if (_viewModel.HoveredItem != null)
             {
@@ -336,6 +354,7 @@ public partial class SourceControlView : UserControl
 
     private void OnPointerExited(object sender, PointerEventArgs e)
     {
+        _isHeaderHovered = false;
         if (_viewModel.HoveredItem != null)
         {
             _viewModel.HoveredItem = null;
@@ -343,47 +362,105 @@ public partial class SourceControlView : UserControl
         }
         ToolTip.SetTip(this, null);
     }
-
     private void OnKeyDown(object sender, KeyEventArgs e)
     {
-        if (!_isChangesExpanded) return;
-
         switch (e.Key)
         {
             case Key.Up:
-                if (_viewModel.SelectedFile == null)
-                {
-                    // If header is selected, do nothing on Up key
-                    return;
-                }
-                _viewModel.MoveSelection(-1);
-                EnsureSelectedItemVisible();
+                MoveSelectionUp();
+                e.Handled = true;
                 break;
             case Key.Down:
-                if (_viewModel.SelectedFile == null)
-                {
-                    // If header is selected, select the first item
-                    _viewModel.MoveSelection(0);
-                }
-                else
-                {
-                    _viewModel.MoveSelection(1);
-                }
-                EnsureSelectedItemVisible();
+                MoveSelectionDown();
+                e.Handled = true;
                 break;
             case Key.Enter:
-                if (_viewModel.SelectedFile == null)
+                if (_isHeaderSelected)
                 {
-                    _isChangesExpanded = !_isChangesExpanded;
-                    UpdateCanvasSize();
-                    InvalidateVisual();
+                    ToggleExpansion();
                 }
-                else
+                else if (_viewModel.SelectedFile != null)
                 {
                     // TODO: Implement action for selected file
                 }
+                e.Handled = true;
+                break;
+            case Key.Space:
+                ToggleExpansion();
+                e.Handled = true;
                 break;
         }
+    }
+
+    private void MoveSelectionDown()
+    {
+        if (_isHeaderSelected)
+        {
+            if (_viewModel.Changes != null && _viewModel.Changes.Any())
+            {
+                _isHeaderSelected = false;
+                _viewModel.SelectedFile = _viewModel.Changes.First();
+            }
+        }
+        else if (_viewModel.SelectedFile != null)
+        {
+            int currentIndex = _viewModel.Changes.IndexOf(_viewModel.SelectedFile);
+            if (currentIndex < _viewModel.Changes.Count - 1)
+            {
+                _viewModel.SelectedFile = _viewModel.Changes[currentIndex + 1];
+            }
+            else
+            {
+                _isHeaderSelected = true;
+                _viewModel.SelectedFile = null;
+            }
+        }
+        else
+        {
+            _isHeaderSelected = true;
+        }
+
+        EnsureSelectedItemVisible();
+        InvalidateVisual();
+    }
+
+    private void ToggleExpansion()
+    {
+        _isChangesExpanded = !_isChangesExpanded;
+        UpdateCanvasSize();
+        InvalidateVisual();
+    }
+
+    private void MoveSelectionUp()
+    {
+        if (_isHeaderSelected)
+        {
+            if (_viewModel.Changes != null && _viewModel.Changes.Any())
+            {
+                _isHeaderSelected = false;
+                _viewModel.SelectedFile = _viewModel.Changes.Last();
+            }
+        }
+        else if (_viewModel.SelectedFile != null)
+        {
+            int currentIndex = _viewModel.Changes.IndexOf(_viewModel.SelectedFile);
+            if (currentIndex > 0)
+            {
+                _viewModel.SelectedFile = _viewModel.Changes[currentIndex - 1];
+            }
+            else
+            {
+                _isHeaderSelected = true;
+                _viewModel.SelectedFile = null;
+            }
+        }
+        else
+        {
+            _isHeaderSelected = true;
+        }
+
+        EnsureSelectedItemVisible();
+        InvalidateVisual();
     }
 
     private void EnsureSelectedItemVisible()

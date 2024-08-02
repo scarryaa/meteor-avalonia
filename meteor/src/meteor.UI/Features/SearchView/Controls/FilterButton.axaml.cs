@@ -2,9 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
-using Avalonia.Rendering;
 using System.Globalization;
-using meteor.Core.Interfaces;
 
 namespace meteor.UI.Features.SearchView.Controls
 {

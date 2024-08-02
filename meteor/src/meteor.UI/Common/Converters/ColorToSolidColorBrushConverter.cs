@@ -1,8 +1,5 @@
-using System;
 using System.Globalization;
 using Avalonia.Data.Converters;
-using Avalonia.Media;
-using meteor.Core.Models;
 using Color = meteor.Core.Models.Color;
 using SolidColorBrush = Avalonia.Media.SolidColorBrush;
 
