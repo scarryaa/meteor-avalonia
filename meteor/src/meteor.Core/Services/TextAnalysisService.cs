@@ -5,18 +5,20 @@ namespace meteor.Core.Services;
 public class TextAnalysisService : ITextAnalysisService
 {
     private int _desiredColumn;
+    private static readonly char[] CodeSymbols = { '.', ',', ';', ':', '(', ')', '[', ']', '{', '}', '<', '>', '=', '+', '-', '*', '/', '\\', '|', '&', '^', '%', '$', '#', '@', '!', '?', '\'', '"' };
 
     public int FindPreviousWordBoundary(string text, int currentPosition)
     {
         if (string.IsNullOrEmpty(text) || currentPosition <= 0) return 0;
 
         var position = Math.Min(currentPosition, text.Length) - 1;
+        var lineStart = FindStartOfCurrentLine(text, position);
 
         // Handle empty lines
-        while (position > 0 && text[position] == '\n' && text[position - 1] == '\n') position--;
+        while (position > lineStart && text[position] == '\n' && text[position - 1] == '\n') position--;
 
-        position = SkipWhitespace(text, position, -1);
-        while (position > 0 && !char.IsWhiteSpace(text[position - 1])) position--;
+        position = SkipWhitespace(text, position, -1, lineStart);
+        while (position > lineStart && !char.IsWhiteSpace(text[position - 1]) && !CodeSymbols.Contains(text[position - 1])) position--;
 
         return position;
     }
@@ -26,12 +28,13 @@ public class TextAnalysisService : ITextAnalysisService
         if (string.IsNullOrEmpty(text) || currentPosition >= text.Length) return text.Length;
 
         var position = currentPosition;
+        var lineEnd = FindEndOfCurrentLine(text, position);
 
         // Handle empty lines
-        while (position < text.Length - 1 && text[position] == '\n' && text[position + 1] == '\n') position++;
+        while (position < lineEnd - 1 && text[position] == '\n' && text[position + 1] == '\n') position++;
 
-        position = SkipWhitespace(text, position, 1);
-        while (position < text.Length && !char.IsWhiteSpace(text[position])) position++;
+        position = SkipWhitespace(text, position, 1, lineEnd);
+        while (position < lineEnd && !char.IsWhiteSpace(text[position]) && !CodeSymbols.Contains(text[position])) position++;
 
         return position;
     }
@@ -39,8 +42,7 @@ public class TextAnalysisService : ITextAnalysisService
     public int FindStartOfCurrentLine(string text, int currentPosition)
     {
         if (string.IsNullOrEmpty(text) || currentPosition <= 0) return 0;
-        var lastNewLine = text.LastIndexOf('\n', Math.Min(currentPosition - 1, text.Length - 1));
-        return lastNewLine + 1;
+        return text.LastIndexOf('\n', Math.Min(currentPosition - 1, text.Length - 1)) + 1;
     }
 
     public int FindEndOfCurrentLine(string text, int currentPosition)
@@ -62,36 +64,21 @@ public class TextAnalysisService : ITextAnalysisService
         var currentLineStart = FindStartOfCurrentLine(text, currentPosition);
         var currentOffset = currentPosition - currentLineStart;
 
-        // Handle empty lines
-        if (lineStart == lineEnd) return lineStart;
-
-        return Math.Min(lineStart + currentOffset, lineEnd);
+        return lineStart == lineEnd ? lineStart : Math.Min(lineStart + currentOffset, lineEnd);
     }
 
-    public int GetLineNumber(string text, int position)
-    {
-        return GetLineFromPosition(text, position);
-    }
+    public int GetLineNumber(string text, int position) => GetLineFromPosition(text, position);
 
     public int GetLineFromPosition(string text, int position)
     {
         return string.IsNullOrEmpty(text) || position < 0 ? 0 : text.Take(position).Count(c => c == '\n');
     }
 
-    public void SetDesiredColumn(int column)
-    {
-        _desiredColumn = column;
-    }
+    public void SetDesiredColumn(int column) => _desiredColumn = column;
 
-    public int GetDesiredColumn()
-    {
-        return _desiredColumn;
-    }
+    public int GetDesiredColumn() => _desiredColumn;
 
-    public int GetLineCount(string text)
-    {
-        return string.IsNullOrEmpty(text) ? 0 : text.Count(c => c == '\n') + 1;
-    }
+    public int GetLineCount(string text) => string.IsNullOrEmpty(text) ? 0 : text.Count(c => c == '\n') + 1;
 
     public int GetPositionFromLine(string text, int lineNumber)
     {
@@ -105,10 +92,7 @@ public class TextAnalysisService : ITextAnalysisService
         return FindEndOfCurrentLine(text, startOfLine);
     }
 
-    public void ResetDesiredColumn()
-    {
-        _desiredColumn = 0;
-    }
+    public void ResetDesiredColumn() => _desiredColumn = 0;
 
     public int FindPositionInLineAbove(string text, int currentPosition)
     {
@@ -128,15 +112,19 @@ public class TextAnalysisService : ITextAnalysisService
         return CalculatePositionInLine(text, nextLineStart, nextLineEnd, _desiredColumn);
     }
 
-    private static int SkipWhitespace(string text, int start, int direction)
+    private static int SkipWhitespace(string text, int start, int direction, int boundary)
     {
         var position = start;
-        while (position >= 0 && position < text.Length && char.IsWhiteSpace(text[position]) && text[position] != '\n')
+        while ((direction > 0 && position < boundary) || (direction < 0 && position > boundary))
+        {
+            if (!char.IsWhiteSpace(text[position]) || text[position] == '\n' || CodeSymbols.Contains(text[position]))
+                break;
             position += direction;
-        return Math.Max(0, Math.Min(position, text.Length - 1));
+        }
+        return position;
     }
 
-    private int CalculatePositionInLine(string text, int lineStart, int lineEnd, int targetColumn)
+    private static int CalculatePositionInLine(string text, int lineStart, int lineEnd, int targetColumn)
     {
         var lineLength = lineEnd - lineStart;
         return lineStart + Math.Min(lineLength, targetColumn);
