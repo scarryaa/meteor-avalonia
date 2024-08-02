@@ -19,6 +19,10 @@ public class StatusBar : UserControl
     private Button _leftSidebarToggleButton;
     private Button _rightSidebarToggleButton;
 
+    public event EventHandler<(int Line, int Column)> GoToLineColumnRequested;
+    public event EventHandler LeftSidebarToggleRequested;
+    public event EventHandler RightSidebarToggleRequested;
+
     public StatusBar(IThemeManager themeManager)
     {
         _themeManager = themeManager;
@@ -26,10 +30,6 @@ public class StatusBar : UserControl
         ApplyTheme();
         _themeManager.ThemeChanged += OnThemeChanged;
     }
-
-    public event EventHandler<(int Line, int Column)> GoToLineColumnRequested;
-    public event EventHandler LeftSidebarToggleRequested;
-    public event EventHandler RightSidebarToggleRequested;
 
     private void InitializeComponent()
     {
@@ -41,11 +41,7 @@ public class StatusBar : UserControl
         _leftSidebarToggleButton.Click += (_, _) => LeftSidebarToggleRequested?.Invoke(this, EventArgs.Empty);
         _rightSidebarToggleButton.Click += (_, _) => RightSidebarToggleRequested?.Invoke(this, EventArgs.Empty);
 
-        _statusTextBlock = new TextBlock
-        {
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(10, 0, 10, 0)
-        };
+        _statusTextBlock = new TextBlock { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 10, 0) };
 
         _lineColumnTextBlock = new TextBlock
         {
@@ -55,14 +51,7 @@ public class StatusBar : UserControl
             Cursor = new Cursor(StandardCursorType.Hand)
         };
 
-        _lineColumnTextBlock.PointerPressed += (_, _) =>
-        {
-            var parts = _lineColumnTextBlock.Text.Split(',');
-            if (parts.Length == 2 &&
-                int.TryParse(parts[0].Split(' ')[1], out var line) &&
-                int.TryParse(parts[1].Split(' ')[2], out var column))
-                GoToLineColumnRequested?.Invoke(this, (line, column));
-        };
+        _lineColumnTextBlock.PointerPressed += OnLineColumnTextBlockPressed;
 
         _border = new Border
         {
@@ -83,9 +72,8 @@ public class StatusBar : UserControl
         Content = _border;
     }
 
-    private Button CreateSidebarToggleButton(string icon, HorizontalAlignment alignment)
-    {
-        var button = new Button
+    private Button CreateSidebarToggleButton(string icon, HorizontalAlignment alignment) =>
+        new()
         {
             Content = new TextBlock
             {
@@ -103,75 +91,45 @@ public class StatusBar : UserControl
             Classes = { "sidebar-toggle", "sidebar-open" }
         };
 
-        UpdateButtonStyles(button);
-
-        return button;
-    }
-
     private void UpdateButtonStyles(Button button)
     {
         var theme = _themeManager.CurrentTheme;
+        button.Styles.Clear();
+        button.Styles.Add(CreateButtonStyle("sidebar-toggle", Brushes.Transparent));
+        button.Styles.Add(CreateButtonStyle("sidebar-toggle:pointerover", new SolidColorBrush(Color.Parse(theme.ButtonHoverColor))));
+        button.Styles.Add(CreateButtonStyle("sidebar-toggle:pressed", new SolidColorBrush(Color.Parse(theme.ButtonPressedColor))));
+        button.Styles.Add(CreateButtonStyle("sidebar-toggle.sidebar-open", new SolidColorBrush(Color.Parse(theme.ButtonActiveColor))));
+    }
 
-        button.Styles.Add(new Style(x => x.OfType<Button>().Class("sidebar-toggle"))
+    private Style CreateButtonStyle(string selector, IBrush background) =>
+        new(x => x.OfType<Button>().Class(selector))
         {
             Setters =
             {
-                new Setter(Button.BackgroundProperty, Brushes.Transparent),
+                new Setter(Button.BackgroundProperty, background),
                 new Setter(Button.BorderThicknessProperty, new Thickness(0)),
             }
-        });
-
-        if (Color.TryParse(theme.ButtonHoverColor, out var hoverColor))
-        {
-            button.Styles.Add(new Style(x => x.OfType<Button>().Class("sidebar-toggle").Class(":pointerover"))
-            {
-                Setters =
-                {
-                    new Setter(Button.BackgroundProperty, new SolidColorBrush(hoverColor)),
-                }
-            });
-        }
-
-        if (Color.TryParse(theme.ButtonPressedColor, out var pressedColor))
-        {
-            button.Styles.Add(new Style(x => x.OfType<Button>().Class("sidebar-toggle").Class(":pressed"))
-            {
-                Setters =
-                {
-                    new Setter(Button.BackgroundProperty, new SolidColorBrush(pressedColor)),
-                }
-            });
-        }
-
-        if (Color.TryParse(theme.ButtonActiveColor, out var activeColor))
-        {
-            button.Styles.Add(new Style(x => x.OfType<Button>().Class("sidebar-toggle").Class("sidebar-open"))
-            {
-                Setters =
-                {
-                    new Setter(Button.BackgroundProperty, new SolidColorBrush(activeColor)),
-                }
-            });
-        }
-    }
+        };
 
     private void ApplyTheme()
     {
-        Background = new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.StatusBarColor));
-        _statusTextBlock.Foreground = new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.AppForegroundColor));
-        _lineColumnTextBlock.Foreground = new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.AppForegroundColor));
-        _border.BorderBrush = new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.BorderBrush));
-        _leftSidebarToggleButton.Foreground = new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.AppForegroundColor));
-        _rightSidebarToggleButton.Foreground = new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.AppForegroundColor));
-
+        var theme = _themeManager.CurrentTheme;
+        Background = new SolidColorBrush(Color.Parse(theme.StatusBarColor));
+        _statusTextBlock.Foreground = _lineColumnTextBlock.Foreground = _leftSidebarToggleButton.Foreground = _rightSidebarToggleButton.Foreground = new SolidColorBrush(Color.Parse(theme.AppForegroundColor));
+        _border.BorderBrush = new SolidColorBrush(Color.Parse(theme.BorderBrush));
         UpdateButtonStyles(_leftSidebarToggleButton);
         UpdateButtonStyles(_rightSidebarToggleButton);
     }
 
-    private void OnThemeChanged(object sender, Theme theme)
+    private void OnThemeChanged(object sender, Theme theme) => ApplyTheme();
+
+    private void OnLineColumnTextBlockPressed(object sender, PointerPressedEventArgs e)
     {
-        ApplyTheme();
-        InvalidateVisual();
+        var parts = _lineColumnTextBlock.Text.Split(',');
+        if (parts.Length == 2 &&
+            int.TryParse(parts[0].Split(' ')[1], out var line) &&
+            int.TryParse(parts[1].Split(' ')[2], out var column))
+            GoToLineColumnRequested?.Invoke(this, (line, column));
     }
 
     public void SetStatus(string status) => _statusTextBlock.Text = status;
@@ -189,9 +147,5 @@ public class StatusBar : UserControl
         UpdateButtonStyles(button);
     }
 
-    public void UpdateTheme()
-    {
-        ApplyTheme();
-        InvalidateVisual();
-    }
+    public void UpdateTheme() => ApplyTheme();
 }

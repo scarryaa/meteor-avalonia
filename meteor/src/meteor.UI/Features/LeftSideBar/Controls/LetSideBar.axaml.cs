@@ -27,6 +27,7 @@ public class LeftSideBar : UserControl
     private List<Button> _sidebarButtons;
     private ContextMenu _overflowMenu;
     private Border _sidebarViewSelectorBorder;
+    private Border _underline;
 
     public event EventHandler<string> FileSelected;
     public event EventHandler<string> DirectoryOpened;
@@ -62,15 +63,31 @@ public class LeftSideBar : UserControl
         {
             BorderThickness = new Thickness(0, 1, 0, 0),
             BorderBrush = new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.BorderBrush)),
-            Child = _sidebarViewSelector
+            Child = new Grid
+            {
+                RowDefinitions = new RowDefinitions("*,Auto"),
+                Children =
+                {
+                    _sidebarViewSelector,
+                    new Border
+                    {
+                        Name = "Underline",
+                        Height = 2,
+                        Background = new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.AppForegroundColor)),
+                        HorizontalAlignment = HorizontalAlignment.Left,
+                        Width = 30,
+                        [Grid.RowProperty] = 1
+                    }
+                }
+            }
         };
+        _underline = (Border)((Grid)_sidebarViewSelectorBorder.Child).Children[1];
         _mainGrid.Children.Add(_sidebarViewSelectorBorder);
         Grid.SetRow(_mainGrid.Children[^1], 1);
 
         _mainGrid.Children.AddRange(new Control[] { _fileExplorer, _searchView, _sourceControlView });
         Content = _mainGrid;
 
-        // Set the UserControl to expand and fill its container
         HorizontalAlignment = HorizontalAlignment.Stretch;
         VerticalAlignment = VerticalAlignment.Stretch;
     }
@@ -109,7 +126,6 @@ public class LeftSideBar : UserControl
 
         return selector;
     }
-
     private Button CreateSidebarButton(string icon, string view)
     {
         var button = new Button
@@ -122,7 +138,7 @@ public class LeftSideBar : UserControl
             },
             Width = 30,
             Height = 30,
-            Background = Brushes.Transparent,
+            Background = new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.BackgroundColor)),
             BorderThickness = new Thickness(0),
             Padding = new Thickness(5),
             Margin = new Thickness(2, 0, 2, 0),
@@ -253,26 +269,38 @@ public class LeftSideBar : UserControl
             if (child is Button button)
             {
                 button.Classes.Remove("selected");
-                if (button.Tag?.ToString() == view) button.Classes.Add("selected");
+                if (button.Tag?.ToString() == view)
+                {
+                    button.Classes.Add("selected");
+                    UpdateUnderlinePosition(button);
+                }
             }
         }
     }
 
+    private void UpdateUnderlinePosition(Button selectedButton)
+    {
+        _underline.Width = selectedButton.Width;
+        _underline.Margin = new Thickness(selectedButton.Bounds.Left, 0, 0, 0);
+    }
+
     internal void UpdateBackground(Core.Models.Theme theme)
     {
-        _sidebarViewSelector.Background = new SolidColorBrush(Color.Parse(theme.BackgroundColor));
+        var backgroundColor = new SolidColorBrush(Color.Parse(theme.BackgroundColor));
+        _sidebarViewSelector.Background = backgroundColor;
         _sidebarViewSelectorBorder.BorderBrush = new SolidColorBrush(Color.Parse(theme.BorderBrush));
+        _underline.Background = new SolidColorBrush(Color.Parse(theme.AppForegroundColor));
 
         foreach (var button in _sidebarButtons.Concat(new[] { _overflowButton }))
         {
-            UpdateButtonColors(button, theme);
+            UpdateButtonColors(button, theme, backgroundColor);
         }
     }
 
-    private void UpdateButtonColors(Button button, Core.Models.Theme theme)
+    private void UpdateButtonColors(Button button, Core.Models.Theme theme, IBrush backgroundColor)
     {
         button.Foreground = new SolidColorBrush(Color.Parse(theme.AppForegroundColor));
-        button.Background = new SolidColorBrush(Color.Parse(theme.BackgroundColor));
+        button.Background = backgroundColor;
     }
 
     internal void UpdateFiles(string directoryPath)

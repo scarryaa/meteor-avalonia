@@ -193,9 +193,9 @@ public class ThemeManager : IThemeManager
             TitleBarInactiveColor = "#181818",
             StatusBarColor = "#121212",
             ButtonHoverColor = "#2A2A2A",
+            ButtonPressedColor = "#3A3A3A",
             ButtonColor = "#1A1A1A",
             ButtonBorderColor = "#2A2A2A",
-            ButtonPressedColor = "#3A3A3A",
             ButtonActiveColor = "#4A4A4A",
             SearchViewBackgroundColor = "#121212",
             SearchViewBorderColor = "#2A2A2A"
