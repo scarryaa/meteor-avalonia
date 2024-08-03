@@ -14,7 +14,6 @@ public class InputManager : IInputManager
     private readonly ISelectionManager _selectionManager;
     private readonly ITextAnalysisService _textAnalysisService;
     private readonly ITextBufferService _textBufferService;
-    private readonly UndoRedoManager _undoRedoManager;
     private bool _isAltPressed;
     private bool _isClipboardOperationHandled;
     private bool _isControlOrMetaPressed;
@@ -27,8 +26,7 @@ public class InputManager : IInputManager
         IClipboardManager clipboardManager,
         ISelectionManager selectionManager,
         ITextAnalysisService textAnalysisService,
-        IScrollManager scrollManager,
-        UndoRedoManager undoRedoManager)
+        IScrollManager scrollManager)
     {
         _textBufferService = textBufferService ?? throw new ArgumentNullException(nameof(textBufferService));
         _cursorManager = cursorManager ?? throw new ArgumentNullException(nameof(cursorManager));
@@ -36,7 +34,6 @@ public class InputManager : IInputManager
         _selectionManager = selectionManager ?? throw new ArgumentNullException(nameof(selectionManager));
         _textAnalysisService = textAnalysisService ?? throw new ArgumentNullException(nameof(textAnalysisService));
         _scrollManager = scrollManager ?? throw new ArgumentNullException(nameof(scrollManager));
-        _undoRedoManager = undoRedoManager ?? throw new ArgumentNullException(nameof(undoRedoManager));
     }
 
     public async Task HandleKeyDown(KeyEventArgs e)
@@ -151,9 +148,9 @@ public class InputManager : IInputManager
                     if (_isControlOrMetaPressed)
                     {
                         if (_isShiftPressed)
-                            _undoRedoManager.Redo();
+                            _viewModel.Redo();
                         else
-                            _undoRedoManager.Undo();
+                            _viewModel.Undo();
                     }
                     else
                         DeleteSelectedText();
@@ -350,7 +347,7 @@ public class InputManager : IInputManager
     {
         var selection = _selectionManager.CurrentSelection;
         var oldText = _textBufferService.GetContentSlice(selection.Start, selection.End - selection.Start);
-        _undoRedoManager.RecordChange(new TextChange(selection.Start, oldText.Length, newText.Length, newText, oldText));
+        _viewModel.RecordChange(new TextChange(selection.Start, oldText.Length, newText.Length, newText, oldText));
         _textBufferService.DeleteText(selection.Start, selection.End - selection.Start);
         _textBufferService.InsertText(selection.Start, newText);
         _cursorManager.SetPosition(selection.Start + newText.Length);
@@ -537,7 +534,7 @@ public class InputManager : IInputManager
         {
             var position = _cursorManager.Position - 1;
             var deletedText = _textBufferService.GetContentSliceByIndex(position, 1);
-            _undoRedoManager.RecordChange(new TextChange(position, 1, 0, "", deletedText));
+            _viewModel.RecordChange(new TextChange(position, 1, 0, "", deletedText));
             _textBufferService.DeleteText(position, 1);
             _cursorManager.MoveCursor(-1);
         }
@@ -578,7 +575,7 @@ public class InputManager : IInputManager
         {
             var position = _cursorManager.Position;
             var deletedText = _textBufferService.GetContentSliceByIndex(position, 1);
-            _undoRedoManager.RecordChange(new TextChange(position, 1, 0, "", deletedText));
+            _viewModel.RecordChange(new TextChange(position, 1, 0, "", deletedText));
             _textBufferService.DeleteText(position, 1);
         }
 
@@ -615,7 +612,7 @@ public class InputManager : IInputManager
             await _clipboardManager.CopyAsync(selectedText);
 
             // Record the change before deleting the text
-            _undoRedoManager.RecordChange(new TextChange(selection.Start, selectedText.Length, 0, "", selectedText));
+            _viewModel.RecordChange(new TextChange(selection.Start, selectedText.Length, 0, "", selectedText));
 
             // Delete the selected text
             _textBufferService.DeleteText(selection.Start, selection.End - selection.Start);
@@ -643,13 +640,13 @@ public class InputManager : IInputManager
             {
                 var selection = _selectionManager.CurrentSelection;
                 var oldText = _textBufferService.GetContentSlice(selection.Start, selection.End - selection.Start);
-                _undoRedoManager.RecordChange(new TextChange(selection.Start, oldText.Length, clipboardText.Length, clipboardText, oldText));
+                _viewModel.RecordChange(new TextChange(selection.Start, oldText.Length, clipboardText.Length, clipboardText, oldText));
                 DeleteSelectedText();
             }
             else
             {
                 var position = _cursorManager.Position;
-                _undoRedoManager.RecordChange(new TextChange(position, 0, clipboardText.Length, clipboardText, ""));
+                _viewModel.RecordChange(new TextChange(position, 0, clipboardText.Length, clipboardText, ""));
             }
             InsertTextAndMoveCursor(clipboardText, clipboardText.Length);
             _textAnalysisService.ResetDesiredColumn();
@@ -677,7 +674,7 @@ public class InputManager : IInputManager
         if (start != end)
         {
             var deletedText = _textBufferService.GetContentSlice(start, end - start);
-            _undoRedoManager.RecordChange(new TextChange(start, end - start, 0, "", deletedText));
+            _viewModel.RecordChange(new TextChange(start, end - start, 0, "", deletedText));
             _textBufferService.DeleteText(start, end - start);
             _cursorManager.SetPosition(start);
         }
@@ -691,13 +688,13 @@ public class InputManager : IInputManager
         {
             var selection = _selectionManager.CurrentSelection;
             var oldText = _textBufferService.GetContentSlice(selection.Start, selection.End - selection.Start);
-            _undoRedoManager.RecordChange(new TextChange(selection.Start, oldText.Length, text.Length, text, oldText));
+            _viewModel.RecordChange(new TextChange(selection.Start, oldText.Length, text.Length, text, oldText));
             ReplaceSelectedText(text);
         }
         else
         {
             var position = _cursorManager.Position;
-            _undoRedoManager.RecordChange(new TextChange(position, 0, text.Length, text, ""));
+            _viewModel.RecordChange(new TextChange(position, 0, text.Length, text, ""));
             _textBufferService.InsertText(position, text);
             _cursorManager.MoveCursor(text.Length);
         }

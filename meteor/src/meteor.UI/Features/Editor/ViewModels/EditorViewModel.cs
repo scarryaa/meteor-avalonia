@@ -27,8 +27,7 @@ public class EditorViewModel : IEditorViewModel
         ISelectionManager selectionManager,
         IEditorConfig config,
         ITextMeasurer textMeasurer,
-        ICompletionProvider completionProvider,
-        UndoRedoManager undoRedoManager)
+        ICompletionProvider completionProvider)
     {
         TextBufferService = textBufferService;
         _cursorManager = cursorManager;
@@ -37,7 +36,7 @@ public class EditorViewModel : IEditorViewModel
         _config = config;
         _textMeasurer = textMeasurer;
         _completionProvider = completionProvider;
-        _undoRedoManager = undoRedoManager;
+        _undoRedoManager = new UndoRedoManager();
 
         _cursorManager.CursorPositionChanged += (_, _) => NotifyContentChanged();
         _selectionManager.SelectionChanged += (_, _) => SelectionChanged?.Invoke(this, EventArgs.Empty);
@@ -338,5 +337,10 @@ public class EditorViewModel : IEditorViewModel
         {
             Console.WriteLine($"Error applying change: {ex.Message}");
         }
+    }
+
+    public void RecordChange(TextChange textChange)
+    {
+        _undoRedoManager.RecordChange(textChange);
     }
 }

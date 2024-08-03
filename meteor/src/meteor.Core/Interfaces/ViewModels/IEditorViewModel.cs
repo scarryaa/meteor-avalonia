@@ -46,4 +46,5 @@ public interface IEditorViewModel
     int GetLineStartOffset(int lineIndex);
     int GetLineEndOffset(int lineIndex);
     void GoToLineColumn(int line, int column);
+    void RecordChange(TextChange textChange);
 }

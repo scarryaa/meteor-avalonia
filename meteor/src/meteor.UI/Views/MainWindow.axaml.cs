@@ -67,14 +67,14 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
 
-        (_mainWindowViewModel, _tabService, _config, _textMeasurer, _themeManager, _scrollManager, _searchService, _gitService, _settingsService, _fileService, _tabViewModelFactory) =
-            (mainWindowViewModel, tabService, config, textMeasurer, themeManager, scrollManager, searchService, gitService, settingsService, fileService, tabViewModelFactory);
+        (_mainWindowViewModel, _tabService, _config, _textMeasurer, _themeManager, _scrollManager, _searchService, _gitService, _settingsService, _fileService, _tabViewModelFactory, _undoRedoManager) =
+            (mainWindowViewModel, tabService, config, textMeasurer, themeManager, scrollManager, searchService, gitService, settingsService, fileService, tabViewModelFactory, undoRedoManager);
 
         DataContext = mainWindowViewModel;
         ClipToBounds = false;
         this.AttachDevTools();
 
-        InitializeUI(layoutManager, inputHandler, pointerEventHandler, fileService, undoRedoManager);
+        InitializeUI(layoutManager, inputHandler, pointerEventHandler, fileService);
         SetupEventHandlers();
         LoadSettings();
     }
@@ -98,7 +98,7 @@ public partial class MainWindow : Window
         UpdateLayout();
     }
 
-    private void InitializeUI(IEditorLayoutManager layoutManager, IEditorInputHandler inputHandler, IPointerEventHandler pointerEventHandler, IFileService fileService, UndoRedoManager undoRedoManager)
+    private void InitializeUI(IEditorLayoutManager layoutManager, IEditorInputHandler inputHandler, IPointerEventHandler pointerEventHandler, IFileService fileService)
     {
         UpdateTheme();
         _themeManager.ThemeChanged += (_, _) => UpdateTheme();
@@ -408,7 +408,7 @@ public partial class MainWindow : Window
         var selectionManager = new SelectionManager(textBufferService);
         var textAnalysisService = new TextAnalysisService();
         var inputManager = new InputManager(textBufferService, cursorManager, clipboardManager, selectionManager,
-            textAnalysisService, _scrollManager, _undoRedoManager);
+            textAnalysisService, _scrollManager);
 
         var editorViewModel = new EditorViewModel(
             textBufferService,
@@ -417,8 +417,7 @@ public partial class MainWindow : Window
             selectionManager,
             editorConfig,
             _textMeasurer,
-            new CompletionProvider(textBufferService),
-            _undoRedoManager
+            new CompletionProvider(textBufferService)
         );
         inputManager.SetViewModel(editorViewModel);
 

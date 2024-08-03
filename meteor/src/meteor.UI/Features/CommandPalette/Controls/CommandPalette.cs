@@ -376,8 +376,7 @@ public class CommandPalette : UserControl
         var textAnalysisService = new TextAnalysisService();
         var inputManager = new InputManager(textBufferService, cursorManager, clipboardManager, selectionManager,
             textAnalysisService,
-            new ScrollManager(editorConfig, _textMeasurer),
-            _undoRedoManager);
+            new ScrollManager(editorConfig, _textMeasurer));
         var editorViewModel = new EditorViewModel(
             textBufferService,
             cursorManager,
@@ -385,8 +384,7 @@ public class CommandPalette : UserControl
             selectionManager,
             editorConfig,
             _textMeasurer,
-            new CompletionProvider(textBufferService),
-            _undoRedoManager);
+            new CompletionProvider(textBufferService));
         inputManager.SetViewModel(editorViewModel);
 
         return editorViewModel;
