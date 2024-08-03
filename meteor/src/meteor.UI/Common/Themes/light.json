@@ -59,5 +59,7 @@
   "searchViewBackgroundColor": "#FFFFFF",
   "searchViewBorderColor": "#C0C0C0",
   "buttonColor": "#E0E0E0",
-  "buttonBorderColor": "#B0B0B0"  
+  "buttonBorderColor": "#B0B0B0",
+  "commandPaletteBackgroundColor": "#FFFFFF",
+  "commandPaletteForegroundColor": "#2C3E50"
 }

@@ -62,7 +62,11 @@ public class TabService : ITabService
             var newActiveTab = _tabHistory.LastOrDefault(t => Tabs.Contains(t)) ?? Tabs.LastOrDefault();
             SetActiveTab(newActiveTab);
         }
-        if (Tabs.Count == 0) SetActiveTab(null);
+        if (Tabs.Count == 0)
+        {
+            ClearActiveTab();
+            ActiveTabChanged?.Invoke(this, null);
+        }
     }
 
     private void UpdateActiveTab(ITabViewModel tab)
@@ -81,7 +85,11 @@ public class TabService : ITabService
 
     private void ClearActiveTab()
     {
-        _previousActiveTab = ActiveTab;
+        if (ActiveTab != null)
+        {
+            ActiveTab.IsActive = false;
+            _previousActiveTab = ActiveTab;
+        }
         ActiveTab = null;
     }
 }

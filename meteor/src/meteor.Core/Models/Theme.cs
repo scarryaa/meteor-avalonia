@@ -159,4 +159,17 @@ public class Theme
 
     [JsonPropertyName("buttonColor")]
     public string ButtonColor { get; set; } = "";
+
+    [JsonPropertyName("highlightBrush")]
+    public string HighlightBrush { get; set; } = "";
+
+    [JsonPropertyName("accentBrush")]
+    public string AccentBrush { get; set; } = "";
+
+    // Command Palette
+    [JsonPropertyName("commandPaletteBackgroundColor")]
+    public string CommandPaletteBackgroundColor { get; set; } = "";
+
+    [JsonPropertyName("commandPaletteForegroundColor")]
+    public string CommandPaletteForegroundColor { get; set; } = "";
 }

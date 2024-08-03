@@ -59,5 +59,7 @@
   "buttonActiveColor": "#4A4A4A",
   "buttonBorderColor": "#2A2A2A",
   "searchViewBackgroundColor": "#121212",
-  "searchViewBorderColor": "#2A2A2A"
+  "searchViewBorderColor": "#2A2A2A",
+  "commandPaletteBackgroundColor": "#121212",
+  "commandPaletteForegroundColor": "#E0E0E0"
 }

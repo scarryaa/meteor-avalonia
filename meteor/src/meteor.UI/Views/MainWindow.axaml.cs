@@ -9,6 +9,7 @@ using Avalonia.Threading;
 using meteor.Core.Config;
 using meteor.Core.Interfaces;
 using meteor.Core.Interfaces.Config;
+using meteor.Core.Interfaces.Factories;
 using meteor.Core.Interfaces.Services;
 using meteor.Core.Interfaces.Services.Editor;
 using meteor.Core.Models;
@@ -42,7 +43,8 @@ public partial class MainWindow : Window
     private readonly ISearchService _searchService;
     private readonly IGitService _gitService;
     private readonly ISettingsService _settingsService;
-
+    private readonly IFileService _fileService;
+    private readonly ITabViewModelFactory _tabViewModelFactory;
     private CommandPalette _commandPalette;
     private LeftSideBar _leftSideBar;
     private RightSideBar _rightSideBar;
@@ -60,12 +62,12 @@ public partial class MainWindow : Window
     public MainWindow(MainWindowViewModel mainWindowViewModel, ITabService tabService, IEditorLayoutManager layoutManager,
         IEditorInputHandler inputHandler, ITextMeasurer textMeasurer, IEditorConfig config, IScrollManager scrollManager,
         IPointerEventHandler pointerEventHandler, IThemeManager themeManager, IFileService fileService,
-        IGitService gitService, ISearchService searchService, ISettingsService settingsService)
+        IGitService gitService, ISearchService searchService, ISettingsService settingsService, ITabViewModelFactory tabViewModelFactory)
     {
         InitializeComponent();
 
-        (_mainWindowViewModel, _tabService, _config, _textMeasurer, _themeManager, _scrollManager, _searchService, _gitService, _settingsService) =
-            (mainWindowViewModel, tabService, config, textMeasurer, themeManager, scrollManager, searchService, gitService, settingsService);
+        (_mainWindowViewModel, _tabService, _config, _textMeasurer, _themeManager, _scrollManager, _searchService, _gitService, _settingsService, _fileService, _tabViewModelFactory) =
+            (mainWindowViewModel, tabService, config, textMeasurer, themeManager, scrollManager, searchService, gitService, settingsService, fileService, tabViewModelFactory);
 
         DataContext = mainWindowViewModel;
         ClipToBounds = false;
@@ -147,7 +149,7 @@ public partial class MainWindow : Window
 
     private CommandPalette CreateCommandPalette()
     {
-        var commandPalette = new CommandPalette(_themeManager)
+        var commandPalette = new CommandPalette(_themeManager, _fileService, _tabService, _tabViewModelFactory, _textMeasurer)
         {
             ZIndex = 1000,
             HorizontalAlignment = HorizontalAlignment.Center,

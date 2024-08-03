@@ -198,7 +198,11 @@ public class ThemeManager : IThemeManager
             ButtonBorderColor = "#2A2A2A",
             ButtonActiveColor = "#4A4A4A",
             SearchViewBackgroundColor = "#121212",
-            SearchViewBorderColor = "#2A2A2A"
+            SearchViewBorderColor = "#2A2A2A",
+            HighlightBrush = "#3A3A3A",
+            AccentBrush = "#FF79C6",
+            CommandPaletteBackgroundColor = "#121212",
+            CommandPaletteForegroundColor = "#E0E0E0"
         };
     }
 
@@ -266,7 +270,11 @@ public class ThemeManager : IThemeManager
             ButtonColor = "#FFFFFF",
             ButtonBorderColor = "#B0B0B0",
             SearchViewBackgroundColor = "#FFFFFF",
-            SearchViewBorderColor = "#C0C0C0"
+            SearchViewBorderColor = "#C0C0C0",
+            HighlightBrush = "#3A3A3A",
+            AccentBrush = "#FF79C6",
+            CommandPaletteBackgroundColor = "#FFFFFF",
+            CommandPaletteForegroundColor = "#2C3E50"
         };
     }
 
