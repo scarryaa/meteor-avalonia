@@ -10,6 +10,8 @@ namespace meteor.Core.Services
         private HashSet<string> _ignoredPatterns;
         private bool _isValidRepo;
 
+        public event EventHandler<string> RepositoryPathChanged;
+
         public GitService(string repoPath)
         {
             UpdateProjectRoot(repoPath);
@@ -43,9 +45,13 @@ namespace meteor.Core.Services
 
         public void UpdateProjectRoot(string directoryPath)
         {
-            _repoPath = directoryPath;
-            _isValidRepo = IsValidGitRepository(_repoPath);
-            _ignoredPatterns = _isValidRepo ? LoadGitIgnore() : new HashSet<string>();
+            if (_repoPath != directoryPath)
+            {
+                _repoPath = directoryPath;
+                _isValidRepo = IsValidGitRepository(_repoPath);
+                _ignoredPatterns = _isValidRepo ? LoadGitIgnore() : new HashSet<string>();
+                RepositoryPathChanged?.Invoke(this, _repoPath);
+            }
         }
 
         private bool IsValidGitRepository(string path)
@@ -139,6 +145,11 @@ namespace meteor.Core.Services
                 _isValidRepo = false;
                 return string.Empty;
             }
+        }
+
+        public string GetRepositoryPath()
+        {
+            return _repoPath;
         }
     }
 }

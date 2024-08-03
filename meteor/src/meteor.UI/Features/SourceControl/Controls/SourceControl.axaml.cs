@@ -12,10 +12,11 @@ using Color = Avalonia.Media.Color;
 using Point = Avalonia.Point;
 using SolidColorBrush = Avalonia.Media.SolidColorBrush;
 using Vector = Avalonia.Vector;
+using System.IO;
 
 namespace meteor.UI.Features.SourceControl.Controls;
 
-public partial class SourceControlView : UserControl
+public partial class SourceControlView : UserControl, IDisposable
 {
     private const double ItemHeight = 24;
     private const double LeftPadding = 10;
@@ -32,6 +33,9 @@ public partial class SourceControlView : UserControl
     private bool _isChangesExpanded = true;
     private bool _isHeaderHovered = false;
     private bool _isHeaderSelected = false;
+    private FileSystemWatcher _watcher;
+    private System.Timers.Timer _debounceTimer;
+    private string _currentRepositoryPath;
 
     public SourceControlView(IThemeManager themeManager, IGitService gitService)
     {
@@ -42,6 +46,9 @@ public partial class SourceControlView : UserControl
 
         InitializeComponent();
         SetupEventHandlers();
+        InitializeFileWatcher();
+
+        _gitService.RepositoryPathChanged += OnRepositoryPathChanged;
     }
 
     private void InitializeComponent()
@@ -80,6 +87,66 @@ public partial class SourceControlView : UserControl
 
         // Make the control focusable
         Focusable = true;
+    }
+
+    private void InitializeFileWatcher()
+    {
+        UpdateFileWatcher(_gitService.GetRepositoryPath());
+    }
+
+    private void UpdateFileWatcher(string newRepositoryPath)
+    {
+        if (_watcher != null)
+        {
+            _watcher.Dispose();
+            _watcher = null;
+        }
+
+        if (string.IsNullOrEmpty(newRepositoryPath) || !Directory.Exists(newRepositoryPath))
+        {
+            return;
+        }
+
+        _currentRepositoryPath = newRepositoryPath;
+        _watcher = new FileSystemWatcher(_currentRepositoryPath)
+        {
+            IncludeSubdirectories = true,
+            EnableRaisingEvents = true,
+            NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.LastWrite | NotifyFilters.CreationTime
+        };
+
+        _watcher.Changed += OnFileSystemChanged;
+        _watcher.Created += OnFileSystemChanged;
+        _watcher.Deleted += OnFileSystemChanged;
+        _watcher.Renamed += OnFileSystemChanged;
+
+        if (_debounceTimer == null)
+        {
+            _debounceTimer = new System.Timers.Timer(500);
+            _debounceTimer.Elapsed += async (sender, e) =>
+            {
+                _debounceTimer.Stop();
+                await Dispatcher.UIThread.InvokeAsync(async () =>
+                {
+                    await UpdateChangesAsync(CancellationToken.None);
+                });
+            };
+        }
+    }
+
+    private void OnRepositoryPathChanged(object sender, string newPath)
+    {
+        UpdateFileWatcher(newPath);
+        Dispatcher.UIThread.InvokeAsync(async () =>
+        {
+            await UpdateChangesAsync(CancellationToken.None);
+        });
+    }
+
+    private void OnFileSystemChanged(object sender, FileSystemEventArgs e)
+    {
+        _debounceTimer.Stop();
+        _debounceTimer.Start();
     }
 
     private void OnThemeChanged(object sender, Theme newTheme)
@@ -471,14 +538,10 @@ public partial class SourceControlView : UserControl
         if (index == -1) return;
 
         double y = HeaderHeight + index * (ItemHeight + ItemSpacing);
+    }
 
-        if (y < _scrollViewer.Offset.Y + HeaderHeight)
-        {
-            _scrollViewer.Offset = new Vector(_scrollViewer.Offset.X, y - HeaderHeight);
-        }
-        else if (y + ItemHeight > _scrollViewer.Offset.Y + _scrollViewer.Viewport.Height)
-        {
-            _scrollViewer.Offset = new Vector(_scrollViewer.Offset.X, y + ItemHeight - _scrollViewer.Viewport.Height);
-        }
+    public void Dispose()
+    {
+        _watcher?.Dispose();
     }
 }
