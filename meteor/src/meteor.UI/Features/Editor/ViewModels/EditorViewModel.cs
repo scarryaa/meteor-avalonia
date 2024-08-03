@@ -18,6 +18,7 @@ public class EditorViewModel : IEditorViewModel
     private readonly ITextMeasurer _textMeasurer;
     private string _content;
     private int _lastSyncedVersion;
+    private readonly UndoRedoManager _undoRedoManager;
 
     public EditorViewModel(
         ITextBufferService textBufferService,
@@ -26,7 +27,8 @@ public class EditorViewModel : IEditorViewModel
         ISelectionManager selectionManager,
         IEditorConfig config,
         ITextMeasurer textMeasurer,
-        ICompletionProvider completionProvider)
+        ICompletionProvider completionProvider,
+        UndoRedoManager undoRedoManager)
     {
         TextBufferService = textBufferService;
         _cursorManager = cursorManager;
@@ -35,6 +37,7 @@ public class EditorViewModel : IEditorViewModel
         _config = config;
         _textMeasurer = textMeasurer;
         _completionProvider = completionProvider;
+        _undoRedoManager = undoRedoManager;
 
         _cursorManager.CursorPositionChanged += (_, _) => NotifyContentChanged();
         _selectionManager.SelectionChanged += (_, _) => SelectionChanged?.Invoke(this, EventArgs.Empty);
@@ -293,11 +296,47 @@ public class EditorViewModel : IEditorViewModel
 
     private IEnumerable<TextChange> ComputeChanges(string oldContent, string newContent)
     {
-        yield return new TextChange(0, oldContent.Length, newContent.Length, newContent);
+        yield return new TextChange(0, oldContent.Length, newContent.Length, newContent, oldContent);
     }
 
     public void GoToLineColumn(int line, int column)
     {
         _cursorManager.SetPosition(GetLineStartOffset(line) + column);
+    }
+
+    public void Undo()
+    {
+        var change = _undoRedoManager.Undo();
+        if (change != null)
+        {
+            ApplyChange(change, true);
+        }
+    }
+
+    public void Redo()
+    {
+        var change = _undoRedoManager.Redo();
+        if (change != null)
+        {
+            ApplyChange(change, false);
+        }
+    }
+
+    private void ApplyChange(TextChange change, bool isUndo)
+    {
+        int start = change.Offset;
+        int oldLength = isUndo ? change.NewLength : change.OldLength;
+        string newText = isUndo ? change.OldText : change.NewText;
+
+        try
+        {
+            TextBufferService.Replace(start, oldLength, newText);
+            _cursorManager.SetPosition(start + newText.Length);
+            NotifyContentChanged();
+        }
+        catch (ArgumentOutOfRangeException ex)
+        {
+            Console.WriteLine($"Error applying change: {ex.Message}");
+        }
     }
 }

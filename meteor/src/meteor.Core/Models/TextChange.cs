@@ -2,7 +2,7 @@ namespace meteor.Core.Models;
 
 public class TextChange
 {
-    public TextChange(int offset, int oldLength, int newLength, string newText)
+    public TextChange(int offset, int oldLength, int newLength, string newText, string oldText)
     {
         if (offset < 0)
             throw new ArgumentOutOfRangeException(nameof(offset), "Offset must be non-negative.");
@@ -12,13 +12,18 @@ public class TextChange
             throw new ArgumentOutOfRangeException(nameof(newLength), "New length must be non-negative.");
         if (newText == null)
             throw new ArgumentNullException(nameof(newText));
+        if (oldText == null)
+            throw new ArgumentNullException(nameof(oldText));
         if (newText.Length != newLength)
             throw new ArgumentException("New text length must match the specified new length.", nameof(newText));
+        if (oldText.Length != oldLength)
+            throw new ArgumentException("Old text length must match the specified old length.", nameof(oldText));
 
         Offset = offset;
         OldLength = oldLength;
         NewLength = newLength;
         NewText = newText;
+        OldText = oldText;
     }
 
     /// <summary>
@@ -40,6 +45,11 @@ public class TextChange
     ///     The new text that was inserted.
     /// </summary>
     public string NewText { get; }
+
+    /// <summary>
+    ///     The old text that was replaced.
+    /// </summary>
+    public string OldText { get; }
 
     /// <summary>
     ///     Calculates the end position of the change in the document.

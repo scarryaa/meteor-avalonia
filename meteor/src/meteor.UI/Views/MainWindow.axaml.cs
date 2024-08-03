@@ -45,6 +45,7 @@ public partial class MainWindow : Window
     private readonly ISettingsService _settingsService;
     private readonly IFileService _fileService;
     private readonly ITabViewModelFactory _tabViewModelFactory;
+    private readonly UndoRedoManager _undoRedoManager;
     private CommandPalette _commandPalette;
     private LeftSideBar _leftSideBar;
     private RightSideBar _rightSideBar;
@@ -62,7 +63,7 @@ public partial class MainWindow : Window
     public MainWindow(MainWindowViewModel mainWindowViewModel, ITabService tabService, IEditorLayoutManager layoutManager,
         IEditorInputHandler inputHandler, ITextMeasurer textMeasurer, IEditorConfig config, IScrollManager scrollManager,
         IPointerEventHandler pointerEventHandler, IThemeManager themeManager, IFileService fileService,
-        IGitService gitService, ISearchService searchService, ISettingsService settingsService, ITabViewModelFactory tabViewModelFactory)
+        IGitService gitService, ISearchService searchService, ISettingsService settingsService, ITabViewModelFactory tabViewModelFactory, UndoRedoManager undoRedoManager)
     {
         InitializeComponent();
 
@@ -73,7 +74,7 @@ public partial class MainWindow : Window
         ClipToBounds = false;
         this.AttachDevTools();
 
-        InitializeUI(layoutManager, inputHandler, pointerEventHandler, fileService);
+        InitializeUI(layoutManager, inputHandler, pointerEventHandler, fileService, undoRedoManager);
         SetupEventHandlers();
         LoadSettings();
     }
@@ -97,7 +98,7 @@ public partial class MainWindow : Window
         UpdateLayout();
     }
 
-    private void InitializeUI(IEditorLayoutManager layoutManager, IEditorInputHandler inputHandler, IPointerEventHandler pointerEventHandler, IFileService fileService)
+    private void InitializeUI(IEditorLayoutManager layoutManager, IEditorInputHandler inputHandler, IPointerEventHandler pointerEventHandler, IFileService fileService, UndoRedoManager undoRedoManager)
     {
         UpdateTheme();
         _themeManager.ThemeChanged += (_, _) => UpdateTheme();
@@ -149,7 +150,7 @@ public partial class MainWindow : Window
 
     private CommandPalette CreateCommandPalette()
     {
-        var commandPalette = new CommandPalette(_themeManager, _fileService, _tabService, _tabViewModelFactory, _textMeasurer)
+        var commandPalette = new CommandPalette(_themeManager, _fileService, _tabService, _tabViewModelFactory, _textMeasurer, _undoRedoManager)
         {
             ZIndex = 1000,
             HorizontalAlignment = HorizontalAlignment.Center,
@@ -407,7 +408,7 @@ public partial class MainWindow : Window
         var selectionManager = new SelectionManager(textBufferService);
         var textAnalysisService = new TextAnalysisService();
         var inputManager = new InputManager(textBufferService, cursorManager, clipboardManager, selectionManager,
-            textAnalysisService, _scrollManager);
+            textAnalysisService, _scrollManager, _undoRedoManager);
 
         var editorViewModel = new EditorViewModel(
             textBufferService,
@@ -416,7 +417,8 @@ public partial class MainWindow : Window
             selectionManager,
             editorConfig,
             _textMeasurer,
-            new CompletionProvider(textBufferService)
+            new CompletionProvider(textBufferService),
+            _undoRedoManager
         );
         inputManager.SetViewModel(editorViewModel);
 

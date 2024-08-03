@@ -26,12 +26,9 @@ public class EditorInputHandler : IEditorInputHandler
 
     public void HandleKeyDown(IEditorViewModel viewModel, KeyEventArgs e)
     {
-        _isSelectAll = false;
+        _isSelectAll = _selectAllCommandHandler.IsSelectAllCommand(e);
 
         var isModifierOrPageKey = _modifierKeyHandler.IsModifierOrPageKey(e);
-
-        if (_selectAllCommandHandler.IsSelectAllCommand(e))
-            _isSelectAll = true;
 
         switch (e.Key)
         {
@@ -43,14 +40,31 @@ public class EditorInputHandler : IEditorInputHandler
                 _scrollManager.PageDown();
                 e.Handled = true;
                 break;
+            case Key.Z when e.Modifiers.HasFlag(KeyModifiers.Control) || e.Modifiers.HasFlag(KeyModifiers.Meta):
+                if (e.Modifiers.HasFlag(KeyModifiers.Shift))
+                {
+                    viewModel.Redo();
+                }
+                else
+                {
+                    viewModel.Undo();
+                }
+                e.Handled = true;
+                break;
             default:
                 viewModel.HandleKeyDown(e);
                 break;
         }
 
         if (!isModifierOrPageKey && !_isSelectAll)
-            _scrollManager.EnsureLineIsVisible(viewModel.GetCursorLine(), viewModel.GetCursorX(),
-                viewModel.GetLineCount(), viewModel.HasSelection());
+        {
+            _scrollManager.EnsureLineIsVisible(
+                viewModel.GetCursorLine(),
+                viewModel.GetCursorX(),
+                viewModel.GetLineCount(),
+                viewModel.HasSelection()
+            );
+        }
     }
 
     public void HandleTextInput(IEditorViewModel viewModel, TextInputEventArgs e)

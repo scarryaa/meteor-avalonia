@@ -33,23 +33,21 @@ public class CommandPalette : UserControl
     private readonly IFileService _fileService;
     private readonly ITabService _tabService;
     private readonly ITabViewModelFactory _tabViewModelFactory;
-    private readonly ITextBufferService _textBufferService;
-    private readonly ICursorManager _cursorManager;
-    private readonly Core.Interfaces.Services.IInputManager _inputManager;
-    private readonly ISelectionManager _selectionManager;
     private readonly ITextMeasurer _textMeasurer;
     private readonly ICompletionProvider _completionProvider;
     private readonly ObservableCollection<CommandItem> _commands;
     private ListBox _resultsList;
     private TextBox _searchBox;
+    private readonly UndoRedoManager _undoRedoManager;
 
-    public CommandPalette(IThemeManager themeManager, IFileService fileService, ITabService tabService, ITabViewModelFactory tabViewModelFactory, ITextMeasurer textMeasurer)
+    public CommandPalette(IThemeManager themeManager, IFileService fileService, ITabService tabService, ITabViewModelFactory tabViewModelFactory, ITextMeasurer textMeasurer, UndoRedoManager undoRedoManager)
     {
         _themeManager = themeManager;
         _fileService = fileService;
         _tabService = tabService;
         _tabViewModelFactory = tabViewModelFactory;
         _textMeasurer = textMeasurer;
+        _undoRedoManager = undoRedoManager;
         _commands = new ObservableCollection<CommandItem>
         {
             new CommandItem("Switch Theme", () => _themeManager.ApplyTheme(_themeManager.CurrentTheme.Name == "Light" ? "Dark" : "Light")),
@@ -378,7 +376,8 @@ public class CommandPalette : UserControl
         var textAnalysisService = new TextAnalysisService();
         var inputManager = new InputManager(textBufferService, cursorManager, clipboardManager, selectionManager,
             textAnalysisService,
-            new ScrollManager(editorConfig, _textMeasurer));
+            new ScrollManager(editorConfig, _textMeasurer),
+            _undoRedoManager);
         var editorViewModel = new EditorViewModel(
             textBufferService,
             cursorManager,
@@ -386,8 +385,8 @@ public class CommandPalette : UserControl
             selectionManager,
             editorConfig,
             _textMeasurer,
-            new CompletionProvider(textBufferService)
-        );
+            new CompletionProvider(textBufferService),
+            _undoRedoManager);
         inputManager.SetViewModel(editorViewModel);
 
         return editorViewModel;

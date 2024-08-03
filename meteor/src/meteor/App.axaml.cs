@@ -64,12 +64,13 @@ public class App : Application
             var searchService = Services.GetRequiredService<ISearchService>();
             var settingsService = Services.GetRequiredService<ISettingsService>();
             var tabViewModelFactory = Services.GetRequiredService<ITabViewModelFactory>();
+            var undoRedoManager = Services.GetRequiredService<UndoRedoManager>();
             themeManager.Initialize(Services.GetRequiredService<ISettingsService>());
 
             IsActiveToBrushConverter.Initialize(themeManager);
 
             desktop.MainWindow = new MainWindow(mainWindowViewModel, tabService, layoutManager, inputHandler,
-                textMeasurer, config, scrollManager, pointerEventHandler, themeManager, fileService, gitService, searchService, settingsService, tabViewModelFactory);
+                textMeasurer, config, scrollManager, pointerEventHandler, themeManager, fileService, gitService, searchService, settingsService, tabViewModelFactory, undoRedoManager);
 
             var clipboardManager = Services.GetRequiredService<IClipboardManager>();
             if (clipboardManager is ClipboardManager cm) cm.TopLevelRef = desktop.MainWindow;
@@ -114,7 +115,7 @@ public class App : Application
         services.AddSingleton<ISettingsService, SettingsService>();
         services.AddSingleton<IGitService, GitService>(sp => new GitService(""));
         services.AddSingleton<ISearchService, SearchService>();
-
+        services.AddSingleton<UndoRedoManager>();
         // Editor Services
         services.AddSingleton<IEditorLayoutManager, EditorLayoutManager>();
         services.AddSingleton<IEditorInputHandler, EditorInputHandler>();
