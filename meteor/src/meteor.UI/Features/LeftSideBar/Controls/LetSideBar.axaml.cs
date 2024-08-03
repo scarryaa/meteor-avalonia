@@ -312,4 +312,15 @@ public class LeftSideBar : UserControl
     {
         UpdateBackground(theme);
     }
+
+    public void FocusSearch()
+    {
+        _viewModel.CurrentView = "Search";
+
+        // Small delay to ensure the view is updated before focusing the search box
+        Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            _searchView.FocusSearchBox();
+        }, DispatcherPriority.Background);
+    }
 }

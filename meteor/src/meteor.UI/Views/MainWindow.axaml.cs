@@ -260,6 +260,7 @@ public partial class MainWindow : Window
             }
         };
         _leftSideBar.FileSelected += OnFileSelected;
+        _mainWindowViewModel.OnSearchFocusRequested += OnSearchFocusRequested;
     }
 
     private void UpdateLayout()
@@ -429,5 +430,10 @@ public partial class MainWindow : Window
     private void OnGoToLineColumnRequested(object? sender, (int Line, int Column) e)
     {
         _tabService.ActiveTab?.EditorViewModel.GoToLineColumn(e.Line, e.Column);
+    }
+
+    private void OnSearchFocusRequested(object sender, EventArgs e)
+    {
+        _leftSideBar.FocusSearch();
     }
 }

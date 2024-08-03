@@ -42,6 +42,9 @@
 
         <KeyBinding Command="{Binding ToggleRightSidebarCommand}" Gesture="Ctrl+Shift+B" />
         <KeyBinding Command="{Binding ToggleRightSidebarCommand}" Gesture="Cmd+Shift+B" />
+
+        <KeyBinding Command="{Binding FindInFilesCommand}" Gesture="Ctrl+Shift+F" />
+        <KeyBinding Command="{Binding FindInFilesCommand}" Gesture="Cmd+Shift+F" />
     </Window.KeyBindings>
 
     <Window.Styles>

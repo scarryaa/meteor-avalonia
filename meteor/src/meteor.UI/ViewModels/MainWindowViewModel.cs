@@ -49,6 +49,7 @@ public class MainWindowViewModel : ObservableObject
         ToggleCommandPaletteCommand = new RelayCommand(ToggleCommandPalette);
         ToggleLeftSidebarCommand = new RelayCommand(ToggleLeftSidebar);
         ToggleRightSidebarCommand = new RelayCommand(ToggleRightSidebar);
+        FindInFilesCommand = new RelayCommand(FindInFiles);
 
         _tabService.TabAdded += (sender, tab) => { OnPropertyChanged(nameof(Tabs)); };
         _tabService.TabRemoved += (sender, tab) => { OnPropertyChanged(nameof(Tabs)); };
@@ -66,6 +67,7 @@ public class MainWindowViewModel : ObservableObject
     public ICommand ToggleCommandPaletteCommand { get; }
     public ICommand ToggleLeftSidebarCommand { get; }
     public ICommand ToggleRightSidebarCommand { get; }
+    public ICommand FindInFilesCommand { get; }
 
     public ObservableCollection<ITabViewModel> Tabs => _tabService.Tabs;
     public bool IsCommandPaletteVisible { get; private set; }
@@ -241,4 +243,22 @@ public class MainWindowViewModel : ObservableObject
             _tabService.RemoveTab(tab);
         }
     }
+
+    private void FindInFiles()
+    {
+        if (IsLeftSidebarVisible && ActiveLeftSidebarView != "Search")
+        {
+            ActiveLeftSidebarView = "Search";
+        }
+        else if (!IsLeftSidebarVisible)
+        {
+            IsLeftSidebarVisible = true;
+            ActiveLeftSidebarView = "Search";
+        }
+
+        // Focus on the search box in the left sidebar
+        OnSearchFocusRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    public event EventHandler OnSearchFocusRequested;
 }

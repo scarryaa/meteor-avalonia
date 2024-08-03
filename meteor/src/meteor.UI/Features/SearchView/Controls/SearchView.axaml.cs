@@ -574,5 +574,10 @@ namespace meteor.UI.Features.SearchView.Controls
             _viewModel.UpdateFilter(e.FilterName, e.IsActive);
             _ = PerformSearch();
         }
+
+        public void FocusSearchBox()
+        {
+            _searchBox.Focus();
+        }
     }
 }
