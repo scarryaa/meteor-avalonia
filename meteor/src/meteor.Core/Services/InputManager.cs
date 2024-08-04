@@ -528,7 +528,12 @@ public class InputManager : IInputManager
     {
         if (_selectionManager.HasSelection)
         {
-            DeleteSelectedText();
+            var selection = _selectionManager.CurrentSelection;
+            var deletedText = _selectionManager.GetSelectedText(_textBufferService);
+            _viewModel.RecordChange(new TextChange(selection.Start, deletedText.Length, 0, "", deletedText));
+            _textBufferService.DeleteText(selection.Start, selection.End - selection.Start);
+            _cursorManager.SetPosition(selection.Start);
+            _selectionManager.ClearSelection();
         }
         else if (_cursorManager.Position > 0)
         {
