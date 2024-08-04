@@ -146,9 +146,9 @@ public class FileExplorerControl : UserControl
 
     private void OnFileChanged(object sender, FileSystemEventArgs e)
     {
-        if (ShouldHideFile(e.FullPath))
+        if (ShouldIgnoreFileChange(e.FullPath))
         {
-            return; // Ignore changes to hidden files
+            return; // Ignore changes to Git files
         }
 
         _updateCancellationTokenSource?.Cancel();
@@ -180,9 +180,9 @@ public class FileExplorerControl : UserControl
 
     private void OnFileRenamed(object sender, RenamedEventArgs e)
     {
-        if (ShouldHideFile(e.OldFullPath) || ShouldHideFile(e.FullPath))
+        if (ShouldIgnoreFileChange(e.OldFullPath) || ShouldIgnoreFileChange(e.FullPath))
         {
-            return; // Ignore changes to hidden files
+            return; // Ignore changes to Git files
         }
 
         Dispatcher.UIThread.InvokeAsync(() =>
@@ -191,6 +191,36 @@ public class FileExplorerControl : UserControl
             UpdateFileList(e.FullPath, true);
             UpdateFileStatus(e.FullPath);
         });
+    }
+
+    private bool ShouldIgnoreFileChange(string filePath)
+    {
+        if (ShouldHideFile(filePath))
+        {
+            return true;
+        }
+
+        var fileName = Path.GetFileName(filePath);
+        var directoryName = Path.GetDirectoryName(filePath);
+
+        // Ignore changes to specific Git files
+        var gitFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "HEAD",
+            "config",
+            "description",
+            "index",
+            "packed-refs",
+            "COMMIT_EDITMSG"
+        };
+
+        // Ignore changes to files in .git directory or its subdirectories
+        if (directoryName != null && directoryName.Split(Path.DirectorySeparatorChar).Contains(".git"))
+        {
+            return true;
+        }
+
+        return gitFiles.Contains(fileName);
     }
 
     private void UpdateFileStatus(string filePath)
@@ -611,27 +641,17 @@ public class FileExplorerControl : UserControl
         {
             ".DS_Store",
             "Thumbs.db",
-            "desktop.ini",
-            "index.lock",
-            "index" // This will hide the index file
+            "desktop.ini"
         };
 
-        var gitFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            "HEAD",
-            "config",
-            "description",
-            "COMMIT_EDITMSG"
-        };
-
-        // Ignore all files directly in the .git folder
-        if (Path.GetFileName(directoryName) == ".git")
+        // Ignore all files and directories within .git
+        if (directoryName != null && directoryName.Split(Path.DirectorySeparatorChar).Contains(".git"))
         {
             return true;
         }
 
-        // Ignore specific Git files
-        if (gitFiles.Contains(fileName))
+        // Ignore .git directory itself
+        if (fileName == ".git")
         {
             return true;
         }
