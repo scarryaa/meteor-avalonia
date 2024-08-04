@@ -187,10 +187,21 @@ public class InputManager : IInputManager
             // Close completion popup on space
             if (e.Text == " " && _viewModel.IsCompletionActive) _viewModel.CloseCompletion();
 
-            // Delete the selected text if there was a selection
-            if (_selectionManager.HasSelection) DeleteSelectedText();
+            if (_selectionManager.HasSelection)
+            {
+                var selection = _selectionManager.CurrentSelection;
+                var oldText = _selectionManager.GetSelectedText(_textBufferService);
+                _viewModel.RecordChange(new TextChange(selection.Start, oldText.Length, e.Text.Length, e.Text, oldText));
+                _textBufferService.DeleteText(selection.Start, selection.End - selection.Start);
+                _textBufferService.InsertText(selection.Start, e.Text);
+                _cursorManager.SetPosition(selection.Start + e.Text.Length);
+                _selectionManager.ClearSelection();
+            }
+            else
+            {
+                HandleTextInput(e.Text);
+            }
 
-            HandleTextInput(e.Text);
             _textAnalysisService.ResetDesiredColumn();
             e.Handled = true;
         }
@@ -694,7 +705,10 @@ public class InputManager : IInputManager
             var selection = _selectionManager.CurrentSelection;
             var oldText = _textBufferService.GetContentSlice(selection.Start, selection.End - selection.Start);
             _viewModel.RecordChange(new TextChange(selection.Start, oldText.Length, text.Length, text, oldText));
-            ReplaceSelectedText(text);
+            _textBufferService.DeleteText(selection.Start, selection.End - selection.Start);
+            _textBufferService.InsertText(selection.Start, text);
+            _cursorManager.SetPosition(selection.Start + text.Length);
+            _selectionManager.ClearSelection();
         }
         else
         {
