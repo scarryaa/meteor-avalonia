@@ -20,6 +20,8 @@ using System.Collections.Concurrent;
 using Avalonia.Platform.Storage;
 using meteor.Core.Interfaces.Services;
 using System.IO;
+using System.Timers;
+using Timer = System.Timers.Timer;
 
 namespace meteor.UI.Features.FileExplorer.Controls;
 
@@ -46,6 +48,8 @@ public class FileExplorerControl : UserControl
     private ConcurrentDictionary<string, FileChangeType?> _fileStatusCache = new ConcurrentDictionary<string, FileChangeType?>();
     private FileSystemWatcher _fileWatcher;
     private CancellationTokenSource _updateCancellationTokenSource;
+    private Timer _refreshTimer;
+    private const int RefreshInterval = 5000; // 5 seconds
 
     public FileExplorerControl(IThemeManager themeManager, IGitService gitService)
     {
@@ -57,6 +61,8 @@ public class FileExplorerControl : UserControl
         InitializeComponent();
         UpdateCanvasSize();
         Focus();
+
+        InitializeRefreshTimer();
     }
 
     public event EventHandler<string> FileSelected;
@@ -96,8 +102,55 @@ public class FileExplorerControl : UserControl
         });
     }
 
+    private void InitializeRefreshTimer()
+    {
+        _refreshTimer = new Timer(RefreshInterval);
+        _refreshTimer.Elapsed += OnRefreshTimerElapsed;
+        _refreshTimer.Start();
+    }
+
+    private void OnRefreshTimerElapsed(object sender, ElapsedEventArgs e)
+    {
+        Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            RefreshAllFileStatuses();
+        });
+    }
+
+    public void RefreshAllFileStatuses()
+    {
+        UpdateAllItemStatuses(_items);
+        InvalidateVisual();
+    }
+
+    private void UpdateAllItemStatuses(IEnumerable<FileItem> items)
+    {
+        foreach (var item in items)
+        {
+            var newStatus = _gitService.GetFileStatus(item.FullPath);
+            if (item.GitStatus != newStatus)
+            {
+                item.GitStatus = newStatus;
+                _fileStatusCache[item.FullPath] = newStatus;
+                if (item.IsDirectory)
+                {
+                    UpdateDirectoryStatus(item);
+                }
+            }
+            if (item.IsDirectory && item.IsExpanded)
+            {
+                UpdateAllItemStatuses(item.Children);
+            }
+        }
+    }
+
     private void OnFileChanged(object sender, FileSystemEventArgs e)
     {
+        if (ShouldHideFile(e.FullPath))
+        {
+            return; // Ignore changes to hidden files
+        }
+
         _updateCancellationTokenSource?.Cancel();
         _updateCancellationTokenSource = new CancellationTokenSource();
 
@@ -107,6 +160,7 @@ public class FileExplorerControl : UserControl
 
             Dispatcher.UIThread.InvokeAsync(() =>
             {
+                UpdateFileStatus(e.FullPath);
                 switch (e.ChangeType)
                 {
                     case WatcherChangeTypes.Created:
@@ -116,6 +170,8 @@ public class FileExplorerControl : UserControl
                         UpdateFileList(e.FullPath, false);
                         break;
                     case WatcherChangeTypes.Changed:
+                    case WatcherChangeTypes.All: // Add this to catch more types of changes
+                        UpdateFileStatus(e.FullPath);
                         break;
                 }
             });
@@ -124,15 +180,101 @@ public class FileExplorerControl : UserControl
 
     private void OnFileRenamed(object sender, RenamedEventArgs e)
     {
+        if (ShouldHideFile(e.OldFullPath) || ShouldHideFile(e.FullPath))
+        {
+            return; // Ignore changes to hidden files
+        }
+
         Dispatcher.UIThread.InvokeAsync(() =>
         {
             UpdateFileList(e.OldFullPath, false);
             UpdateFileList(e.FullPath, true);
+            UpdateFileStatus(e.FullPath);
         });
+    }
+
+    private void UpdateFileStatus(string filePath)
+    {
+        var newStatus = _gitService.GetFileStatus(filePath);
+        _fileStatusCache[filePath] = newStatus;
+
+        var item = FindItemByPath(_items, filePath);
+        if (item != null)
+        {
+            item.GitStatus = newStatus;
+            UpdateParentDirectories(item);
+            InvalidateVisual();
+        }
+    }
+
+    private void UpdateParentDirectories(FileItem item)
+    {
+        var parent = FindParentItem(_items, item);
+        while (parent != null)
+        {
+            UpdateDirectoryStatus(parent);
+            parent = FindParentItem(_items, parent);
+        }
+    }
+
+    private void UpdateDirectoryStatus(FileItem directory)
+    {
+        if (!directory.IsDirectory)
+            return;
+
+        var childStatuses = directory.Children
+            .Select(child => child.GitStatus)
+            .Where(status => status != null)
+            .Select(status => (FileChangeType)status)
+            .ToList();
+
+        if (childStatuses.Count == 0)
+        {
+            directory.GitStatus = null;
+        }
+        else if (childStatuses.Contains(FileChangeType.Modified))
+        {
+            directory.GitStatus = FileChangeType.Modified;
+        }
+        else if (childStatuses.Contains(FileChangeType.Added))
+        {
+            directory.GitStatus = FileChangeType.Added;
+        }
+        else if (childStatuses.Contains(FileChangeType.Deleted))
+        {
+            directory.GitStatus = FileChangeType.Deleted;
+        }
+        else if (childStatuses.Contains(FileChangeType.Renamed))
+        {
+            directory.GitStatus = FileChangeType.Renamed;
+        }
+        else
+        {
+            directory.GitStatus = childStatuses.First();
+        }
+    }
+
+    private FileItem FindParentItem(IEnumerable<FileItem> items, FileItem target)
+    {
+        foreach (var item in items)
+        {
+            if (item.Children.Contains(target)) return item;
+            if (item.IsDirectory && item.IsExpanded)
+            {
+                var result = FindParentItem(item.Children, target);
+                if (result != null) return result;
+            }
+        }
+        return null;
     }
 
     private void UpdateFileList(string filePath, bool add)
     {
+        if (ShouldHideFile(filePath))
+        {
+            return; // Don't add hidden files to the list
+        }
+
         if (add)
         {
             var newItem = new FileItem(filePath, Directory.Exists(filePath));
@@ -140,17 +282,12 @@ public class FileExplorerControl : UserControl
             var parentItem = FindItemByPath(_items, parentPath);
             if (parentItem != null)
             {
-                parentItem.Children.Add(newItem);
-                parentItem.Children.Clear();
-                foreach (var child in parentItem.Children.OrderBy(a => a.Name, StringComparer.OrdinalIgnoreCase))
-                {
-                    parentItem.Children.Add(child);
-                }
+                InsertItemInOrder(new ObservableCollection<FileItem>(parentItem.Children), newItem);
+                UpdateParentDirectories(newItem);
             }
             else
             {
-                _items.Add(newItem);
-                _items = new ObservableCollection<FileItem>(_items.OrderBy(a => a.Name, StringComparer.OrdinalIgnoreCase));
+                InsertItemInOrder(_items, newItem);
             }
         }
         else
@@ -160,13 +297,29 @@ public class FileExplorerControl : UserControl
             {
                 var parent = FindParentItem(_items, itemToRemove);
                 if (parent != null)
+                {
                     parent.Children.Remove(itemToRemove);
+                    UpdateParentDirectories(parent);
+                }
                 else
+                {
                     _items.Remove(itemToRemove);
+                }
             }
         }
         UpdateCanvasSize();
         InvalidateVisual();
+    }
+
+    private void InsertItemInOrder(ObservableCollection<FileItem> collection, FileItem newItem)
+    {
+        int index = 0;
+        while (index < collection.Count &&
+               string.Compare(collection[index].Name, newItem.Name, StringComparison.OrdinalIgnoreCase) < 0)
+        {
+            index++;
+        }
+        collection.Insert(index, newItem);
     }
 
     private FileItem FindItemByPath(IEnumerable<FileItem> items, string path)
@@ -445,19 +598,43 @@ public class FileExplorerControl : UserControl
     public void ClearFileStatusCache()
     {
         _fileStatusCache.Clear();
+        // You might also want to update all items in the tree
+        UpdateAllItemStatuses(_items);
     }
 
     private bool ShouldHideFile(string filePath)
     {
         var fileName = Path.GetFileName(filePath);
+        var directoryName = Path.GetDirectoryName(filePath);
 
         var hiddenFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             ".DS_Store",
             "Thumbs.db",
             "desktop.ini",
-            "index.lock"
+            "index.lock",
+            "index" // This will hide the index file
         };
+
+        var gitFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "HEAD",
+            "config",
+            "description",
+            "COMMIT_EDITMSG"
+        };
+
+        // Ignore all files directly in the .git folder
+        if (Path.GetFileName(directoryName) == ".git")
+        {
+            return true;
+        }
+
+        // Ignore specific Git files
+        if (gitFiles.Contains(fileName))
+        {
+            return true;
+        }
 
         return fileName.StartsWith(".") || hiddenFiles.Contains(fileName);
     }
@@ -607,10 +784,14 @@ public class FileExplorerControl : UserControl
         var iconSize = 16;
         var iconChar = item.IsDirectory ? "\uf07b" : "\uf15b"; // folder icon : file icon
         var iconBrush = new SolidColorBrush(Color.Parse(_currentTheme.FileExplorerFileIconColor));
-        var fontAwesomeSolid = new FontFamily("avares://meteor.UI/Common/Assets/Fonts/FontAwesome/Font Awesome 6 Free-Solid-900.otf#Font Awesome 6 Free");
-        var typeface = new Typeface(fontAwesomeSolid);
 
-        var iconGeometry = CreateFormattedTextGeometry(iconChar, typeface, iconSize, iconBrush);
+        if (!_iconCache.TryGetValue(iconChar, out var iconGeometry))
+        {
+            var fontAwesomeSolid = new FontFamily("avares://meteor.UI/Common/Assets/Fonts/FontAwesome/Font Awesome 6 Free-Solid-900.otf#Font Awesome 6 Free");
+            var typeface = new Typeface(fontAwesomeSolid);
+            iconGeometry = CreateFormattedTextGeometry(iconChar, typeface, iconSize, iconBrush);
+            _iconCache[iconChar] = iconGeometry;
+        }
 
         var iconX = _leftPadding + indentLevel * _indentWidth + 20 - _scrollViewer.Offset.X;
         var iconY = y + (_itemHeight - iconSize) / 2;
@@ -645,21 +826,21 @@ public class FileExplorerControl : UserControl
 
         var textBrush = GetTextBrushAccordingToGitStatus(item);
 
-        var maxTextWidth = Math.Max(0, Bounds.Width - _leftPadding - indentLevel * _indentWidth - 65 - _scrollViewer.Offset.X);
-
-        var formattedText = new FormattedText(
-            item.Name,
-            CultureInfo.CurrentCulture,
-            FlowDirection.LeftToRight,
-            typeface,
-            textSize,
-            textBrush
-        )
+        if (!_textCache.TryGetValue(item.Name, out var formattedText))
         {
-            Trimming = TextTrimming.CharacterEllipsis,
-            MaxLineCount = 1,
-            MaxTextWidth = maxTextWidth
-        };
+            formattedText = new FormattedText(
+                item.Name,
+                CultureInfo.CurrentCulture,
+                FlowDirection.LeftToRight,
+                typeface,
+                textSize,
+                textBrush
+            );
+            _textCache[item.Name] = formattedText;
+        }
+
+        var maxTextWidth = Math.Max(0, Bounds.Width - _leftPadding - indentLevel * _indentWidth - 65 - _scrollViewer.Offset.X);
+        formattedText.MaxTextWidth = maxTextWidth;
 
         var textX = _leftPadding + indentLevel * _indentWidth + 40 - _scrollViewer.Offset.X;
         var textY = y + (_itemHeight - formattedText.Height) / 2 + 1;
@@ -674,7 +855,7 @@ public class FileExplorerControl : UserControl
 
     private SolidColorBrush GetTextBrushAccordingToGitStatus(FileItem item)
     {
-        var gitStatus = _gitService.GetFileStatus(item.FullPath);
+        var gitStatus = item.GitStatus;
         switch (gitStatus)
         {
             case FileChangeType.Added:
@@ -695,7 +876,7 @@ public class FileExplorerControl : UserControl
         if (!_gitService.IsValidGitRepository(_gitService.GetRepositoryPath()))
             return;
 
-        var gitStatus = _gitService.GetFileStatus(item.FullPath);
+        var gitStatus = item.GitStatus;
         if (gitStatus == null)
             return;
 
@@ -918,21 +1099,6 @@ public class FileExplorerControl : UserControl
         }
 
         return result;
-    }
-
-    private FileItem FindParentItem(IEnumerable<FileItem> items, FileItem target)
-    {
-        foreach (var item in items)
-        {
-            if (item.Children.Contains(target)) return item;
-            if (item.IsExpanded)
-            {
-                var result = FindParentItem(item.Children, target);
-                if (result != null) return result;
-            }
-        }
-
-        return null;
     }
 
     private void ScrollToItem(FileItem item)
