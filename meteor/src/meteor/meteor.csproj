@@ -43,12 +43,6 @@
         <ProjectReference Include="..\meteor.UI\meteor.UI.csproj"/>
     </ItemGroup>
 
-    <ItemGroup>
-        <None Include="settings.json">
-            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        </None>
-    </ItemGroup>
-
     <Target Name="BuildRustLibrary" BeforeTargets="CoreCompile" Condition="'$(BuildRustLibrary)' == 'true'">
         <PropertyGroup>
             <RustProjectDir>$(MSBuildThisFileDirectory)../meteor-rust-core</RustProjectDir>

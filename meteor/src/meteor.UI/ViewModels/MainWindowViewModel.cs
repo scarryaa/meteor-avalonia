@@ -182,7 +182,10 @@ public class MainWindowViewModel : ObservableObject
 
     private async void OpenSettings()
     {
-        var settingsFilePath = Path.Combine(AppContext.BaseDirectory, "settings.json");
+        var settingsFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "meteor", "settings.json");
+
+        // Ensure the directory exists
+        Directory.CreateDirectory(Path.GetDirectoryName(settingsFilePath));
 
         // Check if settings file is already open
         var existingSettingsTab = _tabService.Tabs.FirstOrDefault(tab => tab.FilePath == settingsFilePath);
@@ -191,6 +194,12 @@ public class MainWindowViewModel : ObservableObject
             // If settings file is already open, switch to that tab
             ActiveTab = existingSettingsTab;
             return;
+        }
+
+        // If settings file doesn't exist, create it with default content
+        if (!File.Exists(settingsFilePath))
+        {
+            await File.WriteAllTextAsync(settingsFilePath, "{}");
         }
 
         // If settings file is not open, open it in a new tab
