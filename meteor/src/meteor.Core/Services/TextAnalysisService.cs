@@ -105,7 +105,7 @@ public class TextAnalysisService : ITextAnalysisService
     public int FindPositionInLineBelow(string text, int currentPosition)
     {
         var currentLineEnd = FindEndOfCurrentLine(text, currentPosition);
-        if (currentLineEnd >= text.Length - 1) return currentPosition;
+        if (currentLineEnd >= text.Length) return text.Length;
 
         var nextLineStart = currentLineEnd + 1;
         var nextLineEnd = FindEndOfCurrentLine(text, nextLineStart);

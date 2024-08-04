@@ -112,6 +112,7 @@ public class PointerEventHandler : IPointerEventHandler
         viewModel.SetCursorPosition(documentPosition);
         _scrollManager.EnsureLineIsVisible(viewModel.GetCursorLine(), viewModel.GetCursorX(), viewModel.GetLineCount(),
             isSelection);
+        _textAnalysisService.SetDesiredColumn(viewModel.GetCursorColumn());
     }
 
     private int GetDocumentPositionFromPoint(IEditorViewModel viewModel, Point point)
