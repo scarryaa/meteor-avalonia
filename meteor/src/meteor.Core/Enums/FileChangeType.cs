@@ -4,4 +4,5 @@ public enum FileChangeType
     Modified,
     Deleted,
     Renamed,
+    Untracked,
 }

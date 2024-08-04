@@ -23,4 +23,5 @@ public class FileItem
     public bool IsExpanded { get; set; }
     public bool IsDirectory { get; }
     public bool ChildrenPopulated { get; set; }
+    public object GitStatus { get; set; }
 }

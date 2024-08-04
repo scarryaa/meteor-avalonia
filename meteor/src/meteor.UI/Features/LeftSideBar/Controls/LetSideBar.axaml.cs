@@ -206,7 +206,7 @@ public class LeftSideBar : UserControl
 
     private FileExplorerControl CreateFileExplorer()
     {
-        var explorer = new FileExplorerControl(_themeManager)
+        var explorer = new FileExplorerControl(_themeManager, _gitService)
         {
             HorizontalAlignment = HorizontalAlignment.Stretch,
             VerticalAlignment = VerticalAlignment.Stretch

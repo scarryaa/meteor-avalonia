@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using meteor.Core.Interfaces.Services;
 using meteor.Core.Models;
+using System.Collections.Concurrent;
 
 namespace meteor.Core.Services
 {
@@ -9,12 +10,14 @@ namespace meteor.Core.Services
         private string _repoPath;
         private HashSet<string> _ignoredPatterns;
         private bool _isValidRepo;
+        private ConcurrentDictionary<string, FileChangeType> _fileStatusCache = new ConcurrentDictionary<string, FileChangeType>();
 
         public event EventHandler<string> RepositoryPathChanged;
 
         public GitService(string repoPath)
         {
             UpdateProjectRoot(repoPath);
+            _fileStatusCache = new ConcurrentDictionary<string, FileChangeType>();
         }
 
         public IEnumerable<FileChange> GetChanges()
@@ -38,6 +41,7 @@ namespace meteor.Core.Services
 
                 var changeType = GetChangeType(status);
                 changes.Add(new FileChange(filePath, changeType));
+                _fileStatusCache[filePath] = changeType;
             }
 
             return changes;
@@ -50,6 +54,7 @@ namespace meteor.Core.Services
                 _repoPath = directoryPath;
                 _isValidRepo = IsValidGitRepository(_repoPath);
                 _ignoredPatterns = _isValidRepo ? LoadGitIgnore() : new HashSet<string>();
+                _fileStatusCache.Clear();
                 RepositoryPathChanged?.Invoke(this, _repoPath);
             }
         }
@@ -69,17 +74,44 @@ namespace meteor.Core.Services
         {
             return status switch
             {
-                "A" => FileChangeType.Added,
+                "A" or "??" => FileChangeType.Added,
                 "M" => FileChangeType.Modified,
                 "D" => FileChangeType.Deleted,
                 "R" => FileChangeType.Renamed,
-                _ => FileChangeType.Modified,
+                _ => FileChangeType.Untracked,
             };
         }
 
-        private bool IsIgnored(string filePath)
+        public bool IsIgnored(string path)
         {
-            return _ignoredPatterns.Any(pattern => IsMatch(filePath, pattern));
+            if (!_isValidRepo)
+            {
+                return false;
+            }
+
+            string relativePath = Path.GetRelativePath(_repoPath, path);
+            string normalizedPath = relativePath.Replace('\\', '/');
+
+            foreach (var pattern in _ignoredPatterns)
+            {
+                if (IsMatch(normalizedPath, pattern))
+                {
+                    return true;
+                }
+            }
+
+            // Check if any parent directory is ignored
+            string[] pathParts = normalizedPath.Split('/');
+            for (int i = 1; i < pathParts.Length; i++)
+            {
+                string parentPath = string.Join('/', pathParts.Take(i));
+                if (_ignoredPatterns.Contains(parentPath + '/'))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private bool IsMatch(string filePath, string pattern)
@@ -150,6 +182,42 @@ namespace meteor.Core.Services
         public string GetRepositoryPath()
         {
             return _repoPath;
+        }
+
+        bool IGitService.IsValidGitRepository(string path)
+        {
+            return IsValidGitRepository(path);
+        }
+
+        public FileChangeType GetFileStatus(string dir)
+        {
+            if (!_isValidRepo || string.IsNullOrEmpty(dir))
+            {
+                return FileChangeType.Untracked;
+            }
+
+            var relativePath = Path.GetRelativePath(_repoPath, dir);
+
+            // Check if the status is already cached
+            if (_fileStatusCache.TryGetValue(relativePath, out var cachedStatus))
+            {
+                return cachedStatus;
+            }
+
+            var gitStatusOutput = ExecuteGitCommand($"status --porcelain \"{relativePath}\"");
+
+            var changeType = FileChangeType.Untracked;
+
+            if (!string.IsNullOrWhiteSpace(gitStatusOutput))
+            {
+                var statusCode = gitStatusOutput.Substring(0, 2).Trim();
+                changeType = GetChangeType(statusCode);
+            }
+
+            // Cache the result
+            _fileStatusCache[relativePath] = changeType;
+
+            return changeType;
         }
     }
 }
