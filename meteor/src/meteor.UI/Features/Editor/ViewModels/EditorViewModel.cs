@@ -1,3 +1,4 @@
+using meteor.Core.Enums;
 using meteor.Core.Interfaces.Config;
 using meteor.Core.Interfaces.Services;
 using meteor.Core.Interfaces.ViewModels;
@@ -342,5 +343,15 @@ public class EditorViewModel : IEditorViewModel
     public void RecordChange(TextChange textChange)
     {
         _undoRedoManager.RecordChange(textChange);
+    }
+
+    public void PageUp()
+    {
+        _inputManager.HandleKeyDown(new KeyEventArgs(Key.PageUp, KeyModifiers.None));
+    }
+
+    public void PageDown()
+    {
+        _inputManager.HandleKeyDown(new KeyEventArgs(Key.PageDown, KeyModifiers.None));
     }
 }

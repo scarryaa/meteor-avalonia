@@ -33,10 +33,12 @@ public class EditorInputHandler : IEditorInputHandler
         switch (e.Key)
         {
             case Key.PageUp:
+                viewModel.PageUp();
                 _scrollManager.PageUp();
                 e.Handled = true;
                 break;
             case Key.PageDown:
+                viewModel.PageDown();
                 _scrollManager.PageDown();
                 e.Handled = true;
                 break;
