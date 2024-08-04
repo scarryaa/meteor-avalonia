@@ -29,7 +29,7 @@ public class FileExplorerControl : UserControl
     private const int LazyLoadThreshold = 100;
     private readonly double _indentWidth = 8;
     private readonly double _itemHeight = 24;
-    private ObservableCollection<FileItem> _items;
+    private ObservableCollection<FileItem> _items = new ObservableCollection<FileItem>();
     private readonly double _leftPadding = 8;
     private readonly double _rightPadding = 8;
     private readonly IThemeManager _themeManager;
@@ -43,7 +43,7 @@ public class FileExplorerControl : UserControl
     private ConcurrentDictionary<string, Task> _populationTasks = new ConcurrentDictionary<string, Task>();
     private Dictionary<string, Geometry> _iconCache = new Dictionary<string, Geometry>();
     private Dictionary<string, FormattedText> _textCache = new Dictionary<string, FormattedText>();
-    private Dictionary<string, FileChangeType?> _fileStatusCache = new Dictionary<string, FileChangeType?>();
+    private ConcurrentDictionary<string, FileChangeType?> _fileStatusCache = new ConcurrentDictionary<string, FileChangeType?>();
     private FileSystemWatcher _fileWatcher;
     private CancellationTokenSource _updateCancellationTokenSource;
 
@@ -54,7 +54,6 @@ public class FileExplorerControl : UserControl
         _currentTheme = _themeManager.CurrentTheme;
         _themeManager.ThemeChanged += OnThemeChanged;
 
-        _items = [];
         InitializeComponent();
         UpdateCanvasSize();
         Focus();
@@ -68,7 +67,7 @@ public class FileExplorerControl : UserControl
         Dispatcher.UIThread.InvokeAsync(() =>
         {
             _selectPathButton.IsVisible = false;
-            _items.Clear();
+            _items = new ObservableCollection<FileItem>();
             _items.Add(new FileItem(path, true));
             _ = PopulateChildrenAsync(_items[0]);
             _items[0].IsExpanded = true;
@@ -142,7 +141,11 @@ public class FileExplorerControl : UserControl
             if (parentItem != null)
             {
                 parentItem.Children.Add(newItem);
-                parentItem.Children.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase));
+                parentItem.Children.Clear();
+                foreach (var child in parentItem.Children.OrderBy(a => a.Name, StringComparer.OrdinalIgnoreCase))
+                {
+                    parentItem.Children.Add(child);
+                }
             }
             else
             {
@@ -344,10 +347,12 @@ public class FileExplorerControl : UserControl
             return contentPresenter;
         });
     }
-
     private void UpdateSelectPathButtonVisibility()
     {
-        _selectPathButton.IsVisible = _items.Count == 0;
+        if (_selectPathButton != null && _items != null)
+        {
+            _selectPathButton.IsVisible = _items.Count == 0;
+        }
     }
 
     private async void OnSelectPathButtonClick(object sender, RoutedEventArgs e)
@@ -404,7 +409,11 @@ public class FileExplorerControl : UserControl
 
         Dispatcher.UIThread.InvokeAsync(() =>
         {
-            item.Children.AddRange(children);
+            item.Children.Clear();
+            foreach (var child in children)
+            {
+                item.Children.Add(child);
+            }
             item.ChildrenPopulated = true;
             UpdateCanvasSize();
             InvalidateVisual();
@@ -429,14 +438,13 @@ public class FileExplorerControl : UserControl
 
     private FileChangeType? GetFileStatus(string path)
     {
-        if (_fileStatusCache.TryGetValue(path, out var cachedStatus))
-        {
-            return cachedStatus;
-        }
+        return _fileStatusCache.GetOrAdd(path, p => _gitService.GetFileStatus(p));
+    }
 
-        var status = _gitService.GetFileStatus(path) as FileChangeType?;
-        _fileStatusCache[path] = status;
-        return status;
+    // Clear cache when necessary (e.g., after git operations)
+    public void ClearFileStatusCache()
+    {
+        _fileStatusCache.Clear();
     }
 
     private bool ShouldHideFile(string filePath)
@@ -500,7 +508,7 @@ public class FileExplorerControl : UserControl
 
     private double CalculateTotalHeight(IEnumerable<FileItem> items)
     {
-        return items.Sum(item => _itemHeight + (item.IsExpanded ? CalculateTotalHeight(item.Children) : 0));
+        return items.Any() ? items.Sum(item => _itemHeight + (item.IsExpanded ? CalculateTotalHeight(item.Children) : 0)) : 0;
     }
 
     private void OnScrollChanged(object sender, ScrollChangedEventArgs e)
@@ -772,6 +780,8 @@ public class FileExplorerControl : UserControl
     {
         directory.IsExpanded = !directory.IsExpanded;
         if (directory.IsExpanded && !directory.ChildrenPopulated) _ = PopulateChildrenAsync(directory);
+        UpdateCanvasSize();
+        InvalidateVisual();
     }
 
     private FileItem FindClickedItem(IEnumerable<FileItem> items, double clickY, double startY)
@@ -885,10 +895,26 @@ public class FileExplorerControl : UserControl
     private List<FileItem> GetFlattenedItems(IEnumerable<FileItem> items)
     {
         var result = new List<FileItem>();
-        foreach (var item in items)
+        var stack = new Stack<IEnumerator<FileItem>>();
+        stack.Push(items.GetEnumerator());
+
+        while (stack.Count > 0)
         {
-            result.Add(item);
-            if (item.IsExpanded) result.AddRange(GetFlattenedItems(item.Children));
+            var enumerator = stack.Peek();
+            if (enumerator.MoveNext())
+            {
+                var item = enumerator.Current;
+                result.Add(item);
+                if (item.IsExpanded && item.Children.Any())
+                {
+                    stack.Push(item.Children.GetEnumerator());
+                }
+            }
+            else
+            {
+                stack.Pop();
+                enumerator.Dispose();
+            }
         }
 
         return result;
