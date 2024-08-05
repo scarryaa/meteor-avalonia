@@ -704,8 +704,15 @@ public class InputManager : IInputManager
         {
             var selection = _selectionManager.CurrentSelection;
             var oldText = _textBufferService.GetContentSlice(selection.Start, selection.End - selection.Start);
-            _viewModel.RecordChange(new TextChange(selection.Start, oldText.Length, text.Length, text, oldText));
-            _textBufferService.DeleteText(selection.Start, selection.End - selection.Start);
+            var oldLength = selection.End - selection.Start;
+
+            if (oldText.Length != oldLength)
+            {
+                throw new ArgumentException($"Old text length ({oldText.Length}) must match the specified old length ({oldLength}).", nameof(oldText));
+            }
+
+            _viewModel.RecordChange(new TextChange(selection.Start, oldLength, text.Length, text, oldText));
+            _textBufferService.DeleteText(selection.Start, oldLength);
             _textBufferService.InsertText(selection.Start, text);
             _cursorManager.SetPosition(selection.Start + text.Length);
             _selectionManager.ClearSelection();
