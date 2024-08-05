@@ -172,4 +172,20 @@ public class Theme
 
     [JsonPropertyName("commandPaletteForegroundColor")]
     public string CommandPaletteForegroundColor { get; set; } = "";
+
+    // Git
+    [JsonPropertyName("gitAddedColor")] public string GitAddedColor { get; set; } = "";
+
+    [JsonPropertyName("gitAddedColorChar")] public string GitAddedColorChar { get; set; } = "";
+
+    [JsonPropertyName("gitModifiedColor")] public string GitModifiedColor { get; set; } = "";
+    [JsonPropertyName("gitModifiedColorChar")] public string GitModifiedColorChar { get; set; } = "";
+
+    [JsonPropertyName("gitDeletedColor")] public string GitDeletedColor { get; set; } = "";
+
+    [JsonPropertyName("gitDeletedColorChar")] public string GitDeletedColorChar { get; set; } = "";
+
+    [JsonPropertyName("gitRenamedColor")] public string GitRenamedColor { get; set; } = "";
+
+    [JsonPropertyName("gitRenamedColorChar")] public string GitRenamedColorChar { get; set; } = "";
 }

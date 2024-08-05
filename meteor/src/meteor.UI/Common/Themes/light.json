@@ -61,5 +61,13 @@
   "buttonColor": "#E0E0E0",
   "buttonBorderColor": "#B0B0B0",
   "commandPaletteBackgroundColor": "#FFFFFF",
-  "commandPaletteForegroundColor": "#2C3E50"
+  "commandPaletteForegroundColor": "#2C3E50",
+  "gitAddedColor": "#2E7D32",
+  "gitModifiedColor": "#FBC02D",
+  "gitDeletedColor": "#C62828",
+  "gitRenamedColor": "#0277BD",
+  "gitAddedColorChar": "#2E7D32",
+  "gitModifiedColorChar": "#FBC02D",
+  "gitDeletedColorChar": "#C62828",
+  "gitRenamedColorChar": "#0277BD"
 }

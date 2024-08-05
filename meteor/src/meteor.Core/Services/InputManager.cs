@@ -14,7 +14,6 @@ public class InputManager : IInputManager
     private readonly ISelectionManager _selectionManager;
     private readonly ITextAnalysisService _textAnalysisService;
     private readonly ITextBufferService _textBufferService;
-    private bool _isAltPressed;
     private bool _isClipboardOperationHandled;
     private bool _isControlOrMetaPressed;
     private bool _isShiftPressed;
@@ -70,7 +69,6 @@ public class InputManager : IInputManager
             _isShiftPressed = e.Modifiers.HasFlag(KeyModifiers.Shift);
             _isControlOrMetaPressed =
                 e.Modifiers.HasFlag(KeyModifiers.Control) || e.Modifiers.HasFlag(KeyModifiers.Meta);
-            _isAltPressed = e.Modifiers.HasFlag(KeyModifiers.Alt);
 
             switch (e.Key)
             {

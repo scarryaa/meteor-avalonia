@@ -202,7 +202,15 @@ public class ThemeManager : IThemeManager
             HighlightBrush = "#3A3A3A",
             AccentBrush = "#FF79C6",
             CommandPaletteBackgroundColor = "#121212",
-            CommandPaletteForegroundColor = "#E0E0E0"
+            CommandPaletteForegroundColor = "#E0E0E0",
+            GitAddedColor = "#50FA7B",
+            GitModifiedColor = "#FFB86C",
+            GitDeletedColor = "#FF5555",
+            GitRenamedColor = "#8BE9FD",
+            GitAddedColorChar = "#50FA7B",
+            GitModifiedColorChar = "#FFB86C",
+            GitDeletedColorChar = "#FF5555",
+            GitRenamedColorChar = "#8BE9FD"
         };
     }
 
@@ -274,7 +282,15 @@ public class ThemeManager : IThemeManager
             HighlightBrush = "#3A3A3A",
             AccentBrush = "#FF79C6",
             CommandPaletteBackgroundColor = "#FFFFFF",
-            CommandPaletteForegroundColor = "#2C3E50"
+            CommandPaletteForegroundColor = "#2C3E50",
+            GitAddedColor = "#4CAF50",
+            GitModifiedColor = "#FFA000",
+            GitDeletedColor = "#F44336",
+            GitRenamedColor = "#2196F3",
+            GitAddedColorChar = "#66BB6A",
+            GitModifiedColorChar = "#FFB300",
+            GitDeletedColorChar = "#EF5350",
+            GitRenamedColorChar = "#42A5F5"
         };
     }
 

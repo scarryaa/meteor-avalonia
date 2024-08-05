@@ -624,11 +624,9 @@ public class FileExplorerControl : UserControl
         return _fileStatusCache.GetOrAdd(path, p => _gitService.GetFileStatus(p));
     }
 
-    // Clear cache when necessary (e.g., after git operations)
     public void ClearFileStatusCache()
     {
         _fileStatusCache.Clear();
-        // You might also want to update all items in the tree
         UpdateAllItemStatuses(_items);
     }
 
@@ -858,6 +856,11 @@ public class FileExplorerControl : UserControl
             );
             _textCache[item.Name] = formattedText;
         }
+        else
+        {
+            // Update the brush of the cached formatted text
+            formattedText.SetForegroundBrush(textBrush);
+        }
 
         var maxTextWidth = Math.Max(0, Bounds.Width - _leftPadding - indentLevel * _indentWidth - 65 - _scrollViewer.Offset.X);
         formattedText.MaxTextWidth = maxTextWidth;
@@ -876,19 +879,14 @@ public class FileExplorerControl : UserControl
     private SolidColorBrush GetTextBrushAccordingToGitStatus(FileItem item)
     {
         var gitStatus = item.GitStatus;
-        switch (gitStatus)
+        return gitStatus switch
         {
-            case FileChangeType.Added:
-                return new SolidColorBrush(Color.Parse("#4CAF50")); // Green
-            case FileChangeType.Modified:
-                return new SolidColorBrush(Color.Parse("#FFD700")); // Gold
-            case FileChangeType.Deleted:
-                return new SolidColorBrush(Color.Parse("#F44336")); // Red  
-            case FileChangeType.Renamed:
-                return new SolidColorBrush(Color.Parse("#007ACC")); // Blue
-            default:
-                return new SolidColorBrush(Color.Parse(_currentTheme.TextColor));
-        }
+            FileChangeType.Added => new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.GitAddedColor)),
+            FileChangeType.Modified => new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.GitModifiedColor)),
+            FileChangeType.Deleted => new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.GitDeletedColor)),
+            FileChangeType.Renamed => new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.GitRenamedColor)),
+            _ => new SolidColorBrush(Color.Parse(_currentTheme.TextColor))
+        };
     }
 
     private void RenderItemGitStatus(DrawingContext context, FileItem item, int indentLevel, double y, Rect viewport)
@@ -934,15 +932,14 @@ public class FileExplorerControl : UserControl
             context.DrawGeometry(statusBrush, null, statusGeometry);
         }
     }
-
     private Color GetStatusColor(FileChangeType status, bool isChar = false)
     {
         return status switch
         {
-            FileChangeType.Added => isChar ? Color.Parse("#4CAF50") : Color.Parse("#704CAF50"),
-            FileChangeType.Modified => isChar ? Color.Parse("#FFD700") : Color.Parse("#70FFD700"),
-            FileChangeType.Deleted => isChar ? Color.Parse("#F44336") : Color.Parse("#70F44336"),
-            FileChangeType.Renamed => isChar ? Color.Parse("#007ACC") : Color.Parse("#70007ACC"),
+            FileChangeType.Added => Color.Parse(_themeManager.CurrentTheme.GitAddedColor),
+            FileChangeType.Modified => Color.Parse(_themeManager.CurrentTheme.GitModifiedColor),
+            FileChangeType.Deleted => Color.Parse(_themeManager.CurrentTheme.GitDeletedColor),
+            FileChangeType.Renamed => Color.Parse(_themeManager.CurrentTheme.GitRenamedColor),
             _ => Colors.Transparent
         };
     }

@@ -61,5 +61,13 @@
   "searchViewBackgroundColor": "#121212",
   "searchViewBorderColor": "#2A2A2A",
   "commandPaletteBackgroundColor": "#121212",
-  "commandPaletteForegroundColor": "#E0E0E0"
+  "commandPaletteForegroundColor": "#E0E0E0",
+  "gitAddedColor": "#50FA7B",
+  "gitModifiedColor": "#FFB86C",
+  "gitDeletedColor": "#FF5555",
+  "gitRenamedColor": "#8BE9FD",
+  "gitAddedColorChar": "#50FA7B",
+  "gitModifiedColorChar": "#FFB86C",
+  "gitDeletedColorChar": "#FF5555",
+  "gitRenamedColorChar": "#8BE9FD"
 }
