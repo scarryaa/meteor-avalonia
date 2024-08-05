@@ -170,7 +170,7 @@ public class FileExplorerControl : UserControl
                         UpdateFileList(e.FullPath, false);
                         break;
                     case WatcherChangeTypes.Changed:
-                    case WatcherChangeTypes.All: // Add this to catch more types of changes
+                    case WatcherChangeTypes.All:
                         UpdateFileStatus(e.FullPath);
                         break;
                 }
@@ -1019,13 +1019,26 @@ public class FileExplorerControl : UserControl
             case Key.Down:
                 MoveSelection(1);
                 break;
+            case Key.PageUp:
+                MoveSelectionByPage(-1);
+                break;
+            case Key.PageDown:
+                MoveSelectionByPage(1);
+                break;
+            case Key.Home:
+                MoveSelectionToEnd(-1);
+                break;
+            case Key.End:
+                MoveSelectionToEnd(1);
+                break;
             case Key.Left:
-                CollapseOrMoveUp();
+                HandleLeftKey();
                 break;
             case Key.Right:
-                ExpandOrMoveDown();
+                HandleRightKey();
                 break;
             case Key.Enter:
+            case Key.Space:
                 ActivateSelectedItem();
                 break;
         }
@@ -1043,7 +1056,21 @@ public class FileExplorerControl : UserControl
         InvalidateVisual();
     }
 
-    private void CollapseOrMoveUp()
+    private void MoveSelectionByPage(int direction)
+    {
+        var itemsPerPage = (int)(_scrollViewer.Viewport.Height / _itemHeight);
+        MoveSelection(direction * itemsPerPage);
+    }
+
+    private void MoveSelectionToEnd(int direction)
+    {
+        var allItems = GetFlattenedItems(_items);
+        _selectedItem = direction < 0 ? allItems.First() : allItems.Last();
+        ScrollToItem(_selectedItem);
+        InvalidateVisual();
+    }
+
+    private void HandleLeftKey()
     {
         if (_selectedItem?.IsDirectory == true && _selectedItem.IsExpanded)
         {
@@ -1059,23 +1086,24 @@ public class FileExplorerControl : UserControl
                 ScrollToItem(_selectedItem);
             }
         }
-
         InvalidateVisual();
     }
 
-    private void ExpandOrMoveDown()
+    private void HandleRightKey()
     {
-        if (_selectedItem?.IsDirectory == true && !_selectedItem.IsExpanded)
+        if (_selectedItem?.IsDirectory == true)
         {
-            ToggleDirectoryExpansion(_selectedItem);
-            UpdateCanvasSize();
+            if (!_selectedItem.IsExpanded)
+            {
+                ToggleDirectoryExpansion(_selectedItem);
+                UpdateCanvasSize();
+            }
+            else if (_selectedItem.Children.Any())
+            {
+                _selectedItem = _selectedItem.Children[0];
+                ScrollToItem(_selectedItem);
+            }
         }
-        else if (_selectedItem?.IsDirectory == true && _selectedItem.IsExpanded && _selectedItem.Children.Any())
-        {
-            _selectedItem = _selectedItem.Children.First();
-            ScrollToItem(_selectedItem);
-        }
-
         InvalidateVisual();
     }
 
@@ -1086,7 +1114,10 @@ public class FileExplorerControl : UserControl
             ToggleDirectoryExpansion(_selectedItem);
             UpdateCanvasSize();
         }
-
+        else if (_selectedItem != null)
+        {
+            FileSelected?.Invoke(this, _selectedItem.FullPath);
+        }
         InvalidateVisual();
     }
 
