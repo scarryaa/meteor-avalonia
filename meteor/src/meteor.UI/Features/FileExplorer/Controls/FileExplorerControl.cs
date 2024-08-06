@@ -864,6 +864,8 @@ public class FileExplorerControl : UserControl
 
         var maxTextWidth = Math.Max(0, Bounds.Width - _leftPadding - indentLevel * _indentWidth - 65 - _scrollViewer.Offset.X);
         formattedText.MaxTextWidth = maxTextWidth;
+        formattedText.MaxLineCount = 1;
+        formattedText.Trimming = TextTrimming.CharacterEllipsis;
 
         var textX = _leftPadding + indentLevel * _indentWidth + 40 - _scrollViewer.Offset.X;
         var textY = y + (_itemHeight - formattedText.Height) / 2 + 1;
@@ -1065,7 +1067,7 @@ public class FileExplorerControl : UserControl
     private void MoveSelectionToEnd(int direction)
     {
         var allItems = GetFlattenedItems(_items);
-        _selectedItem = direction < 0 ? allItems.First() : allItems.Last();
+        _selectedItem = direction < 0 ? allItems[0] : allItems[allItems.Count - 1];
         ScrollToItem(_selectedItem);
         InvalidateVisual();
     }
