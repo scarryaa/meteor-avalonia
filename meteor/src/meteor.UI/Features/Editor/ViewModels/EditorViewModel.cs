@@ -5,6 +5,7 @@ using meteor.Core.Interfaces.ViewModels;
 using meteor.Core.Models;
 using meteor.Core.Models.EventArgs;
 using meteor.Core.Services;
+using meteor.UI.Features.Editor.Services;
 
 namespace meteor.UI.Features.Editor.ViewModels;
 
@@ -21,8 +22,8 @@ public class EditorViewModel : IEditorViewModel
     private int _lastSyncedVersion;
     private readonly UndoRedoManager _undoRedoManager;
     private bool _isModularMode;
-    private EditorMode _editorMode;
     private readonly IStatusBarService _statusBarService;
+    private readonly VimService _vimService;
 
     public EditorViewModel(
         ITextBufferService textBufferService,
@@ -43,8 +44,8 @@ public class EditorViewModel : IEditorViewModel
         _completionProvider = completionProvider;
         _undoRedoManager = new UndoRedoManager();
         _isModularMode = false;
-        _editorMode = EditorMode.Normal;
         _statusBarService = statusBarService;
+        _vimService = new VimService(this, _cursorManager, _inputManager, textBufferService);
 
         _cursorManager.CursorPositionChanged += (_, _) => NotifyContentChanged();
         _selectionManager.SelectionChanged += (_, _) => SelectionChanged?.Invoke(this, EventArgs.Empty);
@@ -130,22 +131,13 @@ public class EditorViewModel : IEditorViewModel
 
     private void OnModularModeChanged()
     {
-        if (_isModularMode)
-        {
-            _editorMode = EditorMode.Normal;
-        }
-        else
-        {
-            _editorMode = EditorMode.Insert;
-        }
-
         UpdateStatusBar();
         ModularModeChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    private void UpdateStatusBar()
+    public void UpdateStatusBar()
     {
-        string modeText = _isModularMode ? _editorMode.ToString() : "Edit";
+        string modeText = _isModularMode ? _vimService.CurrentMode.ToString() : "Edit";
         _statusBarService.SetVimMode(modeText);
     }
 
@@ -259,138 +251,17 @@ public class EditorViewModel : IEditorViewModel
     {
         if (_isModularMode)
         {
-            HandleModularModeKeyDown(e);
+            _vimService.HandleKeyDown(e);
         }
         else
         {
             _inputManager.HandleKeyDown(e);
         }
-    }
-
-    private void HandleModularModeKeyDown(KeyEventArgs e)
-    {
-        switch (_editorMode)
-        {
-            case EditorMode.Normal:
-                HandleNormalModeKeyDown(e);
-                break;
-            case EditorMode.Insert:
-                HandleInsertModeKeyDown(e);
-                break;
-            case EditorMode.Visual:
-                HandleVisualModeKeyDown(e);
-                break;
-            case EditorMode.Command:
-                HandleCommandModeKeyDown(e);
-                break;
-        }
-    }
-
-    private void HandleNormalModeKeyDown(KeyEventArgs e)
-    {
-        switch (e.Key)
-        {
-            case Key.H:
-                _cursorManager.SetPosition(_cursorManager.Position - 1);
-                break;
-            case Key.J:
-                _cursorManager.SetPosition(_cursorManager.Position + 1);
-                break;
-            case Key.K:
-                _cursorManager.SetPosition(_cursorManager.Position - 1);
-                break;
-            case Key.L:
-                _cursorManager.SetPosition(_cursorManager.Position + 1);
-                break;
-            case Key.I:
-                _editorMode = EditorMode.Insert;
-                UpdateStatusBar();
-                break;
-            case Key.V:
-                _editorMode = EditorMode.Visual;
-                UpdateStatusBar();
-                StartSelection(_cursorManager.Position);
-                break;
-            case Key.D:
-                if (e.Modifiers.HasFlag(KeyModifiers.Control))
-                {
-                    PageDown();
-                }
-                break;
-            case Key.U:
-                if (e.Modifiers.HasFlag(KeyModifiers.Control))
-                {
-                    PageUp();
-                }
-                break;
-            case Key.Semicolon:
-                _editorMode = EditorMode.Command;
-                UpdateStatusBar();
-                break;
-        }
-        e.Handled = true;
-    }
-
-    private void HandleInsertModeKeyDown(KeyEventArgs e)
-    {
-        if (e.Key == Key.Escape)
-        {
-            _editorMode = EditorMode.Normal;
-            UpdateStatusBar();
-            e.Handled = true;
-        }
-        else
-        {
-            _inputManager.HandleKeyDown(e);
-        }
-    }
-
-    private void HandleVisualModeKeyDown(KeyEventArgs e)
-    {
-        switch (e.Key)
-        {
-            case Key.H:
-                UpdateSelection(_cursorManager.Position - 1);
-                break;
-            case Key.J:
-                UpdateSelection(_cursorManager.Position + 1);
-                break;
-            case Key.K:
-                UpdateSelection(_cursorManager.Position - 1);
-                break;
-            case Key.L:
-                UpdateSelection(_cursorManager.Position + 1);
-                break;
-            case Key.Escape:
-                _editorMode = EditorMode.Normal;
-                UpdateStatusBar();
-                EndSelection();
-                break;
-            case Key.Y:
-                // TODO: Implement CopySelection method
-                _editorMode = EditorMode.Normal;
-                UpdateStatusBar();
-                EndSelection();
-                break;
-            case Key.D:
-                // TODO: Implement CutSelection method
-                _editorMode = EditorMode.Normal;
-                UpdateStatusBar();
-                EndSelection();
-                break;
-        }
-        e.Handled = true;
-    }
-
-    private void HandleCommandModeKeyDown(KeyEventArgs e)
-    {
-        // TODO implement        
-        e.Handled = true;
     }
 
     public void HandleTextInput(TextInputEventArgs e)
     {
-        if (_isModularMode && _editorMode == EditorMode.Insert)
+        if (_isModularMode && _vimService.CurrentMode == EditorMode.Insert)
         {
             _inputManager.HandleTextInput(e);
         }
@@ -538,13 +409,5 @@ public class EditorViewModel : IEditorViewModel
     public void PageDown()
     {
         _inputManager.HandleKeyDown(new KeyEventArgs(Key.PageDown, KeyModifiers.None));
-    }
-
-    enum EditorMode
-    {
-        Normal,
-        Insert,
-        Visual,
-        Command
     }
 }
