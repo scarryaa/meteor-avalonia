@@ -22,6 +22,7 @@ using meteor.Core.Interfaces.Services;
 using System.IO;
 using System.Timers;
 using Timer = System.Timers.Timer;
+using meteor.UI.Features.FileExplorer.Services;
 
 namespace meteor.UI.Features.FileExplorer.Controls;
 
@@ -36,6 +37,8 @@ public class FileExplorerControl : UserControl
     private readonly double _rightPadding = 8;
     private readonly IThemeManager _themeManager;
     private readonly IGitService _gitService;
+    private FileSystemHelper _fileSystemHelper;
+    private FileItemRenderer _fileItemRenderer;
     private Canvas _canvas;
     private Theme _currentTheme;
     private Grid _mainGrid;
@@ -45,11 +48,11 @@ public class FileExplorerControl : UserControl
     private ConcurrentDictionary<string, Task> _populationTasks = new ConcurrentDictionary<string, Task>();
     private Dictionary<string, Geometry> _iconCache = new Dictionary<string, Geometry>();
     private Dictionary<string, FormattedText> _textCache = new Dictionary<string, FormattedText>();
-    private ConcurrentDictionary<string, FileChangeType?> _fileStatusCache = new ConcurrentDictionary<string, FileChangeType?>();
     private FileSystemWatcher _fileWatcher;
     private CancellationTokenSource _updateCancellationTokenSource;
     private Timer _refreshTimer;
     private const int RefreshInterval = 5000; // 5 seconds
+    private GitStatusManager _gitStatusManager;
 
     public FileExplorerControl(IThemeManager themeManager, IGitService gitService)
     {
@@ -63,6 +66,8 @@ public class FileExplorerControl : UserControl
         Focus();
 
         InitializeRefreshTimer();
+
+        _gitStatusManager = new GitStatusManager(_gitService);
     }
 
     public event EventHandler<string> FileSelected;
@@ -84,7 +89,7 @@ public class FileExplorerControl : UserControl
             var changes = _gitService.GetChanges().ToList();
             foreach (var change in changes)
             {
-                _fileStatusCache[change.FilePath] = change.ChangeType;
+                _gitStatusManager.GetFileStatus(change.FilePath);
             }
 
             // Dispose of the previous file watcher if it exists
@@ -119,29 +124,8 @@ public class FileExplorerControl : UserControl
 
     public void RefreshAllFileStatuses()
     {
-        UpdateAllItemStatuses(_items);
+        _gitStatusManager.UpdateAllItemStatuses(_items);
         InvalidateVisual();
-    }
-
-    private void UpdateAllItemStatuses(IEnumerable<FileItem> items)
-    {
-        foreach (var item in items)
-        {
-            var newStatus = _gitService.GetFileStatus(item.FullPath);
-            if (item.GitStatus != newStatus)
-            {
-                item.GitStatus = newStatus;
-                _fileStatusCache[item.FullPath] = newStatus;
-                if (item.IsDirectory)
-                {
-                    UpdateDirectoryStatus(item);
-                }
-            }
-            if (item.IsDirectory && item.IsExpanded)
-            {
-                UpdateAllItemStatuses(item.Children);
-            }
-        }
     }
 
     private void OnFileChanged(object sender, FileSystemEventArgs e)
@@ -195,7 +179,7 @@ public class FileExplorerControl : UserControl
 
     private bool ShouldIgnoreFileChange(string filePath)
     {
-        if (ShouldHideFile(filePath))
+        if (_fileSystemHelper.ShouldHideFile(filePath))
         {
             return true;
         }
@@ -225,8 +209,7 @@ public class FileExplorerControl : UserControl
 
     private void UpdateFileStatus(string filePath)
     {
-        var newStatus = _gitService.GetFileStatus(filePath);
-        _fileStatusCache[filePath] = newStatus;
+        var newStatus = _gitStatusManager.GetFileStatus(filePath);
 
         var item = FindItemByPath(_items, filePath);
         if (item != null)
@@ -242,45 +225,8 @@ public class FileExplorerControl : UserControl
         var parent = FindParentItem(_items, item);
         while (parent != null)
         {
-            UpdateDirectoryStatus(parent);
+            _gitStatusManager.UpdateDirectoryStatus(parent);
             parent = FindParentItem(_items, parent);
-        }
-    }
-
-    private void UpdateDirectoryStatus(FileItem directory)
-    {
-        if (!directory.IsDirectory)
-            return;
-
-        var childStatuses = directory.Children
-            .Select(child => child.GitStatus)
-            .Where(status => status != null)
-            .Select(status => (FileChangeType)status)
-            .ToList();
-
-        if (childStatuses.Count == 0)
-        {
-            directory.GitStatus = null;
-        }
-        else if (childStatuses.Contains(FileChangeType.Modified))
-        {
-            directory.GitStatus = FileChangeType.Modified;
-        }
-        else if (childStatuses.Contains(FileChangeType.Added))
-        {
-            directory.GitStatus = FileChangeType.Added;
-        }
-        else if (childStatuses.Contains(FileChangeType.Deleted))
-        {
-            directory.GitStatus = FileChangeType.Deleted;
-        }
-        else if (childStatuses.Contains(FileChangeType.Renamed))
-        {
-            directory.GitStatus = FileChangeType.Renamed;
-        }
-        else
-        {
-            directory.GitStatus = childStatuses.First();
         }
     }
 
@@ -300,7 +246,7 @@ public class FileExplorerControl : UserControl
 
     private void UpdateFileList(string filePath, bool add)
     {
-        if (ShouldHideFile(filePath))
+        if (_fileSystemHelper.ShouldHideFile(filePath))
         {
             return; // Don't add hidden files to the list
         }
@@ -376,6 +322,9 @@ public class FileExplorerControl : UserControl
         SetupEventHandlers();
         SetupLayout();
         UpdateSelectPathButtonVisibility();
+
+        _fileItemRenderer = new FileItemRenderer(_currentTheme, _themeManager, _gitService, _scrollViewer, _selectedItem);
+        _fileSystemHelper = new FileSystemHelper(_gitService);
     }
 
     private void CreateMainGrid()
@@ -471,7 +420,7 @@ public class FileExplorerControl : UserControl
         {
             Setters =
             {
-                new Setter(TemplateProperty, CreateButtonTemplate())
+                new Setter(Button.TemplateProperty, CreateButtonTemplate())
             }
         };
     }
@@ -482,7 +431,7 @@ public class FileExplorerControl : UserControl
         {
             Setters =
             {
-                new Setter(TemplateProperty, CreateButtonTemplate(true))
+                new Setter(Button.TemplateProperty, CreateButtonTemplate(true))
             }
         };
     }
@@ -493,7 +442,7 @@ public class FileExplorerControl : UserControl
         {
             Setters =
             {
-                new Setter(TemplateProperty, CreateButtonTemplate(isPressed: true))
+                new Setter(Button.TemplateProperty, CreateButtonTemplate(isPressed: true))
             }
         };
     }
@@ -504,7 +453,7 @@ public class FileExplorerControl : UserControl
         {
             Setters =
             {
-                new Setter(TemplateProperty, CreateButtonTemplate(isDisabled: true))
+                new Setter(Button.TemplateProperty, CreateButtonTemplate(isDisabled: true))
             }
         };
     }
@@ -512,7 +461,7 @@ public class FileExplorerControl : UserControl
     private IControlTemplate CreateButtonTemplate(bool isPointerOver = false, bool isPressed = false,
         bool isDisabled = false)
     {
-        return new FuncControlTemplate((parent, scope) =>
+        return new FuncControlTemplate<Button>((parent, scope) =>
         {
             var contentPresenter = new ContentPresenter
             {
@@ -521,8 +470,8 @@ public class FileExplorerControl : UserControl
                 BorderThickness = new Thickness(0),
                 Padding = new Thickness(8),
                 CornerRadius = new CornerRadius(4),
-                [!ContentPresenter.ContentProperty] = parent[!ContentProperty],
-                [!ContentPresenter.ContentTemplateProperty] = parent[!ContentTemplateProperty]
+                [!ContentPresenter.ContentProperty] = parent[!ContentControl.ContentProperty],
+                [!ContentPresenter.ContentTemplateProperty] = parent[!ContentControl.ContentTemplateProperty]
             };
 
             contentPresenter.Foreground = new SolidColorBrush(Color.Parse(_currentTheme.TextColor));
@@ -530,6 +479,7 @@ public class FileExplorerControl : UserControl
             return contentPresenter;
         });
     }
+
     private void UpdateSelectPathButtonVisibility()
     {
         if (_selectPathButton != null && _items != null)
@@ -540,9 +490,10 @@ public class FileExplorerControl : UserControl
 
     private async void OnSelectPathButtonClick(object sender, RoutedEventArgs e)
     {
-        var dialog = TopLevel.GetTopLevel(this);
-        var window = GetMainWindow();
-        var result = await dialog.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions());
+        var topLevel = TopLevel.GetTopLevel(this);
+        if (topLevel == null) return;
+
+        var result = await topLevel.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions());
 
         if (result != null && result.Count > 0)
         {
@@ -552,11 +503,6 @@ public class FileExplorerControl : UserControl
             var rootDirectoryPath = Path.GetFullPath(folderPath);
             DirectoryOpened?.Invoke(this, rootDirectoryPath);
         }
-    }
-
-    private Window GetMainWindow()
-    {
-        return (Window)VisualRoot;
     }
 
     private async Task PopulateChildrenAsync(FileItem item)
@@ -578,8 +524,8 @@ public class FileExplorerControl : UserControl
     private void PopulateChildrenInternal(FileItem item)
     {
         var children = new List<FileItem>();
-        var directories = GetDirectories(item.FullPath);
-        var files = GetFiles(item.FullPath);
+        var directories = _fileSystemHelper.GetDirectories(item.FullPath);
+        var files = _fileSystemHelper.GetFiles(item.FullPath);
 
         children.AddRange(directories.Take(MaxItemsPerDirectory / 2));
         children.AddRange(files.Take(MaxItemsPerDirectory / 2));
@@ -603,58 +549,10 @@ public class FileExplorerControl : UserControl
         });
     }
 
-    private IEnumerable<FileItem> GetDirectories(string path)
-    {
-        return Directory.EnumerateDirectories(path)
-            .Where(dir => !Path.GetFileName(dir).StartsWith("."))
-            .Select(dir => new FileItem(dir, true) { GitStatus = GetFileStatus(dir) })
-            .OrderBy(d => d.Name, StringComparer.OrdinalIgnoreCase);
-    }
-
-    private IEnumerable<FileItem> GetFiles(string path)
-    {
-        return Directory.EnumerateFiles(path)
-            .Where(file => !ShouldHideFile(file))
-            .Select(file => new FileItem(file, false) { GitStatus = GetFileStatus(file) })
-            .OrderBy(f => f.Name, StringComparer.OrdinalIgnoreCase);
-    }
-
-    private FileChangeType? GetFileStatus(string path)
-    {
-        return _fileStatusCache.GetOrAdd(path, p => _gitService.GetFileStatus(p));
-    }
-
     public void ClearFileStatusCache()
     {
-        _fileStatusCache.Clear();
-        UpdateAllItemStatuses(_items);
-    }
-
-    private bool ShouldHideFile(string filePath)
-    {
-        var fileName = Path.GetFileName(filePath);
-        var directoryName = Path.GetDirectoryName(filePath);
-
-        var hiddenFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            ".DS_Store",
-            "Thumbs.db",
-            "desktop.ini"
-        };
-
-        // Ignore all files and directories within .git
-        if (directoryName != null && directoryName.Split(Path.DirectorySeparatorChar).Contains(".git"))
-        {
-            return true;
-        }
-
-        // Ignore .git directory itself
-        if (fileName == ".git")
-        {
-            return true;
-        }
-
-        return fileName.StartsWith(".") || hiddenFiles.Contains(fileName);
+        _gitStatusManager.ClearCache();
+        _gitStatusManager.UpdateAllItemStatuses(_items);
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
@@ -757,205 +655,7 @@ public class FileExplorerControl : UserControl
         context.FillRectangle(new SolidColorBrush(Color.Parse(_currentTheme.BackgroundColor)), viewportRect);
 
         var buttonHeight = _selectPathButton.IsVisible ? _selectPathButton.Bounds.Height : 0;
-        RenderItems(context, _items, 0, -_scrollViewer.Offset.Y + buttonHeight, viewportRect);
-    }
-
-    private double RenderItems(DrawingContext context, IEnumerable<FileItem> items, int indentLevel, double y, Rect viewport)
-    {
-        foreach (var item in items)
-        {
-            if (y + _itemHeight > 0 && y < viewport.Height)
-                RenderItem(context, item, indentLevel, y, viewport);
-
-            y += _itemHeight;
-
-            if (item.IsExpanded)
-                y = RenderItems(context, item.Children, indentLevel + 1, y, viewport);
-
-            if (y > viewport.Height)
-                break;
-        }
-
-        return y;
-    }
-
-    private void RenderItem(DrawingContext context, FileItem item, int indentLevel, double y, Rect viewport)
-    {
-        RenderItemBackground(context, item, y, viewport);
-        RenderItemChevron(context, item, indentLevel, y);
-        RenderItemIcon(context, item, indentLevel, y);
-        RenderItemText(context, item, indentLevel, y);
-        RenderItemGitStatus(context, item, indentLevel, y, viewport);
-    }
-
-    private void RenderItemBackground(DrawingContext context, FileItem item, double y, Rect viewport)
-    {
-        if (item == _selectedItem)
-        {
-            var backgroundBrush = new SolidColorBrush(Color.Parse(_currentTheme.FileExplorerSelectedItemBackgroundColor));
-            context.FillRectangle(backgroundBrush, new Rect(0, y, viewport.Width, _itemHeight));
-        }
-    }
-
-    private void RenderItemIcon(DrawingContext context, FileItem item, int indentLevel, double y)
-    {
-        var iconSize = 16;
-        var iconChar = item.IsDirectory ? "\uf07b" : "\uf15b"; // folder icon : file icon
-        var iconBrush = new SolidColorBrush(Color.Parse(_currentTheme.FileExplorerFileIconColor));
-
-        if (!_iconCache.TryGetValue(iconChar, out var iconGeometry))
-        {
-            var fontAwesomeSolid = new FontFamily("avares://meteor.UI/Common/Assets/Fonts/FontAwesome/Font Awesome 6 Free-Solid-900.otf#Font Awesome 6 Free");
-            var typeface = new Typeface(fontAwesomeSolid);
-            iconGeometry = CreateFormattedTextGeometry(iconChar, typeface, iconSize, iconBrush);
-            _iconCache[iconChar] = iconGeometry;
-        }
-
-        var iconX = _leftPadding + indentLevel * _indentWidth + 20 - _scrollViewer.Offset.X;
-        var iconY = y + (_itemHeight - iconSize) / 2;
-
-        iconGeometry.Transform = new MatrixTransform(Matrix.CreateTranslation(iconX, iconY));
-        context.DrawGeometry(iconBrush, null, iconGeometry);
-    }
-
-    private void RenderItemChevron(DrawingContext context, FileItem item, int indentLevel, double y)
-    {
-        if (!item.IsDirectory) return;
-
-        var chevronBrush = new SolidColorBrush(Color.Parse(_currentTheme.TextColor));
-        var chevronSize = 10;
-        var chevronChar = item.IsExpanded ? "\uf078" : "\uf054"; // chevron-down : chevron-right
-        var fontAwesomeSolid = new FontFamily("avares://meteor.UI/Common/Assets/Fonts/FontAwesome/Font Awesome 6 Free-Solid-900.otf#Font Awesome 6 Free");
-        var typeface = new Typeface(fontAwesomeSolid);
-
-        var chevronGeometry = CreateFormattedTextGeometry(chevronChar, typeface, chevronSize, chevronBrush);
-
-        var chevronX = _leftPadding + indentLevel * _indentWidth - _scrollViewer.Offset.X;
-        var chevronY = y + (_itemHeight - chevronSize) / 2;
-
-        chevronGeometry.Transform = new MatrixTransform(Matrix.CreateTranslation(chevronX, chevronY));
-        context.DrawGeometry(chevronBrush, null, chevronGeometry);
-    }
-
-    private void RenderItemText(DrawingContext context, FileItem item, int indentLevel, double y)
-    {
-        var textSize = 13;
-        var typeface = new Typeface("San Francisco");
-
-        var textBrush = GetTextBrushAccordingToGitStatus(item);
-
-        if (!_textCache.TryGetValue(item.Name, out var formattedText))
-        {
-            formattedText = new FormattedText(
-                item.Name,
-                CultureInfo.CurrentCulture,
-                FlowDirection.LeftToRight,
-                typeface,
-                textSize,
-                textBrush
-            );
-            _textCache[item.Name] = formattedText;
-        }
-        else
-        {
-            // Update the brush of the cached formatted text
-            formattedText.SetForegroundBrush(textBrush);
-        }
-
-        var maxTextWidth = Math.Max(0, Bounds.Width - _leftPadding - indentLevel * _indentWidth - 65 - _scrollViewer.Offset.X);
-        formattedText.MaxTextWidth = maxTextWidth;
-        formattedText.MaxLineCount = 1;
-        formattedText.Trimming = TextTrimming.CharacterEllipsis;
-
-        var textX = _leftPadding + indentLevel * _indentWidth + 40 - _scrollViewer.Offset.X;
-        var textY = y + (_itemHeight - formattedText.Height) / 2 + 1;
-
-        if (item.IsDirectory)
-        {
-            textX += 2;
-        }
-
-        context.DrawText(formattedText, new Point(textX, textY));
-    }
-
-    private SolidColorBrush GetTextBrushAccordingToGitStatus(FileItem item)
-    {
-        var gitStatus = item.GitStatus;
-        return gitStatus switch
-        {
-            FileChangeType.Added => new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.GitAddedColor)),
-            FileChangeType.Modified => new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.GitModifiedColor)),
-            FileChangeType.Deleted => new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.GitDeletedColor)),
-            FileChangeType.Renamed => new SolidColorBrush(Color.Parse(_themeManager.CurrentTheme.GitRenamedColor)),
-            _ => new SolidColorBrush(Color.Parse(_currentTheme.TextColor))
-        };
-    }
-
-    private void RenderItemGitStatus(DrawingContext context, FileItem item, int indentLevel, double y, Rect viewport)
-    {
-        if (!_gitService.IsValidGitRepository(_gitService.GetRepositoryPath()))
-            return;
-
-        var gitStatus = item.GitStatus;
-        if (gitStatus == null)
-            return;
-
-        var statusColor = GetStatusColor((FileChangeType)gitStatus, !item.IsDirectory);
-        if (statusColor == Colors.Transparent)
-            return;
-
-        var statusBrush = new SolidColorBrush(statusColor);
-        var circleSize = 8;
-        var charSize = 12;
-        var statusY = y + (_itemHeight - circleSize) / 2;
-        var statusX = viewport.Width - _rightPadding - circleSize - _scrollViewer.Offset.X;
-
-        if (item.IsDirectory)
-        {
-            var circleGeometry = new EllipseGeometry(new Rect(statusX, statusY, circleSize, circleSize));
-            context.DrawGeometry(statusBrush, null, circleGeometry);
-        }
-        else
-        {
-            var statusChar = gitStatus switch
-            {
-                FileChangeType.Added => "A",
-                FileChangeType.Modified => "M",
-                FileChangeType.Deleted => "D",
-                FileChangeType.Renamed => "R",
-                _ => "U",
-            };
-
-            var typeface = new Typeface("Arial");
-
-            var statusGeometry = CreateFormattedTextGeometry(statusChar, typeface, charSize, statusBrush);
-
-            statusGeometry.Transform = new MatrixTransform(Matrix.CreateTranslation(statusX, statusY + (circleSize - charSize) / 2));
-            context.DrawGeometry(statusBrush, null, statusGeometry);
-        }
-    }
-    private Color GetStatusColor(FileChangeType status, bool isChar = false)
-    {
-        return status switch
-        {
-            FileChangeType.Added => Color.Parse(_themeManager.CurrentTheme.GitAddedColor),
-            FileChangeType.Modified => Color.Parse(_themeManager.CurrentTheme.GitModifiedColor),
-            FileChangeType.Deleted => Color.Parse(_themeManager.CurrentTheme.GitDeletedColor),
-            FileChangeType.Renamed => Color.Parse(_themeManager.CurrentTheme.GitRenamedColor),
-            _ => Colors.Transparent
-        };
-    }
-
-    private Geometry CreateFormattedTextGeometry(string text, Typeface typeface, double size, IBrush brush)
-    {
-        return new FormattedText(
-            text,
-            CultureInfo.CurrentCulture,
-            FlowDirection.LeftToRight,
-            typeface,
-            size,
-            brush
-        ).BuildGeometry(new Point(0, 0));
+        _fileItemRenderer.RenderItems(context, Bounds.Size, _items, 0, -_scrollViewer.Offset.Y + buttonHeight, viewportRect);
     }
 
     private void OnPointerPressed(object sender, PointerPressedEventArgs e)
