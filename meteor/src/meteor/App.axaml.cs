@@ -20,6 +20,7 @@ using meteor.UI.Common.Converters;
 using meteor.UI.Features.Editor.Factories;
 using meteor.UI.Features.Editor.Interfaces;
 using meteor.UI.Features.Editor.Services;
+using meteor.UI.Features.StatusBar.Services;
 using meteor.UI.Features.Tabs.Factories;
 using meteor.UI.Features.Tabs.ViewModels;
 using meteor.UI.Services;
@@ -65,12 +66,13 @@ public class App : Application
             var settingsService = Services.GetRequiredService<ISettingsService>();
             var tabViewModelFactory = Services.GetRequiredService<ITabViewModelFactory>();
             var undoRedoManager = Services.GetRequiredService<UndoRedoManager>();
+            var statusBarService = Services.GetRequiredService<IStatusBarService>();
             themeManager.Initialize(Services.GetRequiredService<ISettingsService>());
 
             IsActiveToBrushConverter.Initialize(themeManager);
 
             desktop.MainWindow = new MainWindow(mainWindowViewModel, tabService, layoutManager, inputHandler,
-                textMeasurer, config, scrollManager, pointerEventHandler, themeManager, fileService, gitService, searchService, settingsService, tabViewModelFactory, undoRedoManager);
+                textMeasurer, config, scrollManager, pointerEventHandler, themeManager, fileService, gitService, searchService, settingsService, tabViewModelFactory, undoRedoManager, statusBarService);
 
             var clipboardManager = Services.GetRequiredService<IClipboardManager>();
             if (clipboardManager is ClipboardManager cm) cm.TopLevelRef = desktop.MainWindow;
@@ -116,6 +118,8 @@ public class App : Application
         services.AddSingleton<IGitService, GitService>(sp => new GitService(""));
         services.AddSingleton<ISearchService, SearchService>();
         services.AddSingleton<UndoRedoManager>();
+        services.AddSingleton<IStatusBarService, StatusBarService>();
+
         // Editor Services
         services.AddSingleton<IEditorLayoutManager, EditorLayoutManager>();
         services.AddSingleton<IEditorInputHandler, EditorInputHandler>();

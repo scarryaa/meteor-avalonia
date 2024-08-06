@@ -71,7 +71,6 @@ public class EditorContentControl : Control
     public Size Viewport { get; set; }
 
     public double LineHeight { get; }
-    public event EventHandler<Point> CursorPositionChanged;
 
     protected override Size MeasureOverride(Size availableSize)
     {
@@ -124,14 +123,11 @@ public class EditorContentControl : Control
         var selectedIndex = _viewModel.SelectedCompletionIndex;
         var overlayX = cursorPosition.X;
         var overlayY = cursorPosition.Y + LineHeight;
-        var backgroundBrush = theme.CompletionOverlayBackgroundBrush;
-        var borderBrush = theme.CompletionOverlayBorderBrush;
 
-        // Calculate the actual width based on the content
         var contentWidth = completionItems.Any()
             ? completionItems.Max(item => MeasureTextWidth(item.Text))
             : 0;
-        var padding = 20; // Add some padding (10 pixels on each side)
+        var padding = 20;
         var overlayWidth = Math.Min(MaxCompletionOverlayWidth, contentWidth + padding);
 
         var maxAvailableHeight = Math.Min(MaxCompletionOverlayHeight, Bounds.Height - overlayY);
@@ -139,7 +135,6 @@ public class EditorContentControl : Control
         var visibleItemCount = Math.Min(completionItems.Count, maxVisibleItems);
         double overlayHeight = visibleItemCount * CompletionItemHeight;
 
-        // Adjust overlay position and height if it would be cut off
         if (overlayY + overlayHeight > Bounds.Height)
         {
             var availableHeight = Bounds.Height - overlayY;
@@ -170,7 +165,7 @@ public class EditorContentControl : Control
 
             if (totalItems > visibleItemCount)
                 RenderScrollbarIfNeeded(context, totalItems, CompletionItemHeight, overlayX, overlayY,
-                    overlayWidth, overlayHeight, _completionOverlayScrollOffset);
+                    overlayWidth, overlayHeight);
         }
     }
 
@@ -236,7 +231,7 @@ public class EditorContentControl : Control
         if (index == selectedIndex)
             context.DrawRectangle(new SolidColorBrush(Color.Parse(theme.CompletionItemSelectedBrush)), null, itemRect);
         else
-            RenderHoverEffect(context, item, index, overlayX, overlayWidth, itemY, itemHeight);
+            RenderHoverEffect(context, overlayX, overlayWidth, itemY, itemHeight);
 
         var formattedText = new FormattedText(
             item.Text,
@@ -249,7 +244,7 @@ public class EditorContentControl : Control
         context.DrawText(formattedText, new Point(overlayX + 5, itemY + (itemHeight - formattedText.Height) / 2));
     }
 
-    private void RenderHoverEffect(DrawingContext context, CompletionItem item, int index, double overlayX,
+    private void RenderHoverEffect(DrawingContext context, double overlayX,
         double overlayWidth,
         double itemY, double itemHeight)
     {
@@ -271,7 +266,7 @@ public class EditorContentControl : Control
     }
 
     private void RenderScrollbarIfNeeded(DrawingContext context, int itemCount, double itemHeight, double overlayX,
-        double overlayY, double overlayWidth, double overlayHeight, int selectedIndex)
+        double overlayY, double overlayWidth, double overlayHeight)
     {
         var theme = _themeManager.CurrentTheme;
         var visibleItemCount = Math.Max(1, overlayHeight / itemHeight);
@@ -391,7 +386,7 @@ public class EditorContentControl : Control
             if (position.X >= overlayX && position.X <= overlayX + overlayWidth &&
                 position.Y >= overlayY && position.Y <= overlayY + overlayHeight)
             {
-                var delta = (int)e.Delta.Y * 3;
+                var delta = (int)e.Delta.Y * 5;
                 var itemCount = _viewModel.CompletionItems.Count;
                 var visibleItemCount = (int)(overlayHeight / CompletionItemHeight);
                 if (itemCount > visibleItemCount)

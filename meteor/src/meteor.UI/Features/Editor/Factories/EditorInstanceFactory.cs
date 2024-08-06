@@ -23,7 +23,8 @@ public class EditorInstanceFactory : IEditorInstanceFactory
             _serviceProvider.GetRequiredService<ITextMeasurer>(),
             _serviceProvider.GetRequiredService<IClipboardManager>(),
             _serviceProvider.GetRequiredService<ITextAnalysisService>(),
-            _serviceProvider.GetRequiredService<IScrollManager>()
+            _serviceProvider.GetRequiredService<IScrollManager>(),
+            _serviceProvider.GetRequiredService<IStatusBarService>()
         );
     }
 }

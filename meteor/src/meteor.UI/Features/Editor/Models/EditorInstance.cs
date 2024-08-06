@@ -11,7 +11,7 @@ namespace meteor.UI.Features.Editor.Models;
 public class EditorInstance : IEditorInstance
 {
     public EditorInstance(IEditorConfig config, ITextMeasurer textMeasurer, IClipboardManager clipboardManager,
-        ITextAnalysisService textAnalysisService, IScrollManager scrollManager)
+        ITextAnalysisService textAnalysisService, IScrollManager scrollManager, IStatusBarService statusBarService)
     {
         var textBufferService = new TextBufferService(new TextBuffer(), textMeasurer, config);
         var cursorManager = new CursorManager(textBufferService, config);
@@ -31,7 +31,8 @@ public class EditorInstance : IEditorInstance
             selectionManager,
             config,
             textMeasurer,
-            new CompletionProvider(textBufferService));
+            new CompletionProvider(textBufferService),
+            statusBarService);
 
         inputManager.SetViewModel(EditorViewModel);
     }

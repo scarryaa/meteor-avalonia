@@ -39,8 +39,9 @@ public class CommandPalette : UserControl
     private ListBox _resultsList;
     private TextBox _searchBox;
     private readonly UndoRedoManager _undoRedoManager;
+    private readonly IStatusBarService _statusBarService;
 
-    public CommandPalette(IThemeManager themeManager, IFileService fileService, ITabService tabService, ITabViewModelFactory tabViewModelFactory, ITextMeasurer textMeasurer, UndoRedoManager undoRedoManager)
+    public CommandPalette(IThemeManager themeManager, IFileService fileService, ITabService tabService, ITabViewModelFactory tabViewModelFactory, ITextMeasurer textMeasurer, UndoRedoManager undoRedoManager, IStatusBarService statusBarService)
     {
         _themeManager = themeManager;
         _fileService = fileService;
@@ -48,12 +49,14 @@ public class CommandPalette : UserControl
         _tabViewModelFactory = tabViewModelFactory;
         _textMeasurer = textMeasurer;
         _undoRedoManager = undoRedoManager;
+        _statusBarService = statusBarService;
         _commands = new ObservableCollection<CommandItem>
         {
             new CommandItem("Switch Theme", () => _themeManager.ApplyTheme(_themeManager.CurrentTheme.Name == "Light" ? "Dark" : "Light")),
             new CommandItem("Open File", async () => await OpenFile()),
             new CommandItem("Save File", SaveFile, false),
-            new CommandItem("Close Tab", CloseTab, false)
+            new CommandItem("Close Tab", CloseTab, false),
+            new CommandItem("Toggle Vim Mode", ToggleVimMode, true)
         };
         InitializeComponent();
         ApplyTheme();
@@ -152,6 +155,7 @@ public class CommandPalette : UserControl
             "Open File" => "\uf07c",    // fa-folder-open
             "Save File" => "\uf0c7",    // fa-save
             "Close Tab" => "\uf00d",    // fa-times
+            "Toggle Vim Mode" => "\uf6d1", // fa-keyboard
             _ => "\uf002"               // fa-search
         };
     }
@@ -384,7 +388,8 @@ public class CommandPalette : UserControl
             selectionManager,
             editorConfig,
             _textMeasurer,
-            new CompletionProvider(textBufferService));
+            new CompletionProvider(textBufferService),
+            _statusBarService);
         inputManager.SetViewModel(editorViewModel);
 
         return editorViewModel;
@@ -399,6 +404,14 @@ public class CommandPalette : UserControl
     private void CloseTab()
     {
         _tabService.RemoveTab(_tabService.ActiveTab);
+    }
+
+    private void ToggleVimMode()
+    {
+        if (_tabService.ActiveTab?.EditorViewModel is EditorViewModel editorViewModel)
+        {
+            editorViewModel.ToggleVimMode();
+        }
     }
 
     private void UpdateCommandVisibility()

@@ -20,6 +20,9 @@ public class EditorViewModel : IEditorViewModel
     private string _content;
     private int _lastSyncedVersion;
     private readonly UndoRedoManager _undoRedoManager;
+    private bool _isModularMode;
+    private EditorMode _editorMode;
+    private readonly IStatusBarService _statusBarService;
 
     public EditorViewModel(
         ITextBufferService textBufferService,
@@ -28,7 +31,8 @@ public class EditorViewModel : IEditorViewModel
         ISelectionManager selectionManager,
         IEditorConfig config,
         ITextMeasurer textMeasurer,
-        ICompletionProvider completionProvider)
+        ICompletionProvider completionProvider,
+        IStatusBarService statusBarService)
     {
         TextBufferService = textBufferService;
         _cursorManager = cursorManager;
@@ -38,6 +42,9 @@ public class EditorViewModel : IEditorViewModel
         _textMeasurer = textMeasurer;
         _completionProvider = completionProvider;
         _undoRedoManager = new UndoRedoManager();
+        _isModularMode = false;
+        _editorMode = EditorMode.Normal;
+        _statusBarService = statusBarService;
 
         _cursorManager.CursorPositionChanged += (_, _) => NotifyContentChanged();
         _selectionManager.SelectionChanged += (_, _) => SelectionChanged?.Invoke(this, EventArgs.Empty);
@@ -45,14 +52,30 @@ public class EditorViewModel : IEditorViewModel
         _lastSyncedVersion = TextBufferService.GetDocumentVersion();
         _content = TextBufferService.GetContentSlice(0, TextBufferService.GetLength());
         _completionsInitTask = InitializeCompletionsAsync();
+
+        UpdateStatusBar();
     }
 
     public event EventHandler<ContentChangeEventArgs>? ContentChanged;
     public event EventHandler? SelectionChanged;
     public event EventHandler<int>? CompletionIndexChanged;
+    public event EventHandler? ModularModeChanged;
 
     public List<CompletionItem> CompletionItems { get; private set; }
     public bool IsCompletionActive { get; private set; }
+
+    public bool IsModularMode
+    {
+        get => _isModularMode;
+        set
+        {
+            if (_isModularMode != value)
+            {
+                _isModularMode = value;
+                OnModularModeChanged();
+            }
+        }
+    }
 
     public int SelectedCompletionIndex { get; set; }
 
@@ -103,6 +126,27 @@ public class EditorViewModel : IEditorViewModel
     {
         CompletionItems = null;
         IsCompletionActive = false;
+    }
+
+    private void OnModularModeChanged()
+    {
+        if (_isModularMode)
+        {
+            _editorMode = EditorMode.Normal;
+        }
+        else
+        {
+            _editorMode = EditorMode.Insert;
+        }
+
+        UpdateStatusBar();
+        ModularModeChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void UpdateStatusBar()
+    {
+        string modeText = _isModularMode ? _editorMode.ToString() : "Edit";
+        _statusBarService.SetVimMode(modeText);
     }
 
     public ITextBufferService TextBufferService { get; }
@@ -203,16 +247,157 @@ public class EditorViewModel : IEditorViewModel
         return _textMeasurer.MeasureText(textUpToCursor, _config.FontFamily, _config.FontSize).Width;
     }
 
+    public void ToggleVimMode()
+    {
+        _isModularMode = !_isModularMode;
+        OnModularModeChanged();
+    }
+
     public int CursorPosition => _cursorManager.Position;
 
     public void HandleKeyDown(KeyEventArgs e)
     {
-        _inputManager.HandleKeyDown(e);
+        if (_isModularMode)
+        {
+            HandleModularModeKeyDown(e);
+        }
+        else
+        {
+            _inputManager.HandleKeyDown(e);
+        }
+    }
+
+    private void HandleModularModeKeyDown(KeyEventArgs e)
+    {
+        switch (_editorMode)
+        {
+            case EditorMode.Normal:
+                HandleNormalModeKeyDown(e);
+                break;
+            case EditorMode.Insert:
+                HandleInsertModeKeyDown(e);
+                break;
+            case EditorMode.Visual:
+                HandleVisualModeKeyDown(e);
+                break;
+            case EditorMode.Command:
+                HandleCommandModeKeyDown(e);
+                break;
+        }
+    }
+
+    private void HandleNormalModeKeyDown(KeyEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case Key.H:
+                _cursorManager.SetPosition(_cursorManager.Position - 1);
+                break;
+            case Key.J:
+                _cursorManager.SetPosition(_cursorManager.Position + 1);
+                break;
+            case Key.K:
+                _cursorManager.SetPosition(_cursorManager.Position - 1);
+                break;
+            case Key.L:
+                _cursorManager.SetPosition(_cursorManager.Position + 1);
+                break;
+            case Key.I:
+                _editorMode = EditorMode.Insert;
+                UpdateStatusBar();
+                break;
+            case Key.V:
+                _editorMode = EditorMode.Visual;
+                UpdateStatusBar();
+                StartSelection(_cursorManager.Position);
+                break;
+            case Key.D:
+                if (e.Modifiers.HasFlag(KeyModifiers.Control))
+                {
+                    PageDown();
+                }
+                break;
+            case Key.U:
+                if (e.Modifiers.HasFlag(KeyModifiers.Control))
+                {
+                    PageUp();
+                }
+                break;
+            case Key.Semicolon:
+                _editorMode = EditorMode.Command;
+                UpdateStatusBar();
+                break;
+        }
+        e.Handled = true;
+    }
+
+    private void HandleInsertModeKeyDown(KeyEventArgs e)
+    {
+        if (e.Key == Key.Escape)
+        {
+            _editorMode = EditorMode.Normal;
+            UpdateStatusBar();
+            e.Handled = true;
+        }
+        else
+        {
+            _inputManager.HandleKeyDown(e);
+        }
+    }
+
+    private void HandleVisualModeKeyDown(KeyEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case Key.H:
+                UpdateSelection(_cursorManager.Position - 1);
+                break;
+            case Key.J:
+                UpdateSelection(_cursorManager.Position + 1);
+                break;
+            case Key.K:
+                UpdateSelection(_cursorManager.Position - 1);
+                break;
+            case Key.L:
+                UpdateSelection(_cursorManager.Position + 1);
+                break;
+            case Key.Escape:
+                _editorMode = EditorMode.Normal;
+                UpdateStatusBar();
+                EndSelection();
+                break;
+            case Key.Y:
+                // TODO: Implement CopySelection method
+                _editorMode = EditorMode.Normal;
+                UpdateStatusBar();
+                EndSelection();
+                break;
+            case Key.D:
+                // TODO: Implement CutSelection method
+                _editorMode = EditorMode.Normal;
+                UpdateStatusBar();
+                EndSelection();
+                break;
+        }
+        e.Handled = true;
+    }
+
+    private void HandleCommandModeKeyDown(KeyEventArgs e)
+    {
+        // TODO implement        
+        e.Handled = true;
     }
 
     public void HandleTextInput(TextInputEventArgs e)
     {
-        _inputManager.HandleTextInput(e);
+        if (_isModularMode && _editorMode == EditorMode.Insert)
+        {
+            _inputManager.HandleTextInput(e);
+        }
+        else if (!_isModularMode)
+        {
+            _inputManager.HandleTextInput(e);
+        }
     }
 
     public void StartSelection(int position)
@@ -353,5 +538,13 @@ public class EditorViewModel : IEditorViewModel
     public void PageDown()
     {
         _inputManager.HandleKeyDown(new KeyEventArgs(Key.PageDown, KeyModifiers.None));
+    }
+
+    enum EditorMode
+    {
+        Normal,
+        Insert,
+        Visual,
+        Command
     }
 }

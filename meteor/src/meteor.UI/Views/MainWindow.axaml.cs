@@ -45,6 +45,7 @@ public partial class MainWindow : Window
     private readonly ISettingsService _settingsService;
     private readonly IFileService _fileService;
     private readonly ITabViewModelFactory _tabViewModelFactory;
+    private readonly IStatusBarService _statusBarService;
     private readonly UndoRedoManager _undoRedoManager;
     private CommandPalette _commandPalette;
     private LeftSideBar _leftSideBar;
@@ -63,12 +64,12 @@ public partial class MainWindow : Window
     public MainWindow(MainWindowViewModel mainWindowViewModel, ITabService tabService, IEditorLayoutManager layoutManager,
         IEditorInputHandler inputHandler, ITextMeasurer textMeasurer, IEditorConfig config, IScrollManager scrollManager,
         IPointerEventHandler pointerEventHandler, IThemeManager themeManager, IFileService fileService,
-        IGitService gitService, ISearchService searchService, ISettingsService settingsService, ITabViewModelFactory tabViewModelFactory, UndoRedoManager undoRedoManager)
+        IGitService gitService, ISearchService searchService, ISettingsService settingsService, ITabViewModelFactory tabViewModelFactory, UndoRedoManager undoRedoManager, IStatusBarService statusBarService)
     {
         InitializeComponent();
 
-        (_mainWindowViewModel, _tabService, _config, _textMeasurer, _themeManager, _scrollManager, _searchService, _gitService, _settingsService, _fileService, _tabViewModelFactory, _undoRedoManager) =
-            (mainWindowViewModel, tabService, config, textMeasurer, themeManager, scrollManager, searchService, gitService, settingsService, fileService, tabViewModelFactory, undoRedoManager);
+        (_mainWindowViewModel, _tabService, _config, _textMeasurer, _themeManager, _scrollManager, _searchService, _gitService, _settingsService, _fileService, _tabViewModelFactory, _undoRedoManager, _statusBarService) =
+            (mainWindowViewModel, tabService, config, textMeasurer, themeManager, scrollManager, searchService, gitService, settingsService, fileService, tabViewModelFactory, undoRedoManager, statusBarService);
 
         DataContext = mainWindowViewModel;
         ClipToBounds = false;
@@ -120,6 +121,8 @@ public partial class MainWindow : Window
         SetupGridLayout();
 
         Content = _mainGrid;
+
+        _statusBarService.SetStatusBar(_statusBar);
     }
 
     private StatusBar CreateStatusBar()
@@ -150,7 +153,7 @@ public partial class MainWindow : Window
 
     private CommandPalette CreateCommandPalette()
     {
-        var commandPalette = new CommandPalette(_themeManager, _fileService, _tabService, _tabViewModelFactory, _textMeasurer, _undoRedoManager)
+        var commandPalette = new CommandPalette(_themeManager, _fileService, _tabService, _tabViewModelFactory, _textMeasurer, _undoRedoManager, _statusBarService)
         {
             ZIndex = 1000,
             HorizontalAlignment = HorizontalAlignment.Center,
@@ -417,7 +420,8 @@ public partial class MainWindow : Window
             selectionManager,
             editorConfig,
             _textMeasurer,
-            new CompletionProvider(textBufferService)
+            new CompletionProvider(textBufferService),
+            _statusBarService
         );
         inputManager.SetViewModel(editorViewModel);
 

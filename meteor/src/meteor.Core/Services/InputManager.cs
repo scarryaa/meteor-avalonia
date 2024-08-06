@@ -160,6 +160,9 @@ public class InputManager : IInputManager
                 case Key.RightAlt:
                     // Do nothing for Alt key presses
                     break;
+                case Key.Escape:
+                    // Do nothing for Escape key press
+                    break;
                 default:
                     return;
             }
@@ -176,6 +179,14 @@ public class InputManager : IInputManager
     {
         if (_isClipboardOperationHandled || _isControlOrMetaPressed)
         {
+            e.Handled = true;
+            return;
+        }
+
+        // Check for escape key
+        if (e.Text == "\u001b") // Escape character
+        {
+            _viewModel.CloseCompletion();
             e.Handled = true;
             return;
         }

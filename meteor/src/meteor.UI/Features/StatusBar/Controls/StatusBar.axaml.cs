@@ -15,7 +15,7 @@ public class StatusBar : UserControl
     private readonly IThemeManager _themeManager;
     private Border _border;
     private TextBlock _lineColumnTextBlock;
-    private TextBlock _statusTextBlock;
+    private TextBlock _vimModeTextBlock;
     private Button _leftSidebarToggleButton;
     private Button _rightSidebarToggleButton;
 
@@ -41,14 +41,21 @@ public class StatusBar : UserControl
         _leftSidebarToggleButton.Click += (_, _) => LeftSidebarToggleRequested?.Invoke(this, EventArgs.Empty);
         _rightSidebarToggleButton.Click += (_, _) => RightSidebarToggleRequested?.Invoke(this, EventArgs.Empty);
 
-        _statusTextBlock = new TextBlock { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 10, 0) };
+        _vimModeTextBlock = new TextBlock
+        {
+            VerticalAlignment = VerticalAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Margin = new Thickness(0, 0, 10, 0),
+            IsVisible = false,
+        };
 
         _lineColumnTextBlock = new TextBlock
         {
             VerticalAlignment = VerticalAlignment.Center,
             HorizontalAlignment = HorizontalAlignment.Right,
             Margin = new Thickness(10, 0, 10, 0),
-            Cursor = new Cursor(StandardCursorType.Hand)
+            Cursor = new Cursor(StandardCursorType.Hand),
+            IsVisible = true
         };
 
         _lineColumnTextBlock.PointerPressed += OnLineColumnTextBlockPressed;
@@ -57,19 +64,22 @@ public class StatusBar : UserControl
         {
             Child = new Grid
             {
-                ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto,Auto"),
+                ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto,Auto,Auto"),
                 Children =
                 {
                     new Panel { Children = { _leftSidebarToggleButton }, [Grid.ColumnProperty] = 0 },
-                    new Panel { Children = { _statusTextBlock }, [Grid.ColumnProperty] = 1 },
-                    new Panel { Children = { _lineColumnTextBlock }, [Grid.ColumnProperty] = 2 },
-                    new Panel { Children = { _rightSidebarToggleButton }, [Grid.ColumnProperty] = 3 }
+                    new Panel { Children = { _vimModeTextBlock }, [Grid.ColumnProperty] = 2 },
+                    new Panel { Children = { _lineColumnTextBlock }, [Grid.ColumnProperty] = 3 },
+                    new Panel { Children = { _rightSidebarToggleButton }, [Grid.ColumnProperty] = 4 }
                 }
             },
             BorderThickness = new Thickness(0, 1, 0, 0)
         };
 
         Content = _border;
+
+        // Set initial content for TextBlocks to ensure they are visible
+        SetLineAndColumn(1, 1);
     }
 
     private Button CreateSidebarToggleButton(string icon, HorizontalAlignment alignment) =>
@@ -115,7 +125,7 @@ public class StatusBar : UserControl
     {
         var theme = _themeManager.CurrentTheme;
         Background = new SolidColorBrush(Color.Parse(theme.StatusBarColor));
-        _statusTextBlock.Foreground = _lineColumnTextBlock.Foreground = _leftSidebarToggleButton.Foreground = _rightSidebarToggleButton.Foreground = new SolidColorBrush(Color.Parse(theme.AppForegroundColor));
+        _lineColumnTextBlock.Foreground = _vimModeTextBlock.Foreground = _leftSidebarToggleButton.Foreground = _rightSidebarToggleButton.Foreground = new SolidColorBrush(Color.Parse(theme.TextBrush));
         _border.BorderBrush = new SolidColorBrush(Color.Parse(theme.BorderBrush));
         UpdateButtonStyles(_leftSidebarToggleButton);
         UpdateButtonStyles(_rightSidebarToggleButton);
@@ -132,9 +142,17 @@ public class StatusBar : UserControl
             GoToLineColumnRequested?.Invoke(this, (line, column));
     }
 
-    public void SetStatus(string status) => _statusTextBlock.Text = status;
+    public void SetLineAndColumn(int line, int column)
+    {
+        _lineColumnTextBlock.Text = $"Ln {line}, Col {column}";
+        _lineColumnTextBlock.IsVisible = true;
+    }
 
-    public void SetLineAndColumn(int line, int column) => _lineColumnTextBlock.Text = $"Ln {line}, Col {column}";
+    public void SetVimMode(string mode)
+    {
+        _vimModeTextBlock.Text = mode;
+        _vimModeTextBlock.IsVisible = mode != "Normal";
+    }
 
     internal void UpdateLeftSidebarButtonStyle(bool isSidebarOpen) => UpdateSidebarButtonStyle(_leftSidebarToggleButton, isSidebarOpen);
 
