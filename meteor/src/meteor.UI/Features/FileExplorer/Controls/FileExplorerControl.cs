@@ -43,7 +43,6 @@ public class FileExplorerControl : UserControl
     private Theme _currentTheme;
     private Grid _mainGrid;
     private ScrollViewer _scrollViewer;
-    private FileItem _selectedItem;
     private Button _selectPathButton;
     private ConcurrentDictionary<string, Task> _populationTasks = new ConcurrentDictionary<string, Task>();
     private Dictionary<string, Geometry> _iconCache = new Dictionary<string, Geometry>();
@@ -53,6 +52,7 @@ public class FileExplorerControl : UserControl
     private Timer _refreshTimer;
     private const int RefreshInterval = 5000; // 5 seconds
     private GitStatusManager _gitStatusManager;
+    private FileItem _selectedItem;
 
     public FileExplorerControl(IThemeManager themeManager, IGitService gitService)
     {
@@ -665,7 +665,7 @@ public class FileExplorerControl : UserControl
 
         if (itemClicked != null)
         {
-            _selectedItem = itemClicked;
+            UpdateSelectedItem(itemClicked);
             if (itemClicked.IsDirectory)
                 ToggleDirectoryExpansion(itemClicked);
             else
@@ -674,6 +674,12 @@ public class FileExplorerControl : UserControl
             UpdateCanvasSize();
             InvalidateVisual();
         }
+    }
+
+    private void UpdateSelectedItem(FileItem newSelectedItem)
+    {
+        _selectedItem = newSelectedItem;
+        _fileItemRenderer.UpdateSelectedItem(_selectedItem);
     }
 
     private void ToggleDirectoryExpansion(FileItem directory)
@@ -753,7 +759,7 @@ public class FileExplorerControl : UserControl
         var allItems = GetFlattenedItems(_items);
         var currentIndex = allItems.IndexOf(_selectedItem);
         var newIndex = (currentIndex + direction + allItems.Count) % allItems.Count;
-        _selectedItem = allItems[newIndex];
+        UpdateSelectedItem(allItems[newIndex]);
         ScrollToItem(_selectedItem);
         InvalidateVisual();
     }
@@ -767,7 +773,7 @@ public class FileExplorerControl : UserControl
     private void MoveSelectionToEnd(int direction)
     {
         var allItems = GetFlattenedItems(_items);
-        _selectedItem = direction < 0 ? allItems[0] : allItems[allItems.Count - 1];
+        UpdateSelectedItem(direction < 0 ? allItems[0] : allItems[allItems.Count - 1]);
         ScrollToItem(_selectedItem);
         InvalidateVisual();
     }
@@ -784,7 +790,7 @@ public class FileExplorerControl : UserControl
             var parent = FindParentItem(_items, _selectedItem);
             if (parent != null)
             {
-                _selectedItem = parent;
+                UpdateSelectedItem(parent);
                 ScrollToItem(_selectedItem);
             }
         }
@@ -802,7 +808,7 @@ public class FileExplorerControl : UserControl
             }
             else if (_selectedItem.Children.Any())
             {
-                _selectedItem = _selectedItem.Children[0];
+                UpdateSelectedItem(_selectedItem.Children[0]);
                 ScrollToItem(_selectedItem);
             }
         }

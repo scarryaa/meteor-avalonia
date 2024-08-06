@@ -19,7 +19,7 @@ class FileItemRenderer
     private readonly IThemeManager _themeManager;
     private readonly IGitService _gitService;
     private readonly ScrollViewer _scrollViewer;
-    private readonly FileItem _selectedItem;
+    private FileItem _selectedItem;
     private readonly Dictionary<string, Geometry> _iconCache = new Dictionary<string, Geometry>();
     private readonly Dictionary<string, FormattedText> _textCache = new Dictionary<string, FormattedText>();
 
@@ -29,6 +29,11 @@ class FileItemRenderer
         _themeManager = themeManager;
         _gitService = gitService;
         _scrollViewer = scrollViewer;
+        _selectedItem = selectedItem;
+    }
+
+    public void UpdateSelectedItem(FileItem selectedItem)
+    {
         _selectedItem = selectedItem;
     }
 
@@ -66,6 +71,10 @@ class FileItemRenderer
         {
             var backgroundBrush = new SolidColorBrush(Color.Parse(_currentTheme.FileExplorerSelectedItemBackgroundColor));
             context.FillRectangle(backgroundBrush, new Rect(0, y, viewport.Width, _itemHeight));
+
+            var highlightBrush = new SolidColorBrush(Color.Parse(_currentTheme.FileExplorerSelectedItemBackgroundColor));
+            var borderThickness = 2;
+            context.DrawRectangle(highlightBrush, null, new Rect(0, y, viewport.Width, _itemHeight), borderThickness);
         }
     }
 
