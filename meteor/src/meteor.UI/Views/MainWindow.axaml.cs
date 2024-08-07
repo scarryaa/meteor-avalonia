@@ -345,6 +345,7 @@ public partial class MainWindow : Window
 
     private async Task OnDirectoryOpenedAsync(object? sender, string? directoryPath)
     {
+        Console.WriteLine($"Opening directory: {directoryPath}");
         if (string.IsNullOrEmpty(directoryPath)) return;
 
         _titlebar.SetProjectNameFromDirectory(directoryPath);
@@ -353,19 +354,18 @@ public partial class MainWindow : Window
 
         try
         {
-            await Task.Run(async () =>
+            await Dispatcher.UIThread.InvokeAsync(() =>
             {
-                await Dispatcher.UIThread.InvokeAsync(async () =>
-                {
-                    await Task.WhenAll(
-                        Task.Run(() => _gitService.UpdateProjectRoot(directoryPath), cts.Token),
-                        Task.Run(() => _searchService.UpdateProjectRoot(directoryPath), cts.Token),
-                        Task.Run(() => _leftSideBar.UpdateFiles(directoryPath), cts.Token),
-                        Task.Run(() => _leftSideBar.SetDirectory(directoryPath), cts.Token),
-                        _sourceControlView.UpdateChangesAsync(cts.Token)
-                    );
-                }, DispatcherPriority.Background);
-            }, cts.Token);
+                _leftSideBar.SetDirectory(directoryPath);
+                _commandPalette.SetCurrentDirectory(directoryPath);
+            });
+
+            await Task.WhenAll(
+                Task.Run(() => _gitService.UpdateProjectRoot(directoryPath), cts.Token),
+                Task.Run(() => _searchService.UpdateProjectRoot(directoryPath), cts.Token),
+                Task.Run(() => _leftSideBar.UpdateFiles(directoryPath), cts.Token),
+                Task.Run(() => _sourceControlView.UpdateChangesAsync(cts.Token))
+            );
 
             await Dispatcher.UIThread.InvokeAsync(() =>
             {

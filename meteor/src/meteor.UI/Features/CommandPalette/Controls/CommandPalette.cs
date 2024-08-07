@@ -1,7 +1,4 @@
-using System;
 using System.Collections.ObjectModel;
-using System.Linq;
-using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -10,11 +7,8 @@ using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.Controls.Templates;
 using Avalonia.Layout;
-using Avalonia.Controls.Presenters;
-using Avalonia.Media.TextFormatting;
 using meteor.Core.Interfaces.Services;
 using Avalonia.Platform.Storage;
-using meteor.UI.Features.Tabs.ViewModels;
 using meteor.UI.Features.Editor.ViewModels;
 using meteor.Core.Services;
 using meteor.UI.Services;
@@ -24,6 +18,7 @@ using meteor.Core.Models;
 using Color = Avalonia.Media.Color;
 using SolidColorBrush = Avalonia.Media.SolidColorBrush;
 using System.IO;
+using System.Linq;
 
 namespace meteor.UI.Features.CommandPalette.Controls;
 
@@ -34,12 +29,12 @@ public class CommandPalette : UserControl
     private readonly ITabService _tabService;
     private readonly ITabViewModelFactory _tabViewModelFactory;
     private readonly ITextMeasurer _textMeasurer;
-    private readonly ICompletionProvider _completionProvider;
     private readonly ObservableCollection<CommandItem> _commands;
     private ListBox _resultsList;
     private TextBox _searchBox;
     private readonly UndoRedoManager _undoRedoManager;
     private readonly IStatusBarService _statusBarService;
+    private string _currentDirectory = Directory.GetCurrentDirectory();
 
     public CommandPalette(IThemeManager themeManager, IFileService fileService, ITabService tabService, ITabViewModelFactory tabViewModelFactory, ITextMeasurer textMeasurer, UndoRedoManager undoRedoManager, IStatusBarService statusBarService)
     {
@@ -68,7 +63,7 @@ public class CommandPalette : UserControl
     {
         _searchBox = new TextBox
         {
-            Watermark = "Search commands...",
+            Watermark = "Search commands or files...",
             Margin = new Thickness(10, 10, 10, 5),
             Classes = { "search-box" }
         };
@@ -81,7 +76,7 @@ public class CommandPalette : UserControl
             Classes = { "results-list" }
         };
 
-        _resultsList.ItemTemplate = new FuncDataTemplate<CommandItem>((item, _) =>
+        _resultsList.ItemTemplate = new FuncDataTemplate<object>((item, _) =>
         {
             var panel = new StackPanel
             {
@@ -91,7 +86,7 @@ public class CommandPalette : UserControl
 
             var icon = new TextBlock
             {
-                Text = GetIconForCommand(item?.Name),
+                Text = GetIconForItem(item),
                 VerticalAlignment = VerticalAlignment.Center,
                 FontSize = 14,
                 FontFamily = new FontFamily("avares://meteor.UI/Common/Assets/Fonts/FontAwesome/Font Awesome 6 Free-Solid-900.otf#Font Awesome 6 Free")
@@ -99,7 +94,7 @@ public class CommandPalette : UserControl
 
             var text = new TextBlock
             {
-                Text = item?.Name ?? "Unknown Command",
+                Text = GetTextForItem(item),
                 VerticalAlignment = VerticalAlignment.Center,
                 FontSize = 14
             };
@@ -145,6 +140,32 @@ public class CommandPalette : UserControl
                 CommandPalette_IsVisibleChanged(sender, args);
             }
         };
+    }
+
+    private string GetIconForItem(object item)
+    {
+        if (item is CommandItem commandItem)
+        {
+            return GetIconForCommand(commandItem.Name);
+        }
+        else if (item is string filePath)
+        {
+            return "\uf15b"; // fa-file
+        }
+        return "\uf002"; // fa-search
+    }
+
+    private string GetTextForItem(object item)
+    {
+        if (item is CommandItem commandItem)
+        {
+            return commandItem.Name;
+        }
+        else if (item is string filePath)
+        {
+            return Path.GetFileName(filePath);
+        }
+        return "Unknown Item";
     }
 
     private string GetIconForCommand(string commandName)
@@ -250,13 +271,38 @@ public class CommandPalette : UserControl
         }
     }
 
-    private void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
+    private async void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
     {
         var searchText = _searchBox.Text.ToLower();
         var filteredCommands = _commands
             .Where(c => c.Name.ToLower().Contains(searchText) && c.IsVisible)
             .ToList();
-        _resultsList.ItemsSource = filteredCommands;
+
+        var filteredFiles = await SearchFiles(searchText);
+
+        var combinedResults = filteredCommands.Cast<object>().Concat(filteredFiles).ToList();
+        _resultsList.ItemsSource = combinedResults;
+    }
+
+    private async Task<List<string>> SearchFiles(string searchText)
+    {
+        if (string.IsNullOrWhiteSpace(searchText))
+            return new List<string>();
+
+        try
+        {
+            var files = await Task.Run(() => Directory.GetFiles(_currentDirectory, "*", SearchOption.AllDirectories)
+                .Where(f => Path.GetFileName(f).ToLower().Contains(searchText))
+                .Take(10)
+                .ToList());
+
+            return files;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error searching files: {ex.Message}");
+            return new List<string>();
+        }
     }
 
     private void CommandPalette_KeyDown(object sender, KeyEventArgs e)
@@ -275,18 +321,63 @@ public class CommandPalette : UserControl
                 e.Handled = true;
                 break;
             case Key.Enter:
-                ExecuteSelectedCommand();
+                ExecuteSelectedItem();
                 e.Handled = true;
                 break;
         }
     }
 
-    private void ExecuteSelectedCommand()
+    private void ExecuteSelectedItem()
     {
         if (_resultsList.SelectedItem is CommandItem selectedCommand)
         {
             selectedCommand.Execute();
             Hide();
+        }
+        else if (_resultsList.SelectedItem is string filePath)
+        {
+            OpenSelectedFile(filePath);
+            Hide();
+        }
+    }
+
+    private async void OpenSelectedFile(string filePath)
+    {
+        try
+        {
+            var content = await _fileService.OpenFileAsync(filePath);
+            if (content != null)
+            {
+                var fileName = Path.GetFileName(filePath);
+                var tabConfig = new TabConfig(_tabService, _themeManager);
+                var editorViewModel = CreateEditorViewModel();
+                if (editorViewModel != null)
+                {
+                    editorViewModel.LoadContent(content);
+                    var tabViewModel = _tabViewModelFactory.Create(editorViewModel, tabConfig, filePath, fileName, _themeManager);
+                    if (tabViewModel != null)
+                    {
+                        _tabService.AddTab(editorViewModel, tabConfig, fileName, filePath, content);
+                    }
+                    else
+                    {
+                        Console.WriteLine("Error: Failed to create tab view model.");
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("Error: Failed to create editor view model.");
+                }
+            }
+            else
+            {
+                Console.WriteLine("Error: File content is null.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error opening file: {ex.Message}");
+            Console.WriteLine(ex.StackTrace);
         }
     }
 
@@ -325,42 +416,7 @@ public class CommandPalette : UserControl
             if (result.Count > 0)
             {
                 var filePath = result[0].Path.LocalPath;
-                try
-                {
-                    var content = await _fileService.OpenFileAsync(filePath);
-                    if (content != null)
-                    {
-                        var fileName = Path.GetFileName(filePath);
-                        var tabConfig = new TabConfig(_tabService, _themeManager);
-                        var editorViewModel = CreateEditorViewModel();
-                        if (editorViewModel != null)
-                        {
-                            editorViewModel.LoadContent(content);
-                            var tabViewModel = _tabViewModelFactory.Create(editorViewModel, tabConfig, filePath, fileName, _themeManager);
-                            if (tabViewModel != null)
-                            {
-                                _tabService.AddTab(editorViewModel, tabConfig, fileName, filePath, content);
-                            }
-                            else
-                            {
-                                Console.WriteLine("Error: Failed to create tab view model.");
-                            }
-                        }
-                        else
-                        {
-                            Console.WriteLine("Error: Failed to create editor view model.");
-                        }
-                    }
-                    else
-                    {
-                        Console.WriteLine("Error: File content is null.");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error opening file: {ex.Message}");
-                    Console.WriteLine(ex.StackTrace);
-                }
+                OpenSelectedFile(filePath);
             }
         }
         else
@@ -420,6 +476,19 @@ public class CommandPalette : UserControl
         _commands.First(c => c.Name == "Save File").IsVisible = hasActiveTab;
         _commands.First(c => c.Name == "Close Tab").IsVisible = hasActiveTab;
         _resultsList.ItemsSource = _commands.Where(c => c.IsVisible).ToList();
+    }
+
+    public void SetCurrentDirectory(string path)
+    {
+        if (Directory.Exists(path))
+        {
+            _currentDirectory = path;
+        }
+        else
+        {
+            Console.WriteLine($"Warning: The directory '{path}' does not exist. Using current directory as fallback.");
+            _currentDirectory = Directory.GetCurrentDirectory();
+        }
     }
 }
 

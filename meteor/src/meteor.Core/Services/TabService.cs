@@ -26,8 +26,8 @@ public class TabService : ITabService
     public event EventHandler<ITabViewModel?> TabRemoved;
     public event EventHandler<ITabViewModel?> ActiveTabChanged;
 
-    public ITabViewModel AddTab(IEditorViewModel editorViewModel, ITabViewModelConfig tabConfig, string filePath,
-        string fileName, string initialContent = "")
+    public ITabViewModel AddTab(IEditorViewModel editorViewModel, ITabViewModelConfig tabConfig, string fileName,
+        string filePath, string initialContent = "")
     {
         var tabViewModel = _tabViewModelFactory.Create(editorViewModel, tabConfig, filePath, fileName, _themeManager);
         tabViewModel?.LoadContent(initialContent);
