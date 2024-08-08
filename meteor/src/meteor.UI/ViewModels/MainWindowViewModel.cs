@@ -217,8 +217,10 @@ public class MainWindowViewModel : ObservableObject
     {
         var newEditorInstance = _editorInstanceFactory.Create();
         _tabService.AddTab(newEditorInstance.EditorViewModel, new TabConfig(_tabService, _themeManager),
+            $"Untitled {_tabService.Tabs.Count + 1}",
             string.Empty,
-            $"Untitled {_tabService.Tabs.Count + 1}");
+            string.Empty
+        );
         Debug.WriteLine($"New tab opened: Untitled {_tabService.Tabs.Count}");
     }
 
